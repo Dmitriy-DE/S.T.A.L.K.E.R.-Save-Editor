@@ -1,0 +1,224 @@
+--[[
+  Save Editor companion — in-game menu for Call of Pripyat.
+  Opened from the pause menu with F1 (one line in ui_main_menu.script, the
+  place the vanilla game already keeps a commented-out hotkey). Built like the
+  vanilla load dialog (ui_load_dialog.script) and the «Повелитель Зоны 5.0»
+  trainer menu (https://github.com/xray-storage/so-xray/blob/master/gamedata/scripts/ui_god_dialog.script).
+  Actions live in save_editor_companion.script; this file is only the window.
+--]]
+
+local MONEY_STEP = 10000
+local POINTS_FILE = "save_editor_points.txt"
+
+-- Saved points: one line "level|x|y|z|game_vertex|name" in $app_data_root$.
+local function points_path()
+	return getFS():update_path("$app_data_root$", POINTS_FILE)
+end
+
+local function load_points()
+	local points = {}
+	local f = io.open(points_path(), "r")
+	if f == nil then
+		return points
+	end
+	for line in f:lines() do
+		local lvl, x, y, z, gv, name = string.match(line, "^([^|]+)|([^|]+)|([^|]+)|([^|]+)|([^|]+)|(.*)$")
+		if lvl ~= nil then
+			table.insert(points, {
+				level = lvl, pos = vector():set(tonumber(x), tonumber(y), tonumber(z)),
+				gv = tonumber(gv), name = name,
+			})
+		end
+	end
+	f:close()
+	return points
+end
+
+local function save_points(points)
+	local f = io.open(points_path(), "w")
+	if f == nil then
+		return
+	end
+	for _, p in ipairs(points) do
+		f:write(string.format("%s|%.3f|%.3f|%.3f|%d|%s\n", p.level, p.pos.x, p.pos.y, p.pos.z, p.gv, p.name))
+	end
+	f:close()
+end
+
+class "companion_item" (CUIListBoxItem)
+
+function companion_item:__init(height) super(height)
+	self:SetTextColor(GetARGB(255, 170, 170, 170))
+	self.fn = self:GetTextItem()
+	self.fn:SetFont(GetFontLetterica18Russian())
+	self.fn:SetEllipsis(true)
+end
+
+class "companion_dialog" (CUIScriptWnd)
+
+function companion_dialog:__init(owner) super()
+	self.owner = owner
+	self.entries = {}
+	self:InitControls()
+	self:InitCallBacks()
+	self:Fill()
+end
+
+function companion_dialog:InitControls()
+	self:SetWndRect(Frect():set(0, 0, 1024, 768))
+	local xml = CScriptXmlInit()
+	xml:ParseFile("ui_save_editor_companion.xml")
+	xml:InitStatic("background", self)
+
+	local probe = CUIWindow()
+	xml:InitWindow("file_item:main", 0, probe)
+	self.item_size = vector2():set(probe:GetWidth(), probe:GetHeight())
+
+	self.form = xml:InitStatic("form", self)
+	xml:InitStatic("form:caption", self.form)
+	xml:InitStatic("form:picture", self.form)
+	self.title = xml:InitTextWnd("form:file_caption", self.form)
+	self.details = xml:InitTextWnd("form:file_data", self.form)
+	xml:InitFrame("form:list_frame", self.form)
+	self.list_box = xml:InitListBox("form:list", self.form)
+	self.list_box:ShowSelectedItem(true)
+	self:Register(self.list_box, "list_window")
+	self:Register(xml:Init3tButton("form:btn_load", self.form), "button_do")
+	self:Register(xml:Init3tButton("form:btn_delete", self.form), "button_mark")
+	self:Register(xml:Init3tButton("form:btn_cancel", self.form), "button_back")
+end
+
+function companion_dialog:InitCallBacks()
+	self:AddCallback("button_do", ui_events.BUTTON_CLICKED, self.OnDo, self)
+	self:AddCallback("button_mark", ui_events.BUTTON_CLICKED, self.OnMark, self)
+	self:AddCallback("button_back", ui_events.BUTTON_CLICKED, self.OnBack, self)
+	self:AddCallback("list_window", ui_events.LIST_ITEM_CLICKED, self.OnSelect, self)
+	self:AddCallback("list_window", ui_events.WINDOW_LBUTTON_DB_CLICK, self.OnDo, self)
+end
+
+function companion_dialog:Add(text, entry)
+	local item = companion_item(self.item_size.y)
+	item:SetWndSize(self.item_size)
+	item.fn:SetWndPos(vector2():set(0, 0))
+	item.fn:SetWndSize(self.item_size)
+	item.fn:SetText(text)
+	self.list_box:AddExistingItem(item)
+	table.insert(self.entries, entry)
+end
+
+function companion_dialog:Fill()
+	self.list_box:RemoveAll()
+	self.entries = {}
+	self:Add("Heal (health, stamina, psy, radiation)", { kind = "heal" })
+	self:Add("Repair worn gear", { kind = "repair" })
+	self:Add("+" .. MONEY_STEP .. " RU", { kind = "money" })
+	self.points = load_points()
+	for index, p in ipairs(self.points) do
+		self:Add("* " .. p.name, { kind = "point", index = index })
+	end
+	local places = save_editor_companion.all_smarts()
+	table.sort(places, function(a, b)
+		if a.level ~= b.level then
+			return a.level < b.level
+		end
+		return a.title < b.title
+	end)
+	for _, smart in ipairs(places) do
+		if smart.title ~= "" then
+			self:Add(game.translate_string(smart.level) .. ": " .. smart.title, { kind = "smart", smart = smart })
+		end
+	end
+	self.title:SetText(game.translate_string(level.name()))
+	self.details:SetText("Mark here saves this spot; select a * point and press Mark here again to delete it.")
+end
+
+function companion_dialog:Selected()
+	local index = self.list_box:GetSelectedIndex()
+	if index == nil or index < 0 then
+		return nil
+	end
+	return self.entries[index + 1]
+end
+
+function companion_dialog:OnSelect()
+	local entry = self:Selected()
+	if entry ~= nil and entry.kind == "smart" then
+		self.details:SetText(entry.smart.name .. " @ " .. entry.smart.level)
+	end
+end
+
+function companion_dialog:Close(to_game)
+	self.owner:ShowDialog(true)
+	self:HideDialog()
+	self.owner:Show(true)
+	if to_game then
+		self.owner:OnButton_return_game()
+	end
+end
+
+function companion_dialog:OnDo()
+	local entry = self:Selected()
+	if entry == nil then
+		return
+	end
+	local status, text = "ok", ""
+	if entry.kind == "heal" then
+		status, text = save_editor_companion.run("heal", {})
+	elseif entry.kind == "repair" then
+		status, text = save_editor_companion.run("repair_equipped", {})
+	elseif entry.kind == "money" then
+		status, text = save_editor_companion.run("money", { tostring(MONEY_STEP) })
+	elseif entry.kind == "point" then
+		local p = self.points[entry.index]
+		status, text = save_editor_companion.jump_to(p.level, p.pos, p.gv, p.name)
+	elseif entry.kind == "smart" then
+		local s = entry.smart
+		status, text = save_editor_companion.jump_to(s.level, s.obj.position, s.obj.m_game_vertex_id, s.name)
+	end
+	if status ~= "ok" then
+		self.details:SetText(status .. ": " .. tostring(text))
+		return
+	end
+	self:Close(true)
+end
+
+function companion_dialog:OnMark()
+	local entry = self:Selected()
+	if entry ~= nil and entry.kind == "point" then
+		table.remove(self.points, entry.index)
+	else
+		local actor = db.actor
+		local name = game.translate_string(level.name()) .. " #" .. (table.getn(self.points) + 1)
+		table.insert(self.points, {
+			level = level.name(), pos = actor:position(), gv = actor:game_vertex_id(), name = name,
+		})
+	end
+	save_points(self.points)
+	self:Fill()
+end
+
+function companion_dialog:OnBack()
+	self:Close(false)
+end
+
+function companion_dialog:OnKeyboard(dik, keyboard_action)
+	CUIScriptWnd.OnKeyboard(self, dik, keyboard_action)
+	if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
+		if dik == DIK_keys.DIK_ESCAPE then
+			self:OnBack()
+		elseif dik == DIK_keys.DIK_RETURN then
+			self:OnDo()
+		end
+	end
+	return true
+end
+
+-- Called from main_menu:OnKeyboard while the pause menu is open.
+function on_menu_key(dik, menu)
+	if dik == DIK_keys.DIK_F1 and level.present() and db.actor ~= nil and db.actor:alive() then
+		local dlg = companion_dialog(menu)
+		dlg:ShowDialog(true)
+		menu:HideDialog()
+		menu:Show(false)
+	end
+end

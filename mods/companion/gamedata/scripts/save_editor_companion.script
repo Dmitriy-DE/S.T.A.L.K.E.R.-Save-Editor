@@ -180,20 +180,11 @@ end
 
 function handlers.smarts(args)
 	local only_level = args[1]
-	local sim = alife()
 	local names = {}
-	for id = 1, MAX_OBJECT_ID do
-		local obj = sim:object(id)
-		if obj ~= nil and obj:section_name() == "smart_terrain" then
-			local lvl = level_of(obj)
-			if only_level == nil or only_level == lvl then
-				-- the trainer shows the same st_<smart>_name strings (god_tbl.script)
-				local title = game.translate_string("st_" .. obj:name() .. "_name")
-				if title == "st_" .. obj:name() .. "_name" then
-					title = ""
-				end
-				table.insert(names, obj:name() .. "@" .. lvl .. "=" .. string.gsub(title, "[,=]", " "))
-			end
+	-- the trainer shows the same st_<smart>_name strings (god_tbl.script)
+	for _, smart in ipairs(all_smarts()) do
+		if only_level == nil or only_level == smart.level then
+			table.insert(names, smart.name .. "@" .. smart.level .. "=" .. string.gsub(smart.title, "[,=]", " "))
 		end
 	end
 	return "ok", table.concat(names, ",")
@@ -269,6 +260,40 @@ local function spawn_level_changer(dest_level, dest_pos, dest_gv)
 	return obj
 end
 
+-- Jump to a place given by level name, position and game vertex. Same level:
+-- move the actor; another level: temporary level changer (CoP only).
+function jump_to(target_level, pos, gv, label)
+	if target_level == level.name() then
+		db.actor:set_actor_position(pos)
+		return "ok", "at " .. label
+	end
+	if not (COP_LEVELS[level.name()] and COP_LEVELS[target_level]) then
+		return "unsupported", "cross-level jump is only proven in Call of Pripyat"
+	end
+	local lc = spawn_level_changer(target_level, pos, gv)
+	pending_release = { id = lc.id, at = time_global() + 300 }
+	return "ok", "jumping to " .. label .. "@" .. target_level
+end
+
+-- Every smart terrain as {name, level, title}; title is the in-game place name
+-- or "" when the game has none.
+function all_smarts()
+	local sim = alife()
+	local result = {}
+	for id = 1, MAX_OBJECT_ID do
+		local obj = sim:object(id)
+		if obj ~= nil and obj:section_name() == "smart_terrain" then
+			local key = "st_" .. obj:name() .. "_name"
+			local title = game.translate_string(key)
+			if title == key then
+				title = ""
+			end
+			table.insert(result, { name = obj:name(), level = level_of(obj), title = title, obj = obj })
+		end
+	end
+	return result
+end
+
 function handlers.jump(args)
 	local name = args[1]
 	if name == nil then
@@ -278,17 +303,20 @@ function handlers.jump(args)
 	if target == nil then
 		return "error", "no smart terrain " .. name
 	end
-	local target_level = level_of(target)
-	if target_level == level.name() then
-		db.actor:set_actor_position(target.position)
-		return "ok", "at " .. name
+	return jump_to(level_of(target), target.position, target.m_game_vertex_id, name)
+end
+
+-- Run one protocol command from the in-game menu; returns status, text.
+function run(command, args)
+	local handler = handlers[command]
+	if handler == nil then
+		return "unsupported", command
 	end
-	if not (COP_LEVELS[level.name()] and COP_LEVELS[target_level]) then
-		return "unsupported", "cross-level jump is only proven in Call of Pripyat"
+	local ok, status, text = pcall(handler, args)
+	if not ok then
+		return "error", status
 	end
-	local lc = spawn_level_changer(target_level, target.position, target.m_game_vertex_id)
-	pending_release = { id = lc.id, at = time_global() + 300 }
-	return "ok", "jumping to " .. name .. "@" .. target_level
+	return status, text
 end
 
 local function execute(line)

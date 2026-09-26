@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "baselineRunId": "36262343669",
+  "baselineCommit": "72da10a",
+  "runner": "ubuntu-24.04 GitHub-hosted",
+  "benchmarkDotNet": "0.15.8",
+  "runtime": ".NET 10.0.12",
+  "job": "ShortRun, one launch, three warmups, three iterations",
+  "maximumRegressionPercent": 30,
+  "benchmarks": {
+    "LzoDecompress": {
+      "meanNanoseconds": 38.7,
+      "allocatedBytes": 408
+    },
+    "KrakenDecompress": {
+      "meanNanoseconds": 121.3,
+      "allocatedBytes": 1192
+    },
+    "ParseSoc": {
+      "meanNanoseconds": 1094.21,
+      "allocatedBytes": 3200
+    },
+    "ParseClearSky": {
+      "meanNanoseconds": 1199.01,
+      "allocatedBytes": 3368
+    },
+    "ParseCallOfPripyat": {
+      "meanNanoseconds": 1185.92,
+      "allocatedBytes": 3384
+    },
+    "ParseSocEnhanced": {
+      "meanNanoseconds": 1088.11,
+      "allocatedBytes": 3208
+    },
+    "ParseClearSkyEnhanced": {
+      "meanNanoseconds": 1221.68,
+      "allocatedBytes": 3376
+    },
+    "ParseCallOfPripyatEnhanced": {
+      "meanNanoseconds": 1286.09,
+      "allocatedBytes": 3384
+    },
+    "ParseStalker2": {
+      "meanNanoseconds": 10543.48,
+      "allocatedBytes": 13312
+    }
+  }
+}

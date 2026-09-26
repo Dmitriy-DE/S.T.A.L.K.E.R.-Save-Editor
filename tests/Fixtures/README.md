@@ -40,3 +40,15 @@ python tools/generate_s2_money_fixtures.py --python-repo /path/to/S.T.A.L.K.E.R.
 
 The fixture manifest records the Python revision, source/output hashes, the
 wallet offset, and the Python capability maturity.
+
+S2 stack writer vectors under `writer-s2-stacks/` are generated from the
+Python `prepare_edit` oracle and its native Kraken encoder. Build the encoder
+into a temporary directory, add that directory to `PYTHONPATH`, then run:
+
+```bash
+python tools/generate_s2_stack_fixtures.py --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor
+```
+
+The manifest records the 32-bit object handle, requested count, source/output
+hashes and capability maturity. The expected raw payload confirms that the
+Python writer changes only the stack count and total-weight fields.

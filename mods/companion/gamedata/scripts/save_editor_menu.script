@@ -1,0 +1,209 @@
+--[[
+  S.T.A.L.K.E.R. Save Editor — companion place names & menu helper.
+  Loads mods/companion/data/place_names.json (or game-specific mapping)
+  to provide localized names for smart terrains lacking native st_<name>_name.
+--]]
+
+local place_names = nil
+
+-- Runtime game detection using engine Lua export signatures
+local function detect_game()
+	if _G.CUIListBox ~= nil then
+		return "cop"
+	elseif _G.vector2 ~= nil then
+		return "cs"
+	else
+		return "soc"
+	end
+end
+
+-- Minimal pure Lua 5.1 JSON parser for place_names.json structure
+local function parse_json(str)
+	if str == nil or str == "" then return nil end
+	local pos = 1
+	local len = #str
+
+	local function skip_ws()
+		while pos <= len do
+			local b = str:byte(pos)
+			if b == 32 or b == 9 or b == 10 or b == 13 then
+				pos = pos + 1
+			else
+				break
+			end
+		end
+	end
+
+	local parse_value
+
+	local function parse_string()
+		pos = pos + 1 -- skip opening quote
+		local start = pos
+		local chunks = {}
+		while pos <= len do
+			local c = str:sub(pos, pos)
+			if c == "\"" then
+				table.insert(chunks, str:sub(start, pos - 1))
+				pos = pos + 1
+				return table.concat(chunks)
+			elseif c == "\\" then
+				table.insert(chunks, str:sub(start, pos - 1))
+				pos = pos + 1
+				local esc = str:sub(pos, pos)
+				if esc == "\"" or esc == "\\" or esc == "/" then
+					table.insert(chunks, esc)
+					pos = pos + 1
+				elseif esc == "n" then
+					table.insert(chunks, "\n")
+					pos = pos + 1
+				elseif esc == "r" then
+					table.insert(chunks, "\r")
+					pos = pos + 1
+				elseif esc == "t" then
+					table.insert(chunks, "\t")
+					pos = pos + 1
+				elseif esc == "u" then
+					local hex = str:sub(pos + 1, pos + 4)
+					local code = tonumber(hex, 16)
+					if code and code < 128 then
+						table.insert(chunks, string.char(code))
+					elseif code then
+						if code < 0x800 then
+							table.insert(chunks, string.char(192 + math.floor(code / 64), 128 + (code % 64)))
+						else
+							table.insert(chunks, string.char(224 + math.floor(code / 4096), 128 + (math.floor(code / 64) % 64), 128 + (code % 64)))
+						end
+					end
+					pos = pos + 5
+				else
+					table.insert(chunks, esc)
+					pos = pos + 1
+				end
+				start = pos
+			else
+				pos = pos + 1
+			end
+		end
+		return table.concat(chunks)
+	end
+
+	local function parse_object()
+		pos = pos + 1 -- skip {
+		local obj = {}
+		skip_ws()
+		if str:sub(pos, pos) == "}" then
+			pos = pos + 1
+			return obj
+		end
+		while pos <= len do
+			skip_ws()
+			if str:sub(pos, pos) ~= "\"" then break end
+			local key = parse_string()
+			skip_ws()
+			if str:sub(pos, pos) == ":" then pos = pos + 1 end
+			skip_ws()
+			local val = parse_value()
+			obj[key] = val
+			skip_ws()
+			local sep = str:sub(pos, pos)
+			if sep == "," then
+				pos = pos + 1
+			elseif sep == "}" then
+				pos = pos + 1
+				break
+			else
+				break
+			end
+		end
+		return obj
+	end
+
+	parse_value = function()
+		skip_ws()
+		local c = str:sub(pos, pos)
+		if c == "{" then
+			return parse_object()
+		elseif c == "\"" then
+			return parse_string()
+		else
+			return nil
+		end
+	end
+
+	return parse_value()
+end
+
+function load_place_names(filepath)
+	local fs = getFS()
+	local candidates = {}
+	if filepath ~= nil then
+		table.insert(candidates, filepath)
+	end
+	if fs ~= nil then
+		table.insert(candidates, fs:update_path("$game_data$", "place_names.json"))
+		table.insert(candidates, fs:update_path("$fs_root$", "mods/companion/data/place_names.json"))
+		table.insert(candidates, fs:update_path("$app_data_root$", "place_names.json"))
+	end
+
+	for _, path in ipairs(candidates) do
+		local f = io.open(path, "r")
+		if f ~= nil then
+			local content = f:read("*all")
+			f:close()
+			local parsed = parse_json(content)
+			if parsed ~= nil and (parsed.cop ~= nil or parsed.cs ~= nil or parsed.soc ~= nil) then
+				place_names = parsed
+				return place_names
+			end
+		end
+	end
+	return nil
+end
+
+function get_place_name(smart_name, game_id, lang)
+	if place_names == nil then
+		load_place_names()
+	end
+	if place_names == nil then
+		return nil
+	end
+
+	local g = game_id or detect_game()
+	local game_places = place_names[g]
+	if game_places == nil then
+		return nil
+	end
+
+	local entry = game_places[smart_name]
+	if entry == nil then
+		return nil
+	end
+
+	local l = lang or "ru"
+	return entry[l] or entry.ru or entry.en
+end
+
+function get_smart_title(smart_obj, game_id, lang)
+	if smart_obj == nil then return "" end
+	local name = smart_obj:name()
+	local key = "st_" .. name .. "_name"
+	local title = game.translate_string(key)
+	if title ~= nil and title ~= key and title ~= "" then
+		return title
+	end
+
+	local mapped = get_place_name(name, game_id, lang)
+	if mapped ~= nil and mapped ~= "" then
+		return mapped
+	end
+
+	return ""
+end
+
+-- Export functions to table for both X-Ray script engine and external scripts
+save_editor_menu = _G.save_editor_menu or {}
+save_editor_menu.load_place_names = load_place_names
+save_editor_menu.get_place_name = get_place_name
+save_editor_menu.get_smart_title = get_smart_title
+_G.save_editor_menu = save_editor_menu
+

@@ -192,6 +192,9 @@ function handlers.smarts(args)
 				if title == "st_" .. obj:name() .. "_name" then
 					title = ""
 				end
+				if title == "" and save_editor_menu ~= nil and save_editor_menu.get_place_name ~= nil then
+					title = save_editor_menu.get_place_name(obj:name()) or ""
+				end
 				table.insert(names, obj:name() .. "@" .. lvl .. "=" .. string.gsub(title, "[,=]", " "))
 			end
 		end

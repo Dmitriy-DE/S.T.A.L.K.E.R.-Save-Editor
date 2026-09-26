@@ -128,8 +128,8 @@ def main() -> None:
     parser.add_argument(
         "--source-dir",
         type=Path,
-        default=Path("/home/dmytro/save-editor-review/worktrees/save-editor/locales"),
-        help="Path to Python locales directory",
+        required=True,
+        help="Path to the Python repo locales directory (e.g. ../save-editor/locales)",
     )
     parser.add_argument(
         "--out-dir",

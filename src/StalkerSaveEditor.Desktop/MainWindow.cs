@@ -39,7 +39,7 @@ public sealed class MainWindow : Window
         });
         headingText.Children.Add(new TextBlock
         {
-            Text = "Только чтение",
+            Text = "X-Ray: редактирование с резервной копией",
             Opacity = 0.72,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(16, 0, 0, 0),
@@ -131,7 +131,31 @@ public sealed class MainWindow : Window
         var detailName = BoundText(nameof(SaveLibraryViewModel.SelectedSaveName), 23, FontWeight.SemiBold);
         var detailRelease = BoundText(nameof(SaveLibraryViewModel.SelectedReleaseName), 14, FontWeight.Normal);
         detailRelease.Opacity = 0.72;
-        var moneyLabel = BoundText(nameof(SaveLibraryViewModel.SelectedMoneyDisplay), 18, FontWeight.Medium);
+        var moneyLabel = new TextBlock
+        {
+            Text = "Деньги",
+            FontSize = 16,
+            FontWeight = FontWeight.SemiBold,
+        };
+        var moneyInput = new TextBox
+        {
+            Width = 176,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Watermark = "Только число",
+        };
+        moneyInput.Bind(TextBox.TextProperty, new Binding(nameof(SaveLibraryViewModel.MoneyInput))
+        {
+            Mode = BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+        });
+        moneyInput.Bind(TextBox.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.CanEditMoney)));
+        var moneyHint = new TextBlock
+        {
+            Text = "Деньги и доступные стаки сохраняются одним действием. Перед записью рядом с сейвом появятся backup и recovery.",
+            FontSize = 12,
+            Opacity = 0.72,
+            TextWrapping = TextWrapping.Wrap,
+        };
         var inventoryHeading = new TextBlock
         {
             Text = "Инвентарь",
@@ -147,7 +171,17 @@ public sealed class MainWindow : Window
         var detailContent = new StackPanel
         {
             Spacing = 8,
-            Children = { detailName, detailRelease, moneyLabel, inventoryHeading, inventory },
+            Children =
+            {
+                detailName,
+                detailRelease,
+                moneyLabel,
+                moneyInput,
+                moneyHint,
+                inventoryHeading,
+                inventory,
+                MakeSaveFooter(),
+            },
         };
         detailContent.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.HasSelection)));
 
@@ -163,6 +197,27 @@ public sealed class MainWindow : Window
         return root;
     }
 
+    private static Control MakeSaveFooter()
+    {
+        var save = new Button
+        {
+            Content = "Сохранить",
+            MinWidth = 140,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 20, 0, 0),
+        };
+        save.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.SaveCommand)));
+        save.Bind(Button.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.CanSave)));
+        var status = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0),
+            Opacity = 0.82,
+        };
+        status.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.StatusMessage)));
+        return new StackPanel { Children = { save, status } };
+    }
+
     private static Control MakeInventoryLine(InventoryLineViewModel item)
     {
         var grid = new Grid
@@ -171,13 +226,33 @@ public sealed class MainWindow : Window
             Margin = new Thickness(0, 5),
         };
         grid.Children.Add(new TextBlock { Text = item.Name, TextWrapping = TextWrapping.Wrap });
-        var count = new TextBlock
+        Control count;
+        if (item.CanEditCount)
         {
-            Text = item.CountDisplay,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Opacity = 0.76,
-            Margin = new Thickness(12, 0, 0, 0),
-        };
+            var countInput = new TextBox
+            {
+                Width = 108,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Watermark = "Количество",
+            };
+            countInput.Bind(TextBox.TextProperty, new Binding(nameof(InventoryLineViewModel.CountInput))
+            {
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+            });
+            count = countInput;
+        }
+        else
+        {
+            count = new TextBlock
+            {
+                Text = item.CountDisplay,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Opacity = 0.76,
+                Margin = new Thickness(12, 0, 0, 0),
+            };
+        }
+
         Grid.SetColumn(count, 1);
         grid.Children.Add(count);
         var border = new Border

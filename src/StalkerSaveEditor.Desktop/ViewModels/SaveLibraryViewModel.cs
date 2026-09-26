@@ -244,7 +244,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             parsedMoney != selected.Money
                 ? parsedMoney
                 : (uint?)null;
-        var stackCounts = new Dictionary<ushort, uint>();
+        var stackCounts = new Dictionary<uint, uint>();
         foreach (var item in selected.Inventory.Where(item => item.CanEditCount))
         {
             if (uint.TryParse(item.CountInput, NumberStyles.None, CultureInfo.InvariantCulture, out var count) &&

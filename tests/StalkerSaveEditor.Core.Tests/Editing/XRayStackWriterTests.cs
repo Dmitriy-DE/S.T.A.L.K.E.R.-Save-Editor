@@ -43,7 +43,7 @@ public sealed class XRayStackWriterTests
         var expectedRaw = ReadFixture(vector.ExpectedRaw);
         var plan = new EditPlan(
             vector.SourceSha256,
-            stackCounts: new Dictionary<ushort, uint> { [vector.Handle] = vector.Count });
+            stackCounts: new Dictionary<uint, uint> { [vector.Handle] = vector.Count });
 
         var prepared = XRayStackWriter.Prepare(source, plan);
 
@@ -96,7 +96,7 @@ public sealed class XRayStackWriterTests
         var plan = new EditPlan(
             sha,
             money: 2000,
-            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 12 });
+            stackCounts: new Dictionary<uint, uint> { [0x1234] = 12 });
 
         Assert.Throws<XRayFormatException>(() => XRayMoneyWriter.Prepare(source, plan));
     }
@@ -104,14 +104,14 @@ public sealed class XRayStackWriterTests
     [Fact]
     public void Edit_plan_copies_stack_counts_and_exposes_a_read_only_snapshot()
     {
-        var counts = new Dictionary<ushort, uint> { [0x1234] = 12 };
+        var counts = new Dictionary<uint, uint> { [0x1234] = 12 };
         var plan = new EditPlan(new string('0', 64), stackCounts: counts);
 
         counts[0x1234] = 20;
 
         Assert.Equal(12u, plan.StackCounts[0x1234]);
         Assert.Throws<NotSupportedException>(
-            () => ((IDictionary<ushort, uint>)plan.StackCounts)[0x1234] = 20);
+            () => ((IDictionary<uint, uint>)plan.StackCounts)[0x1234] = 20);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class XRayStackWriterTests
         var source = ReadFixture("xray-stack-soc-source.sav");
         var plan = new EditPlan(
             new string('0', 64),
-            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 12 });
+            stackCounts: new Dictionary<uint, uint> { [0x1234] = 12 });
 
         Assert.Throws<XRayFormatException>(() => XRayStackWriter.Prepare(source, plan));
     }
@@ -133,7 +133,7 @@ public sealed class XRayStackWriterTests
         var plan = new EditPlan(
             sha,
             money: 2000,
-            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 12 });
+            stackCounts: new Dictionary<uint, uint> { [0x1234] = 12 });
 
         Assert.Throws<XRayFormatException>(() => XRayStackWriter.Prepare(source, plan));
     }
@@ -163,7 +163,7 @@ public sealed class XRayStackWriterTests
     private static EditPlan Plan(byte[] source, ushort handle, uint count) =>
         new(
             Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant(),
-            stackCounts: new Dictionary<ushort, uint> { [handle] = count });
+            stackCounts: new Dictionary<uint, uint> { [handle] = count });
 
     private static JsonDocument ReadManifest() =>
         JsonDocument.Parse(File.ReadAllBytes(Path.Combine(FixtureDirectory, "xray-stack-vectors.json")));

@@ -82,8 +82,18 @@ internal sealed record XRayRegistryObject(
     ushort Version,
     int RecordOffset,
     int RecordLength,
+    int StateOffset,
+    int StateLength,
+    int UpdateOffset,
+    int UpdateLength,
     int? ClientDataOffset,
-    int ClientDataLength);
+    int ClientDataLength,
+    ushort? AmmoCount,
+    int? AmmoStateCountOffset,
+    int? AmmoUpdateCountOffset,
+    IReadOnlyList<string>? Upgrades,
+    int? UpgradesOffset,
+    int? UpgradesLength);
 
 public sealed class XRayInventoryItem
 {

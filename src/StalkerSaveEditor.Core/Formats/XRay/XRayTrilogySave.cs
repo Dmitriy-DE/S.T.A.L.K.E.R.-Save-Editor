@@ -82,6 +82,10 @@ internal sealed record XRayRegistryObject(
     ushort Version,
     int RecordOffset,
     int RecordLength,
+    int StateOffset,
+    int StateLength,
+    int UpdateOffset,
+    int UpdateLength,
     int? ClientDataOffset,
     int ClientDataLength);
 

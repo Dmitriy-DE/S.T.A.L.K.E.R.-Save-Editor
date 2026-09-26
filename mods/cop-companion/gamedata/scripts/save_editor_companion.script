@@ -1,0 +1,272 @@
+--[[
+  S.T.A.L.K.E.R.: Call of Pripyat - Save Editor Companion Mod
+  Module: save_editor_companion.script
+
+  IPC mechanism:
+  Reads command requests from $app_data_root$/save_editor_cmd.txt
+  Writes command responses to $app_data_root$/save_editor_out.txt
+  Deletes input command file upon consumption.
+
+  All engine function bindings are documented with OpenXRay source links.
+--]]
+
+local CHECK_INTERVAL_MS = 2000 -- Poll every 2000 ms
+local last_check_time = 0
+
+-- Engine binding reference:
+-- time_global() -> Device.dwTimeGlobal
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrEngine/device.cpp#L655
+
+-- Engine binding reference:
+-- getFS():update_path(alias, filename) -> CLocatorAPI::update_path
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/fs_registrator_script.cpp#L8
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/fs_registrator_script.cpp#L246
+
+-- Helper: JSON string escape
+local function escape_json(str)
+    if not str then return "" end
+    str = string.gsub(str, '\\', '\\\\')
+    str = string.gsub(str, '"', '\\"')
+    str = string.gsub(str, '\n', '\\n')
+    str = string.gsub(str, '\r', '\\r')
+    str = string.gsub(str, '\t', '\\t')
+    return str
+end
+
+-- Helper: write JSON response to save_editor_out.txt
+local function write_response(out_file_path, status, message)
+    local out_f, err = io.open(out_file_path, "w")
+    if not out_f then
+        -- Unable to write response file; log to console if possible
+        return false, err
+    end
+
+    local ts = os.time()
+    local payload = string.format('{"status":"%s","message":"%s","timestamp":%d}\n',
+        status, escape_json(message), ts)
+    out_f:write(payload)
+    out_f:flush()
+    out_f:close()
+    return true
+end
+
+-- Handler: "ping"
+local function cmd_ping(args)
+    return "ok", "pong"
+end
+
+-- Handler: "give <section> [count]"
+-- Engine binding references:
+-- db.actor:position() -> CScriptGameObject::Position
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script2.cpp#L78
+-- db.actor:level_vertex_id() -> CScriptGameObject::level_vertex_id
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script2.cpp#L294
+-- db.actor:game_vertex_id() -> CScriptGameObject::game_vertex_id
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script2.cpp#L295
+-- db.actor:id() -> CScriptGameObject::ID
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script2.cpp#L81
+-- alife():create(...) -> CALifeSimulator::create
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/alife_simulator_script.cpp#L477-L480
+-- system_ini():section_exist(...) -> CInifile::section_exist
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrServerEntities/script_ini_file_script.cpp#L44
+local function cmd_give(args)
+    local section = args[1]
+    if not section or section == "" then
+        return "error", "Usage: give <section> [count]"
+    end
+
+    local count = tonumber(args[2]) or 1
+    if count < 1 or count > 100 then
+        return "error", "Count must be between 1 and 100"
+    end
+
+    local ini = system_ini()
+    if ini and not ini:section_exist(section) then
+        return "error", "Item section '" .. section .. "' does not exist in game configs"
+    end
+
+    local sim = alife()
+    if not sim then
+        return "error", "ALife simulator is not available"
+    end
+
+    local pos = db.actor:position()
+    local lvid = db.actor:level_vertex_id()
+    local gvid = db.actor:game_vertex_id()
+    local pid = db.actor:id()
+
+    for i = 1, count do
+        sim:create(section, pos, lvid, gvid, pid)
+    end
+
+    return "ok", string.format("Spawned %dx %s into inventory", count, section)
+end
+
+-- Handler: "money <delta>"
+-- Engine binding references:
+-- db.actor:give_money(delta) -> CScriptGameObject::GiveMoney
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script3.cpp#L234
+-- db.actor:money() -> CScriptGameObject::Money
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script3.cpp#L235
+local function cmd_money(args)
+    local delta_str = args[1]
+    if not delta_str then
+        return "error", "Usage: money <delta>"
+    end
+
+    local delta = tonumber(delta_str)
+    if not delta then
+        return "error", "Invalid numeric delta: " .. tostring(delta_str)
+    end
+
+    db.actor:give_money(delta)
+    local current_money = db.actor:money()
+    return "ok", string.format("Money adjusted by %+d (current balance: %d)", delta, current_money)
+end
+
+-- Handler: "teleport <x> <y> <z>"
+-- Engine binding references:
+-- vector():set(x, y, z) -> Fvector::set
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrServerEntities/script_fvector_script.cpp#L25
+-- db.actor:set_actor_position(vector) -> CScriptGameObject::SetActorPosition
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script2.cpp#L320
+local function cmd_teleport(args)
+    local x = tonumber(args[1])
+    local y = tonumber(args[2])
+    local z = tonumber(args[3])
+
+    if not x or not y or not z then
+        return "error", "Usage: teleport <x> <y> <z> (all coordinates must be valid numbers)"
+    end
+
+    local target_pos = vector():set(x, y, z)
+    db.actor:set_actor_position(target_pos)
+
+    return "ok", string.format("Actor teleported to (%.3f, %.3f, %.3f)", x, y, z)
+end
+
+-- Dispatch table
+local COMMANDS = {
+    ["ping"]     = cmd_ping,
+    ["give"]     = cmd_give,
+    ["money"]    = cmd_money,
+    ["teleport"] = cmd_teleport
+}
+
+-- Execute single command string safely
+local function process_command_string(raw_line)
+    if not raw_line then
+        return "error", "Empty command"
+    end
+
+    -- Trim whitespace
+    local trimmed = string.match(raw_line, "^%s*(.-)%s*$")
+    if trimmed == "" then
+        return "error", "Blank command"
+    end
+
+    -- Tokenize by whitespace
+    local tokens = {}
+    for token in string.gmatch(trimmed, "%S+") do
+        table.insert(tokens, token)
+    end
+
+    local cmd_name = string.lower(tokens[1])
+    local handler = COMMANDS[cmd_name]
+    if not handler then
+        return "error", "Unknown command: " .. cmd_name
+    end
+
+    -- Extract args
+    local args = {}
+    for i = 2, #tokens do
+        table.insert(args, tokens[i])
+    end
+
+    return handler(args)
+end
+
+-- Safe cycle update called from actor_binder:update
+function update()
+    -- Guard: Engine time check
+    local tg = time_global()
+    if (tg - last_check_time) < CHECK_INTERVAL_MS then
+        return
+    end
+    last_check_time = tg
+
+    -- Guard: Actor must exist and be alive
+    -- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object_script2.cpp#L45
+    if not db or not db.actor then
+        return
+    end
+
+    local is_alive = false
+    pcall(function()
+        is_alive = db.actor:alive()
+    end)
+    if not is_alive then
+        return
+    end
+
+    -- Guard: Resolve filesystem paths safely
+    local cmd_path = nil
+    local out_path = nil
+    local fs_ok = pcall(function()
+        local fs = getFS()
+        cmd_path = fs:update_path("$app_data_root$", "save_editor_cmd.txt")
+        out_path = fs:update_path("$app_data_root$", "save_editor_out.txt")
+    end)
+
+    if not fs_ok or not cmd_path or not out_path then
+        return
+    end
+
+    -- Check if command file exists
+    local in_f = io.open(cmd_path, "r")
+    if not in_f then
+        return -- No pending command
+    end
+
+    -- Read entire command content
+    local content = in_f:read("*all")
+    in_f:close()
+
+    -- Remove command file immediately to prevent duplicate execution
+    pcall(function()
+        os.remove(cmd_path)
+    end)
+
+    if not content or content == "" then
+        write_response(out_path, "error", "Command file was empty")
+        return
+    end
+
+    -- Process first non-empty line
+    local line_to_run = nil
+    for line in string.gmatch(content, "[^\r\n]+") do
+        local clean = string.match(line, "^%s*(.-)%s*$")
+        if clean ~= "" then
+            line_to_run = clean
+            break
+        end
+    end
+
+    if not line_to_run then
+        write_response(out_path, "error", "No valid command found in file")
+        return
+    end
+
+    -- Run command with pcall isolation so engine never crashes
+    local exec_ok, status_or_err, msg = pcall(function()
+        return process_command_string(line_to_run)
+    end)
+
+    if not exec_ok then
+        write_response(out_path, "error", "Internal script error: " .. tostring(status_or_err))
+    else
+        local status = status_or_err
+        local message = msg or ""
+        write_response(out_path, status, message)
+    end
+end

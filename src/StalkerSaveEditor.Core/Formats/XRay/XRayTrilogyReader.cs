@@ -110,7 +110,8 @@ public static class XRayTrilogyReader
             }
 
             IReadOnlyList<string>? upgrades = null;
-            if (record.Version > 123 && TryReadUpgrades(raw, record, out var parsedUpgrades))
+            if (record.Version > 123 &&
+                TryReadUpgrades(raw, record, out var parsedUpgrades, out _, out _))
             {
                 upgrades = Array.AsReadOnly(parsedUpgrades);
             }
@@ -129,6 +130,12 @@ public static class XRayTrilogyReader
         }
 
         items.Sort(static (left, right) => left.Handle.CompareTo(right.Handle));
+        var registryObjects = new XRayRegistryObject[records.Count];
+        for (var index = 0; index < records.Count; index++)
+        {
+            registryObjects[index] = ToRegistryObject(records[index]);
+        }
+
         return new XRayTrilogySave(
             format.Id,
             container.Version,
@@ -142,15 +149,7 @@ public static class XRayTrilogyReader
             actorState.Rank,
             actorState.Reputation,
             actorState.Name,
-            Array.AsReadOnly(records.Select(record => new XRayRegistryObject(
-                record.Name,
-                record.ObjectId,
-                record.ParentId,
-                record.Version,
-                record.RecordOffset,
-                record.RecordLength,
-                record.ClientDataOffset,
-                record.ClientDataLength)).ToArray()),
+            Array.AsReadOnly(registryObjects),
             gameTime,
             timeFactor,
             normalTimeFactor,
@@ -359,6 +358,20 @@ public static class XRayTrilogyReader
             clientDataLength);
     }
 
+    private static XRayRegistryObject ToRegistryObject(ObjectRecord record) => new(
+            record.Name,
+            record.ObjectId,
+            record.ParentId,
+            record.Version,
+            record.RecordOffset,
+            record.RecordLength,
+            record.StateOffset,
+            record.StateLength,
+            record.UpdateOffset,
+            record.UpdateLength,
+            record.ClientDataOffset,
+            record.ClientDataLength);
+
     private static ActorState ParseActorState(ReadOnlySpan<byte> state, ushort version, int stateOffset)
     {
         var reader = new SpanReader(state, "actor STATE");
@@ -539,6 +552,26 @@ public static class XRayTrilogyReader
         ObjectRecord record,
         out ushort count,
         out int stateCountOffset,
+        out int updateCountOffset) => TryReadAmmoCount(
+            raw,
+            record.Version,
+            record.StateOffset,
+            record.StateLength,
+            record.UpdateOffset,
+            record.UpdateLength,
+            out count,
+            out stateCountOffset,
+            out updateCountOffset);
+
+    internal static bool TryReadAmmoCount(
+        ReadOnlySpan<byte> raw,
+        ushort version,
+        int stateOffset,
+        int stateLength,
+        int updateOffset,
+        int updateLength,
+        out ushort count,
+        out int stateCountOffset,
         out int updateCountOffset)
     {
         count = 0;
@@ -546,26 +579,26 @@ public static class XRayTrilogyReader
         updateCountOffset = -1;
         try
         {
-            var reader = new SpanReader(raw.Slice(record.StateOffset, record.StateLength), "ammo STATE");
-            ReadDynamicVisualState(ref reader, record.Version);
-            if (record.Version > 52)
+            var reader = new SpanReader(raw.Slice(stateOffset, stateLength), "ammo STATE");
+            ReadDynamicVisualState(ref reader, version);
+            if (version > 52)
             {
                 reader.Skip(sizeof(float)); // condition
             }
 
-            if (record.Version > 123)
+            if (version > 123)
             {
                 SkipStringVector(ref reader);
             }
 
             count = reader.ReadUInt16();
-            stateCountOffset = checked(record.StateOffset + reader.Position - sizeof(ushort));
-            if (record.UpdateLength < 5)
+            stateCountOffset = checked(stateOffset + reader.Position - sizeof(ushort));
+            if (updateLength < 5)
             {
                 return false;
             }
 
-            updateCountOffset = record.UpdateOffset + record.UpdateLength - sizeof(ushort);
+            updateCountOffset = updateOffset + updateLength - sizeof(ushort);
             _ = BinaryPrimitives.ReadUInt16LittleEndian(raw[updateCountOffset..]);
             return true;
         }
@@ -575,19 +608,45 @@ public static class XRayTrilogyReader
         }
     }
 
-    private static bool TryReadUpgrades(ReadOnlySpan<byte> raw, ObjectRecord record, out string[] upgrades)
+    private static bool TryReadUpgrades(
+        ReadOnlySpan<byte> raw,
+        ObjectRecord record,
+        out string[] upgrades,
+        out int upgradesOffset,
+        out int upgradesLength) => TryReadUpgrades(
+            raw,
+            record.Version,
+            record.StateOffset,
+            record.StateLength,
+            out upgrades,
+            out upgradesOffset,
+            out upgradesLength);
+
+    internal static bool TryReadUpgrades(
+        ReadOnlySpan<byte> raw,
+        ushort version,
+        int stateOffset,
+        int stateLength,
+        out string[] upgrades,
+        out int upgradesOffset,
+        out int upgradesLength)
     {
         upgrades = [];
+        upgradesOffset = -1;
+        upgradesLength = 0;
         try
         {
-            var reader = new SpanReader(raw.Slice(record.StateOffset, record.StateLength), "inventory STATE");
-            ReadDynamicVisualState(ref reader, record.Version);
-            if (record.Version > 52)
+            var reader = new SpanReader(raw.Slice(stateOffset, stateLength), "inventory STATE");
+            ReadDynamicVisualState(ref reader, version);
+            if (version > 52)
             {
                 reader.Skip(sizeof(float)); // condition
             }
 
+            var start = reader.Position;
             upgrades = ReadStringVector(ref reader);
+            upgradesOffset = checked(stateOffset + start);
+            upgradesLength = reader.Position - start;
             return true;
         }
         catch (XRayFormatException)

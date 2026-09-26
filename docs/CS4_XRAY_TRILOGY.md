@@ -5,6 +5,12 @@ of Pripyat formats from content: outer and ALIFE versions must match the
 supported original-game family, and the actor spawn version must match that
 family. Enhanced Edition ALIFE versions are rejected by this reader.
 
+`XRayEnhancedReader` accepts the Enhanced Edition ALIFE versions: SoC EE uses
+outer 3 / ALIFE 51; CS EE and CoP EE use outer 6 / ALIFE 54. The latter pair is
+distinguished by the case-sensitive `marsh` and `zaton` markers in the OBJECT
+chunk. It rejects saves with neither marker or with both markers. Both readers
+use the same read-only actor and inventory model.
+
 The parsed view includes actor money, health, faction index, rank, reputation,
 name, game time, and actor-owned object records. Ammo counts are exposed only
 when both the known STATE and UPDATE fields parse. Other inventory fields stay

@@ -11,11 +11,26 @@ public static class XRayTrilogyReader
     private const ushort SpawnMessage = 1;
     private const ushort UpdateMessage = 0;
     private const ushort SpawnHasVersion = 1 << 5;
+    private static readonly FormatDefinition[] OriginalFormats =
+    [
+        new("stalker-soc", 3, 3, [118], [], []),
+        new("stalker-cs", 5, 5, [122, 123, 124], [], []),
+        new("stalker-cop", 6, 6, [128], [], []),
+    ];
+    private static readonly FormatDefinition[] EnhancedFormats =
+    [
+        new("stalker-soc-ee", 3, 51, [118], [], []),
+        new("stalker-cs-ee", 6, 54, [128], ["marsh"u8.ToArray()], ["zaton"u8.ToArray()]),
+        new("stalker-cop-ee", 6, 54, [128], ["zaton"u8.ToArray()], ["marsh"u8.ToArray()]),
+    ];
 
-    public static XRayTrilogySave FromBytes(ReadOnlySpan<byte> data)
+    public static XRayTrilogySave FromBytes(ReadOnlySpan<byte> data) => Read(data, enhanced: false);
+
+    internal static XRayTrilogySave FromEnhancedBytes(ReadOnlySpan<byte> data) => Read(data, enhanced: true);
+
+    private static XRayTrilogySave Read(ReadOnlySpan<byte> data, bool enhanced)
     {
         var container = XRayContainer.FromBytes(data);
-        var format = GetOriginalFormat(container.Version);
         var chunks = container.Chunks;
         var alife = GetRequiredChunk(chunks, 0).Data.Span;
         if (alife.Length != sizeof(uint))
@@ -24,12 +39,6 @@ public static class XRayTrilogyReader
         }
 
         var alifeVersion = BinaryPrimitives.ReadUInt32LittleEndian(alife);
-        if (alifeVersion != container.Version)
-        {
-            throw Error(
-                $"ALIFE chunk version {alifeVersion} не относится к оригинальной игре " +
-                $"с container version {container.Version}");
-        }
 
         var timeChunk = GetRequiredChunk(chunks, 5).Data.Span;
         if (timeChunk.Length < 16)
@@ -46,6 +55,11 @@ public static class XRayTrilogyReader
         }
 
         var objectChunk = GetRequiredChunk(chunks, 2);
+        var format = GetSupportedFormat(
+            container.Version,
+            alifeVersion,
+            objectChunk.Data.Span,
+            enhanced);
         var records = ParseObjects(container.Raw.Span, objectChunk);
         var actors = records.Where(record => string.Equals(
             record.Name, "actor", StringComparison.OrdinalIgnoreCase)).ToArray();
@@ -118,13 +132,51 @@ public static class XRayTrilogyReader
             Array.AsReadOnly(items.ToArray()));
     }
 
-    private static OriginalFormat GetOriginalFormat(uint containerVersion) => containerVersion switch
+    private static FormatDefinition GetSupportedFormat(
+        uint containerVersion,
+        uint alifeVersion,
+        ReadOnlySpan<byte> objectData,
+        bool enhanced)
     {
-        3 => new OriginalFormat("stalker-soc", [118]),
-        5 => new OriginalFormat("stalker-cs", [122, 123, 124]),
-        6 => new OriginalFormat("stalker-cop", [128]),
-        _ => throw Error($"неподдерживаемая версия контейнера {containerVersion}"),
-    };
+        var formats = enhanced ? EnhancedFormats : OriginalFormats;
+        foreach (var format in formats)
+        {
+            if (format.ContainerVersion != containerVersion || format.AlifeVersion != alifeVersion)
+            {
+                continue;
+            }
+
+            var hasRequiredMarkers = true;
+            foreach (var marker in format.RequiredObjectMarkers)
+            {
+                if (objectData.IndexOf(marker) < 0)
+                {
+                    hasRequiredMarkers = false;
+                    break;
+                }
+            }
+
+            var hasForbiddenMarkers = false;
+            foreach (var marker in format.ForbiddenObjectMarkers)
+            {
+                if (objectData.IndexOf(marker) >= 0)
+                {
+                    hasForbiddenMarkers = true;
+                    break;
+                }
+            }
+
+            if (hasRequiredMarkers && !hasForbiddenMarkers)
+            {
+                return format;
+            }
+        }
+
+        var target = enhanced ? "Enhanced Edition" : "original trilogy";
+        throw Error(
+            $"container version {containerVersion}, ALIFE version {alifeVersion}, " +
+            $"and OBJECT markers do not identify a supported {target} save");
+    }
 
     private static XRayChunk GetRequiredChunk(IReadOnlyList<XRayChunk> chunks, uint type)
     {
@@ -557,7 +609,13 @@ public static class XRayTrilogyReader
 
     private static XRayFormatException Error(string message) => new($"X-Ray save: {message}");
 
-    private sealed record OriginalFormat(string Id, int[] ActorVersions);
+    private sealed record FormatDefinition(
+        string Id,
+        uint ContainerVersion,
+        uint AlifeVersion,
+        ushort[] ActorVersions,
+        byte[][] RequiredObjectMarkers,
+        byte[][] ForbiddenObjectMarkers);
 
     private sealed record ObjectRecord(
         string Name,

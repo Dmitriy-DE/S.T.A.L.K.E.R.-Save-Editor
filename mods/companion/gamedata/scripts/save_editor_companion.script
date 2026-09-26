@@ -29,6 +29,7 @@ local MAX_GIVE = 100
 local SLOT_LIMIT = 13 -- highest slot index is below this in all three games
 
 local next_poll = 0
+local pending_release = nil -- {id, at}: temporary level changer to remove
 local cmd_path, tmp_out_path, out_path
 
 local function paths()
@@ -155,6 +156,141 @@ function handlers.list_inventory()
 	return "ok", table.concat(items, ",")
 end
 
+-- Smart terrains are the game's own named places; their positions come from
+-- the running game, so no coordinate tables are needed. Same approach as the
+-- «Повелитель Зоны 5.0» trainer (ui_god_dialog.script, mode "level"):
+-- https://github.com/xray-storage/so-xray/blob/master/gamedata/scripts/ui_god_dialog.script
+local MAX_OBJECT_ID = 65534
+local COP_LEVELS = { zaton = true, jupiter = true, jupiter_underground = true, pripyat = true, labx8 = true }
+
+local function level_of(se_obj)
+	return alife():level_name(game_graph():vertex(se_obj.m_game_vertex_id):level_id())
+end
+
+local function find_smart(name)
+	local sim = alife()
+	for id = 1, MAX_OBJECT_ID do
+		local obj = sim:object(id)
+		if obj ~= nil and obj:section_name() == "smart_terrain" and obj:name() == name then
+			return obj
+		end
+	end
+	return nil
+end
+
+function handlers.smarts(args)
+	local only_level = args[1]
+	local sim = alife()
+	local names = {}
+	for id = 1, MAX_OBJECT_ID do
+		local obj = sim:object(id)
+		if obj ~= nil and obj:section_name() == "smart_terrain" then
+			local lvl = level_of(obj)
+			if only_level == nil or only_level == lvl then
+				-- the trainer shows the same st_<smart>_name strings (god_tbl.script)
+				local title = game.translate_string("st_" .. obj:name() .. "_name")
+				if title == "st_" .. obj:name() .. "_name" then
+					title = ""
+				end
+				table.insert(names, obj:name() .. "@" .. lvl .. "=" .. string.gsub(title, "[,=]", " "))
+			end
+		end
+	end
+	return "ok", table.concat(names, ",")
+end
+
+-- Cross-level jump: a temporary level_changer under the actor that points at
+-- the target, removed right after it fires. Packet layout of
+-- se_level_changer as written by the trainer's god.spawn_lc (CoP layout):
+-- https://github.com/xray-storage/so-xray/blob/master/gamedata/scripts/god.script
+local function spawn_level_changer(dest_level, dest_pos, dest_gv)
+	local actor = db.actor
+	local obj = alife():create("level_changer", actor:position(), 1, actor:game_vertex_id())
+	local packet = net_packet()
+	packet:w_begin(0)
+	obj:STATE_Write(packet)
+	packet:r_seek(2)
+	local game_vertex_id = packet:r_u16()
+	local unk1 = packet:r_float()
+	local unk2 = packet:r_s32()
+	local level_vertex_id = packet:r_s32()
+	local object_flags = packet:r_s32()
+	local custom_data = packet:r_stringZ()
+	local story_id = packet:r_s32()
+	local unk3 = packet:r_s32()
+	local shape_count = packet:r_u8()
+	for _ = 1, shape_count do
+		if packet:r_u8() == 0 then
+			packet:r_vec3()
+			packet:r_float()
+		else
+			packet:r_vec3()
+			packet:r_vec3()
+			packet:r_vec3()
+			packet:r_vec3()
+		end
+	end
+	local restrictor_type = packet:r_u8()
+	packet:r_u16()
+	packet:r_s32()
+	packet:r_vec3()
+	local dest_direction = packet:r_vec3()
+	packet:r_stringZ()
+	local dest_graph_point = packet:r_stringZ()
+	packet:r_u8()
+	local enabled = packet:r_u8()
+	local hint = packet:r_stringZ()
+	local marker = packet:r_u16()
+
+	packet:w_u16(game_vertex_id)
+	packet:w_float(unk1)
+	packet:w_s32(unk2)
+	packet:w_s32(level_vertex_id)
+	packet:w_s32(object_flags)
+	packet:w_stringZ(custom_data)
+	packet:w_s32(story_id)
+	packet:w_s32(unk3)
+	packet:w_u8(1) -- one sphere of radius 2 around the actor
+	packet:w_u8(0)
+	packet:w_vec3(vector():set(0, 0, 0))
+	packet:w_float(2)
+	packet:w_u8(restrictor_type)
+	packet:w_u16(dest_gv)
+	packet:w_s32(1)
+	packet:w_vec3(dest_pos)
+	packet:w_vec3(dest_direction)
+	packet:w_stringZ(dest_level)
+	packet:w_stringZ(dest_graph_point)
+	packet:w_u8(1) -- silent mode: no confirmation dialog
+	packet:w_u8(enabled)
+	packet:w_stringZ(hint)
+	packet:w_u16(marker)
+	obj:STATE_Read(packet, packet:w_tell() - packet:r_tell())
+	return obj
+end
+
+function handlers.jump(args)
+	local name = args[1]
+	if name == nil then
+		return "error", "usage: jump <smart_terrain name> (see: smarts)"
+	end
+	local target = find_smart(name)
+	if target == nil then
+		return "error", "no smart terrain " .. name
+	end
+	local target_level = level_of(target)
+	if target_level == level.name() then
+		db.actor:set_actor_position(target.position)
+		return "ok", "at " .. name
+	end
+	if not (COP_LEVELS[level.name()] and COP_LEVELS[target_level]) then
+		return "unsupported", "cross-level jump is only proven in Call of Pripyat"
+	end
+	local lc = spawn_level_changer(target_level, target.position, target.m_game_vertex_id)
+	pending_release = { id = lc.id, at = time_global() + 300 }
+	return "ok", "jumping to " .. name .. "@" .. target_level
+end
+
 local function execute(line)
 	local words = split(line)
 	local version, id, command = words[1], words[2], words[3]
@@ -180,6 +316,13 @@ local function execute(line)
 end
 
 function update()
+	if pending_release ~= nil and db.actor ~= nil and time_global() >= pending_release.at then
+		local lc = alife():object(pending_release.id)
+		pending_release = nil
+		if lc ~= nil then
+			alife():release(lc, true)
+		end
+	end
 	if db.actor == nil or time_global() < next_poll then
 		return
 	end

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<!-- Save Editor companion menu, Call of Pripyat. Layout is the editor's
+     (tab rail, list, item card); every texture is a vanilla CoP one used by
+     configs/ui/ui_mm_load_dlg.xml. Source is UTF-8; installed as windows-1251. -->
+<w>
+	<background width="1024" height="768">
+		<auto_static width="1024" height="768">
+			<texture>ui_inGame2_background</texture>
+		</auto_static>
+	</background>
+	<list_item height="20"/>
+
+	<form x="52" y="64" width="920" height="640" stretch="1">
+		<texture>ui_inGame2_main_window_small</texture>
+
+		<title x="34" y="22" width="300" height="30">
+			<text font="graffiti22" r="214" g="166" b="45" vert_align="c">КОМПАНЬОН</text>
+		</title>
+		<header x="330" y="22" width="556" height="30">
+			<text font="letterica18" r="216" g="186" b="140" align="r" vert_align="c"/>
+		</header>
+
+		<tab_player x="30" y="70" width="160" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18">Персонаж</text>
+		</tab_player>
+		<tab_inventory x="30" y="106" width="160" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18">Инвентарь</text>
+		</tab_inventory>
+		<tab_spawn x="30" y="142" width="160" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18">Спавн</text>
+		</tab_spawn>
+		<tab_teleport x="30" y="178" width="160" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18">Телепорт</text>
+		</tab_teleport>
+		<tab_world x="30" y="214" width="160" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18">Мир</text>
+		</tab_world>
+
+		<filter x="210" y="72" width="330" height="21" list_length="10">
+			<text_color>
+				<e r="216" g="186" b="140"/>
+				<d color="ui_gray"/>
+			</text_color>
+			<list_font_s r="240" g="217" b="182"/>
+			<list_font r="216" g="186" b="140" font="letterica16"/>
+		</filter>
+
+		<list_frame x="206" y="104" width="440" height="470">
+			<texture>ui_inGame2_servers_list_frame</texture>
+		</list_frame>
+		<list x="209" y="106" width="435" height="466" item_height="20" can_select="1">
+			<font font="letterica16"/>
+		</list>
+		<col_main width="330" height="20"/>
+		<col_side width="95" height="20"/>
+
+		<check_god x="220" y="120" width="300" height="29">
+			<texture>ui_inGame2_checkbox</texture>
+			<text font="letterica18" vert_align="c">Бессмертие</text>
+		</check_god>
+		<check_stamina x="220" y="156" width="300" height="29">
+			<texture>ui_inGame2_checkbox</texture>
+			<text font="letterica18" vert_align="c">Бесконечная выносливость</text>
+		</check_stamina>
+		<check_bleeding x="220" y="192" width="300" height="29">
+			<texture>ui_inGame2_checkbox</texture>
+			<text font="letterica18" vert_align="c">Без кровотечения</text>
+		</check_bleeding>
+		<check_repair x="220" y="228" width="300" height="29">
+			<texture>ui_inGame2_checkbox</texture>
+			<text font="letterica18" vert_align="c">Авторемонт надетого</text>
+		</check_repair>
+		<check_ammo x="220" y="264" width="300" height="29">
+			<texture>ui_inGame2_checkbox</texture>
+			<text font="letterica18" vert_align="c">Бесконечные патроны</text>
+		</check_ammo>
+
+		<picture_frame x="664" y="72" width="226" height="166" stretch="1">
+			<texture>ui_inGame2_picture_window</texture>
+		</picture_frame>
+		<picture x="668" y="76" width="218" height="158" stretch="1"/>
+		<card_title x="664" y="248" width="226" height="24">
+			<text font="letterica18" r="240" g="217" b="182"/>
+		</card_title>
+		<card_text x="664" y="274" width="226" height="120" complex_mode="1">
+			<text font="letterica16" r="162" g="157" b="144"/>
+		</card_text>
+
+		<btn_a x="664" y="410" width="226" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18"/>
+		</btn_a>
+		<btn_b x="664" y="446" width="226" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18"/>
+		</btn_b>
+		<btn_c x="664" y="482" width="226" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18"/>
+		</btn_c>
+		<btn_minus x="664" y="518" width="70" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18" align="c">-</text>
+		</btn_minus>
+		<value x="734" y="518" width="86" height="30">
+			<text font="graffiti22" r="214" g="166" b="45" align="c" vert_align="c"/>
+		</value>
+		<btn_plus x="820" y="518" width="70" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18" align="c">+</text>
+		</btn_plus>
+
+		<status x="34" y="590" width="700" height="26">
+			<text font="letterica16" r="123" g="203" b="98" vert_align="c"/>
+		</status>
+		<btn_close x="740" y="588" width="150" height="30">
+			<texture>ui_inGame2_Mp_bigbuttone</texture>
+			<text font="letterica18">Закрыть</text>
+		</btn_close>
+	</form>
+</w>

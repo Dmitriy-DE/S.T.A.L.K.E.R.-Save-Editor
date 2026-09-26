@@ -180,20 +180,11 @@ end
 
 function handlers.smarts(args)
 	local only_level = args[1]
-	local sim = alife()
 	local names = {}
-	for id = 1, MAX_OBJECT_ID do
-		local obj = sim:object(id)
-		if obj ~= nil and obj:section_name() == "smart_terrain" then
-			local lvl = level_of(obj)
-			if only_level == nil or only_level == lvl then
-				-- the trainer shows the same st_<smart>_name strings (god_tbl.script)
-				local title = game.translate_string("st_" .. obj:name() .. "_name")
-				if title == "st_" .. obj:name() .. "_name" then
-					title = ""
-				end
-				table.insert(names, obj:name() .. "@" .. lvl .. "=" .. string.gsub(title, "[,=]", " "))
-			end
+	-- the trainer shows the same st_<smart>_name strings (god_tbl.script)
+	for _, smart in ipairs(all_smarts()) do
+		if only_level == nil or only_level == smart.level then
+			table.insert(names, smart.name .. "@" .. smart.level .. "=" .. string.gsub(smart.title, "[,=]", " "))
 		end
 	end
 	return "ok", table.concat(names, ",")
@@ -269,6 +260,40 @@ local function spawn_level_changer(dest_level, dest_pos, dest_gv)
 	return obj
 end
 
+-- Jump to a place given by level name, position and game vertex. Same level:
+-- move the actor; another level: temporary level changer (CoP only).
+function jump_to(target_level, pos, gv, label)
+	if target_level == level.name() then
+		db.actor:set_actor_position(pos)
+		return "ok", "at " .. label
+	end
+	if not (COP_LEVELS[level.name()] and COP_LEVELS[target_level]) then
+		return "unsupported", "cross-level jump is only proven in Call of Pripyat"
+	end
+	local lc = spawn_level_changer(target_level, pos, gv)
+	pending_release = { id = lc.id, at = time_global() + 300 }
+	return "ok", "jumping to " .. label .. "@" .. target_level
+end
+
+-- Every smart terrain as {name, level, title}; title is the in-game place name
+-- or "" when the game has none.
+function all_smarts()
+	local sim = alife()
+	local result = {}
+	for id = 1, MAX_OBJECT_ID do
+		local obj = sim:object(id)
+		if obj ~= nil and obj:section_name() == "smart_terrain" then
+			local key = "st_" .. obj:name() .. "_name"
+			local title = game.translate_string(key)
+			if title == key then
+				title = ""
+			end
+			table.insert(result, { name = obj:name(), level = level_of(obj), title = title, obj = obj })
+		end
+	end
+	return result
+end
+
 function handlers.jump(args)
 	local name = args[1]
 	if name == nil then
@@ -278,17 +303,163 @@ function handlers.jump(args)
 	if target == nil then
 		return "error", "no smart terrain " .. name
 	end
-	local target_level = level_of(target)
-	if target_level == level.name() then
-		db.actor:set_actor_position(target.position)
-		return "ok", "at " .. name
+	return jump_to(level_of(target), target.position, target.m_game_vertex_id, name)
+end
+
+-- Run one protocol command from the in-game menu; returns status, text.
+function run(command, args)
+	local handler = handlers[command]
+	if handler == nil then
+		return "unsupported", command
 	end
-	if not (COP_LEVELS[level.name()] and COP_LEVELS[target_level]) then
-		return "unsupported", "cross-level jump is only proven in Call of Pripyat"
+	local ok, status, text = pcall(handler, args)
+	if not ok then
+		return "error", status
 	end
-	local lc = spawn_level_changer(target_level, target.position, target.m_game_vertex_id)
-	pending_release = { id = lc.id, at = time_global() + 300 }
-	return "ok", "jumping to " .. name .. "@" .. target_level
+	return status, text
+end
+
+-- Toggles from the in-game menu, kept in $app_data_root$ between sessions.
+-- Actor properties are deltas (conditions().ChangeHealth/ChangePower/
+-- ChangeBleeding in script_game_object3.cpp), so assigning 1 tops them up:
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object3.cpp
+TOGGLES = { "god", "stamina", "bleeding", "repair", "ammo" }
+local toggles = nil
+local next_toggle_tick = 0
+local TOGGLE_TICK_MS = 250
+
+local function toggles_path()
+	return getFS():update_path("$app_data_root$", "save_editor_settings.txt")
+end
+
+function get_toggles()
+	if toggles == nil then
+		toggles = {}
+		local f = io.open(toggles_path(), "r")
+		if f ~= nil then
+			for line in f:lines() do
+				local key, value = string.match(line, "^(%w+)=(%w+)")
+				if key ~= nil then
+					toggles[key] = value == "1"
+				end
+			end
+			f:close()
+		end
+	end
+	return toggles
+end
+
+function set_toggle(key, value)
+	get_toggles()[key] = value and true or false
+	local f = io.open(toggles_path(), "w")
+	if f ~= nil then
+		for _, name in ipairs(TOGGLES) do
+			f:write(name, "=", toggles[name] and "1" or "0", "\n")
+		end
+		f:close()
+	end
+end
+
+local function refill_ammo(item)
+	if item == nil then
+		return
+	end
+	local section = item:section()
+	local ini = system_ini()
+	if not ini:line_exist(section, "ammo_mag_size") then
+		return
+	end
+	local size = ini:r_u32(section, "ammo_mag_size")
+	if size > 0 and item:get_ammo_in_magazine() < size then
+		item:set_ammo_elapsed(size)
+	end
+end
+
+local function apply_toggles()
+	local t = get_toggles()
+	local actor = db.actor
+	if t.god then
+		actor.health = 1
+		actor.psy_health = 1
+	end
+	if t.stamina then
+		actor.power = 1
+	end
+	if t.bleeding then
+		actor.bleeding = 1
+	end
+	if t.repair then
+		for slot = 0, SLOT_LIMIT - 1 do
+			local item = actor:item_in_slot(slot)
+			if item ~= nil and item:condition() < 1 then
+				item:set_condition(1)
+			end
+		end
+	end
+	if t.ammo then
+		refill_ammo(actor:active_item())
+	end
+end
+
+-- Spawn a whole squad a few metres in front of the actor (Call of Pripyat).
+-- Same steps as the vanilla sim_board:create_squad and
+-- sim_squad_scripted:create_npc (configs.db scripts/sim_board.script and
+-- sim_squad_scripted.script), but members are placed at the actor instead of
+-- a smart terrain's spawn point; the squad is still assigned to the nearest
+-- smart terrain on this level so the simulation keeps managing it.
+function spawn_squad(squad_id)
+	if sim_board == nil or sim_board.get_sim_board == nil then
+		return "unsupported", "squads need Call of Pripyat"
+	end
+	local ini = system_ini()
+	if not ini:section_exist(squad_id) then
+		return "error", "unknown squad " .. squad_id
+	end
+	local actor = db.actor
+	local nearest, best = nil, nil
+	for _, smart in ipairs(all_smarts()) do
+		if smart.level == level.name() then
+			local d = smart.obj.position:distance_to(actor:position())
+			if best == nil or d < best then
+				nearest, best = smart.obj, d
+			end
+		end
+	end
+	if nearest == nil then
+		return "error", "no smart terrain on this level"
+	end
+	local pos = vector():set(actor:position()):mad(actor:direction(), 4)
+	local lvid, gvid = actor:level_vertex_id(), actor:game_vertex_id()
+	local board = sim_board.get_sim_board()
+	local squad = alife():create(squad_id, pos, lvid, gvid)
+	local fixed = utils.parse_names(utils.cfg_get_string(ini, squad_id, "npc", squad, false, "", ""))
+	for k, section in pairs(fixed) do
+		squad:add_squad_member(section, pos, lvid, gvid, k)
+	end
+	local random_pool = utils.cfg_get_string(ini, squad_id, "npc_random", squad, false, "", nil)
+	if random_pool ~= nil then
+		random_pool = utils.parse_names(random_pool)
+		local low, high = utils.r_2nums(ini, squad_id, "npc_in_squad", 1, 2)
+		for _ = 1, math.random(low, math.max(low, high)) do
+			local index = math.random(1, #random_pool)
+			squad:add_squad_member(random_pool[index], pos, lvid, gvid, index)
+		end
+	end
+	squad.smart_id = nearest.id
+	squad:refresh()
+	squad:set_squad_relation()
+	board:assign_squad_to_smart(squad, nearest.id)
+	for member in squad:squad_members() do
+		board:setup_squad_and_group(member.object)
+	end
+	return "ok", "spawned " .. squad_id
+end
+
+function handlers.squad(args)
+	if args[1] == nil then
+		return "error", "usage: squad <squad section>"
+	end
+	return spawn_squad(args[1])
 end
 
 local function execute(line)
@@ -322,6 +493,10 @@ function update()
 		if lc ~= nil then
 			alife():release(lc, true)
 		end
+	end
+	if db.actor ~= nil and time_global() >= next_toggle_tick then
+		next_toggle_tick = time_global() + TOGGLE_TICK_MS
+		apply_toggles()
 	end
 	if db.actor == nil or time_global() < next_poll then
 		return

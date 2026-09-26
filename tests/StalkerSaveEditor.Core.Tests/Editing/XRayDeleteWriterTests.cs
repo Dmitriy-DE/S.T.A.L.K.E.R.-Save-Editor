@@ -128,7 +128,7 @@ public sealed class XRayDeleteWriterTests
         var moneyPlan = new EditPlan(sha256, money: 500, detachHandles: [0x1234]);
         var stackPlan = new EditPlan(
             sha256,
-            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 12 },
+            stackCounts: new Dictionary<uint, uint> { [0x1234] = 12 },
             detachHandles: [0x1234]);
 
         Assert.Throws<XRayFormatException>(() => XRayMoneyWriter.Prepare(source, moneyPlan));

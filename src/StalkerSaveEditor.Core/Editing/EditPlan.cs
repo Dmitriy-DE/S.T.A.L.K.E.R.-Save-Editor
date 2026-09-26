@@ -11,7 +11,8 @@ public sealed record EditPlan
         string sourceSha256,
         uint? money = null,
         IReadOnlyDictionary<ushort, uint>? stackCounts = null,
-        IReadOnlyCollection<ushort>? detachHandles = null)
+        IReadOnlyCollection<ushort>? detachHandles = null,
+        IReadOnlyCollection<ItemAddRequest>? adds = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -32,6 +33,14 @@ public sealed record EditPlan
         }
 
         DetachHandles = Array.AsReadOnly(handles);
+
+        var additions = adds?.ToArray() ?? [];
+        if (additions.Any(request => request is null))
+        {
+            throw new ArgumentException("Add requests must not contain null values.", nameof(adds));
+        }
+
+        Adds = Array.AsReadOnly(additions);
     }
 
     public string SourceSha256 { get; }
@@ -41,4 +50,6 @@ public sealed record EditPlan
     public IReadOnlyDictionary<ushort, uint> StackCounts { get; }
 
     public IReadOnlyList<ushort> DetachHandles { get; }
+
+    public IReadOnlyList<ItemAddRequest> Adds { get; }
 }

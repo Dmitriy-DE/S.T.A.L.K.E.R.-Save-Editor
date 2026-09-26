@@ -129,7 +129,7 @@ public sealed class MainWindow : Window
         emptyState.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.HasNoSelection)));
 
         var detailName = BoundText(nameof(SaveLibraryViewModel.SelectedSaveName), 23, FontWeight.SemiBold);
-        var detailRelease = BoundText(nameof(SaveLibraryViewModel.SelectedReleaseName), 14);
+        var detailRelease = BoundText(nameof(SaveLibraryViewModel.SelectedReleaseName), 14, FontWeight.Normal);
         detailRelease.Opacity = 0.72;
         var moneyLabel = BoundText(nameof(SaveLibraryViewModel.SelectedMoneyDisplay), 18, FontWeight.Medium);
         var inventoryHeading = new TextBlock

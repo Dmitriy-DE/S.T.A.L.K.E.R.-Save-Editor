@@ -11,7 +11,10 @@ public sealed class CodecFixtureTests
     public void Lzo1x_matches_python_bytes_for_every_xray_fixture()
     {
         using var manifest = ReadManifest();
-        var vectors = manifest.RootElement.GetProperty("vectors").EnumerateArray();
+        var vectorArray = manifest.RootElement.GetProperty("vectors");
+        var vectors = vectorArray.EnumerateArray();
+        var expectedCount = vectorArray.EnumerateArray()
+            .Count(vector => GetString(vector, "codec") == "lzo1x");
         var count = 0;
 
         foreach (var vector in vectors)
@@ -35,7 +38,7 @@ public sealed class CodecFixtureTests
             count++;
         }
 
-        Assert.Equal(6, count);
+        Assert.Equal(expectedCount, count);
     }
 
     [Fact]

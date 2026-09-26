@@ -28,6 +28,7 @@ def _load_fixtures(
     root: Path,
 ) -> tuple[
     Callable[..., bytes],
+    Callable[..., bytes],
     Callable[[], bytes],
     Callable[[bytes], bytes],
     Callable[[bytes, int], bytes],
@@ -54,6 +55,7 @@ def _load_fixtures(
         raise SystemExit("Python conftest synthetic_save fixture wrapper was not found")
     return (
         xray_tests["_fixture"],
+        xray_tests["_fixture_with_base_item"],
         synthetic_save,
         xray_tests["lzo1x_compress"],
         xray_codec["lzo1x_decompress"],
@@ -63,7 +65,9 @@ def _load_fixtures(
 def generate(python_repo: Path, output_dir: Path) -> int:
     python_repo = python_repo.expanduser().resolve()
     output_dir = output_dir.expanduser().resolve()
-    fixture_xray, synthetic_save, lzo_compress, lzo_decompress = _load_fixtures(python_repo)
+    fixture_xray, fixture_base_item, synthetic_save, lzo_compress, lzo_decompress = _load_fixtures(
+        python_repo
+    )
 
     from editor.xray_container import XRayContainer
     from save_format import decompress_save
@@ -78,6 +82,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
             "xray-call-of-pripyat",
             {"version": 128, "outer": 6, "registry": b"registry-call-of-pripyat"},
         ),
+        ("xray-call-of-pripyat-base-item", {"factory": "base-item"}),
         (
             "xray-soc-ee",
             {"version": 118, "outer": 3, "alife": 51, "registry": b"registry-soc-ee"},
@@ -108,7 +113,11 @@ def generate(python_repo: Path, output_dir: Path) -> int:
     vectors: list[dict[str, object]] = []
     generated_containers: list[str] = []
     for name, options in xray_inputs:
-        container_bytes = fixture_xray(**options)
+        container_bytes = (
+            fixture_base_item()
+            if options.get("factory") == "base-item"
+            else fixture_xray(**options)
+        )
         parsed = XRayContainer.from_bytes(container_bytes)
         raw = parsed.raw
         container_path = f"{name}.sav"

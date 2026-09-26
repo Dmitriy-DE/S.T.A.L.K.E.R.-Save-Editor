@@ -164,6 +164,60 @@
       }
     },
     {
+      "name": "xray-call-of-pripyat-base-item",
+      "codec": "lzo1x",
+      "container": "xray-call-of-pripyat-base-item.sav",
+      "raw": "xray-call-of-pripyat-base-item.raw",
+      "streamOffset": 12,
+      "streamLength": 390,
+      "unpackedSize": 384,
+      "containerSummary": {
+        "magic": 4294967295,
+        "version": 6,
+        "unpackedSize": 384,
+        "rawSha256": "9c35bb124b94aef46f0043eb66fd42a49e6bfe82ade518e8d7673cbb4afd1852",
+        "chunkTypes": [
+          0,
+          5,
+          1,
+          2,
+          9
+        ],
+        "chunks": [
+          {
+            "type": 0,
+            "offset": 0,
+            "size": 4,
+            "dataSha256": "7aa8ca4a02506da9133d8f889678b76f716ce45d02e22fdb7b70a15e56a0eff8"
+          },
+          {
+            "type": 5,
+            "offset": 12,
+            "size": 16,
+            "dataSha256": "e962f9931a10b27da307b52e24157cc676531c74d9930c93f7756b7a61f5b48c"
+          },
+          {
+            "type": 1,
+            "offset": 36,
+            "size": 8,
+            "dataSha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+          },
+          {
+            "type": 2,
+            "offset": 52,
+            "size": 308,
+            "dataSha256": "df8f8558349cecb453dc7b48aeaf76a39ad394381642045ad8eb54066bd01acf"
+          },
+          {
+            "type": 9,
+            "offset": 368,
+            "size": 8,
+            "dataSha256": "872491a30d60d598962de6e7b834ab76b2aa65fbab102c6ebaaae6acdc238822"
+          }
+        ]
+      }
+    },
+    {
       "name": "xray-soc-ee",
       "codec": "lzo1x",
       "container": "xray-soc-ee.sav",

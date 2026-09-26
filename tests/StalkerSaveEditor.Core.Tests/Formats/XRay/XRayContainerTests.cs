@@ -14,6 +14,9 @@ public sealed class XRayContainerTests
         using var manifest = JsonDocument.Parse(ReadFixture("fixture-vectors.json"));
         using var golden = ReadGolden();
         var vectors = manifest.RootElement.GetProperty("vectors").EnumerateArray();
+        var expectedXrayCount = manifest.RootElement.GetProperty("vectors")
+            .EnumerateArray()
+            .Count(vector => GetString(vector, "codec") == "lzo1x");
         var xrayCount = 0;
 
         foreach (var vector in vectors)
@@ -59,8 +62,8 @@ public sealed class XRayContainerTests
             xrayCount++;
         }
 
-        Assert.Equal(6, xrayCount);
-        Assert.Equal(6, golden.RootElement.GetProperty("samples").GetArrayLength());
+        Assert.Equal(expectedXrayCount, xrayCount);
+        Assert.Equal(expectedXrayCount, golden.RootElement.GetProperty("samples").GetArrayLength());
     }
 
     [Fact]

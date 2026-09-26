@@ -142,6 +142,15 @@ public static class XRayTrilogyReader
             actorState.Rank,
             actorState.Reputation,
             actorState.Name,
+            Array.AsReadOnly(records.Select(record => new XRayRegistryObject(
+                record.Name,
+                record.ObjectId,
+                record.ParentId,
+                record.Version,
+                record.RecordOffset,
+                record.RecordLength,
+                record.ClientDataOffset,
+                record.ClientDataLength)).ToArray()),
             gameTime,
             timeFactor,
             normalTimeFactor,
@@ -231,6 +240,7 @@ public static class XRayTrilogyReader
         var seenIds = new HashSet<ushort>();
         for (var index = 0; index < count; index++)
         {
+            var recordRelativeOffset = reader.Position;
             var spawnSize = reader.ReadUInt16();
             var spawnRelativeOffset = reader.Position;
             var spawnPacket = reader.ReadBytes(spawnSize);
@@ -257,7 +267,11 @@ public static class XRayTrilogyReader
                 spawn.StateOffset,
                 spawn.StateLength,
                 dataOffset + updateRelativeOffset,
-                updateSize));
+                updateSize,
+                dataOffset + recordRelativeOffset,
+                reader.Position - recordRelativeOffset,
+                spawn.ClientDataOffset,
+                spawn.ClientDataLength));
         }
 
         if (reader.Remaining != 0)
@@ -306,10 +320,13 @@ public static class XRayTrilogyReader
             reader.Skip(sizeof(ushort)); // script version
         }
 
+        int? clientDataOffset = null;
+        var clientDataLength = 0;
         if (version > 70)
         {
-            var clientLength = version > 93 ? reader.ReadUInt16() : reader.ReadByte();
-            reader.Skip(clientLength);
+            clientDataLength = version > 93 ? reader.ReadUInt16() : reader.ReadByte();
+            clientDataOffset = checked(packetOffset + reader.Position);
+            reader.Skip(clientDataLength);
         }
 
         if (version > 79)
@@ -331,7 +348,15 @@ public static class XRayTrilogyReader
 
         var stateOffset = checked(packetOffset + reader.Position);
         reader.Skip(stateLength);
-        return new SpawnRecord(name, objectId, parentId, version, stateOffset, stateLength);
+        return new SpawnRecord(
+            name,
+            objectId,
+            parentId,
+            version,
+            stateOffset,
+            stateLength,
+            clientDataOffset,
+            clientDataLength);
     }
 
     private static ActorState ParseActorState(ReadOnlySpan<byte> state, ushort version, int stateOffset)
@@ -650,7 +675,11 @@ public static class XRayTrilogyReader
         int StateOffset,
         int StateLength,
         int UpdateOffset,
-        int UpdateLength);
+        int UpdateLength,
+        int RecordOffset,
+        int RecordLength,
+        int? ClientDataOffset,
+        int ClientDataLength);
 
     private sealed record SpawnRecord(
         string Name,
@@ -658,7 +687,9 @@ public static class XRayTrilogyReader
         ushort ParentId,
         ushort Version,
         int StateOffset,
-        int StateLength);
+        int StateLength,
+        int? ClientDataOffset,
+        int ClientDataLength);
 
     private sealed record ActorState(
         uint Money,

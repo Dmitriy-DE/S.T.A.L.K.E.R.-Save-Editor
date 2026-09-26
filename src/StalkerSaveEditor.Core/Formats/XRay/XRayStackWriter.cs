@@ -18,9 +18,9 @@ public static class XRayStackWriter
             throw Error("EditPlan must include at least one stack count.");
         }
 
-        if (plan.Money is not null)
+        if (plan.Money is not null || plan.DetachHandles.Count > 0)
         {
-            throw Error("Stack-only writer does not accept a money edit.");
+            throw Error("Stack-only writer does not accept money or delete edits.");
         }
 
         var sourceBytes = source.ToArray();

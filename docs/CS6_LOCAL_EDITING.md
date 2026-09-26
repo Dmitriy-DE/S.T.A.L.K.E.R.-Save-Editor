@@ -18,3 +18,5 @@ If creation of the original backup fails, replacement is not attempted. If
 verification fails after replacement, the exception reports the sibling
 backup, recovery copy, and journal; the journal remains `prepared`. Tests use
 synthetic X-Ray and S2 fixtures. No live game or Steam session is involved.
+
+![Headless Avalonia preview rendered from the synthetic Call of Pripyat fixture](images/cs6-local-editing-headless.png)

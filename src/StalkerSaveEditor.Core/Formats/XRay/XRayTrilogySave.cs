@@ -5,9 +5,11 @@ public sealed class XRayTrilogySave
     internal XRayTrilogySave(
         string formatId,
         uint containerVersion,
+        XRayContainer container,
         int actorVersion,
         ushort actorId,
         uint money,
+        int moneyOffset,
         int? playerFactionIndex,
         float? actorHealth,
         int? actorRank,
@@ -20,9 +22,11 @@ public sealed class XRayTrilogySave
     {
         FormatId = formatId;
         ContainerVersion = containerVersion;
+        Container = container;
         ActorVersion = actorVersion;
         ActorId = actorId;
         Money = money;
+        MoneyOffset = moneyOffset;
         PlayerFactionIndex = playerFactionIndex;
         ActorHealth = actorHealth;
         ActorRank = actorRank;
@@ -38,11 +42,15 @@ public sealed class XRayTrilogySave
 
     public uint ContainerVersion { get; }
 
+    internal XRayContainer Container { get; }
+
     public int ActorVersion { get; }
 
     public ushort ActorId { get; }
 
     public uint Money { get; }
+
+    internal int MoneyOffset { get; }
 
     public int? PlayerFactionIndex { get; }
 

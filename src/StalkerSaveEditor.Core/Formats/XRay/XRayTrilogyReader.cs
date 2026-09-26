@@ -78,7 +78,10 @@ public static class XRayTrilogyReader
         }
 
         var raw = container.Raw.Span;
-        var actorState = ParseActorState(raw.Slice(actor.StateOffset, actor.StateLength), actor.Version);
+        var actorState = ParseActorState(
+            raw.Slice(actor.StateOffset, actor.StateLength),
+            actor.Version,
+            actor.StateOffset);
         var items = new List<XRayInventoryItem>();
         foreach (var record in records)
         {
@@ -118,9 +121,11 @@ public static class XRayTrilogyReader
         return new XRayTrilogySave(
             format.Id,
             container.Version,
+            container,
             actor.Version,
             actor.ObjectId,
             actorState.Money,
+            actorState.MoneyOffset,
             actorState.PlayerFactionIndex,
             actorState.Health,
             actorState.Rank,
@@ -318,7 +323,7 @@ public static class XRayTrilogyReader
         return new SpawnRecord(name, objectId, parentId, version, stateOffset, stateLength);
     }
 
-    private static ActorState ParseActorState(ReadOnlySpan<byte> state, ushort version)
+    private static ActorState ParseActorState(ReadOnlySpan<byte> state, ushort version, int stateOffset)
     {
         var reader = new SpanReader(state, "actor STATE");
         ReadDynamicVisualState(ref reader, version);
@@ -361,6 +366,7 @@ public static class XRayTrilogyReader
             throw Error($"actor spawn version {version}: money field не сериализуется");
         }
 
+        var moneyOffset = checked(stateOffset + reader.Position);
         var money = reader.ReadUInt32();
         if (version > 75 && version < 98)
         {
@@ -414,7 +420,7 @@ public static class XRayTrilogyReader
             reader.Skip(2); // deadbody can take, closed
         }
 
-        return new ActorState(money, faction, health, rank, reputation, name);
+        return new ActorState(money, moneyOffset, faction, health, rank, reputation, name);
     }
 
     private static void ReadDynamicVisualState(ref SpanReader reader, ushort version)
@@ -637,6 +643,7 @@ public static class XRayTrilogyReader
 
     private sealed record ActorState(
         uint Money,
+        int MoneyOffset,
         int? PlayerFactionIndex,
         float? Health,
         int? Rank,

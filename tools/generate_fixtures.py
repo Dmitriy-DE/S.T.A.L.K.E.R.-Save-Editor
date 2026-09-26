@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import runpy
+import shutil
 import subprocess
 import sys
-from pathlib import Path
+import tempfile
 from collections.abc import Callable
+from pathlib import Path
 
 
 def _oracle_revision(root: Path) -> str:
@@ -34,6 +37,7 @@ def _load_fixtures(
         root / "tests" / "test_xray_save.py",
         root / "tests" / "conftest.py",
         root / "save_format.py",
+        root / "tools" / "export_golden.py",
     )
     missing = [path for path in required if not path.is_file()]
     if missing:
@@ -102,13 +106,32 @@ def generate(python_repo: Path, output_dir: Path) -> int:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     vectors: list[dict[str, object]] = []
+    generated_containers: list[str] = []
     for name, options in xray_inputs:
         container_bytes = fixture_xray(**options)
-        raw = XRayContainer.from_bytes(container_bytes).raw
+        parsed = XRayContainer.from_bytes(container_bytes)
+        raw = parsed.raw
         container_path = f"{name}.sav"
         raw_path = f"{name}.raw"
         (output_dir / container_path).write_bytes(container_bytes)
         (output_dir / raw_path).write_bytes(raw)
+        generated_containers.append(container_path)
+        container_summary = {
+            "magic": parsed.magic,
+            "version": parsed.version,
+            "unpackedSize": parsed.unpacked_size,
+            "rawSha256": hashlib.sha256(raw).hexdigest(),
+            "chunkTypes": list(parsed.chunk_types),
+            "chunks": [
+                {
+                    "type": chunk.type,
+                    "offset": chunk.offset,
+                    "size": chunk.size,
+                    "dataSha256": hashlib.sha256(chunk.data).hexdigest(),
+                }
+                for chunk in parsed.chunks
+            ],
+        }
         vectors.append(
             {
                 "name": name,
@@ -118,6 +141,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
                 "streamOffset": 12,
                 "streamLength": len(container_bytes) - 12,
                 "unpackedSize": len(raw),
+                "containerSummary": container_summary,
             }
         )
 
@@ -197,8 +221,49 @@ def generate(python_repo: Path, output_dir: Path) -> int:
     (output_dir / "fixture-vectors.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
-    print(f"Generated {len(vectors)} synthetic codec fixtures in {output_dir}")
+
+    _generate_golden_vectors(
+        python_repo,
+        output_dir,
+        generated_containers,
+        Path(__file__).resolve().parents[1] / "tests" / "golden" / "fixture-vectors.json",
+    )
+    print(
+        f"Generated {len(vectors)} synthetic codec fixtures and Python golden vectors "
+        f"in {output_dir.parent / 'golden'}"
+    )
     return 0
+
+
+def _generate_golden_vectors(
+    python_repo: Path,
+    fixture_dir: Path,
+    container_names: list[str],
+    golden_path: Path,
+) -> None:
+    exporter = python_repo / "tools" / "export_golden.py"
+    with tempfile.TemporaryDirectory(prefix="save-editor-golden-") as temporary:
+        temporary_root = Path(temporary)
+        input_root = temporary_root / "synthetic-saves"
+        input_root.mkdir()
+        for name in container_names:
+            shutil.copyfile(fixture_dir / name, input_root / name)
+
+        output = temporary_root / "fixture-vectors.json"
+        subprocess.run(
+            [
+                sys.executable,
+                str(exporter),
+                "--roots",
+                str(input_root),
+                "--out",
+                str(output),
+            ],
+            check=True,
+            cwd=python_repo,
+        )
+        golden_path.parent.mkdir(parents=True, exist_ok=True)
+        golden_path.write_bytes(output.read_bytes())
 
 
 def main() -> int:

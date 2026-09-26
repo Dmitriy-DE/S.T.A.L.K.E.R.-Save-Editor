@@ -10,7 +10,8 @@ public sealed record EditPlan
     public EditPlan(
         string sourceSha256,
         uint? money = null,
-        IReadOnlyDictionary<ushort, uint>? stackCounts = null)
+        IReadOnlyDictionary<ushort, uint>? stackCounts = null,
+        IReadOnlyCollection<ushort>? detachHandles = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -24,6 +25,13 @@ public sealed record EditPlan
             stackCounts is null
                 ? new Dictionary<ushort, uint>()
                 : new Dictionary<ushort, uint>(stackCounts));
+        var handles = detachHandles?.ToArray() ?? [];
+        if (handles.Distinct().Count() != handles.Length)
+        {
+            throw new ArgumentException("Detach handles must be unique.", nameof(detachHandles));
+        }
+
+        DetachHandles = Array.AsReadOnly(handles);
     }
 
     public string SourceSha256 { get; }
@@ -31,4 +39,6 @@ public sealed record EditPlan
     public uint? Money { get; }
 
     public IReadOnlyDictionary<ushort, uint> StackCounts { get; }
+
+    public IReadOnlyList<ushort> DetachHandles { get; }
 }

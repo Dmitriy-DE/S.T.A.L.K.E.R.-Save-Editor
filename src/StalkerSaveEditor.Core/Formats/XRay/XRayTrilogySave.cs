@@ -15,6 +15,7 @@ public sealed class XRayTrilogySave
         int? actorRank,
         int? actorReputation,
         string? actorName,
+        IReadOnlyList<XRayRegistryObject> registryObjects,
         ulong gameTime,
         float timeFactor,
         float normalTimeFactor,
@@ -32,6 +33,7 @@ public sealed class XRayTrilogySave
         ActorRank = actorRank;
         ActorReputation = actorReputation;
         ActorName = actorName;
+        RegistryObjects = registryObjects;
         GameTime = gameTime;
         TimeFactor = timeFactor;
         NormalTimeFactor = normalTimeFactor;
@@ -62,6 +64,8 @@ public sealed class XRayTrilogySave
 
     public string? ActorName { get; }
 
+    internal IReadOnlyList<XRayRegistryObject> RegistryObjects { get; }
+
     public ulong GameTime { get; }
 
     public float TimeFactor { get; }
@@ -70,6 +74,16 @@ public sealed class XRayTrilogySave
 
     public IReadOnlyList<XRayInventoryItem> Inventory { get; }
 }
+
+internal sealed record XRayRegistryObject(
+    string Name,
+    ushort ObjectId,
+    ushort ParentId,
+    ushort Version,
+    int RecordOffset,
+    int RecordLength,
+    int? ClientDataOffset,
+    int ClientDataLength);
 
 public sealed class XRayInventoryItem
 {

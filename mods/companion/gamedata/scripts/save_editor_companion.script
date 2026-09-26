@@ -401,6 +401,67 @@ local function apply_toggles()
 	end
 end
 
+-- Spawn a whole squad a few metres in front of the actor (Call of Pripyat).
+-- Same steps as the vanilla sim_board:create_squad and
+-- sim_squad_scripted:create_npc (configs.db scripts/sim_board.script and
+-- sim_squad_scripted.script), but members are placed at the actor instead of
+-- a smart terrain's spawn point; the squad is still assigned to the nearest
+-- smart terrain on this level so the simulation keeps managing it.
+function spawn_squad(squad_id)
+	if sim_board == nil or sim_board.get_sim_board == nil then
+		return "unsupported", "squads need Call of Pripyat"
+	end
+	local ini = system_ini()
+	if not ini:section_exist(squad_id) then
+		return "error", "unknown squad " .. squad_id
+	end
+	local actor = db.actor
+	local nearest, best = nil, nil
+	for _, smart in ipairs(all_smarts()) do
+		if smart.level == level.name() then
+			local d = smart.obj.position:distance_to(actor:position())
+			if best == nil or d < best then
+				nearest, best = smart.obj, d
+			end
+		end
+	end
+	if nearest == nil then
+		return "error", "no smart terrain on this level"
+	end
+	local pos = vector():set(actor:position()):mad(actor:direction(), 4)
+	local lvid, gvid = actor:level_vertex_id(), actor:game_vertex_id()
+	local board = sim_board.get_sim_board()
+	local squad = alife():create(squad_id, pos, lvid, gvid)
+	local fixed = utils.parse_names(utils.cfg_get_string(ini, squad_id, "npc", squad, false, "", ""))
+	for k, section in pairs(fixed) do
+		squad:add_squad_member(section, pos, lvid, gvid, k)
+	end
+	local random_pool = utils.cfg_get_string(ini, squad_id, "npc_random", squad, false, "", nil)
+	if random_pool ~= nil then
+		random_pool = utils.parse_names(random_pool)
+		local low, high = utils.r_2nums(ini, squad_id, "npc_in_squad", 1, 2)
+		for _ = 1, math.random(low, math.max(low, high)) do
+			local index = math.random(1, #random_pool)
+			squad:add_squad_member(random_pool[index], pos, lvid, gvid, index)
+		end
+	end
+	squad.smart_id = nearest.id
+	squad:refresh()
+	squad:set_squad_relation()
+	board:assign_squad_to_smart(squad, nearest.id)
+	for member in squad:squad_members() do
+		board:setup_squad_and_group(member.object)
+	end
+	return "ok", "spawned " .. squad_id
+end
+
+function handlers.squad(args)
+	if args[1] == nil then
+		return "error", "usage: squad <squad section>"
+	end
+	return spawn_squad(args[1])
+end
+
 local function execute(line)
 	local words = split(line)
 	local version, id, command = words[1], words[2], words[3]

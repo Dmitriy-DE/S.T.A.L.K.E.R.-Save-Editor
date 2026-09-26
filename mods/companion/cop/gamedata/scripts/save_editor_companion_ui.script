@@ -27,6 +27,60 @@ local ITEM_FILTERS = {
 	{ id = "consumable", title = "Медицина и еда" },
 	{ id = "item", title = "Прочее" },
 }
+local NPC_FILTERS = {
+	{ id = "stalkers", title = "Отряды сталкеров" },
+	{ id = "mutants", title = "Мутанты" },
+	{ id = "characters", title = "Персонажи" },
+}
+local FACTIONS = {
+	stalker = "Сталкеры", bandit = "Бандиты", dolg = "Долг", freedom = "Свобода", army = "Военные",
+	monolith = "Монолит", killer = "Наёмники", zombied = "Зомбированные", csky = "Чистое небо", ecolog = "Учёные",
+}
+-- Creature section prefixes to readable names (longest prefix first).
+local CREATURES = {
+	{ "m_poltergeist", "Полтергейст" }, { "m_controller", "Контролёр" }, { "pseudodog", "Псевдособака" },
+	{ "psy_dog", "Пси-собака" }, { "bloodsucker", "Кровосос" }, { "tushkano", "Тушкан" }, { "chimera", "Химера" },
+	{ "gigant", "Псевдогигант" }, { "burer", "Бюрер" }, { "snork", "Снорк" }, { "flesh", "Плоть" },
+	{ "boar", "Кабан" }, { "dog", "Слепой пёс" },
+}
+local STRENGTH = { weak = "слабый", normal = "", strong = "сильный", indoor = "в помещении", outdoor = "на улице" }
+
+local function creature_title(npc)
+	for _, pair in ipairs(CREATURES) do
+		if string.sub(npc, 1, #pair[1]) == pair[1] then
+			local rest = string.sub(npc, #pair[1] + 2)
+			local extra = {}
+			for word in string.gmatch(rest, "[^_]+") do
+				local label = STRENGTH[word]
+				if label == nil then
+					label = word
+				end
+				if label ~= "" then
+					table.insert(extra, label)
+				end
+			end
+			if #extra == 0 then
+				return pair[2]
+			end
+			return pair[2] .. " (" .. table.concat(extra, ", ") .. ")"
+		end
+	end
+	return npc
+end
+
+local function squad_title(squad)
+	local name = string.gsub(string.gsub(squad.id, "_squad$", ""), "_", " ")
+	return (FACTIONS[squad.faction] or squad.faction) .. ": " .. name
+end
+
+local SPAWN_FILTERS = {}
+for _, f in ipairs(ITEM_FILTERS) do
+	table.insert(SPAWN_FILTERS, f)
+end
+for _, f in ipairs(NPC_FILTERS) do
+	table.insert(SPAWN_FILTERS, f)
+end
+
 local INVENTORY_FILTERS = { { id = "all", title = "Всё" } }
 for _, f in ipairs(ITEM_FILTERS) do
 	table.insert(INVENTORY_FILTERS, f)
@@ -316,7 +370,7 @@ function companion_dialog:SelectTab(tab)
 		self:SetFilters(INVENTORY_FILTERS)
 		self:ShowList(true)
 	elseif tab == "spawn" then
-		self:SetFilters(ITEM_FILTERS)
+		self:SetFilters(SPAWN_FILTERS)
 		self:ShowList(true)
 	elseif tab == "teleport" then
 		self:SetFilters(TELEPORT_FILTERS)
@@ -403,23 +457,43 @@ function companion_dialog:FillInventory()
 			table.insert(items, item)
 		end
 	end)
-	table.sort(items, function(a, b) return (item_title(a:section()) or "") < (item_title(b:section()) or "") end)
+	-- Weapons and outfits stay one row each (own condition); everything else
+	-- with the same section is one row with a count.
+	local rows, by_section = {}, {}
 	for _, item in ipairs(items) do
-		local title = item_title(item:section()) or item:section()
-		if active ~= nil and active:id() == item:id() then
-			title = title .. " (в руках)"
+		local section = item:section()
+		local kind = category(section)
+		local single = kind == "weapon" or kind == "outfit"
+		local row = not single and by_section[section] or nil
+		if row == nil then
+			row = { kind = "inventory", id = item:id(), ids = {}, section = section, single = single,
+				title = item_title(section) or section }
+			if single then
+				row.side = math.floor(item:condition() * 100 + 0.5) .. "%"
+				if active ~= nil and active:id() == item:id() then
+					row.title = row.title .. " (в руках)"
+				end
+			else
+				by_section[section] = row
+			end
+			table.insert(rows, row)
 		end
-		local side = "—"
-		local kind = category(item:section())
-		if kind == "weapon" or kind == "outfit" then
-			side = math.floor(item:condition() * 100 + 0.5) .. "%"
-		end
-		self:AddRow(title, side, { kind = "inventory", id = item:id(), section = item:section() })
+		table.insert(row.ids, item:id())
+	end
+	table.sort(rows, function(a, b) return a.title < b.title end)
+	for _, row in ipairs(rows) do
+		local side = row.side or ("x" .. #row.ids)
+		self:AddRow(row.title, side, row)
 	end
 	self:Card("Инвентарь", "Выбери предмет.", nil)
 end
 
 function companion_dialog:FillSpawn()
+	local filter = self:FilterId()
+	if filter == "stalkers" or filter == "mutants" or filter == "characters" then
+		self:FillNpc(filter)
+		return
+	end
 	local rows = {}
 	for _, section in ipairs(save_editor_catalog.items[self:FilterId()] or {}) do
 		local title = item_title(section)
@@ -432,6 +506,34 @@ function companion_dialog:FillSpawn()
 		self:AddRow(row.title, nil, { kind = "spawn", section = row.section })
 	end
 	self:Card("Спавн", "Выбери предмет и количество.", nil)
+end
+
+function companion_dialog:FillNpc(filter)
+	if save_editor_squads == nil or save_editor_squads[filter] == nil then
+		self:Card("Спавн", "В этой игре спавн NPC пока не поддерживается.", nil)
+		return
+	end
+	local rows = {}
+	for _, squad in ipairs(save_editor_squads[filter]) do
+		local title
+		if filter == "mutants" then
+			title = creature_title(squad.npc)
+		elseif filter == "characters" then
+			title = game.translate_string(squad.name) .. " — " .. (FACTIONS[squad.faction] or squad.faction)
+		else
+			title = squad_title(squad)
+		end
+		table.insert(rows, { title = title, row = { kind = "npc", filter = filter, squad = squad, title = title } })
+	end
+	table.sort(rows, function(a, b) return a.title < b.title end)
+	for _, r in ipairs(rows) do
+		self:AddRow(r.title, nil, r.row)
+	end
+	local hint = "Появятся в нескольких метрах перед тобой."
+	if filter == "characters" then
+		hint = hint .. "\\nЭто копия сюжетного персонажа: квесты с ним могут сломаться."
+	end
+	self:Card("Спавн", hint, nil)
 end
 
 function companion_dialog:FillTeleport()
@@ -477,6 +579,14 @@ function companion_dialog:OnSelect()
 		self:Card(item_title(row.section) or row.section, text, row.section)
 	elseif row.kind == "spawn" then
 		self:Card(item_title(row.section), row.section, row.section)
+	elseif row.kind == "npc" then
+		self:Card(row.title, row.squad.id, nil)
+		if row.filter == "characters" and row.squad.icon ~= "" then
+			self.picture:InitTexture(row.squad.icon)
+			self.picture:SetWndPos(vector2():set(668 + (PICTURE_W - 165) / 2, 76 + (PICTURE_H - 108) / 2))
+			self.picture:SetWndSize(vector2():set(165, 108))
+			self.picture:Show(true)
+		end
 	elseif row.kind == "smart" then
 		self:Card(row.smart.title, game.translate_string(row.smart.level) .. "\\n" .. row.smart.name, nil)
 	elseif row.kind == "point" then
@@ -531,6 +641,15 @@ function companion_dialog:Action(which)
 			self:Say("Выбери предмет в списке")
 			return
 		end
+		if row.kind == "npc" then
+			local status, text = save_editor_companion.spawn_squad(row.squad.id)
+			if status ~= "ok" then
+				self:Say(tostring(text))
+				return
+			end
+			self:Close(true)
+			return
+		end
 		local status, text = save_editor_companion.run("give", { row.section, tostring(self.count) })
 		self:Say(status == "ok" and ("Выдано: " .. item_title(row.section) .. " x" .. self.count) or text)
 	elseif tab == "inventory" then
@@ -549,6 +668,10 @@ function companion_dialog:InventoryAction(which)
 	local item = level.object_by_id(row.id)
 	if item == nil then
 		self:Fill()
+		return
+	end
+	if which == "a" and not row.single then
+		self:Say("Чинить можно оружие и броню")
 		return
 	end
 	if which == "a" then

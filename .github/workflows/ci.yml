@@ -56,3 +56,14 @@ jobs:
 
       - name: Check CLI version command
         run: dotnet src/StalkerSaveEditor.Cli/bin/Release/net10.0/StalkerSaveEditor.Cli.dll version
+
+      - name: Render read-only UI screenshot
+        run: dotnet src/StalkerSaveEditor.Desktop/bin/Release/net10.0/StalkerSaveEditor.Desktop.dll --screenshot artifacts/ui/${{ runner.os }}.png --fixture tests/Fixtures/xray-call-of-pripyat.sav
+
+      - name: Upload UI screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshot-${{ runner.os }}
+          path: artifacts/ui/*.png
+          if-no-files-found: warn

@@ -213,6 +213,23 @@ public sealed class XRayAddWriterTests
     }
 
     [Fact]
+    public void Rejects_a_catalog_key_without_a_confirmed_family_even_if_a_base_template_exists()
+    {
+        var vector = PythonOracleVectors.Select(row => (AddVector)row[0]!)
+            .Single(value => value.ReleaseId == "stalker-cop" && value.PlaceEncoding == "u16");
+        var source = ReadFixture(vector.Source);
+        const string catalogJson = """
+            {"schema_version":1,"releases":{"stalker-cop":{"items":[{"key":"opaque_item"},{"key":"outfit_cop_template","serialization_family":"base"}]}}}
+            """;
+        var catalog = CatalogBundleReader.Load(Encoding.UTF8.GetBytes(catalogJson))["stalker-cop"].Items;
+
+        Assert.Throws<XRayFormatException>(() => XRayAddWriter.Prepare(
+            source,
+            Plan(source, "opaque_item"),
+            catalog));
+    }
+
+    [Fact]
     public void Add_capability_maturities_match_the_python_registry()
     {
         using var manifest = ReadManifest();
@@ -223,6 +240,22 @@ public sealed class XRayAddWriterTests
                 CapabilityRegistry.Get(vector.GetProperty("releaseId").GetString()!, "add_items")
                     .Maturity.ToString().ToLowerInvariant());
         }
+    }
+
+    [Fact]
+    public void Ammo_add_oracle_vectors_cover_all_six_supported_releases()
+    {
+        var releaseIds = PythonOracleVectors
+            .Select(row => (AddVector)row[0]!)
+            .Where(vector => vector.ItemKey.StartsWith("ammo_", StringComparison.Ordinal))
+            .Select(vector => vector.ReleaseId)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            ["stalker-cop", "stalker-cop-ee", "stalker-cs", "stalker-cs-ee", "stalker-soc", "stalker-soc-ee"],
+            releaseIds);
     }
 
     [Fact]

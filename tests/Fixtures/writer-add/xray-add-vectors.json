@@ -1,5 +1,5 @@
 {
-  "oracleRevision": "6e89ae58ab155d7db972883a2ea20dd461c9bef9",
+  "oracleRevision": "94351dc46eeec316ba16d230d37f5553ec5d6cd0",
   "vectors": [
     {
       "addedId": 9030,
@@ -216,6 +216,75 @@
       "sourcePlace": 0,
       "sourceSha256": "e3f2e1e838d7edad6909f0e40c6b1db977a283749c9990012e5d982601a117e1",
       "templateId": 4660,
+      "templateUpgrades": []
+    },
+    {
+      "addedId": 13399,
+      "capabilities": {
+        "add_items": "experimental",
+        "edit_money": "experimental",
+        "edit_stacks": "experimental",
+        "remove_items": "experimental"
+      },
+      "expected": "xray-add-soc-ee-ammo-expected.sav",
+      "expectedPlace": 0,
+      "expectedRaw": "xray-add-soc-ee-ammo-expected.raw",
+      "expectedRawSha256": "88f98b1242c51f949388c52aa12b7cda5d5591105eff2a683377fff13be77af3",
+      "expectedSha256": "e8ac326b79d4d00e78a775a5183b9897db885287ce3e020ab789ba993a17ecb7",
+      "itemKey": "ammo_9x39_pab9",
+      "placeEncoding": "none",
+      "quantity": 17,
+      "releaseId": "stalker-soc-ee",
+      "source": "xray-add-soc-ee-ammo-source.sav",
+      "sourcePlace": 0,
+      "sourceSha256": "c8933ac5dac475babf89175967958f647ef4ada380fbea659cb487fc326c7144",
+      "templateId": 13398,
+      "templateUpgrades": []
+    },
+    {
+      "addedId": 13399,
+      "capabilities": {
+        "add_items": "experimental",
+        "edit_money": "experimental",
+        "edit_stacks": "experimental",
+        "remove_items": "experimental"
+      },
+      "expected": "xray-add-cs-ee-ammo-expected.sav",
+      "expectedPlace": 0,
+      "expectedRaw": "xray-add-cs-ee-ammo-expected.raw",
+      "expectedRawSha256": "ecb04cb5a68f16d847963de2d8d759d40654088fd9c5b54978c784ba1b4f86e7",
+      "expectedSha256": "c5ada9359daeca0da29f51e8f94f8c203fe55830d73e6c80039fa1ae7af5fdd9",
+      "itemKey": "ammo_9x39_pab9",
+      "placeEncoding": "none",
+      "quantity": 17,
+      "releaseId": "stalker-cs-ee",
+      "source": "xray-add-cs-ee-ammo-source.sav",
+      "sourcePlace": 0,
+      "sourceSha256": "aa74e2da9ae3fde14c54304f7a5b6e813c58b279b65f7bf242ddd204a326d6b3",
+      "templateId": 13398,
+      "templateUpgrades": []
+    },
+    {
+      "addedId": 13399,
+      "capabilities": {
+        "add_items": "experimental",
+        "edit_money": "experimental",
+        "edit_stacks": "experimental",
+        "remove_items": "experimental"
+      },
+      "expected": "xray-add-cop-ee-ammo-expected.sav",
+      "expectedPlace": 0,
+      "expectedRaw": "xray-add-cop-ee-ammo-expected.raw",
+      "expectedRawSha256": "f1279bf9c94bcae3d71a642151de53d674d147943320232e023f34c7804ab68e",
+      "expectedSha256": "94d4c6d3a2e7f2b3ad097a8c2f8cb8b3c8d17979941a759adf19e6edb4a6f220",
+      "itemKey": "ammo_9x39_pab9",
+      "placeEncoding": "none",
+      "quantity": 17,
+      "releaseId": "stalker-cop-ee",
+      "source": "xray-add-cop-ee-ammo-source.sav",
+      "sourcePlace": 0,
+      "sourceSha256": "e39b6a50cda375a8f7438ab2547480d70a181ce27333a3018607f42357c6f49a",
+      "templateId": 13398,
       "templateUpgrades": []
     }
   ]

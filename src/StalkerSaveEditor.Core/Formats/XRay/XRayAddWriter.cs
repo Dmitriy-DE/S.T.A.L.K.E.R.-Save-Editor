@@ -76,7 +76,8 @@ public static class XRayAddWriter
             EnsureFormat(current, formatId);
             var definition = catalog.Resolve(request.ItemKey)
                 ?? throw Error($"Item key '{request.ItemKey}' is absent from the item catalog.");
-            var family = DefinitionFamily(definition);
+            var family = DefinitionFamily(definition)
+                ?? throw Error($"Item key '{request.ItemKey}' has no confirmed serializer family.");
             if (!SupportedFamilies.Contains(family))
             {
                 throw Error($"Serializer family '{family}' is not confirmed.");
@@ -162,18 +163,20 @@ public static class XRayAddWriter
         return new PreparedEdit(plan, working);
     }
 
-    private static string DefinitionFamily(ItemDefinition definition) =>
+    private static string? DefinitionFamily(ItemDefinition definition) =>
         string.IsNullOrWhiteSpace(definition.SerializationFamily)
-            ? InferFamily(definition.Key)
+            ? InferKnownFamily(definition.Key)
             : definition.SerializationFamily;
 
     private static string ObjectFamily(XRayRegistryObject item, ItemCatalog catalog)
     {
         var definition = catalog.Resolve(item.Name);
-        return definition is null ? InferFamily(item.Name) : DefinitionFamily(definition);
+        return definition is null
+            ? InferKnownFamily(item.Name) ?? "base"
+            : DefinitionFamily(definition) ?? "base";
     }
 
-    private static string InferFamily(string name)
+    private static string? InferKnownFamily(string name)
     {
         var key = name.ToLowerInvariant();
         if (key.StartsWith("ammo_", StringComparison.Ordinal)) return "ammo";
@@ -202,7 +205,7 @@ public static class XRayAddWriter
             return "weapon_magazined";
         }
 
-        return "base";
+        return null;
     }
 
     private static XRayRegistryObject? FindTemplate(XRayTrilogySave save, ItemCatalog catalog, string family)

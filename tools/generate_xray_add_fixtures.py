@@ -40,6 +40,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
     helpers = runpy.run_path(str(python_repo / "tests" / "test_xray_save.py"))
     state_base = helpers["_state_base"]
     base_item_state = helpers["_base_item_state"]
+    item_state = helpers["_item_state"]
     synthetic_ammo_fixture = helpers["_fixture"]
     spawn = helpers["_spawn"]
     object_record = helpers["_object_record"]
@@ -56,6 +57,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     vectors: list[dict[str, object]] = []
+    outfit_sources: dict[str, bytes] = {}
     for release_id, spec, version, outer, alife, template_name, place_encoding, upgrades in cases:
         state = bytearray(base_item_state(version))
         if version > 123:
@@ -100,6 +102,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
             )
         )
         source = struct.pack("<III", 0xFFFFFFFF, outer, len(raw)) + lzo1x_compress(raw)
+        outfit_sources[release_id] = source
         source_sha256 = hashlib.sha256(source).hexdigest()
         catalog = ItemCatalog(
             release_id,
@@ -179,14 +182,45 @@ def generate(python_repo: Path, output_dir: Path) -> int:
         )
 
     ammo_cases = (
-        ("stalker-soc", SOC_FORMAT, 118, 3),
-        ("stalker-cs", CS_FORMAT, 124, 5),
-        ("stalker-cop", COP_FORMAT, 128, 6),
+        ("stalker-soc", SOC_FORMAT, 118, 3, False),
+        ("stalker-cs", CS_FORMAT, 124, 5, False),
+        ("stalker-cop", COP_FORMAT, 128, 6, False),
+        ("stalker-soc-ee", SOC_EE_FORMAT, 118, 3, True),
+        ("stalker-cs-ee", CS_EE_FORMAT, 128, 6, True),
+        ("stalker-cop-ee", COP_EE_FORMAT, 128, 6, True),
     )
     ammo_key = "ammo_9x39_pab9"
     ammo_quantity = 17
-    for release_id, spec, version, outer in ammo_cases:
-        source = synthetic_ammo_fixture(version=version, outer=outer)
+    for release_id, spec, version, outer, is_ee in ammo_cases:
+        if is_ee:
+            outfit_source = outfit_sources[release_id]
+            container = XRayContainer.from_bytes(outfit_source)
+            matches = [value for value in container.chunks if value.type == 2]
+            if len(matches) != 1:
+                raise SystemExit(f"Synthetic EE fixture for {release_id} has no unique OBJECT chunk")
+            object_chunk = matches[0]
+            object_count = struct.unpack_from("<I", object_chunk.data)[0]
+            ammo_update = struct.pack("<H", 0) + b"\x00" + struct.pack("<H", 30)
+            ammo_template = spawn(
+                ammo_key,
+                0x3456,
+                0,
+                version,
+                item_state(version, 30),
+                ammo_update,
+            )
+            object_payload = (
+                struct.pack("<I", object_count + 1)
+                + object_chunk.data[4:]
+                + object_record(ammo_template, ammo_update)
+            )
+            raw = b"".join(
+                chunk(value.type, object_payload if value.type == 2 else value.data)
+                for value in container.chunks
+            )
+            source = container.build(raw)
+        else:
+            source = synthetic_ammo_fixture(version=version, outer=outer)
         source_sha256 = hashlib.sha256(source).hexdigest()
         catalog = ItemCatalog(
             release_id,
@@ -248,8 +282,8 @@ def generate(python_repo: Path, output_dir: Path) -> int:
                 "expectedRawSha256": hashlib.sha256(expected_raw).hexdigest(),
                 "itemKey": ammo_key,
                 "quantity": ammo_quantity,
-                "templateId": 0x1234,
-                "addedId": 0x1235,
+                "templateId": 0x3456 if is_ee else 0x1234,
+                "addedId": 0x3457 if is_ee else 0x1235,
                 "placeEncoding": "none",
                 "sourcePlace": 0,
                 "expectedPlace": 0,

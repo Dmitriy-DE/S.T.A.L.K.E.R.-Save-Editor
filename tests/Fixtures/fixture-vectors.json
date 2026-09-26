@@ -1,0 +1,116 @@
+{
+  "oracleRevision": "6f3839cb870161290ae1d404c40e291485c29e37",
+  "vectors": [
+    {
+      "name": "xray-soc",
+      "codec": "lzo1x",
+      "container": "xray-soc.sav",
+      "raw": "xray-soc.raw",
+      "streamOffset": 12,
+      "streamLength": 386,
+      "unpackedSize": 380
+    },
+    {
+      "name": "xray-clear-sky",
+      "codec": "lzo1x",
+      "container": "xray-clear-sky.sav",
+      "raw": "xray-clear-sky.raw",
+      "streamOffset": 12,
+      "streamLength": 400,
+      "unpackedSize": 394
+    },
+    {
+      "name": "xray-call-of-pripyat",
+      "codec": "lzo1x",
+      "container": "xray-call-of-pripyat.sav",
+      "raw": "xray-call-of-pripyat.raw",
+      "streamOffset": 12,
+      "streamLength": 408,
+      "unpackedSize": 402
+    },
+    {
+      "name": "xray-soc-ee",
+      "codec": "lzo1x",
+      "container": "xray-soc-ee.sav",
+      "raw": "xray-soc-ee.raw",
+      "streamOffset": 12,
+      "streamLength": 389,
+      "unpackedSize": 383
+    },
+    {
+      "name": "xray-clear-sky-ee",
+      "codec": "lzo1x",
+      "container": "xray-clear-sky-ee.sav",
+      "raw": "xray-clear-sky-ee.raw",
+      "streamOffset": 12,
+      "streamLength": 406,
+      "unpackedSize": 400
+    },
+    {
+      "name": "xray-call-of-pripyat-ee",
+      "codec": "lzo1x",
+      "container": "xray-call-of-pripyat-ee.sav",
+      "raw": "xray-call-of-pripyat-ee.raw",
+      "streamOffset": 12,
+      "streamLength": 412,
+      "unpackedSize": 406
+    },
+    {
+      "name": "lzo1x-literal-empty",
+      "codec": "lzo1x-literal",
+      "stream": "lzo1x-literal-empty.lzo",
+      "raw": "lzo1x-literal-empty.raw",
+      "streamLength": 3,
+      "unpackedSize": 0
+    },
+    {
+      "name": "lzo1x-literal-one-byte",
+      "codec": "lzo1x-literal",
+      "stream": "lzo1x-literal-one-byte.lzo",
+      "raw": "lzo1x-literal-one-byte.raw",
+      "streamLength": 5,
+      "unpackedSize": 1
+    },
+    {
+      "name": "lzo1x-literal-short-boundary",
+      "codec": "lzo1x-literal",
+      "stream": "lzo1x-literal-short-boundary.lzo",
+      "raw": "lzo1x-literal-short-boundary.raw",
+      "streamLength": 242,
+      "unpackedSize": 238
+    },
+    {
+      "name": "lzo1x-literal-long-boundary",
+      "codec": "lzo1x-literal",
+      "stream": "lzo1x-literal-long-boundary.lzo",
+      "raw": "lzo1x-literal-long-boundary.raw",
+      "streamLength": 724,
+      "unpackedSize": 717
+    },
+    {
+      "name": "lzo1x-literal-repeated",
+      "codec": "lzo1x-literal",
+      "stream": "lzo1x-literal-repeated.lzo",
+      "raw": "lzo1x-literal-repeated.raw",
+      "streamLength": 3016,
+      "unpackedSize": 3000
+    },
+    {
+      "name": "lzo1x-extended-m4",
+      "codec": "lzo1x-match",
+      "stream": "lzo1x-extended-m4.lzo",
+      "raw": "lzo1x-extended-m4.raw",
+      "streamLength": 11012,
+      "unpackedSize": 16397
+    },
+    {
+      "name": "synthetic-s2",
+      "codec": "kraken",
+      "container": "synthetic-s2.sav",
+      "raw": "synthetic-s2.raw",
+      "streamOffset": 4,
+      "streamLength": 352,
+      "unpackedSize": 350
+    }
+  ]
+}

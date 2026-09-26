@@ -17,6 +17,11 @@ public static class XRayMoneyWriter
             throw Error("EditPlan must include a money value.");
         }
 
+        if (plan.StackCounts.Count > 0)
+        {
+            throw Error("Money-only writer does not accept stack edits.");
+        }
+
         if (money > MaximumMoney)
         {
             throw Error($"Money must be in the range 0..{MaximumMoney}.");

@@ -89,6 +89,32 @@ public sealed class XRayStackWriterTests
     }
 
     [Fact]
+    public void Money_writer_rejects_stack_edits_in_a_money_only_plan()
+    {
+        var source = ReadFixture("xray-stack-soc-source.sav");
+        var sha = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
+        var plan = new EditPlan(
+            sha,
+            money: 2000,
+            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 12 });
+
+        Assert.Throws<XRayFormatException>(() => XRayMoneyWriter.Prepare(source, plan));
+    }
+
+    [Fact]
+    public void Edit_plan_copies_stack_counts_and_exposes_a_read_only_snapshot()
+    {
+        var counts = new Dictionary<ushort, uint> { [0x1234] = 12 };
+        var plan = new EditPlan(new string('0', 64), stackCounts: counts);
+
+        counts[0x1234] = 20;
+
+        Assert.Equal(12u, plan.StackCounts[0x1234]);
+        Assert.Throws<NotSupportedException>(
+            () => ((IDictionary<ushort, uint>)plan.StackCounts)[0x1234] = 20);
+    }
+
+    [Fact]
     public void Rejects_a_source_whose_sha_does_not_match_the_edit_plan()
     {
         var source = ReadFixture("xray-stack-soc-source.sav");

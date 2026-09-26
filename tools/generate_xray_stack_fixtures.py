@@ -33,6 +33,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
         CS_FORMAT,
         SOC_EE_FORMAT,
         SOC_FORMAT,
+        XRaySaveError,
         parse_xray,
         prepare_xray,
     )
@@ -116,6 +117,17 @@ def generate(python_repo: Path, output_dir: Path) -> int:
 
     unknown_source = base_item_fixture()
     unknown_name = "xray-stack-unknown-kind-source.sav"
+    unknown_sha256 = hashlib.sha256(unknown_source).hexdigest()
+    unknown_plan = EditPlan(
+        source=SourceRef(kind="local", locator="synthetic-fixture", sha256=unknown_sha256),
+        stacks=((0x2345, STACK_COUNT),),
+    )
+    try:
+        prepare_xray(unknown_source, unknown_plan, COP_FORMAT)
+    except XRaySaveError:
+        pass
+    else:
+        raise SystemExit("Python oracle unexpectedly accepted a non-ammo stack")
     (output_dir / unknown_name).write_bytes(unknown_source)
 
     s2 = by_id("stalker2")
@@ -124,7 +136,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
         "vectors": vectors,
         "unknownKind": {
             "source": unknown_name,
-            "sourceSha256": hashlib.sha256(unknown_source).hexdigest(),
+            "sourceSha256": unknown_sha256,
         },
         "capabilities": {
             "stalker2": {

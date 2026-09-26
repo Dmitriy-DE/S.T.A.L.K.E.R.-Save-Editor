@@ -10,6 +10,10 @@ Clear Sky, and Call of Pripyat saves plus their Enhanced Editions. See
 X-Ray item removal is limited to actor-owned registry leaves that are not
 equipped. See the [CS-5 removal scope](docs/CS5_XRAY_DELETE.md).
 
+X-Ray item addition clones known serializer-family templates and resets
+recognized placement/upgrades for the new item. See the
+[CS-5 add scope](docs/CS5_XRAY_ADD.md).
+
 The read-only S2 reader parses the CRC/Kraken container, confirmed player
 inventory layout, save-local item name tables, and recognized stash layout.
 See the [CS-4 S2 reader scope](docs/CS4_STALKER2.md).

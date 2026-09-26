@@ -11,4 +11,9 @@ The read-only S2 reader parses the CRC/Kraken container, confirmed player
 inventory layout, save-local item name tables, and recognized stash layout.
 See the [CS-4 S2 reader scope](docs/CS4_STALKER2.md).
 
+The `StalkerSaveEditor.Steam` library exposes Steam RemoteStorage list and read
+operations through a separate worker process with a 15-second timeout. It does
+not expose write operations. Automated tests use fake worker and native-storage
+interfaces; they do not initialize a live Steam session.
+
 Start with [ARCHITECTURE.md](ARCHITECTURE.md) and [AGENTS.md](AGENTS.md).

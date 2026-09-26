@@ -3,6 +3,7 @@ using Avalonia.Headless;
 using Avalonia.Skia;
 using Avalonia.Threading;
 using StalkerSaveEditor.Desktop.ViewModels;
+using StalkerSaveEditor.Steam;
 
 namespace StalkerSaveEditor.Desktop;
 
@@ -11,6 +12,12 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (args is ["--steam-native-worker"])
+        {
+            SteamNativeWorkerHost.RunAsync().GetAwaiter().GetResult();
+            return;
+        }
+
         if (args.Length > 0 && args[0] == "--screenshot")
         {
             if (args.Length != 4 || args[2] != "--fixture")

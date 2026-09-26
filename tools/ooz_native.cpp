@@ -1,4 +1,5 @@
 #include <climits>
+#include <cmath>
 #include <cstddef>
 #include <vector>
 

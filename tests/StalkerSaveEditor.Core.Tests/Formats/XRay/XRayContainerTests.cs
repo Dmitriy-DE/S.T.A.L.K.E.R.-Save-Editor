@@ -63,7 +63,10 @@ public sealed class XRayContainerTests
         }
 
         Assert.Equal(expectedXrayCount, xrayCount);
-        Assert.Equal(expectedXrayCount, golden.RootElement.GetProperty("samples").GetArrayLength());
+        var goldenXrayCount = golden.RootElement.GetProperty("samples")
+            .EnumerateArray()
+            .Count(sample => GetString(sample, "format").StartsWith("stalker-", StringComparison.Ordinal));
+        Assert.Equal(expectedXrayCount, goldenXrayCount);
     }
 
     [Fact]

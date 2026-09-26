@@ -81,7 +81,9 @@ public sealed class XRayInventoryItem
         string category,
         ushort? count,
         bool editableCount,
-        IReadOnlyList<string>? upgrades)
+        IReadOnlyList<string>? upgrades,
+        int? stackStateCountOffset,
+        int? stackUpdateCountOffset)
     {
         Handle = handle;
         ParentId = parentId;
@@ -91,6 +93,8 @@ public sealed class XRayInventoryItem
         Count = count;
         EditableCount = editableCount;
         Upgrades = upgrades;
+        StackStateCountOffset = stackStateCountOffset;
+        StackUpdateCountOffset = stackUpdateCountOffset;
     }
 
     public ushort Handle { get; }
@@ -110,4 +114,8 @@ public sealed class XRayInventoryItem
     public float? Condition => null;
 
     public IReadOnlyList<string>? Upgrades { get; }
+
+    internal int? StackStateCountOffset { get; }
+
+    internal int? StackUpdateCountOffset { get; }
 }

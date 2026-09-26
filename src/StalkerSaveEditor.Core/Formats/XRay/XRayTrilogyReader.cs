@@ -93,10 +93,19 @@ public static class XRayTrilogyReader
             var (kindCode, category) = CategoryForName(record.Name);
             var isAmmo = record.Name.StartsWith("ammo_", StringComparison.OrdinalIgnoreCase);
             ushort? count = null;
+            int? stackStateCountOffset = null;
+            int? stackUpdateCountOffset = null;
             var editableCount = false;
-            if (isAmmo && TryReadAmmoCount(raw, record, out var parsedCount))
+            if (isAmmo && TryReadAmmoCount(
+                raw,
+                record,
+                out var parsedCount,
+                out var parsedStateCountOffset,
+                out var parsedUpdateCountOffset))
             {
                 count = parsedCount;
+                stackStateCountOffset = parsedStateCountOffset;
+                stackUpdateCountOffset = parsedUpdateCountOffset;
                 editableCount = true;
             }
 
@@ -114,7 +123,9 @@ public static class XRayTrilogyReader
                 category,
                 count,
                 editableCount,
-                upgrades));
+                upgrades,
+                stackStateCountOffset,
+                stackUpdateCountOffset));
         }
 
         items.Sort(static (left, right) => left.Handle.CompareTo(right.Handle));
@@ -498,9 +509,16 @@ public static class XRayTrilogyReader
         }
     }
 
-    private static bool TryReadAmmoCount(ReadOnlySpan<byte> raw, ObjectRecord record, out ushort count)
+    private static bool TryReadAmmoCount(
+        ReadOnlySpan<byte> raw,
+        ObjectRecord record,
+        out ushort count,
+        out int stateCountOffset,
+        out int updateCountOffset)
     {
         count = 0;
+        stateCountOffset = -1;
+        updateCountOffset = -1;
         try
         {
             var reader = new SpanReader(raw.Slice(record.StateOffset, record.StateLength), "ammo STATE");
@@ -516,12 +534,13 @@ public static class XRayTrilogyReader
             }
 
             count = reader.ReadUInt16();
+            stateCountOffset = checked(record.StateOffset + reader.Position - sizeof(ushort));
             if (record.UpdateLength < 5)
             {
                 return false;
             }
 
-            var updateCountOffset = record.UpdateOffset + record.UpdateLength - sizeof(ushort);
+            updateCountOffset = record.UpdateOffset + record.UpdateLength - sizeof(ushort);
             _ = BinaryPrimitives.ReadUInt16LittleEndian(raw[updateCountOffset..]);
             return true;
         }

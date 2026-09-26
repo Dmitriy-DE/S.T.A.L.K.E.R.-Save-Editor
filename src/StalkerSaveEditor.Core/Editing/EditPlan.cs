@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 
 namespace StalkerSaveEditor.Core.Editing;
@@ -6,7 +7,10 @@ public sealed record EditPlan
 {
     private static readonly Regex Sha256Pattern = new("^[0-9a-fA-F]{64}$", RegexOptions.CultureInvariant);
 
-    public EditPlan(string sourceSha256, uint? money = null)
+    public EditPlan(
+        string sourceSha256,
+        uint? money = null,
+        IReadOnlyDictionary<ushort, uint>? stackCounts = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -16,9 +20,15 @@ public sealed record EditPlan
 
         SourceSha256 = sourceSha256.ToLowerInvariant();
         Money = money;
+        StackCounts = new ReadOnlyDictionary<ushort, uint>(
+            stackCounts is null
+                ? new Dictionary<ushort, uint>()
+                : new Dictionary<ushort, uint>(stackCounts));
     }
 
     public string SourceSha256 { get; }
 
     public uint? Money { get; }
+
+    public IReadOnlyDictionary<ushort, uint> StackCounts { get; }
 }

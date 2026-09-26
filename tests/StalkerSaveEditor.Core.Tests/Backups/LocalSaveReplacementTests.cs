@@ -54,8 +54,10 @@ public sealed class LocalSaveReplacementTests
     {
         using var directory = new TemporaryDirectory();
         var source = ReadFixture();
-        var sourcePath = Path.Combine(directory.Path, "slot.sav");
+        var saveDirectory = Path.Combine(directory.Path, "saves");
         var backupDirectory = Path.Combine(directory.Path, "backups");
+        Directory.CreateDirectory(saveDirectory);
+        var sourcePath = Path.Combine(saveDirectory, "slot.sav");
         File.WriteAllBytes(sourcePath, source);
         var prepared = Prepare(source);
 
@@ -67,7 +69,8 @@ public sealed class LocalSaveReplacementTests
             new BackupFailingFileSystem()));
 
         Assert.Equal(source, File.ReadAllBytes(sourcePath));
-        Assert.Single(Directory.GetFiles(directory.Path));
+        Assert.Equal([sourcePath], Directory.GetFiles(saveDirectory));
+        Assert.Empty(Directory.GetFiles(backupDirectory));
     }
 
     [Fact]
@@ -77,8 +80,10 @@ public sealed class LocalSaveReplacementTests
         var source = ReadFixture();
         var changed = ReadFixture();
         changed[^1] ^= 0x01;
-        var sourcePath = Path.Combine(directory.Path, "slot.sav");
+        var saveDirectory = Path.Combine(directory.Path, "saves");
         var backupDirectory = Path.Combine(directory.Path, "backups");
+        Directory.CreateDirectory(saveDirectory);
+        var sourcePath = Path.Combine(saveDirectory, "slot.sav");
         File.WriteAllBytes(sourcePath, changed);
         var prepared = Prepare(source);
 
@@ -89,7 +94,54 @@ public sealed class LocalSaveReplacementTests
             _ => throw new InvalidOperationException("Read-back must not run.")));
 
         Assert.Equal(changed, File.ReadAllBytes(sourcePath));
-        Assert.Single(Directory.GetFiles(directory.Path));
+        Assert.Equal([sourcePath], Directory.GetFiles(saveDirectory));
+        Assert.False(Directory.Exists(backupDirectory));
+    }
+
+    [Fact]
+    public void Rejects_a_source_changed_while_the_output_is_being_staged()
+    {
+        using var directory = new TemporaryDirectory();
+        var source = ReadFixture();
+        var changed = ReadFixture();
+        changed[^1] ^= 0x01;
+        var saveDirectory = Path.Combine(directory.Path, "saves");
+        var backupDirectory = Path.Combine(directory.Path, "backups");
+        Directory.CreateDirectory(saveDirectory);
+        var sourcePath = Path.Combine(saveDirectory, "slot.sav");
+        File.WriteAllBytes(sourcePath, source);
+        var prepared = Prepare(source);
+
+        var exception = Assert.Throws<IOException>(() => LocalSaveReplacement.ReplaceLocal(
+            sourcePath,
+            prepared,
+            backupDirectory,
+            _ => throw new InvalidOperationException("Read-back must not run."),
+            new SourceChangingFileSystem(sourcePath, changed)));
+
+        Assert.Contains("before replacement", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(changed, File.ReadAllBytes(sourcePath));
+        Assert.Equal([sourcePath], Directory.GetFiles(saveDirectory));
+    }
+
+    [Fact]
+    public void Rejects_a_backup_directory_inside_the_save_directory()
+    {
+        using var directory = new TemporaryDirectory();
+        var source = ReadFixture();
+        var saveDirectory = Path.Combine(directory.Path, "saves");
+        Directory.CreateDirectory(saveDirectory);
+        var sourcePath = Path.Combine(saveDirectory, "slot.sav");
+        File.WriteAllBytes(sourcePath, source);
+        var prepared = Prepare(source);
+
+        Assert.Throws<ArgumentException>(() => LocalSaveReplacement.ReplaceLocal(
+            sourcePath,
+            prepared,
+            Path.Combine(saveDirectory, "backups"),
+            _ => throw new InvalidOperationException("Read-back must not run.")));
+
+        Assert.Equal([sourcePath], Directory.GetFiles(saveDirectory));
     }
 
     [Fact]
@@ -97,8 +149,10 @@ public sealed class LocalSaveReplacementTests
     {
         using var directory = new TemporaryDirectory();
         var source = ReadFixture();
-        var sourcePath = Path.Combine(directory.Path, "slot.sav");
+        var saveDirectory = Path.Combine(directory.Path, "saves");
         var backupDirectory = Path.Combine(directory.Path, "backups");
+        Directory.CreateDirectory(saveDirectory);
+        var sourcePath = Path.Combine(saveDirectory, "slot.sav");
         File.WriteAllBytes(sourcePath, source);
         var prepared = Prepare(source);
 
@@ -113,6 +167,8 @@ public sealed class LocalSaveReplacementTests
         Assert.Equal(source, File.ReadAllBytes(exception.BackupPath));
         Assert.Equal(prepared.Data.ToArray(), File.ReadAllBytes(exception.RecoveryPath));
         Assert.Equal(prepared.Data.ToArray(), File.ReadAllBytes(sourcePath));
+        Assert.Equal([sourcePath], Directory.GetFiles(saveDirectory));
+        Assert.Equal(3, Directory.GetFiles(backupDirectory).Length);
         using var journal = JsonDocument.Parse(File.ReadAllBytes(exception.JournalPath));
         Assert.Equal("prepared", journal.RootElement.GetProperty("status").GetString());
     }
@@ -156,6 +212,28 @@ public sealed class LocalSaveReplacementTests
 
         public void Replace(string sourcePath, string destinationPath) =>
             throw new InvalidOperationException("Replacement must not be reached.");
+
+        public void DeleteIfExists(string path) => File.Delete(path);
+    }
+
+    private sealed class SourceChangingFileSystem(string sourcePath, byte[] changedSource) : ILocalSaveFileSystem
+    {
+        private bool _sourceChanged;
+
+        public byte[] ReadAllBytes(string path) => File.ReadAllBytes(path);
+
+        public void WriteNew(string path, byte[] data)
+        {
+            File.WriteAllBytes(path, data);
+            if (!_sourceChanged && path.EndsWith(".tmp", StringComparison.Ordinal))
+            {
+                File.WriteAllBytes(sourcePath, changedSource);
+                _sourceChanged = true;
+            }
+        }
+
+        public void Replace(string sourcePath, string destinationPath) =>
+            File.Move(sourcePath, destinationPath, overwrite: true);
 
         public void DeleteIfExists(string path) => File.Delete(path);
     }

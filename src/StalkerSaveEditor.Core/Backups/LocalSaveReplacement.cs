@@ -63,6 +63,13 @@ public static class LocalSaveReplacement
         var directory = Path.GetDirectoryName(sourceFullPath)
             ?? throw new IOException("Source save must have a parent directory.");
         var backupDirectoryFullPath = Path.GetFullPath(backupDirectory);
+        if (IsSameOrNestedDirectory(directory, backupDirectoryFullPath))
+        {
+            throw new ArgumentException(
+                "Backup directory must be outside the selected save directory.",
+                nameof(backupDirectory));
+        }
+
         Directory.CreateDirectory(backupDirectoryFullPath);
         var stem = Path.GetFileNameWithoutExtension(sourceFullPath);
         if (stem.Length > 64) stem = stem[..64];
@@ -89,6 +96,8 @@ public static class LocalSaveReplacement
             files.WriteNew(recoveryPath, outputBytes);
             files.WriteNew(journalPath, SerializeJournal(journal));
 
+            files.WriteNew(temporaryOutputPath, outputBytes);
+
             var beforeReplace = files.ReadAllBytes(sourceFullPath);
             var beforeReplaceSha256 = Sha256(beforeReplace);
             if (!string.Equals(beforeReplaceSha256, prepared.SourceSha256, StringComparison.Ordinal))
@@ -97,7 +106,6 @@ public static class LocalSaveReplacement
                     $"Source changed before replacement: expected {prepared.SourceSha256}, found {beforeReplaceSha256}.");
             }
 
-            files.WriteNew(temporaryOutputPath, outputBytes);
             files.Replace(temporaryOutputPath, sourceFullPath);
             sourceReplaced = true;
 
@@ -167,6 +175,14 @@ public static class LocalSaveReplacement
 
     private static string Sha256(ReadOnlySpan<byte> data) =>
         Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
+
+    private static bool IsSameOrNestedDirectory(string parentDirectory, string candidateDirectory)
+    {
+        var relativePath = Path.GetRelativePath(parentDirectory, candidateDirectory);
+        return relativePath == "." ||
+            (!Path.IsPathRooted(relativePath) && relativePath != ".." &&
+                !relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
+    }
 
     private static void TryDelete(ILocalSaveFileSystem files, string path)
     {

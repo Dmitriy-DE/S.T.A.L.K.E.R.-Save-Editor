@@ -16,7 +16,8 @@ local TIME_FACTORS = { 1, 2, 5, 10, 20, 50, 100 }
 local POINTS_FILE = "save_editor_points.txt"
 local ICON_TEXTURE = "ui\\ui_icon_equipment"
 local ICON_CELL = 50 -- inventory grid cell in ui_icon_equipment (CoP)
-local PICTURE_W, PICTURE_H = 218, 158
+local PICTURE_X, PICTURE_Y, PICTURE_W, PICTURE_H = 686, 120, 252, 162
+local TAB_Y, TAB_STEP = 116, 40
 
 local ITEM_FILTERS = {
 	{ id = "weapon", title = "Оружие" },
@@ -194,6 +195,11 @@ function companion_dialog:InitControls()
 
 	local form = xml:InitStatic("form", self)
 	self.form = form
+	for _, name in ipairs({ "window", "line_top", "line_bottom", "line_left", "line_right", "line_header",
+		"line_rail", "line_footer", "picture_panel", "picture_line" }) do
+		xml:InitStatic("form:" .. name, form)
+	end
+	self.tab_marker = xml:InitStatic("form:tab_marker", form)
 	xml:InitStatic("form:title", form)
 	self.header = xml:InitTextWnd("form:header", form)
 
@@ -206,7 +212,10 @@ function companion_dialog:InitControls()
 
 	self.filter_box = xml:InitComboBox("form:filter", form)
 	self:Register(self.filter_box, "filter")
-	self.list_frame = xml:InitFrame("form:list_frame", form)
+	self.list_parts = {}
+	for _, name in ipairs({ "list_panel", "list_line_t", "list_line_b" }) do
+		table.insert(self.list_parts, xml:InitStatic("form:" .. name, form))
+	end
 	self.list_box = xml:InitListBox("form:list", form)
 	self.list_box:ShowSelectedItem(true)
 	self:Register(self.list_box, "list_window")
@@ -220,7 +229,6 @@ function companion_dialog:InitControls()
 		self.checks[id] = ctrl
 	end
 
-	xml:InitStatic("form:picture_frame", form)
 	self.picture = xml:InitStatic("form:picture", form)
 	self.card_title = xml:InitTextWnd("form:card_title", form)
 	self.card_text = xml:InitTextWnd("form:card_text", form)
@@ -298,7 +306,7 @@ function companion_dialog:ShowIcon(section)
 	local dw, dh = pw * scale, ph * scale
 	self.picture:InitTexture(ICON_TEXTURE)
 	self.picture:SetTextureRect(Frect():set(x * ICON_CELL, y * ICON_CELL, x * ICON_CELL + pw, y * ICON_CELL + ph))
-	self.picture:SetWndPos(vector2():set(668 + (PICTURE_W - dw) / 2, 76 + (PICTURE_H - dh) / 2))
+	self.picture:SetWndPos(vector2():set(PICTURE_X + (PICTURE_W - dw) / 2, PICTURE_Y + (PICTURE_H - dh) / 2))
 	self.picture:SetWndSize(vector2():set(dw, dh))
 	self.picture:Show(true)
 end
@@ -347,7 +355,9 @@ function companion_dialog:SetFilters(filters)
 end
 
 function companion_dialog:ShowList(visible)
-	self.list_frame:Show(visible)
+	for _, part in ipairs(self.list_parts) do
+		part:Show(visible)
+	end
 	self.list_box:Show(visible)
 	for _, id in ipairs(CHECKS) do
 		self.checks[id]:Show(not visible and self.tab == "player")
@@ -358,9 +368,13 @@ end
 
 function companion_dialog:SelectTab(tab)
 	self.tab = tab
-	for name, button in pairs(self.tab_buttons) do
-		local color = name == tab and GetARGB(255, 214, 166, 45) or GetARGB(255, 162, 157, 144)
-		button:TextControl():SetTextColor(color)
+	for index, name in ipairs(TABS) do
+		local active = name == tab
+		self.tab_buttons[name]:TextControl():SetTextColor(
+			active and GetARGB(255, 214, 166, 45) or GetARGB(255, 162, 157, 144))
+		if active then
+			self.tab_marker:SetWndPos(vector2():set(62, TAB_Y + (index - 1) * TAB_STEP))
+		end
 	end
 	self:Say("")
 	if tab == "player" then
@@ -413,10 +427,11 @@ function companion_dialog:Fill()
 		self:ShowStepper(false)
 	elseif tab == "spawn" then
 		self:FillSpawn()
-		self:SetButton("btn_a", "Выдать")
-		self:SetButton("btn_b", nil)
+		local npc = self:FilterId() == "stalkers" or self:FilterId() == "mutants" or self:FilterId() == "characters"
+		self:SetButton("btn_a", npc and "Заспавнить отряд" or "Выдать")
+		self:SetButton("btn_b", self:FilterId() == "stalkers" and "Одного сталкера" or nil)
 		self:SetButton("btn_c", nil)
-		self:ShowStepper(true)
+		self:ShowStepper(not npc)
 	elseif tab == "teleport" then
 		self:FillTeleport()
 		self:SetButton("btn_a", "Перенестись")
@@ -583,7 +598,7 @@ function companion_dialog:OnSelect()
 		self:Card(row.title, row.squad.id, nil)
 		if row.filter == "characters" and row.squad.icon ~= "" then
 			self.picture:InitTexture(row.squad.icon)
-			self.picture:SetWndPos(vector2():set(668 + (PICTURE_W - 165) / 2, 76 + (PICTURE_H - 108) / 2))
+			self.picture:SetWndPos(vector2():set(PICTURE_X + (PICTURE_W - 165) / 2, PICTURE_Y + (PICTURE_H - 108) / 2))
 			self.picture:SetWndSize(vector2():set(165, 108))
 			self.picture:Show(true)
 		end
@@ -642,7 +657,7 @@ function companion_dialog:Action(which)
 			return
 		end
 		if row.kind == "npc" then
-			local status, text = save_editor_companion.spawn_squad(row.squad.id)
+			local status, text = save_editor_companion.spawn_squad(row.squad.id, which == "b")
 			if status ~= "ok" then
 				self:Say(tostring(text))
 				return

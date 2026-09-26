@@ -187,7 +187,12 @@ function handlers.smarts(args)
 		if obj ~= nil and obj:section_name() == "smart_terrain" then
 			local lvl = level_of(obj)
 			if only_level == nil or only_level == lvl then
-				table.insert(names, obj:name() .. "@" .. lvl)
+				-- the trainer shows the same st_<smart>_name strings (god_tbl.script)
+				local title = game.translate_string("st_" .. obj:name() .. "_name")
+				if title == "st_" .. obj:name() .. "_name" then
+					title = ""
+				end
+				table.insert(names, obj:name() .. "@" .. lvl .. "=" .. string.gsub(title, "[,=]", " "))
 			end
 		end
 	end

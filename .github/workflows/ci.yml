@@ -55,4 +55,4 @@ jobs:
         run: dotnet test StalkerSaveEditor.sln --configuration Release --no-build --no-restore
 
       - name: Check CLI version command
-        run: dotnet run --project src/StalkerSaveEditor.Cli/StalkerSaveEditor.Cli.csproj --configuration Release --no-build --no-restore -- version
+        run: dotnet src/StalkerSaveEditor.Cli/bin/Release/net10.0/StalkerSaveEditor.Cli.dll version

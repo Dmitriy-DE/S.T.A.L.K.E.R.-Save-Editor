@@ -1,0 +1,198 @@
+--[[
+  S.T.A.L.K.E.R. Save Editor — in-game companion (protocol v1).
+  One script for Shadow of Chernobyl, Clear Sky, Call of Pripyat and their
+  Enhanced Editions: every engine call below is present in all three
+  engines' script exports (vanilla lua_help.script dumps:
+  https://github.com/ixray-team/ixray-1.6-stcop/blob/main/gamedata_soc/scripts/lua_help.script
+  https://github.com/ixray-team/ixray-1.6-stcop/blob/main/gamedata_cs/scripts/lua_help.script
+  https://github.com/ixray-team/ixray-1.6-stcop/blob/main/gamedata/scripts/lua_help.script).
+  io/os are opened by the engine script storage (CS source:
+  https://github.com/OpenXRay/xray-15/blob/master/cs/engine/xrServerEntities/script_storage.cpp#L264-L270,
+  CoP: https://github.com/OpenXRay/xray-16/blob/master/src/xrScriptEngine/script_engine.cpp#L903-L909).
+
+  Exchange (all in $app_data_root$, the game's user-data folder):
+    editor writes save_editor_cmd.tmp, then renames it to save_editor_cmd.txt
+    mod reads and deletes save_editor_cmd.txt, writes save_editor_out.tmp,
+    then renames it to save_editor_out.txt
+  Command line:  v1 <id> <command> [args...]
+  Reply line:    v1 <id> ok|error|unsupported <text>
+  See docs/MOD_COMPANION_PROTOCOL.md.
+
+  Hook: vanilla X-Ray has no plugin loader, so bind_stalker.script needs one
+  line in actor_binder:update(delta):
+      if save_editor_companion then save_editor_companion.update() end
+--]]
+
+local PROTOCOL = "v1"
+local POLL_MS = 2000
+local MAX_GIVE = 100
+local SLOT_LIMIT = 13 -- highest slot index is below this in all three games
+
+local next_poll = 0
+local cmd_path, tmp_out_path, out_path
+
+local function paths()
+	if cmd_path == nil then
+		local fs = getFS()
+		cmd_path = fs:update_path("$app_data_root$", "save_editor_cmd.txt")
+		tmp_out_path = fs:update_path("$app_data_root$", "save_editor_out.tmp")
+		out_path = fs:update_path("$app_data_root$", "save_editor_out.txt")
+	end
+	return cmd_path, tmp_out_path, out_path
+end
+
+local function one_line(text)
+	return (string.gsub(tostring(text or ""), "[\r\n]+", " "))
+end
+
+local function reply(id, status, text)
+	local _, tmp, out = paths()
+	local f = io.open(tmp, "w")
+	if f == nil then
+		return
+	end
+	f:write(PROTOCOL, " ", id, " ", status, " ", one_line(text), "\n")
+	f:close()
+	os.remove(out)
+	os.rename(tmp, out)
+end
+
+local function split(line)
+	local words = {}
+	for word in string.gmatch(line, "%S+") do
+		table.insert(words, word)
+	end
+	return words
+end
+
+local function count_arg(value, default, limit)
+	local n = tonumber(value or default)
+	if n == nil or n ~= math.floor(n) or n < 1 or n > limit then
+		return nil
+	end
+	return n
+end
+
+local handlers = {}
+
+function handlers.ping()
+	return "ok", "pong"
+end
+
+function handlers.info()
+	local p = db.actor:position()
+	return "ok", string.format(
+		"level=%s x=%.3f y=%.3f z=%.3f money=%d",
+		level.name(), p.x, p.y, p.z, db.actor:money()
+	)
+end
+
+function handlers.give(args)
+	local section = args[1]
+	local count = count_arg(args[2], 1, MAX_GIVE)
+	if section == nil or count == nil then
+		return "error", "usage: give <section> [1-" .. MAX_GIVE .. "]"
+	end
+	if not system_ini():section_exist(section) then
+		return "error", "unknown section " .. section
+	end
+	local actor = db.actor
+	for _ = 1, count do
+		alife():create(section, actor:position(), actor:level_vertex_id(), actor:game_vertex_id(), actor:id())
+	end
+	return "ok", string.format("gave %d %s", count, section)
+end
+
+function handlers.money(args)
+	local delta = tonumber(args[1])
+	if delta == nil or delta ~= math.floor(delta) then
+		return "error", "usage: money <integer delta>"
+	end
+	if db.actor:money() + delta < 0 then
+		return "error", "balance would go below zero"
+	end
+	db.actor:give_money(delta)
+	return "ok", "money=" .. db.actor:money()
+end
+
+-- Assigning these actor properties adds the value and the engine clamps it
+-- (vanilla scripts heal with db.actor.health = 1).
+function handlers.heal()
+	local actor = db.actor
+	actor.health = 1
+	actor.power = 1
+	actor.psy_health = 1
+	actor.radiation = -1
+	return "ok", "healed"
+end
+
+function handlers.repair_equipped()
+	local repaired = 0
+	for slot = 0, SLOT_LIMIT - 1 do
+		local item = db.actor:item_in_slot(slot)
+		if item ~= nil then
+			item:set_condition(1)
+			repaired = repaired + 1
+		end
+	end
+	return "ok", "repaired=" .. repaired
+end
+
+function handlers.teleport(args)
+	local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+	if x == nil or y == nil or z == nil then
+		return "error", "usage: teleport <x> <y> <z> (current level only)"
+	end
+	db.actor:set_actor_position(vector():set(x, y, z))
+	return "ok", string.format("at %.3f %.3f %.3f", x, y, z)
+end
+
+function handlers.list_inventory()
+	local items = {}
+	db.actor:inventory_for_each(function(item)
+		table.insert(items, item:section() .. ":" .. item:id())
+	end)
+	return "ok", table.concat(items, ",")
+end
+
+local function execute(line)
+	local words = split(line)
+	local version, id, command = words[1], words[2], words[3]
+	if version ~= PROTOCOL or id == nil or command == nil then
+		reply(id or "0", "error", "expected: " .. PROTOCOL .. " <id> <command> [args]")
+		return
+	end
+	local handler = handlers[command]
+	if handler == nil then
+		reply(id, "unsupported", command)
+		return
+	end
+	local args = {}
+	for i = 4, #words do
+		table.insert(args, words[i])
+	end
+	local ok, status, text = pcall(handler, args)
+	if not ok then
+		reply(id, "error", status)
+	else
+		reply(id, status, text)
+	end
+end
+
+function update()
+	if db.actor == nil or time_global() < next_poll then
+		return
+	end
+	next_poll = time_global() + POLL_MS
+	local cmd = paths()
+	local f = io.open(cmd, "r")
+	if f == nil then
+		return
+	end
+	local line = f:read("*l")
+	f:close()
+	os.remove(cmd)
+	if line ~= nil then
+		execute(line)
+	end
+end

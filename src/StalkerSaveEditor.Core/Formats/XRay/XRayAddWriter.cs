@@ -146,14 +146,32 @@ public static class XRayAddWriter
                 throw Error($"Added item '{addition.ItemKey}' did not pass its registry round-trip.");
             }
 
-            if (added.Upgrades is { Count: > 0 })
+            if (added.Version > 123 &&
+                (!XRayTrilogyReader.TryReadUpgrades(
+                     finalRaw,
+                     added.Version,
+                     added.StateOffset,
+                     added.StateLength,
+                     out var upgrades,
+                     out _,
+                     out _) ||
+                 upgrades.Length > 0))
             {
                 throw Error($"Added item 0x{addition.ObjectId:X4} retained template upgrades.");
             }
 
             if (addition.Family == "ammo" &&
-                (added.AmmoCount != addition.Quantity ||
-                 added.AmmoUpdateCountOffset is not { } updateOffset ||
+                (!XRayTrilogyReader.TryReadAmmoCount(
+                     finalRaw,
+                     added.Version,
+                     added.StateOffset,
+                     added.StateLength,
+                     added.UpdateOffset,
+                     added.UpdateLength,
+                     out var ammoCount,
+                     out _,
+                     out var updateOffset) ||
+                 ammoCount != addition.Quantity ||
                  BinaryPrimitives.ReadUInt16LittleEndian(finalRaw[updateOffset..]) != addition.Quantity))
             {
                 throw Error($"Added ammo 0x{addition.ObjectId:X4} did not preserve both requested counts.");
@@ -305,33 +323,43 @@ public static class XRayAddWriter
         var spawn = raw.Slice(spawnOffset, spawnLength).ToArray();
         var changed = false;
 
-        if (item.Upgrades is { Count: > 0 })
+        if (item.Version > 123)
         {
-            if (item.UpgradesOffset is not { } upgradesOffset || item.UpgradesLength is not { } upgradesLength)
+            if (!XRayTrilogyReader.TryReadUpgrades(
+                    raw,
+                    item.Version,
+                    item.StateOffset,
+                    item.StateLength,
+                    out var upgrades,
+                    out var upgradesOffset,
+                    out var upgradesLength))
             {
-                throw Error($"Object 0x{item.ObjectId:X4} has upgrades without a confirmed vector boundary.");
+                throw Error($"Object 0x{item.ObjectId:X4} has no confirmed upgrade-vector boundary.");
             }
 
-            var vectorOffset = upgradesOffset - spawnOffset;
-            var stateStart = item.StateOffset - spawnOffset;
-            EnsureRange(spawn.Length, vectorOffset, upgradesLength);
-            EnsureRange(spawn.Length, stateStart - sizeof(ushort), sizeof(ushort));
-            var delta = sizeof(uint) - upgradesLength;
-            var resized = GC.AllocateUninitializedArray<byte>(checked(spawn.Length + delta));
-            spawn.AsSpan(0, vectorOffset).CopyTo(resized);
-            BinaryPrimitives.WriteUInt32LittleEndian(resized.AsSpan(vectorOffset), 0);
-            spawn.AsSpan(vectorOffset + upgradesLength).CopyTo(resized.AsSpan(vectorOffset + sizeof(uint)));
-            var stateSize = checked(item.StateLength + sizeof(ushort) + delta);
-            if (stateSize is < 2 or > ushort.MaxValue)
+            if (upgrades.Length > 0)
             {
-                throw Error($"Object 0x{item.ObjectId:X4} STATE size exceeds the u16 boundary.");
-            }
+                var vectorOffset = upgradesOffset - spawnOffset;
+                var stateStart = item.StateOffset - spawnOffset;
+                EnsureRange(spawn.Length, vectorOffset, upgradesLength);
+                EnsureRange(spawn.Length, stateStart - sizeof(ushort), sizeof(ushort));
+                var delta = sizeof(uint) - upgradesLength;
+                var resized = GC.AllocateUninitializedArray<byte>(checked(spawn.Length + delta));
+                spawn.AsSpan(0, vectorOffset).CopyTo(resized);
+                BinaryPrimitives.WriteUInt32LittleEndian(resized.AsSpan(vectorOffset), 0);
+                spawn.AsSpan(vectorOffset + upgradesLength).CopyTo(resized.AsSpan(vectorOffset + sizeof(uint)));
+                var stateSize = checked(item.StateLength + sizeof(ushort) + delta);
+                if (stateSize is < 2 or > ushort.MaxValue)
+                {
+                    throw Error($"Object 0x{item.ObjectId:X4} STATE size exceeds the u16 boundary.");
+                }
 
-            BinaryPrimitives.WriteUInt16LittleEndian(
-                resized.AsSpan(stateStart - sizeof(ushort)),
-                checked((ushort)stateSize));
-            spawn = resized;
-            changed = true;
+                BinaryPrimitives.WriteUInt16LittleEndian(
+                    resized.AsSpan(stateStart - sizeof(ushort)),
+                    checked((ushort)stateSize));
+                spawn = resized;
+                changed = true;
+            }
         }
 
         if (item.ClientDataOffset is { } clientOffset && item.ClientDataLength >= 2)
@@ -384,8 +412,16 @@ public static class XRayAddWriter
 
     private static byte[] SetAmmoCount(XRayTrilogySave save, XRayRegistryObject item, uint quantity)
     {
-        if (item.AmmoStateCountOffset is not { } stateOffset ||
-            item.AmmoUpdateCountOffset is not { } updateOffset)
+        if (!XRayTrilogyReader.TryReadAmmoCount(
+                save.Container.Raw.Span,
+                item.Version,
+                item.StateOffset,
+                item.StateLength,
+                item.UpdateOffset,
+                item.UpdateLength,
+                out _,
+                out var stateOffset,
+                out var updateOffset))
         {
             throw Error($"Ammo template clone 0x{item.ObjectId:X4} does not expose confirmed count fields.");
         }

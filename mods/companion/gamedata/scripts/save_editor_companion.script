@@ -319,6 +319,88 @@ function run(command, args)
 	return status, text
 end
 
+-- Toggles from the in-game menu, kept in $app_data_root$ between sessions.
+-- Actor properties are deltas (conditions().ChangeHealth/ChangePower/
+-- ChangeBleeding in script_game_object3.cpp), so assigning 1 tops them up:
+-- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object3.cpp
+TOGGLES = { "god", "stamina", "bleeding", "repair", "ammo" }
+local toggles = nil
+local next_toggle_tick = 0
+local TOGGLE_TICK_MS = 250
+
+local function toggles_path()
+	return getFS():update_path("$app_data_root$", "save_editor_settings.txt")
+end
+
+function get_toggles()
+	if toggles == nil then
+		toggles = {}
+		local f = io.open(toggles_path(), "r")
+		if f ~= nil then
+			for line in f:lines() do
+				local key, value = string.match(line, "^(%w+)=(%w+)")
+				if key ~= nil then
+					toggles[key] = value == "1"
+				end
+			end
+			f:close()
+		end
+	end
+	return toggles
+end
+
+function set_toggle(key, value)
+	get_toggles()[key] = value and true or false
+	local f = io.open(toggles_path(), "w")
+	if f ~= nil then
+		for _, name in ipairs(TOGGLES) do
+			f:write(name, "=", toggles[name] and "1" or "0", "\n")
+		end
+		f:close()
+	end
+end
+
+local function refill_ammo(item)
+	if item == nil then
+		return
+	end
+	local section = item:section()
+	local ini = system_ini()
+	if not ini:line_exist(section, "ammo_mag_size") then
+		return
+	end
+	local size = ini:r_u32(section, "ammo_mag_size")
+	if size > 0 and item:get_ammo_in_magazine() < size then
+		item:set_ammo_elapsed(size)
+	end
+end
+
+local function apply_toggles()
+	local t = get_toggles()
+	local actor = db.actor
+	if t.god then
+		actor.health = 1
+		actor.psy_health = 1
+	end
+	if t.stamina then
+		actor.power = 1
+	end
+	if t.bleeding then
+		actor.bleeding = 1
+	end
+	if t.repair then
+		for slot = 0, SLOT_LIMIT - 1 do
+			local item = actor:item_in_slot(slot)
+			if item ~= nil and item:condition() < 1 then
+				item:set_condition(1)
+			end
+		end
+	end
+	if t.ammo then
+		refill_ammo(actor:active_item())
+	end
+end
+
 local function execute(line)
 	local words = split(line)
 	local version, id, command = words[1], words[2], words[3]
@@ -350,6 +432,10 @@ function update()
 		if lc ~= nil then
 			alife():release(lc, true)
 		end
+	end
+	if db.actor ~= nil and time_global() >= next_toggle_tick then
+		next_toggle_tick = time_global() + TOGGLE_TICK_MS
+		apply_toggles()
 	end
 	if db.actor == nil or time_global() < next_poll then
 		return

@@ -67,3 +67,19 @@ jobs:
           name: ui-screenshot-${{ runner.os }}
           path: artifacts/ui/*.png
           if-no-files-found: warn
+
+      - name: Run short performance benchmarks
+        if: runner.os == 'Linux'
+        run: dotnet run --project benchmarks/StalkerSaveEditor.Benchmarks.csproj --configuration Release --no-build -- --filter '*' --job Short --exporters csv --artifacts artifacts/benchmarks
+
+      - name: Check performance regression threshold
+        if: runner.os == 'Linux'
+        run: python tools/check_benchmark_regressions.py --baseline benchmarks/baseline.json --reports artifacts/benchmarks/results
+
+      - name: Upload performance report
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: artifacts/benchmarks
+          if-no-files-found: warn

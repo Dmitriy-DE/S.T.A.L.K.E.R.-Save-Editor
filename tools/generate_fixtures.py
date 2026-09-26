@@ -211,6 +211,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
     raw_path = "synthetic-s2.raw"
     (output_dir / container_path).write_bytes(container_bytes)
     (output_dir / raw_path).write_bytes(raw)
+    generated_containers.append(container_path)
     vectors.append(
         {
             "name": "synthetic-s2",

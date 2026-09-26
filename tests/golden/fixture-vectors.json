@@ -4031,6 +4031,764 @@
         "container": 3,
         "format": 118
       }
+    },
+    {
+      "error_type": null,
+      "format": "stalker2",
+      "mutations": {
+        "money_plus_one": {
+          "error_type": null,
+          "plan": {
+            "money": 101,
+            "stacks": []
+          },
+          "result": "passed",
+          "safety_checks": {
+            "capability_allows": true,
+            "capability_gate_rejected": false,
+            "crc_ok": true,
+            "format_preserved": true,
+            "mutation_visible_after_reparse": true,
+            "output_sha256_matches": true,
+            "reparse_succeeded": true,
+            "source_sha256_matches": true,
+            "source_unchanged": true
+          },
+          "state_after": {
+            "capabilities": {
+              "catalog": true,
+              "equipment": {
+                "add": {
+                  "maturity": "unsupported",
+                  "reason": "S2 add/clone constructor is not confirmed."
+                },
+                "categories": [
+                  "weapon",
+                  "armor",
+                  "helmet",
+                  "module",
+                  "device",
+                  "consumable",
+                  "ammo",
+                  "artifact",
+                  "quest",
+                  "other"
+                ],
+                "device_subtypes": [
+                  "nvg",
+                  "binocular",
+                  "detector",
+                  "other",
+                  "unknown"
+                ],
+                "durability": {
+                  "maturity": "experimental",
+                  "reason": "S2 weapon/armor condition anchor is source-backed; game load/re-save is not accepted yet."
+                },
+                "icon_source": "official loose CFG/localization; selected Zone Kit/Workshop is presentation-only",
+                "placement": {
+                  "maturity": "unsupported",
+                  "reason": "S2 placement serialization is not confirmed."
+                },
+                "remove": {
+                  "maturity": "unsupported",
+                  "reason": "S2 safe remove/reference graph is not confirmed."
+                },
+                "upgrades": {
+                  "maturity": "research",
+                  "reason": "S2 module/upgrade vectors are observed but installed/current state is not proven."
+                }
+              },
+              "mutations": {
+                "add_items": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_durability": {
+                  "maturity": "experimental",
+                  "reason": "S2 weapon/armor condition anchor is source-backed; game load/re-save is not accepted yet.",
+                  "writable": true
+                },
+                "edit_money": {
+                  "maturity": "experimental",
+                  "reason": null,
+                  "writable": true
+                },
+                "edit_placement": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_player_faction": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_relations": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_stacks": {
+                  "maturity": "experimental",
+                  "reason": null,
+                  "writable": true
+                },
+                "edit_upgrades": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "move_items": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "remove_items": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                }
+              },
+              "read_inventory": true
+            },
+            "character": {
+              "faction_relations": [],
+              "health": null,
+              "name": null,
+              "player_faction_editable": false,
+              "player_faction_index": null,
+              "rank": null,
+              "reputation": null
+            },
+            "equipment": [
+              {
+                "category": "consumable",
+                "condition": null,
+                "condition_editable": false,
+                "damaged": false,
+                "device_subtype": null,
+                "durability": {
+                  "maturity": "unsupported",
+                  "reason": "В сейве нет подтверждённого поля прочности для этого предмета."
+                },
+                "durability_editable": false,
+                "handle": 805306369,
+                "handle_hex": "0x30000001",
+                "icon_texture": null,
+                "icon_x": null,
+                "icon_y": null,
+                "location": "inventory",
+                "module_states": null,
+                "modules": null,
+                "name": "Неизвестный предмет · 0x30000001",
+                "observation_source": "grid",
+                "provenance": "owned",
+                "serializer_family": null,
+                "type_key": "010203",
+                "upgrade_states": null,
+                "upgrades": null,
+                "upgrades_editable": false
+              },
+              {
+                "category": "other",
+                "condition": null,
+                "condition_editable": false,
+                "damaged": false,
+                "device_subtype": null,
+                "durability": {
+                  "maturity": "unsupported",
+                  "reason": "В сейве нет подтверждённого поля прочности для этого предмета."
+                },
+                "durability_editable": false,
+                "handle": 805306370,
+                "handle_hex": "0x30000002",
+                "icon_texture": null,
+                "icon_x": null,
+                "icon_y": null,
+                "location": "inventory",
+                "module_states": null,
+                "modules": null,
+                "name": "Неизвестный предмет · 0x30000002",
+                "observation_source": "grid",
+                "provenance": "owned",
+                "serializer_family": null,
+                "type_key": "040506",
+                "upgrade_states": null,
+                "upgrades": null,
+                "upgrades_editable": false
+              }
+            ],
+            "integrity": {
+              "crc_ok": true,
+              "crc_present": true,
+              "name": "CRC-32"
+            },
+            "items": [
+              {
+                "condition": null,
+                "count": 2,
+                "handle": 805306369,
+                "handle_hex": "0x30000001",
+                "placement": {
+                  "base_slot": null,
+                  "cells": [
+                    [
+                      0,
+                      0
+                    ]
+                  ],
+                  "height": 1,
+                  "slot": null,
+                  "storage": "inventory",
+                  "type": null,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "sid_or_section": "010203",
+                "type_key": "010203",
+                "upgrades": null
+              },
+              {
+                "condition": null,
+                "count": 1,
+                "handle": 805306370,
+                "handle_hex": "0x30000002",
+                "placement": {
+                  "base_slot": null,
+                  "cells": [
+                    [
+                      1,
+                      0
+                    ]
+                  ],
+                  "height": 1,
+                  "slot": null,
+                  "storage": "inventory",
+                  "type": null,
+                  "width": 1,
+                  "x": 1,
+                  "y": 0
+                },
+                "sid_or_section": "040506",
+                "type_key": "040506",
+                "upgrades": null
+              }
+            ],
+            "money": 101,
+            "time": {
+              "game_time": null,
+              "level_name": null,
+              "normal_time_factor": null,
+              "time_factor": null
+            },
+            "warnings": [
+              "Handle 0x30000004: неизвестный orphan object kind=99, только read-only"
+            ]
+          }
+        },
+        "stack_delta": {
+          "error_type": null,
+          "plan": {
+            "money": null,
+            "stacks": [
+              {
+                "count": 3,
+                "handle": 805306369
+              }
+            ]
+          },
+          "result": "passed",
+          "safety_checks": {
+            "capability_allows": true,
+            "capability_gate_rejected": false,
+            "crc_ok": true,
+            "format_preserved": true,
+            "mutation_visible_after_reparse": true,
+            "output_sha256_matches": true,
+            "reparse_succeeded": true,
+            "source_sha256_matches": true,
+            "source_unchanged": true
+          },
+          "state_after": {
+            "capabilities": {
+              "catalog": true,
+              "equipment": {
+                "add": {
+                  "maturity": "unsupported",
+                  "reason": "S2 add/clone constructor is not confirmed."
+                },
+                "categories": [
+                  "weapon",
+                  "armor",
+                  "helmet",
+                  "module",
+                  "device",
+                  "consumable",
+                  "ammo",
+                  "artifact",
+                  "quest",
+                  "other"
+                ],
+                "device_subtypes": [
+                  "nvg",
+                  "binocular",
+                  "detector",
+                  "other",
+                  "unknown"
+                ],
+                "durability": {
+                  "maturity": "experimental",
+                  "reason": "S2 weapon/armor condition anchor is source-backed; game load/re-save is not accepted yet."
+                },
+                "icon_source": "official loose CFG/localization; selected Zone Kit/Workshop is presentation-only",
+                "placement": {
+                  "maturity": "unsupported",
+                  "reason": "S2 placement serialization is not confirmed."
+                },
+                "remove": {
+                  "maturity": "unsupported",
+                  "reason": "S2 safe remove/reference graph is not confirmed."
+                },
+                "upgrades": {
+                  "maturity": "research",
+                  "reason": "S2 module/upgrade vectors are observed but installed/current state is not proven."
+                }
+              },
+              "mutations": {
+                "add_items": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_durability": {
+                  "maturity": "experimental",
+                  "reason": "S2 weapon/armor condition anchor is source-backed; game load/re-save is not accepted yet.",
+                  "writable": true
+                },
+                "edit_money": {
+                  "maturity": "experimental",
+                  "reason": null,
+                  "writable": true
+                },
+                "edit_placement": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_player_faction": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_relations": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "edit_stacks": {
+                  "maturity": "experimental",
+                  "reason": null,
+                  "writable": true
+                },
+                "edit_upgrades": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "move_items": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                },
+                "remove_items": {
+                  "maturity": "unsupported",
+                  "reason": null,
+                  "writable": false
+                }
+              },
+              "read_inventory": true
+            },
+            "character": {
+              "faction_relations": [],
+              "health": null,
+              "name": null,
+              "player_faction_editable": false,
+              "player_faction_index": null,
+              "rank": null,
+              "reputation": null
+            },
+            "equipment": [
+              {
+                "category": "consumable",
+                "condition": null,
+                "condition_editable": false,
+                "damaged": false,
+                "device_subtype": null,
+                "durability": {
+                  "maturity": "unsupported",
+                  "reason": "В сейве нет подтверждённого поля прочности для этого предмета."
+                },
+                "durability_editable": false,
+                "handle": 805306369,
+                "handle_hex": "0x30000001",
+                "icon_texture": null,
+                "icon_x": null,
+                "icon_y": null,
+                "location": "inventory",
+                "module_states": null,
+                "modules": null,
+                "name": "Неизвестный предмет · 0x30000001",
+                "observation_source": "grid",
+                "provenance": "owned",
+                "serializer_family": null,
+                "type_key": "010203",
+                "upgrade_states": null,
+                "upgrades": null,
+                "upgrades_editable": false
+              },
+              {
+                "category": "other",
+                "condition": null,
+                "condition_editable": false,
+                "damaged": false,
+                "device_subtype": null,
+                "durability": {
+                  "maturity": "unsupported",
+                  "reason": "В сейве нет подтверждённого поля прочности для этого предмета."
+                },
+                "durability_editable": false,
+                "handle": 805306370,
+                "handle_hex": "0x30000002",
+                "icon_texture": null,
+                "icon_x": null,
+                "icon_y": null,
+                "location": "inventory",
+                "module_states": null,
+                "modules": null,
+                "name": "Неизвестный предмет · 0x30000002",
+                "observation_source": "grid",
+                "provenance": "owned",
+                "serializer_family": null,
+                "type_key": "040506",
+                "upgrade_states": null,
+                "upgrades": null,
+                "upgrades_editable": false
+              }
+            ],
+            "integrity": {
+              "crc_ok": true,
+              "crc_present": true,
+              "name": "CRC-32"
+            },
+            "items": [
+              {
+                "condition": null,
+                "count": 3,
+                "handle": 805306369,
+                "handle_hex": "0x30000001",
+                "placement": {
+                  "base_slot": null,
+                  "cells": [
+                    [
+                      0,
+                      0
+                    ]
+                  ],
+                  "height": 1,
+                  "slot": null,
+                  "storage": "inventory",
+                  "type": null,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "sid_or_section": "010203",
+                "type_key": "010203",
+                "upgrades": null
+              },
+              {
+                "condition": null,
+                "count": 1,
+                "handle": 805306370,
+                "handle_hex": "0x30000002",
+                "placement": {
+                  "base_slot": null,
+                  "cells": [
+                    [
+                      1,
+                      0
+                    ]
+                  ],
+                  "height": 1,
+                  "slot": null,
+                  "storage": "inventory",
+                  "type": null,
+                  "width": 1,
+                  "x": 1,
+                  "y": 0
+                },
+                "sid_or_section": "040506",
+                "type_key": "040506",
+                "upgrades": null
+              }
+            ],
+            "money": 100,
+            "time": {
+              "game_time": null,
+              "level_name": null,
+              "normal_time_factor": null,
+              "time_factor": null
+            },
+            "warnings": [
+              "Handle 0x30000004: неизвестный orphan object kind=99, только read-only"
+            ]
+          }
+        }
+      },
+      "parse_status": "ok",
+      "release": "stalker2",
+      "sha256": "2fe435d0909e812c362c7577e5adaaef1390e22ea06a46571510530caae92408",
+      "state": {
+        "capabilities": {
+          "catalog": true,
+          "equipment": {
+            "add": {
+              "maturity": "unsupported",
+              "reason": "S2 add/clone constructor is not confirmed."
+            },
+            "categories": [
+              "weapon",
+              "armor",
+              "helmet",
+              "module",
+              "device",
+              "consumable",
+              "ammo",
+              "artifact",
+              "quest",
+              "other"
+            ],
+            "device_subtypes": [
+              "nvg",
+              "binocular",
+              "detector",
+              "other",
+              "unknown"
+            ],
+            "durability": {
+              "maturity": "experimental",
+              "reason": "S2 weapon/armor condition anchor is source-backed; game load/re-save is not accepted yet."
+            },
+            "icon_source": "official loose CFG/localization; selected Zone Kit/Workshop is presentation-only",
+            "placement": {
+              "maturity": "unsupported",
+              "reason": "S2 placement serialization is not confirmed."
+            },
+            "remove": {
+              "maturity": "unsupported",
+              "reason": "S2 safe remove/reference graph is not confirmed."
+            },
+            "upgrades": {
+              "maturity": "research",
+              "reason": "S2 module/upgrade vectors are observed but installed/current state is not proven."
+            }
+          },
+          "mutations": {
+            "add_items": {
+              "maturity": "unsupported",
+              "reason": null,
+              "writable": false
+            },
+            "edit_durability": {
+              "maturity": "experimental",
+              "reason": "S2 weapon/armor condition anchor is source-backed; game load/re-save is not accepted yet.",
+              "writable": true
+            },
+            "edit_money": {
+              "maturity": "experimental",
+              "reason": null,
+              "writable": true
+            },
+            "edit_placement": {
+              "maturity": "unsupported",
+              "reason": null,
+              "writable": false
+            },
+            "edit_player_faction": {
+              "maturity": "unsupported",
+              "reason": null,
+              "writable": false
+            },
+            "edit_relations": {
+              "maturity": "unsupported",
+              "reason": null,
+              "writable": false
+            },
+            "edit_stacks": {
+              "maturity": "experimental",
+              "reason": null,
+              "writable": true
+            },
+            "edit_upgrades": {
+              "maturity": "unsupported",
+              "reason": null,
+              "writable": false
+            },
+            "move_items": {
+              "maturity": "unsupported",
+              "reason": null,
+              "writable": false
+            },
+            "remove_items": {
+              "maturity": "unsupported",
+              "reason": null,
+              "writable": false
+            }
+          },
+          "read_inventory": true
+        },
+        "character": {
+          "faction_relations": [],
+          "health": null,
+          "name": null,
+          "player_faction_editable": false,
+          "player_faction_index": null,
+          "rank": null,
+          "reputation": null
+        },
+        "equipment": [
+          {
+            "category": "consumable",
+            "condition": null,
+            "condition_editable": false,
+            "damaged": false,
+            "device_subtype": null,
+            "durability": {
+              "maturity": "unsupported",
+              "reason": "В сейве нет подтверждённого поля прочности для этого предмета."
+            },
+            "durability_editable": false,
+            "handle": 805306369,
+            "handle_hex": "0x30000001",
+            "icon_texture": null,
+            "icon_x": null,
+            "icon_y": null,
+            "location": "inventory",
+            "module_states": null,
+            "modules": null,
+            "name": "Неизвестный предмет · 0x30000001",
+            "observation_source": "grid",
+            "provenance": "owned",
+            "serializer_family": null,
+            "type_key": "010203",
+            "upgrade_states": null,
+            "upgrades": null,
+            "upgrades_editable": false
+          },
+          {
+            "category": "other",
+            "condition": null,
+            "condition_editable": false,
+            "damaged": false,
+            "device_subtype": null,
+            "durability": {
+              "maturity": "unsupported",
+              "reason": "В сейве нет подтверждённого поля прочности для этого предмета."
+            },
+            "durability_editable": false,
+            "handle": 805306370,
+            "handle_hex": "0x30000002",
+            "icon_texture": null,
+            "icon_x": null,
+            "icon_y": null,
+            "location": "inventory",
+            "module_states": null,
+            "modules": null,
+            "name": "Неизвестный предмет · 0x30000002",
+            "observation_source": "grid",
+            "provenance": "owned",
+            "serializer_family": null,
+            "type_key": "040506",
+            "upgrade_states": null,
+            "upgrades": null,
+            "upgrades_editable": false
+          }
+        ],
+        "integrity": {
+          "crc_ok": true,
+          "crc_present": true,
+          "name": "CRC-32"
+        },
+        "items": [
+          {
+            "condition": null,
+            "count": 2,
+            "handle": 805306369,
+            "handle_hex": "0x30000001",
+            "placement": {
+              "base_slot": null,
+              "cells": [
+                [
+                  0,
+                  0
+                ]
+              ],
+              "height": 1,
+              "slot": null,
+              "storage": "inventory",
+              "type": null,
+              "width": 1,
+              "x": 0,
+              "y": 0
+            },
+            "sid_or_section": "010203",
+            "type_key": "010203",
+            "upgrades": null
+          },
+          {
+            "condition": null,
+            "count": 1,
+            "handle": 805306370,
+            "handle_hex": "0x30000002",
+            "placement": {
+              "base_slot": null,
+              "cells": [
+                [
+                  1,
+                  0
+                ]
+              ],
+              "height": 1,
+              "slot": null,
+              "storage": "inventory",
+              "type": null,
+              "width": 1,
+              "x": 1,
+              "y": 0
+            },
+            "sid_or_section": "040506",
+            "type_key": "040506",
+            "upgrades": null
+          }
+        ],
+        "money": 100,
+        "time": {
+          "game_time": null,
+          "level_name": null,
+          "normal_time_factor": null,
+          "time_factor": null
+        },
+        "warnings": [
+          "Handle 0x30000004: неизвестный orphan object kind=99, только read-only"
+        ]
+      },
+      "versions": {
+        "container": null,
+        "format": null
+      }
     }
   ],
   "schema_version": 1

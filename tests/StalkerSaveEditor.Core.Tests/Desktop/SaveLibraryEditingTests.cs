@@ -11,9 +11,14 @@ public sealed class SaveLibraryEditingTests
     public void Saves_xray_money_and_stack_changes_through_backup_and_readback()
     {
         using var directory = new TemporaryDirectory();
-        var path = Path.Combine(directory.Path, "slot.sav");
+        var saveDirectory = Path.Combine(directory.Path, "saves");
+        var backupDirectory = Path.Combine(directory.Path, "backups");
+        Directory.CreateDirectory(saveDirectory);
+        var path = Path.Combine(saveDirectory, "slot.sav");
         File.WriteAllBytes(path, ReadXRayFixture());
-        var viewModel = new SaveLibraryViewModel(discoverLocalSaves: false);
+        var viewModel = new SaveLibraryViewModel(
+            discoverLocalSaves: false,
+            backupDirectoryProvider: () => backupDirectory);
 
         Assert.True(viewModel.AddPreviewSave(path));
         var item = Assert.Single(viewModel.SelectedInventory);
@@ -32,7 +37,8 @@ public sealed class SaveLibraryEditingTests
         Assert.Equal((ushort?)44, Assert.Single(saved.Inventory).Count);
         Assert.False(viewModel.CanSave);
         Assert.Contains("Backup:", viewModel.StatusMessage, StringComparison.Ordinal);
-        Assert.Equal(4, Directory.GetFiles(directory.Path).Length);
+        Assert.Equal([path], Directory.GetFiles(saveDirectory));
+        Assert.Equal(3, Directory.GetFiles(backupDirectory).Length);
     }
 
     [Fact]

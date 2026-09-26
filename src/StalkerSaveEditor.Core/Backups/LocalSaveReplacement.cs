@@ -34,11 +34,13 @@ public static class LocalSaveReplacement
     public static LocalSaveReplacementReceipt ReplaceLocal(
         string sourcePath,
         PreparedEdit prepared,
+        string backupDirectory,
         Action<ReadOnlyMemory<byte>> verifyReadback,
         ILocalSaveFileSystem? fileSystem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(prepared);
+        ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);
         ArgumentNullException.ThrowIfNull(verifyReadback);
 
         var files = fileSystem ?? new LocalSaveFileSystem();
@@ -60,16 +62,18 @@ public static class LocalSaveReplacement
 
         var directory = Path.GetDirectoryName(sourceFullPath)
             ?? throw new IOException("Source save must have a parent directory.");
+        var backupDirectoryFullPath = Path.GetFullPath(backupDirectory);
+        Directory.CreateDirectory(backupDirectoryFullPath);
         var stem = Path.GetFileNameWithoutExtension(sourceFullPath);
         if (stem.Length > 64) stem = stem[..64];
         var token = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd'T'HHmmssfffffff'Z'", CultureInfo.InvariantCulture);
         var prefix = $"{stem}_{stamp}_{token}";
-        var backupPath = Path.Combine(directory, $"{prefix}_ORIGINAL.sav");
-        var recoveryPath = Path.Combine(directory, $"{prefix}_EDITED.sav");
+        var backupPath = Path.Combine(backupDirectoryFullPath, $"{prefix}_ORIGINAL.sav");
+        var recoveryPath = Path.Combine(backupDirectoryFullPath, $"{prefix}_EDITED.sav");
         var journalPath = Path.ChangeExtension(backupPath, ".json");
         var temporaryOutputPath = Path.Combine(directory, $".{Path.GetFileName(sourceFullPath)}.{Guid.NewGuid():N}.tmp");
-        var temporaryJournalPath = Path.Combine(directory, $".{Path.GetFileName(journalPath)}.{Guid.NewGuid():N}.tmp");
+        var temporaryJournalPath = Path.Combine(backupDirectoryFullPath, $".{Path.GetFileName(journalPath)}.{Guid.NewGuid():N}.tmp");
         var journal = CreateJournal(
             sourceFullPath,
             backupPath,

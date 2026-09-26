@@ -20,12 +20,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private string _statusMessage = string.Empty;
     private bool _isSaving;
     private readonly Func<IReadOnlyList<string>> _saveDirectoriesProvider;
+    private readonly Func<string> _backupDirectoryProvider;
 
     public SaveLibraryViewModel(
         bool discoverLocalSaves = true,
-        Func<IReadOnlyList<string>>? saveDirectoriesProvider = null)
+        Func<IReadOnlyList<string>>? saveDirectoriesProvider = null,
+        Func<string>? backupDirectoryProvider = null)
     {
         _saveDirectoriesProvider = saveDirectoriesProvider ?? SaveDirectoryDiscovery.GetExistingDirectories;
+        _backupDirectoryProvider = backupDirectoryProvider ?? GetDefaultBackupDirectory;
         RefreshCommand = new RelayCommand(Refresh);
         SaveCommand = new RelayCommand(SaveSelected);
         if (discoverLocalSaves) Refresh();
@@ -261,6 +264,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             var receipt = LocalSaveReplacement.ReplaceLocal(
                 selected.FilePath,
                 prepared,
+                _backupDirectoryProvider(),
                 readBack => VerifyReadBack(readBack.Span, selected.ReleaseId, plan));
             var refreshed = TryReadSave(selected.FilePath);
             if (refreshed is null || !string.Equals(refreshed.SourceSha256, receipt.OutputSha256, StringComparison.Ordinal))
@@ -346,6 +350,17 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private static string Sha256(ReadOnlySpan<byte> data) =>
         Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
+
+    private static string GetDefaultBackupDirectory()
+    {
+        var localApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localApplicationData))
+        {
+            throw new IOException("The local application data directory is not available.");
+        }
+
+        return Path.Combine(localApplicationData, "StalkerSaveEditor", "backups");
+    }
 
     private static bool IsBackupArtifact(string path)
     {

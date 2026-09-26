@@ -6,7 +6,7 @@ The Python editor stays the reference implementation until this port reaches par
 The X-Ray readers recognize original Shadow of Chernobyl, Clear Sky, and Call
 of Pripyat saves plus their Enhanced Editions. The desktop editor can write
 money and confirmed ammo-stack counts for these formats after an explicit save
-action, with a sibling backup and recovery copy. See the
+action, with a backup and recovery copy in its application-data backup folder. See the
 [current X-Ray reader scope](docs/CS4_XRAY_TRILOGY.md).
 
 X-Ray item removal is limited to actor-owned registry leaves that are not

@@ -10,17 +10,21 @@ namespace StalkerSaveEditor.Core.Tests.Backups;
 public sealed class LocalSaveReplacementTests
 {
     [Fact]
-    public void Creates_sibling_backup_and_recovery_before_verified_replacement()
+    public void Stores_backup_recovery_and_journal_outside_the_save_directory()
     {
         using var directory = new TemporaryDirectory();
         var source = ReadFixture();
-        var sourcePath = Path.Combine(directory.Path, "slot.sav");
+        var saveDirectory = Path.Combine(directory.Path, "saves");
+        var backupDirectory = Path.Combine(directory.Path, "backups");
+        Directory.CreateDirectory(saveDirectory);
+        var sourcePath = Path.Combine(saveDirectory, "slot.sav");
         File.WriteAllBytes(sourcePath, source);
         var prepared = Prepare(source);
 
         var receipt = LocalSaveReplacement.ReplaceLocal(
             sourcePath,
             prepared,
+            backupDirectory,
             readBack =>
             {
                 var parsed = XRayTrilogyReader.FromBytes(readBack.Span);
@@ -28,12 +32,14 @@ public sealed class LocalSaveReplacementTests
                 Assert.Equal((ushort?)44, Assert.Single(parsed.Inventory).Count);
             });
 
-        Assert.Equal(directory.Path, Path.GetDirectoryName(receipt.BackupPath));
-        Assert.Equal(directory.Path, Path.GetDirectoryName(receipt.RecoveryPath));
-        Assert.Equal(directory.Path, Path.GetDirectoryName(receipt.JournalPath));
+        Assert.Equal(backupDirectory, Path.GetDirectoryName(receipt.BackupPath));
+        Assert.Equal(backupDirectory, Path.GetDirectoryName(receipt.RecoveryPath));
+        Assert.Equal(backupDirectory, Path.GetDirectoryName(receipt.JournalPath));
         Assert.Equal(source, File.ReadAllBytes(receipt.BackupPath));
         Assert.Equal(prepared.Data.ToArray(), File.ReadAllBytes(receipt.RecoveryPath));
         Assert.Equal(prepared.Data.ToArray(), File.ReadAllBytes(sourcePath));
+        Assert.Equal([sourcePath], Directory.GetFiles(saveDirectory));
+        Assert.Equal(3, Directory.GetFiles(backupDirectory).Length);
         Assert.Equal(prepared.OutputSha256, receipt.OutputSha256);
 
         using var journal = JsonDocument.Parse(File.ReadAllBytes(receipt.JournalPath));
@@ -49,12 +55,14 @@ public sealed class LocalSaveReplacementTests
         using var directory = new TemporaryDirectory();
         var source = ReadFixture();
         var sourcePath = Path.Combine(directory.Path, "slot.sav");
+        var backupDirectory = Path.Combine(directory.Path, "backups");
         File.WriteAllBytes(sourcePath, source);
         var prepared = Prepare(source);
 
         Assert.Throws<IOException>(() => LocalSaveReplacement.ReplaceLocal(
             sourcePath,
             prepared,
+            backupDirectory,
             _ => throw new InvalidOperationException("Read-back must not run."),
             new BackupFailingFileSystem()));
 
@@ -70,12 +78,14 @@ public sealed class LocalSaveReplacementTests
         var changed = ReadFixture();
         changed[^1] ^= 0x01;
         var sourcePath = Path.Combine(directory.Path, "slot.sav");
+        var backupDirectory = Path.Combine(directory.Path, "backups");
         File.WriteAllBytes(sourcePath, changed);
         var prepared = Prepare(source);
 
         Assert.Throws<IOException>(() => LocalSaveReplacement.ReplaceLocal(
             sourcePath,
             prepared,
+            backupDirectory,
             _ => throw new InvalidOperationException("Read-back must not run.")));
 
         Assert.Equal(changed, File.ReadAllBytes(sourcePath));
@@ -88,12 +98,14 @@ public sealed class LocalSaveReplacementTests
         using var directory = new TemporaryDirectory();
         var source = ReadFixture();
         var sourcePath = Path.Combine(directory.Path, "slot.sav");
+        var backupDirectory = Path.Combine(directory.Path, "backups");
         File.WriteAllBytes(sourcePath, source);
         var prepared = Prepare(source);
 
         var exception = Assert.Throws<LocalSaveReplacementException>(() => LocalSaveReplacement.ReplaceLocal(
             sourcePath,
             prepared,
+            backupDirectory,
             _ => throw new InvalidDataException("Synthetic read-back rejection.")));
 
         Assert.True(File.Exists(exception.BackupPath));

@@ -141,7 +141,7 @@ function companion_dialog:InitControls()
 	for index, category in ipairs(CATEGORIES) do
 		self.category_box:AddItem(category.title, index - 1)
 	end
-	self.category_box:SetCurrentID(0)
+	self.category_box:SetText(CATEGORIES[1].title) -- CoP combo has no SetCurrentID; CurrentID() starts at the first item
 	self:Register(self.category_box, "category")
 
 	xml:InitFrame("form:list_frame", self.form)

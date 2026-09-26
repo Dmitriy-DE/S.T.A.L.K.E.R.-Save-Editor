@@ -29,3 +29,14 @@ python tools/generate_xray_stack_fixtures.py --python-repo /path/to/S.T.A.L.K.E.
 
 The vectors cover original trilogy and Enhanced Edition formats and include
 both packed saves and expected decompressed container bytes.
+
+S2 money writer vectors under `writer-s2-money/` are generated from the
+Python `prepare_edit` oracle and its native Kraken encoder. Build the encoder
+into a temporary directory, add that directory to `PYTHONPATH`, then run:
+
+```bash
+python tools/generate_s2_money_fixtures.py --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor
+```
+
+The fixture manifest records the Python revision, source/output hashes, the
+wallet offset, and the Python capability maturity.

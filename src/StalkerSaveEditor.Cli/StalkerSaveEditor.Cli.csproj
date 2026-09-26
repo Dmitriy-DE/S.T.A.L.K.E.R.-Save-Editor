@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../StalkerSaveEditor.Core/StalkerSaveEditor.Core.csproj" />
+    <ProjectReference Include="../StalkerSaveEditor.Steam/StalkerSaveEditor.Steam.csproj" />
   </ItemGroup>
 </Project>

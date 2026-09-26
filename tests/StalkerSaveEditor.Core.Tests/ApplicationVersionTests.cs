@@ -1,0 +1,13 @@
+using StalkerSaveEditor.Core;
+using Xunit;
+
+namespace StalkerSaveEditor.Core.Tests;
+
+public sealed class ApplicationVersionTests
+{
+    [Fact]
+    public void Current_is_the_configured_semantic_version()
+    {
+        Assert.Equal("0.1.0", ApplicationVersion.Current);
+    }
+}

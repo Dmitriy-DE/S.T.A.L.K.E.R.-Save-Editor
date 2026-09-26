@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../StalkerSaveEditor.Core/StalkerSaveEditor.Core.csproj" />
+  </ItemGroup>
+</Project>

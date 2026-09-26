@@ -1,0 +1,39 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-24.04
+          - macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore StalkerSaveEditor.sln
+
+      - name: Build
+        run: dotnet build StalkerSaveEditor.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test StalkerSaveEditor.sln --configuration Release --no-build --no-restore
+
+      - name: Check CLI version command
+        run: dotnet run --project src/StalkerSaveEditor.Cli/StalkerSaveEditor.Cli.csproj --configuration Release --no-build --no-restore -- version

@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <Content Include="../../artifacts/native/*" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Catalogs/Data/catalogs.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.catalogs.json" />
+    <EmbeddedResource Include="Catalogs/Data/catalog_names.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.catalog_names.json" />
   </ItemGroup>
 </Project>

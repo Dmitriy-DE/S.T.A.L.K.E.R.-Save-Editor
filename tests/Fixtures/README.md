@@ -1,4 +1,4 @@
-# Synthetic codec fixtures
+# Synthetic test fixtures
 
 These byte fixtures are generated from the Python oracle's `_fixture` and
 `_fixture_with_base_item` helpers in `tests/test_xray_save.py`, LZO vectors in
@@ -19,3 +19,13 @@ python tools/import_s2_reader_fixtures.py --python-repo /path/to/S.T.A.L.K.E.R.-
 
 `fixture-vectors.json` records the oracle Git revision and each container's
 compressed stream range and expected decompressed payload file.
+
+X-Ray stack writer vectors under `writer-stacks/` are synthetic and generated
+from the Python `prepare_xray` oracle. Regenerate them with:
+
+```bash
+python tools/generate_xray_stack_fixtures.py --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor
+```
+
+The vectors cover original trilogy and Enhanced Edition formats and include
+both packed saves and expected decompressed container bytes.

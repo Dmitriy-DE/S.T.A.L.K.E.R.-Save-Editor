@@ -95,6 +95,22 @@ public sealed class XRayContainer
     public static IReadOnlyList<XRayChunk> ParseChunks(ReadOnlySpan<byte> raw) =>
         ParseChunksOwned(raw.ToArray());
 
+    public byte[] Build(ReadOnlySpan<byte> raw)
+    {
+        if (raw.IsEmpty || raw.Length > MaximumUnpackedSize)
+        {
+            throw Error($"недопустимый распакованный размер: {raw.Length}");
+        }
+
+        var compressed = Lzo1xCodec.Compress(raw);
+        var output = GC.AllocateUninitializedArray<byte>(checked(12 + compressed.Length));
+        BinaryPrimitives.WriteUInt32LittleEndian(output, Magic);
+        BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(4), Version);
+        BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(8), checked((uint)raw.Length));
+        compressed.AsSpan().CopyTo(output.AsSpan(12));
+        return output;
+    }
+
     private static IReadOnlyList<XRayChunk> ParseChunksOwned(byte[] raw)
     {
         var chunks = new List<XRayChunk>();

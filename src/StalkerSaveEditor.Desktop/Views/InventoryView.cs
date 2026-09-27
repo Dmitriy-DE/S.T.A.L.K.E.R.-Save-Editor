@@ -51,6 +51,8 @@ public static class InventoryView
             Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
         });
+        moneyBox.Bind(TextBox.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.CanEditMoney)));
+        moneyBox.Bind(ToolTip.TipProperty, new Binding("SelectedSave.MoneyDisabledReason"));
         moneyPanel.Children.Add(moneyBox);
 
         moneyPanel.Children.Add(MakeQuickMoneyButton(vm, "+10 000", "10000"));
@@ -59,8 +61,11 @@ public static class InventoryView
 
         var addBtn = StalkerTheme.StalkerButton("+ Добавить предмет", isPrimary: true, minWidth: 150);
         addBtn.HorizontalAlignment = HorizontalAlignment.Right;
+        addBtn.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanAddItems"));
+        addBtn.Bind(ToolTip.TipProperty, new Binding("SelectedSave.AddItemsDisabledReason"));
         addBtn.Click += (_, _) =>
         {
+            if (vm.SelectedSave is not { CanAddItems: true }) return;
             var addVm = vm.CreateAddItemDialog();
             var dialog = new AddItemDialog(addVm, vm);
             if (Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
@@ -267,6 +272,7 @@ public static class InventoryView
         };
         durSlider.Bind(Slider.ValueProperty, new Binding("SelectedItem.ConditionPercent") { Mode = BindingMode.TwoWay });
         durSlider.Bind(Slider.IsEnabledProperty, new Binding("SelectedItem.CanEditCondition"));
+        durSlider.Bind(ToolTip.TipProperty, new Binding("SelectedItem.ConditionDisabledReason"));
         sliderRow.Children.Add(durSlider);
 
         var durPercentText = new TextBlock
@@ -302,6 +308,7 @@ public static class InventoryView
         };
         countBox.Bind(TextBox.TextProperty, new Binding("SelectedItem.CountInput") { Mode = BindingMode.TwoWay });
         countBox.Bind(TextBox.IsEnabledProperty, new Binding("SelectedItem.CanEditCount"));
+        countBox.Bind(ToolTip.TipProperty, new Binding("SelectedItem.CountDisabledReason"));
         countStack.Children.Add(countBox);
         content.Children.Add(StalkerTheme.Card(countStack, "Количество"));
 
@@ -329,6 +336,7 @@ public static class InventoryView
                 };
                 chk.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(UpgradeItemViewModel.IsInstalled)) { Mode = BindingMode.TwoWay });
                 chk.Bind(CheckBox.IsEnabledProperty, new Binding(nameof(UpgradeItemViewModel.CanEdit)));
+                chk.Bind(ToolTip.TipProperty, new Binding(nameof(UpgradeItemViewModel.DisabledReason)));
                 return chk;
             }),
         };
@@ -339,6 +347,8 @@ public static class InventoryView
         var deleteBtn = StalkerTheme.StalkerButton("Удалить предмет", isPrimary: false);
         deleteBtn.Foreground = StalkerTheme.BrushDanger;
         deleteBtn.BorderBrush = StalkerTheme.BrushDanger;
+        deleteBtn.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanRemoveItems"));
+        deleteBtn.Bind(ToolTip.TipProperty, new Binding("SelectedSave.RemoveItemsDisabledReason"));
         deleteBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.RemoveSelectedItemCommand)));
         content.Children.Add(deleteBtn);
 
@@ -377,7 +387,12 @@ public static class InventoryView
             BorderBrush = StalkerTheme.BrushBorder,
             CornerRadius = new CornerRadius(3),
         };
-        btn.Click += (_, _) => vm.AddMoney(amount);
+        btn.Bind(Button.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.CanEditMoney)));
+        btn.Bind(ToolTip.TipProperty, new Binding("SelectedSave.MoneyDisabledReason"));
+        btn.Click += (_, _) =>
+        {
+            if (vm.CanEditMoney) vm.AddMoney(amount);
+        };
         return btn;
     }
 
@@ -393,7 +408,12 @@ public static class InventoryView
             BorderBrush = StalkerTheme.BrushBorder,
             CornerRadius = new CornerRadius(3),
         };
-        btn.Click += (_, _) => vm.SetItemCondition(percent);
+        btn.Bind(Button.IsEnabledProperty, new Binding("SelectedItem.CanEditCondition"));
+        btn.Bind(ToolTip.TipProperty, new Binding("SelectedItem.ConditionDisabledReason"));
+        btn.Click += (_, _) =>
+        {
+            if (vm.SelectedItem is { CanEditCondition: true }) vm.SetItemCondition(percent);
+        };
         return btn;
     }
 
@@ -409,6 +429,8 @@ public static class InventoryView
             BorderBrush = StalkerTheme.BrushBorder,
             CornerRadius = new CornerRadius(3),
         };
+        btn.Bind(Button.IsEnabledProperty, new Binding("SelectedItem.CanEditPlacement"));
+        btn.Bind(ToolTip.TipProperty, new Binding("SelectedItem.PlacementDisabledReason"));
         btn.Click += (_, _) =>
         {
             if (vm.SelectedItem is { CanEditPlacement: true })

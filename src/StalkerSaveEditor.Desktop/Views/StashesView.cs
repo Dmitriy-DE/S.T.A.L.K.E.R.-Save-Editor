@@ -82,7 +82,18 @@ public static class StashesView
                     Source = item,
                     Mode = BindingMode.TwoWay,
                 });
-                takeChk.Click += (_, _) => vm.TakeStashItem(item);
+                takeChk.Bind(CheckBox.IsEnabledProperty, new Binding(nameof(StashItemViewModel.CanEdit))
+                {
+                    Source = item,
+                });
+                takeChk.Bind(ToolTip.TipProperty, new Binding(nameof(StashItemViewModel.DisabledReason))
+                {
+                    Source = item,
+                });
+                takeChk.Click += (_, _) =>
+                {
+                    if (item.CanEdit) vm.TakeStashItem(item);
+                };
                 Grid.SetColumn(takeChk, 1);
                 row.Children.Add(takeChk);
 

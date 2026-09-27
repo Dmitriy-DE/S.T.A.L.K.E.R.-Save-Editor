@@ -24,7 +24,11 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         bool canEditPlacement,
         IReadOnlyList<string>? upgrades,
         bool canEditUpgrades,
-        IEnumerable<UpgradeDefinition>? availableUpgrades = null)
+        IEnumerable<UpgradeDefinition>? availableUpgrades = null,
+        string? countDisabledReason = null,
+        string? conditionDisabledReason = null,
+        string? placementDisabledReason = null,
+        string? upgradesDisabledReason = null)
     {
         Name = name;
         TypeKey = typeKey;
@@ -32,25 +36,41 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         Category = NormalizeCategory(category);
         OriginalCount = count;
         CanEditCount = canEditCount && count is not null;
+        CountDisabledReason = CanEditCount
+            ? "Изменить количество предметов в пачке"
+            : count is null
+                ? "Предмет не стакается (уникальный или штучный объект)"
+                : countDisabledReason ?? "Редактирование количества предметов не поддерживается форматом";
         _countInput = count?.ToString(CultureInfo.InvariantCulture) ?? "1";
 
         OriginalCondition = condition;
         CanEditCondition = canEditCondition && condition is not null;
+        ConditionDisabledReason = CanEditCondition
+            ? "Изменить состояние предмета (0–100%)"
+            : condition is null
+                ? "Предмет не имеет шкалы состояния / износа"
+                : conditionDisabledReason ?? "Редактирование прочности не поддерживается форматом";
         _conditionPercent = condition.HasValue ? (int)Math.Round(condition.Value * 100f) : 100;
 
         _placement = placement ?? "ruck";
         OriginalPlacement = placement ?? "ruck";
         CanEditPlacement = canEditPlacement;
+        PlacementDisabledReason = CanEditPlacement
+            ? "Переместить предмет (слот / пояс / рюкзак)"
+            : placementDisabledReason ?? "Перемещение предметов не поддерживается данным форматом";
 
         OriginalUpgrades = upgrades ?? [];
         CanEditUpgrades = canEditUpgrades;
+        UpgradesDisabledReason = CanEditUpgrades
+            ? "Установить или снять апгрейд"
+            : upgradesDisabledReason ?? "Модификации оружия и брони не поддерживаются форматом";
 
         var availableList = availableUpgrades?.ToList() ?? [];
         var upgradeViewModels = new List<UpgradeItemViewModel>();
         foreach (var def in availableList)
         {
             var isInstalled = OriginalUpgrades.Contains(def.Key, StringComparer.Ordinal);
-            upgradeViewModels.Add(new UpgradeItemViewModel(def, isInstalled, canEditUpgrades));
+            upgradeViewModels.Add(new UpgradeItemViewModel(def, isInstalled, canEditUpgrades, UpgradesDisabledReason));
         }
         UpgradeItems = new ObservableCollection<UpgradeItemViewModel>(upgradeViewModels);
     }
@@ -61,15 +81,19 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     public string Category { get; }
     public uint? OriginalCount { get; }
     public bool CanEditCount { get; }
+    public string CountDisabledReason { get; }
 
     public float? OriginalCondition { get; }
     public bool CanEditCondition { get; }
+    public string ConditionDisabledReason { get; }
 
     public string OriginalPlacement { get; }
     public bool CanEditPlacement { get; }
+    public string PlacementDisabledReason { get; }
 
     public IReadOnlyList<string> OriginalUpgrades { get; }
     public bool CanEditUpgrades { get; }
+    public string UpgradesDisabledReason { get; }
     public ObservableCollection<UpgradeItemViewModel> UpgradeItems { get; }
 
     public string CountInput

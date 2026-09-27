@@ -120,11 +120,11 @@ public static class FactionsView
 
         // Buttons
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        actions.Children.Add(MakeActionBtn("+100", () => vm.AdjustFactionRelation(rel, 100)));
-        actions.Children.Add(MakeActionBtn("-100", () => vm.AdjustFactionRelation(rel, -100)));
-        actions.Children.Add(MakeActionBtn("Друг (+1500)", () => rel.Goodwill = 1500));
-        actions.Children.Add(MakeActionBtn("Нейтрал (0)", () => rel.Goodwill = 0));
-        actions.Children.Add(MakeActionBtn("Враг (-1500)", () => rel.Goodwill = -1500));
+        actions.Children.Add(MakeActionBtn("+100", () => vm.AdjustFactionRelation(rel, 100), rel));
+        actions.Children.Add(MakeActionBtn("-100", () => vm.AdjustFactionRelation(rel, -100), rel));
+        actions.Children.Add(MakeActionBtn("Друг (+1500)", () => rel.Goodwill = 1500, rel));
+        actions.Children.Add(MakeActionBtn("Нейтрал (0)", () => rel.Goodwill = 0, rel));
+        actions.Children.Add(MakeActionBtn("Враг (-1500)", () => rel.Goodwill = -1500, rel));
 
         Grid.SetColumn(actions, 3);
         grid.Children.Add(actions);
@@ -139,7 +139,7 @@ public static class FactionsView
         return border;
     }
 
-    private static Button MakeActionBtn(string text, Action action)
+    private static Button MakeActionBtn(string text, Action action, FactionRelationViewModel rel)
     {
         var btn = new Button
         {
@@ -151,7 +151,12 @@ public static class FactionsView
             BorderBrush = StalkerTheme.BrushBorder,
             CornerRadius = new CornerRadius(3),
         };
-        btn.Click += (_, _) => action();
+        btn.Bind(Button.IsEnabledProperty, new Binding(nameof(FactionRelationViewModel.CanEdit)) { Source = rel });
+        btn.Bind(ToolTip.TipProperty, new Binding(nameof(FactionRelationViewModel.DisabledReason)) { Source = rel });
+        btn.Click += (_, _) =>
+        {
+            if (rel.CanEdit) action();
+        };
         return btn;
     }
 

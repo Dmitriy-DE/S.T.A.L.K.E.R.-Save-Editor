@@ -6,7 +6,7 @@ public sealed class UpgradeItemViewModel : ObservableViewModel
 {
     private bool _isInstalled;
 
-    public UpgradeItemViewModel(UpgradeDefinition definition, bool isInstalled, bool canEdit)
+    public UpgradeItemViewModel(UpgradeDefinition definition, bool isInstalled, bool canEdit, string? disabledReason = null)
     {
         Definition = definition;
         Key = definition.Key;
@@ -15,6 +15,7 @@ public sealed class UpgradeItemViewModel : ObservableViewModel
         _isInstalled = isInstalled;
         OriginalInstalled = isInstalled;
         CanEdit = canEdit;
+        DisabledReason = disabledReason ?? (canEdit ? "Установить или снять апгрейд" : "Модификации оружия и брони не поддерживаются форматом");
     }
 
     public UpgradeDefinition Definition { get; }
@@ -23,6 +24,7 @@ public sealed class UpgradeItemViewModel : ObservableViewModel
     public string Category { get; }
     public bool OriginalInstalled { get; }
     public bool CanEdit { get; }
+    public string DisabledReason { get; }
 
     public bool IsInstalled
     {

@@ -4,19 +4,21 @@ public sealed class FactionRelationViewModel : ObservableViewModel
 {
     private int _goodwill;
 
-    public FactionRelationViewModel(string community, string displayName, int goodwill, bool canEdit)
+    public FactionRelationViewModel(string community, string displayName, int goodwill, bool canEdit, string? disabledReason = null)
     {
         Community = community;
         DisplayName = displayName;
         _goodwill = goodwill;
         OriginalGoodwill = goodwill;
         CanEdit = canEdit;
+        DisabledReason = disabledReason ?? (canEdit ? "Изменить отношение группировки" : "Редактирование отношений фракций не поддерживается данным форматом");
     }
 
     public string Community { get; }
     public string DisplayName { get; }
     public int OriginalGoodwill { get; }
     public bool CanEdit { get; }
+    public string DisabledReason { get; }
 
     public int Goodwill
     {

@@ -117,6 +117,7 @@ public sealed class MainWindow : Window
 
         var saveBtn = StalkerTheme.StalkerButton("СОХРАНИТЬ", isPrimary: true, minWidth: 120);
         saveBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.SaveCommand)));
+        saveBtn.Bind(ToolTip.TipProperty, new Binding(nameof(SaveLibraryViewModel.SaveDisabledReason)));
         actions.Children.Add(saveBtn);
 
         Grid.SetColumn(actions, 2);
@@ -219,6 +220,7 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, "ТАЙНИКИ", "stashes", nameof(SaveLibraryViewModel.IsStashesTab)));
         navBar.Children.Add(MakeNavTab(vm, "ПЕРЕХОДЫ", "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
         navBar.Children.Add(MakeNavTab(vm, "БЭКАПЫ", "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
+        navBar.Children.Add(MakeNavTab(vm, "ВОЗМОЖНОСТИ", "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
         navBar.Children.Add(MakeNavTab(vm, "НАСТРОЙКИ", "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
 
         var navBorder = new Border
@@ -257,47 +259,51 @@ public sealed class MainWindow : Window
                 },
             },
         };
-        emptyState.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.HasNoSelection)));
+        emptyState.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShouldShowEmptyState)));
         contentGrid.Children.Add(emptyState);
 
         // Screens Container
         var screens = new Grid();
-        screens.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.HasSelection)));
 
         // 1. Overview
         var overview = OverviewView.Build();
-        overview.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsOverviewTab)));
+        overview.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowOverviewScreen)));
         screens.Children.Add(overview);
 
         // 2. Inventory
         var inventory = InventoryView.Build(vm);
-        inventory.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsInventoryTab)));
+        inventory.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowInventoryScreen)));
         screens.Children.Add(inventory);
 
         // 3. Factions
         var factions = FactionsView.Build(vm);
-        factions.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsFactionsTab)));
+        factions.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowFactionsScreen)));
         screens.Children.Add(factions);
 
         // 4. Stashes
         var stashes = StashesView.Build(vm);
-        stashes.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsStashesTab)));
+        stashes.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowStashesScreen)));
         screens.Children.Add(stashes);
 
         // 5. Transitions
         var transitions = TransitionsView.Build();
-        transitions.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsTransitionsTab)));
+        transitions.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowTransitionsScreen)));
         screens.Children.Add(transitions);
 
         // 6. Backups
         var backups = BackupsView.Build(vm);
-        backups.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsBackupsTab)));
+        backups.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowBackupsScreen)));
         screens.Children.Add(backups);
 
         // 7. Settings
         var settings = SettingsView.Build(vm.Settings);
-        settings.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsSettingsTab)));
+        settings.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowSettingsScreen)));
         screens.Children.Add(settings);
+
+        // 8. Capabilities
+        var capabilities = CapabilitiesView.Build(vm.Capabilities);
+        capabilities.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCapabilitiesScreen)));
+        screens.Children.Add(capabilities);
 
         contentGrid.Children.Add(screens);
 

@@ -12,7 +12,9 @@ public sealed record EditPlan
         uint? money = null,
         IReadOnlyDictionary<uint, uint>? stackCounts = null,
         IReadOnlyCollection<ushort>? detachHandles = null,
-        IReadOnlyCollection<ItemAddRequest>? adds = null)
+        IReadOnlyCollection<ItemAddRequest>? adds = null,
+        IReadOnlyCollection<ushort>? stashTakes = null,
+        IReadOnlyCollection<StashPutRequest>? stashPuts = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -41,6 +43,42 @@ public sealed record EditPlan
         }
 
         Adds = Array.AsReadOnly(additions);
+
+        var stashTakeHandles = stashTakes?.ToArray() ?? [];
+        if (stashTakeHandles.Any(handle => handle is 0 or ushort.MaxValue))
+        {
+            throw new ArgumentOutOfRangeException(nameof(stashTakes), "Stash item handles must be in the range 1…65534.");
+        }
+
+        if (stashTakeHandles.Distinct().Count() != stashTakeHandles.Length)
+        {
+            throw new ArgumentException("Stash take handles must be unique.", nameof(stashTakes));
+        }
+
+        StashTakes = Array.AsReadOnly(stashTakeHandles);
+        var stashPutRequests = stashPuts?.ToArray() ?? [];
+        if (stashPutRequests.Any(request => request is null))
+        {
+            throw new ArgumentException("Stash put requests must not contain null values.", nameof(stashPuts));
+        }
+
+        if (stashPutRequests.Select(request => request.ObjectId).Distinct().Count() != stashPutRequests.Length)
+        {
+            throw new ArgumentException("Stash put object ids must be unique.", nameof(stashPuts));
+        }
+
+        if (stashTakeHandles.Intersect(stashPutRequests.Select(request => request.ObjectId)).Any())
+        {
+            throw new ArgumentException("An item cannot be taken from and put into a stash in one edit plan.");
+        }
+
+        if (handles.Intersect(stashTakeHandles).Any() ||
+            handles.Intersect(stashPutRequests.Select(request => request.ObjectId)).Any())
+        {
+            throw new ArgumentException("An item cannot be removed and moved to or from a stash in one edit plan.");
+        }
+
+        StashPuts = Array.AsReadOnly(stashPutRequests);
     }
 
     public string SourceSha256 { get; }
@@ -52,4 +90,8 @@ public sealed record EditPlan
     public IReadOnlyList<ushort> DetachHandles { get; }
 
     public IReadOnlyList<ItemAddRequest> Adds { get; }
+
+    public IReadOnlyList<ushort> StashTakes { get; }
+
+    public IReadOnlyList<StashPutRequest> StashPuts { get; }
 }

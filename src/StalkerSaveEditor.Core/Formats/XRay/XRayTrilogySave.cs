@@ -19,7 +19,8 @@ public sealed class XRayTrilogySave
         ulong gameTime,
         float timeFactor,
         float normalTimeFactor,
-        IReadOnlyList<XRayInventoryItem> inventory)
+        IReadOnlyList<XRayInventoryItem> inventory,
+        IReadOnlyList<XRayStash> stashes)
     {
         FormatId = formatId;
         ContainerVersion = containerVersion;
@@ -38,6 +39,7 @@ public sealed class XRayTrilogySave
         TimeFactor = timeFactor;
         NormalTimeFactor = normalTimeFactor;
         Inventory = inventory;
+        Stashes = stashes;
     }
 
     public string FormatId { get; }
@@ -73,10 +75,13 @@ public sealed class XRayTrilogySave
     public float NormalTimeFactor { get; }
 
     public IReadOnlyList<XRayInventoryItem> Inventory { get; }
+
+    public IReadOnlyList<XRayStash> Stashes { get; }
 }
 
 internal sealed record XRayRegistryObject(
     string Name,
+    string NameReplace,
     ushort ObjectId,
     ushort ParentId,
     ushort Version,
@@ -88,6 +93,29 @@ internal sealed record XRayRegistryObject(
     int UpdateLength,
     int? ClientDataOffset,
     int ClientDataLength);
+
+public sealed class XRayStash
+{
+    internal XRayStash(
+        ushort handle,
+        string name,
+        string? level,
+        IReadOnlyList<XRayInventoryItem> items)
+    {
+        Handle = handle;
+        Name = name;
+        Level = level;
+        Items = items;
+    }
+
+    public ushort Handle { get; }
+
+    public string Name { get; }
+
+    public string? Level { get; }
+
+    public IReadOnlyList<XRayInventoryItem> Items { get; }
+}
 
 public sealed class XRayInventoryItem
 {

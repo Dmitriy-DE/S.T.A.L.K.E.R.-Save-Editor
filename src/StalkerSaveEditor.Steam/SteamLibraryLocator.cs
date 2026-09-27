@@ -1,8 +1,8 @@
-using System.Text.RegularExpressions;
+using StalkerSaveEditor.Core.Storage;
 
 namespace StalkerSaveEditor.Steam;
 
-internal static partial class SteamLibraryLocator
+internal static class SteamLibraryLocator
 {
     public static string? FindLibraryPath() => FindLibraryPath(GetDefaultRoots(), OperatingSystem.IsWindows());
 
@@ -136,9 +136,18 @@ internal static partial class SteamLibraryLocator
                 continue;
             }
 
-            foreach (Match match in LibraryPathRegex().Matches(File.ReadAllText(vdfPath)))
+            IReadOnlyList<string> libraryPaths;
+            try
             {
-                var libraryPath = match.Groups[1].Value.Replace("\\\\", "\\", StringComparison.Ordinal);
+                libraryPaths = SteamVdfParser.GetLibraryPaths(File.ReadAllText(vdfPath));
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or FormatException)
+            {
+                continue;
+            }
+
+            foreach (var libraryPath in libraryPaths)
+            {
                 if (Path.IsPathRooted(libraryPath))
                 {
                     var fullPath = Path.GetFullPath(libraryPath);
@@ -151,6 +160,4 @@ internal static partial class SteamLibraryLocator
         }
     }
 
-    [GeneratedRegex("\"path\"\\s+\"([^\"]*)\"", RegexOptions.CultureInvariant)]
-    private static partial Regex LibraryPathRegex();
 }

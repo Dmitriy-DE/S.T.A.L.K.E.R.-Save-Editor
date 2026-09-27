@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import runpy
 import struct
 import subprocess
@@ -92,7 +93,11 @@ def generate(python_repo: Path, output_dir: Path) -> int:
     cases = (
         ("stalker-soc", SOC_FORMAT, {"version": 118, "outer": 3, "update_condition_offset": 3}),
         ("stalker-cs", CS_FORMAT, {"version": 124, "outer": 5, "update_condition_offset": 3}),
-        ("stalker-cop", COP_FORMAT, {"version": 128, "outer": 6, "update_condition_offset": 4}),
+        (
+            "stalker-cop",
+            COP_FORMAT,
+            {"version": 128, "outer": 6, "update_condition_offset": 4, "client_place": 0x0411},
+        ),
         (
             "stalker-soc-ee",
             SOC_EE_FORMAT,
@@ -120,6 +125,7 @@ def generate(python_repo: Path, output_dir: Path) -> int:
             name="wpn_test",
             condition=SOURCE_CONDITION,
             update_condition_offset=opts["update_condition_offset"],
+            client_place=opts.get("client_place"),
         )
         if opts.get("alife") is not None:
             c = XRayContainer.from_bytes(source)
@@ -188,6 +194,52 @@ def generate(python_repo: Path, output_dir: Path) -> int:
                 },
             }
         )
+
+    cop_source_name = vectors[2]["source"]
+    cop_source = (output_dir / str(cop_source_name)).read_bytes()
+    rounding_target = math.nextafter(0.5 / 255.0, 0.0)
+    rounding_sha = hashlib.sha256(cop_source).hexdigest()
+    rounding_plan = EditPlan(
+        source=SourceRef(kind="local", locator="synthetic-durability-rounding", sha256=rounding_sha),
+        durability=((HANDLE, rounding_target),),
+    )
+    rounding_prepared = prepare_xray(cop_source, rounding_plan, COP_FORMAT)
+    rounding_expected = bytes(rounding_prepared.data)
+    rounding_source_raw = XRayContainer.from_bytes(cop_source).raw
+    rounding_expected_raw = XRayContainer.from_bytes(rounding_expected).raw
+    rounding_item = parse_xray(rounding_expected, COP_FORMAT).object_by_id(HANDLE)
+    if abs(rounding_item.condition - rounding_target) > 1e-6:
+        raise SystemExit("Python oracle failed q8 rounding condition round-trip")
+
+    rounding_names = {
+        "source": str(cop_source_name),
+        "expected": "xray-durability-cop-q8-rounding-expected.sav",
+        "expectedRaw": "xray-durability-cop-q8-rounding-expected.raw",
+    }
+    (output_dir / rounding_names["expected"]).write_bytes(rounding_expected)
+    (output_dir / rounding_names["expectedRaw"]).write_bytes(rounding_expected_raw)
+    vectors.append(
+        {
+            "releaseId": "stalker-cop",
+            "variant": "q8-rounding",
+            **rounding_names,
+            "sourceSha256": rounding_sha,
+            "expectedSha256": hashlib.sha256(rounding_expected).hexdigest(),
+            "expectedRawSha256": hashlib.sha256(rounding_expected_raw).hexdigest(),
+            "handle": HANDLE,
+            "sourceCondition": SOURCE_CONDITION,
+            "targetCondition": rounding_target,
+            "changedRawOffsets": [
+                index
+                for index, (before, after) in enumerate(zip(rounding_source_raw, rounding_expected_raw))
+                if before != after
+            ],
+            "capabilities": {
+                name: by_id("stalker-cop").capabilities.support(name).maturity
+                for name in CAPABILITIES
+            },
+        }
+    )
 
     # Negative case 1: condition out of range (> 1.0)
     cop_source = vectors[2]["source"]

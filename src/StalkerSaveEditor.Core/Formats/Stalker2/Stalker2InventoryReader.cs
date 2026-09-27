@@ -87,7 +87,12 @@ public sealed class Stalker2InventoryItem
         string? sizeLabel,
         int countMax,
         string? storage,
-        string observationSource)
+        string observationSource,
+        float? condition,
+        bool conditionEditable,
+        int? conditionOffset,
+        IEnumerable<string>? modules,
+        IEnumerable<string>? upgrades)
     {
         Handle = handle;
         X = x;
@@ -111,6 +116,11 @@ public sealed class Stalker2InventoryItem
         CountMax = countMax;
         Storage = storage;
         ObservationSource = observationSource;
+        Condition = condition;
+        ConditionEditable = conditionEditable;
+        ConditionOffset = conditionOffset;
+        Modules = modules is null ? null : Array.AsReadOnly(modules.ToArray());
+        Upgrades = upgrades is null ? null : Array.AsReadOnly(upgrades.ToArray());
     }
 
     public uint Handle { get; }
@@ -156,6 +166,16 @@ public sealed class Stalker2InventoryItem
     public string? Storage { get; }
 
     public string ObservationSource { get; }
+
+    public float? Condition { get; }
+
+    public bool ConditionEditable { get; }
+
+    public int? ConditionOffset { get; }
+
+    public IReadOnlyList<string>? Modules { get; }
+
+    public IReadOnlyList<string>? Upgrades { get; }
 }
 
 public sealed record Stalker2OrphanItem(
@@ -411,6 +431,16 @@ public static class Stalker2InventoryReader
                 ((record.Count > 1 && StackKinds.Contains(record.Kind)) ||
                  (record.Count >= 1 && SingleStackKinds.Contains(record.Kind)));
             var typeKeyBytes = raw.Slice(record.Offset + 8, 3);
+            var displayName = DisplayName(names, typeKeyBytes);
+            var weaponState = record.Kind == 0 && names is not null
+                ? Stalker2ItemState.ReadWeaponCondition(
+                    raw,
+                    pair.Key,
+                    record.Offset,
+                    ends.GetValueOrDefault(pair.Key),
+                    record.Kind,
+                    names)
+                : null;
             items.Add(new Stalker2InventoryItem(
                 pair.Key,
                 x0,
@@ -422,18 +452,23 @@ public static class Stalker2InventoryReader
                 record.Weight,
                 record.Weight / record.Count,
                 record.Kind,
-                CategoryName(record.Kind, DisplayName(names, typeKeyBytes)),
+                CategoryName(record.Kind, displayName),
                 record.Offset,
                 ends.GetValueOrDefault(pair.Key, Math.Min(raw.Length, record.Offset + 512)),
                 Hex(raw.Slice(record.Offset + 4, 14)),
                 Hex(typeKeyBytes),
                 editable,
-                DisplayName(names, typeKeyBytes),
+                displayName,
                 null,
                 null,
                 1_000_000,
                 "inventory",
-                "grid"));
+                "grid",
+                weaponState?.Value,
+                weaponState is not null,
+                weaponState?.ValueOffset,
+                weaponState?.Modules,
+                weaponState?.Upgrades));
         }
 
         var gridHandles = layout.GridCells.Select(cell => cell.Handle).ToHashSet();
@@ -447,6 +482,24 @@ public static class Stalker2InventoryReader
             if (!carried && (!EquipmentKinds.Contains(record.Kind) || !HasEquipmentShape(raw, handle, record.Offset, record.Kind))) continue;
 
             var typeKeyBytes = raw.Slice(record.Offset + 8, 3);
+            var displayName = DisplayName(names, typeKeyBytes);
+            var armorState = !carried && record.Kind == 1
+                ? Stalker2ItemState.ReadArmorCondition(raw, handle, record.Offset, record.Kind)
+                : null;
+            var armorConditionEditable = armorState is not null && Stalker2ItemState.IsArmorName(displayName);
+            var armorUpgrades = armorState is not null && names is not null
+                ? Stalker2ItemState.ReadArmorUpgrades(raw, armorState, names)
+                : null;
+            if (armorUpgrades is { Count: 0 }) armorUpgrades = null;
+            var weaponState = record.Kind == 0 && names is not null
+                ? Stalker2ItemState.ReadWeaponCondition(
+                    raw,
+                    handle,
+                    record.Offset,
+                    ends.GetValueOrDefault(handle),
+                    record.Kind,
+                    names)
+                : null;
             items.Add(new Stalker2InventoryItem(
                 handle,
                 null,
@@ -458,20 +511,25 @@ public static class Stalker2InventoryReader
                 record.Weight,
                 record.Weight / record.Count,
                 record.Kind,
-                CategoryName(record.Kind, DisplayName(names, typeKeyBytes)),
+                CategoryName(record.Kind, displayName),
                 record.Offset,
                 ends.GetValueOrDefault(handle, Math.Min(raw.Length, record.Offset + 512)),
                 Hex(raw.Slice(record.Offset + 4, 14)),
                 Hex(typeKeyBytes),
                 false,
-                DisplayName(names, typeKeyBytes),
+                displayName,
                 carried ? "у персонажа" : "экипировано",
                 "неизвестно",
                 1_000_000,
                 "equipped",
-                carried ? "carried" : "equipped"));
+                carried ? "carried" : "equipped",
+                armorState?.Value ?? weaponState?.Value,
+                armorConditionEditable || weaponState is not null,
+                armorState?.ValueOffset ?? weaponState?.ValueOffset,
+                weaponState?.Modules,
+                weaponState?.Upgrades ?? armorUpgrades));
 
-            if (!carried && record.Kind == 1)
+            if (!carried && record.Kind == 1 && armorState is null)
             {
                 warnings.Add($"Equipped handle {FormatHandle(handle)}: S2 armor condition не подтверждён");
             }
@@ -585,14 +643,8 @@ public static class Stalker2InventoryReader
         return result;
     }
 
-    private static bool HasEquipmentShape(ReadOnlySpan<byte> raw, uint handle, int offset, byte kindCode)
-    {
-        if (!EquipmentKinds.Contains(kindCode)) return false;
-        var nested = offset + 0x23;
-        if (offset < 0 || raw.Length - offset < 4 || raw.Length - nested < 4) return false;
-        return BinaryPrimitives.ReadUInt32LittleEndian(raw[offset..]) == handle &&
-            BinaryPrimitives.ReadUInt32LittleEndian(raw[nested..]) == handle;
-    }
+    private static bool HasEquipmentShape(ReadOnlySpan<byte> raw, uint handle, int offset, byte kindCode) =>
+        Stalker2ItemState.HasEquipmentShape(raw, handle, offset, kindCode);
 
     private static string? DisplayName(Stalker2NameTables? names, ReadOnlySpan<byte> typeKey) =>
         names?.Resolve(typeKey);

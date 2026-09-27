@@ -63,6 +63,21 @@ The manifest records the 32-bit object handle, requested count, source/output
 hashes and capability maturity. The expected raw payload confirms that the
 Python writer changes only the stack count and total-weight fields.
 
+S2 stash-transfer vectors under `writer-s2-stash/` are generated from the
+Python `test_s2_stash.py::_save_with_stash` fixture and
+`save_format._stash_to_player_in_raw`. The source and rejection-case containers
+are synthetic; the expected byte-for-byte result is the decompressed raw
+payload. Regenerate them with:
+
+```bash
+python tools/generate_s2_stash_fixtures.py \
+  --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor \
+  --encoder-dir /path/to/temporary/ooz-encoder
+```
+
+The S2 `move_items` capability remains `unsupported` in the Python registry,
+so the C# `Prepare` entry point fails closed until that capability is enabled.
+
 X-Ray stash reader and take vectors under `xray-stashes/` use the Python
 `xray_stashes` and `take_from_stash` oracle with synthetic registry objects for
 the original trilogy and Enhanced Edition formats. Regenerate them with:
@@ -76,3 +91,13 @@ python tools/generate_xray_stash_fixtures.py \
 The fixture set contains no game saves. Backpack-to-stash transfers and direct
 stash additions are C#-only synthetic contracts under decision D14; Python has
 no corresponding writer oracle.
+
+The `drafts/python-v1-draft.json` fixture is generated through the Python
+`DraftStore` using only synthetic plans. It verifies migration of the legacy
+schema 1 undo history into the C# schema 2 store. Regenerate it with:
+
+```bash
+python tools/generate_draft_fixtures.py \
+  --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor \
+  --output-dir tests/Fixtures/drafts
+```

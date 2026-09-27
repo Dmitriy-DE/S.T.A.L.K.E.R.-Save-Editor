@@ -27,7 +27,7 @@
       "invalidHandle": 39321
     }
   },
-  "oracleRevision": "592248677dc4844685290a013cb6778f2d17588d",
+  "oracleRevision": "6f3839cb870161290ae1d404c40e291485c29e37",
   "vectors": [
     {
       "capabilities": {
@@ -127,11 +127,11 @@
     },
     {
       "capabilities": {
-        "add_items": "experimental",
-        "edit_money": "experimental",
+        "add_items": "research",
+        "edit_money": "research",
         "edit_placement": "unsupported",
-        "edit_stacks": "experimental",
-        "remove_items": "experimental"
+        "edit_stacks": "research",
+        "remove_items": "research"
       },
       "changedRawOffsets": [
         295
@@ -159,11 +159,11 @@
     },
     {
       "capabilities": {
-        "add_items": "experimental",
-        "edit_money": "experimental",
+        "add_items": "research",
+        "edit_money": "research",
         "edit_placement": "unsupported",
-        "edit_stacks": "experimental",
-        "remove_items": "experimental"
+        "edit_stacks": "research",
+        "remove_items": "research"
       },
       "changedRawOffsets": [
         301
@@ -191,11 +191,11 @@
     },
     {
       "capabilities": {
-        "add_items": "experimental",
-        "edit_money": "experimental",
+        "add_items": "research",
+        "edit_money": "research",
         "edit_placement": "unsupported",
-        "edit_stacks": "experimental",
-        "remove_items": "experimental"
+        "edit_stacks": "research",
+        "remove_items": "research"
       },
       "changedRawOffsets": [
         301
@@ -220,6 +220,204 @@
         "storage": "equipped",
         "type": "slot"
       }
+    },
+    {
+      "capabilities": {
+        "add_items": "verified",
+        "edit_money": "verified",
+        "edit_placement": "experimental",
+        "edit_stacks": "verified",
+        "remove_items": "verified"
+      },
+      "changedRawOffsets": [
+        296
+      ],
+      "expected": "xray-placement-soc-belt-expected.sav",
+      "expectedRaw": "xray-placement-soc-belt-expected.raw",
+      "expectedRawSha256": "ee0920b4595b236610c5da64504d5e5e340493f528f855cbfca0cc548d7db16c",
+      "expectedSha256": "32b1a9dfcec1a58c5791ac75e1f87471673161d3b9e46d17387a074e654b5f1a",
+      "handle": 13398,
+      "releaseId": "stalker-soc",
+      "source": "xray-placement-soc-belt-source.sav",
+      "sourcePlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "equipped",
+        "type": "slot"
+      },
+      "sourceSha256": "a8d3497adbe4c38fdb7572b2d14a36d3bf5d8a5356b225ccb3a624b681551dc0",
+      "targetPlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "inventory",
+        "type": "belt"
+      },
+      "variant": "belt"
+    },
+    {
+      "capabilities": {
+        "add_items": "verified",
+        "edit_money": "verified",
+        "edit_placement": "experimental",
+        "edit_stacks": "verified",
+        "remove_items": "verified"
+      },
+      "changedRawOffsets": [
+        295
+      ],
+      "expected": "xray-placement-soc-ruck-expected.sav",
+      "expectedRaw": "xray-placement-soc-ruck-expected.raw",
+      "expectedRawSha256": "b5a2705b6a57b11d2f7c6f781fedb7c10ea1e902a429cfa1e5e2dc7d7260f90d",
+      "expectedSha256": "6d95ff4aa88b8c7140c9279b9541ea41889c8e5fc23d5e4873a8c8c6c6b755b2",
+      "handle": 13398,
+      "releaseId": "stalker-soc",
+      "source": "xray-placement-soc-ruck-source.sav",
+      "sourcePlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "equipped",
+        "type": "slot"
+      },
+      "sourceSha256": "c0e786914ca8e035cd4197b2ddff43a6d89f05cc67309af41234e88e589fa6c9",
+      "targetPlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "inventory",
+        "type": "ruck"
+      },
+      "variant": "ruck"
+    },
+    {
+      "capabilities": {
+        "add_items": "verified",
+        "edit_money": "verified",
+        "edit_placement": "experimental",
+        "edit_stacks": "verified",
+        "remove_items": "verified"
+      },
+      "changedRawOffsets": [
+        300
+      ],
+      "expected": "xray-placement-cs-belt-expected.sav",
+      "expectedRaw": "xray-placement-cs-belt-expected.raw",
+      "expectedRawSha256": "1f993ac92f62a3946958d18ceb1a3284f55aaae5baf8d7d0ef370735eb12f639",
+      "expectedSha256": "2d20cd166a76821e567fa6ed81d7286b20c88e552f43a153a30adc7fda7879d6",
+      "handle": 13398,
+      "releaseId": "stalker-cs",
+      "source": "xray-placement-cs-belt-source.sav",
+      "sourcePlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "equipped",
+        "type": "slot"
+      },
+      "sourceSha256": "ea2c3d9fcf04c797c7cabfd1c36e06d9fe03306252b8b9823b1e659cf76ba082",
+      "targetPlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "inventory",
+        "type": "belt"
+      },
+      "variant": "belt"
+    },
+    {
+      "capabilities": {
+        "add_items": "verified",
+        "edit_money": "verified",
+        "edit_placement": "experimental",
+        "edit_stacks": "verified",
+        "remove_items": "verified"
+      },
+      "changedRawOffsets": [
+        299
+      ],
+      "expected": "xray-placement-cs-ruck-expected.sav",
+      "expectedRaw": "xray-placement-cs-ruck-expected.raw",
+      "expectedRawSha256": "60aa3125c9f9e1b8c0153cad8be63a77f4020ccb1df4ec2461dba1b2ed0fce5d",
+      "expectedSha256": "ab7b884e4cf20483b0957781f3e87f307b0ac489b1c63da5e237c080484fbe04",
+      "handle": 13398,
+      "releaseId": "stalker-cs",
+      "source": "xray-placement-cs-ruck-source.sav",
+      "sourcePlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "equipped",
+        "type": "slot"
+      },
+      "sourceSha256": "d72b52b27807f990bde17b2111acd48368a806819713764f9a898f52f34c64c4",
+      "targetPlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "inventory",
+        "type": "ruck"
+      },
+      "variant": "ruck"
+    },
+    {
+      "capabilities": {
+        "add_items": "verified",
+        "edit_money": "verified",
+        "edit_placement": "experimental",
+        "edit_stacks": "verified",
+        "remove_items": "verified"
+      },
+      "changedRawOffsets": [
+        302
+      ],
+      "expected": "xray-placement-cop-belt-expected.sav",
+      "expectedRaw": "xray-placement-cop-belt-expected.raw",
+      "expectedRawSha256": "150957971b14364603690da7345567d37dae8babe58c3157ed2ffc7ab443c449",
+      "expectedSha256": "1e1cf448276687ff991178410f7e0837dad7da99ef69f8c9fc9d85023a60e4e9",
+      "handle": 13398,
+      "releaseId": "stalker-cop",
+      "source": "xray-placement-cop-belt-source.sav",
+      "sourcePlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "equipped",
+        "type": "slot"
+      },
+      "sourceSha256": "aad4a184cf62a6ff6ba368cf512928a4ad75b27239b89b90e58ddaed795726e9",
+      "targetPlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "inventory",
+        "type": "belt"
+      },
+      "variant": "belt"
+    },
+    {
+      "capabilities": {
+        "add_items": "verified",
+        "edit_money": "verified",
+        "edit_placement": "experimental",
+        "edit_stacks": "verified",
+        "remove_items": "verified"
+      },
+      "changedRawOffsets": [
+        301
+      ],
+      "expected": "xray-placement-cop-ruck-expected.sav",
+      "expectedRaw": "xray-placement-cop-ruck-expected.raw",
+      "expectedRawSha256": "9c3b142e8d1f1a86bd2abc69a8dda74482709a686bcb513d7618deeeda0a9956",
+      "expectedSha256": "65d2b36914184d9a11ffaa73f3edccd0edbfe7c35a75fc679135c91fdda23cb5",
+      "handle": 13398,
+      "releaseId": "stalker-cop",
+      "source": "xray-placement-cop-ruck-source.sav",
+      "sourcePlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "equipped",
+        "type": "slot"
+      },
+      "sourceSha256": "6ed0b6e8651ae2bcef9375f81ea3d47ee47f564d796fd22d7418b1504ed64877",
+      "targetPlacement": {
+        "baseSlot": 3,
+        "slot": 2,
+        "storage": "inventory",
+        "type": "ruck"
+      },
+      "variant": "ruck"
     }
   ]
 }

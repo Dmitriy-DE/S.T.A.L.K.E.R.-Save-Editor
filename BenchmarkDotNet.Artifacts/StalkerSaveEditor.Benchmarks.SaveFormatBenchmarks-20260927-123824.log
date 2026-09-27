@@ -1,0 +1,153 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 1 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet  restore --nodeReuse:false /p:UseSharedCompilation=false /p:Deterministic=true /p:Optimize=true /p:ArtifactsPath="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/" /p:OutDir="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/bin/Release/net10.0/" /p:OutputPath="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/bin/Release/net10.0/" /p:PublishDir="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/publish/" in /home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1
+// command took 1.58 sec and exited with 0
+// start dotnet  build -c Release --no-restore --nodeReuse:false /p:UseSharedCompilation=false /p:Deterministic=true /p:Optimize=true /p:ArtifactsPath="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/" /p:OutDir="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/bin/Release/net10.0/" /p:OutputPath="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/bin/Release/net10.0/" /p:PublishDir="/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/publish/" --output "/home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/bin/Release/net10.0/" in /home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1
+// command took 12.16 sec and exited with 0
+// ***** Done, took 00:00:13 (13.91 sec)   *****
+// Found 1 benchmarks:
+//   SaveFormatBenchmarks.ParseSoc: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+
+// **************************
+// Benchmark: SaveFormatBenchmarks.ParseSoc: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet StalkerSaveEditor.Benchmarks-ShortRun-1.dll --anonymousPipes 122 123 --benchmarkName StalkerSaveEditor.Benchmarks.SaveFormatBenchmarks.ParseSoc --job ShortRun --benchmarkId 0 in /home/dmytro/Projects/save-editor-next-claude/benchmarks/bin/Release/net10.0/StalkerSaveEditor.Benchmarks-ShortRun-1/bin/Release/net10.0
+// Failed to set up high priority (Permission denied). In order to run benchmarks with high priority, make sure you have the right permissions.
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.15.8
+// Runtime=.NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256
+// Job: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 280766.00 ns, 280.7660 us/op
+WorkloadJitting  1: 1 op, 18555981.00 ns, 18.5560 ms/op
+
+OverheadJitting  2: 16 op, 751084.00 ns, 46.9428 us/op
+WorkloadJitting  2: 16 op, 1076130.00 ns, 67.2581 us/op
+
+WorkloadPilot    1: 16 op, 189901.00 ns, 11.8688 us/op
+WorkloadPilot    2: 32 op, 360037.00 ns, 11.2512 us/op
+WorkloadPilot    3: 64 op, 592961.00 ns, 9.2650 us/op
+WorkloadPilot    4: 128 op, 5439039.00 ns, 42.4925 us/op
+WorkloadPilot    5: 256 op, 7454827.00 ns, 29.1204 us/op
+WorkloadPilot    6: 512 op, 4437361.00 ns, 8.6667 us/op
+WorkloadPilot    7: 1024 op, 13398128.00 ns, 13.0841 us/op
+WorkloadPilot    8: 2048 op, 22677305.00 ns, 11.0729 us/op
+WorkloadPilot    9: 4096 op, 41484719.00 ns, 10.1281 us/op
+WorkloadPilot   10: 8192 op, 107183972.00 ns, 13.0840 us/op
+WorkloadPilot   11: 16384 op, 392818160.00 ns, 23.9757 us/op
+WorkloadPilot   12: 32768 op, 279986809.00 ns, 8.5445 us/op
+WorkloadPilot   13: 65536 op, 217302997.00 ns, 3.3158 us/op
+WorkloadPilot   14: 131072 op, 219871378.00 ns, 1.6775 us/op
+WorkloadPilot   15: 262144 op, 404365955.00 ns, 1.5425 us/op
+WorkloadPilot   16: 524288 op, 785094622.00 ns, 1.4974 us/op
+
+OverheadWarmup   1: 524288 op, 2230832.00 ns, 4.2550 ns/op
+OverheadWarmup   2: 524288 op, 2191581.00 ns, 4.1801 ns/op
+OverheadWarmup   3: 524288 op, 2146813.00 ns, 4.0947 ns/op
+OverheadWarmup   4: 524288 op, 2172166.00 ns, 4.1431 ns/op
+OverheadWarmup   5: 524288 op, 2661899.00 ns, 5.0772 ns/op
+OverheadWarmup   6: 524288 op, 2089053.00 ns, 3.9846 ns/op
+OverheadWarmup   7: 524288 op, 2550571.00 ns, 4.8648 ns/op
+OverheadWarmup   8: 524288 op, 2090869.00 ns, 3.9880 ns/op
+
+OverheadActual   1: 524288 op, 2084374.00 ns, 3.9756 ns/op
+OverheadActual   2: 524288 op, 2090590.00 ns, 3.9875 ns/op
+OverheadActual   3: 524288 op, 2095478.00 ns, 3.9968 ns/op
+OverheadActual   4: 524288 op, 2084443.00 ns, 3.9758 ns/op
+OverheadActual   5: 524288 op, 2104348.00 ns, 4.0137 ns/op
+OverheadActual   6: 524288 op, 2136546.00 ns, 4.0751 ns/op
+OverheadActual   7: 524288 op, 2110634.00 ns, 4.0257 ns/op
+OverheadActual   8: 524288 op, 2114964.00 ns, 4.0340 ns/op
+OverheadActual   9: 524288 op, 2176426.00 ns, 4.1512 ns/op
+OverheadActual  10: 524288 op, 2176565.00 ns, 4.1515 ns/op
+OverheadActual  11: 524288 op, 2181734.00 ns, 4.1613 ns/op
+OverheadActual  12: 524288 op, 2203595.00 ns, 4.2030 ns/op
+OverheadActual  13: 524288 op, 2151492.00 ns, 4.1036 ns/op
+OverheadActual  14: 524288 op, 2140177.00 ns, 4.0821 ns/op
+OverheadActual  15: 524288 op, 2147790.00 ns, 4.0966 ns/op
+
+WorkloadWarmup   1: 524288 op, 912002339.00 ns, 1.7395 us/op
+WorkloadWarmup   2: 524288 op, 1310152538.00 ns, 2.4989 us/op
+WorkloadWarmup   3: 524288 op, 1163061515.00 ns, 2.2184 us/op
+
+// BeforeActualRun
+WorkloadActual   1: 524288 op, 980930332.00 ns, 1.8710 us/op
+WorkloadActual   2: 524288 op, 1020237716.00 ns, 1.9459 us/op
+WorkloadActual   3: 524288 op, 1048792322.00 ns, 2.0004 us/op
+
+// AfterActualRun
+WorkloadResult   1: 524288 op, 978793786.00 ns, 1.8669 us/op
+WorkloadResult   2: 524288 op, 1018101170.00 ns, 1.9419 us/op
+WorkloadResult   3: 524288 op, 1046655776.00 ns, 1.9963 us/op
+// GC:  898 0 0 1879048192 524288
+// Threading:  0 0 524288
+
+// AfterAll
+// Benchmark Process 1323597 has exited with code 0.
+
+Mean = 1.935 μs, StdErr = 0.038 μs (1.94%), N = 3, StdDev = 0.065 μs
+Min = 1.867 μs, Q1 = 1.904 μs, Median = 1.942 μs, Q3 = 1.969 μs, Max = 1.996 μs
+IQR = 0.065 μs, LowerFence = 1.807 μs, UpperFence = 2.066 μs
+ConfidenceInterval = [0.749 μs; 3.121 μs] (CI 99.9%), Margin = 1.186 μs (61.27% of Mean)
+Skewness = -0.1, Kurtosis = 0.67, MValue = 2
+
+// ** Remained 0 (0.0%) benchmark(s) to run. Estimated finish 2026-09-27 12:38 (0h 0m from now) **
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts/results/StalkerSaveEditor.Benchmarks.SaveFormatBenchmarks-report.csv
+  BenchmarkDotNet.Artifacts/results/StalkerSaveEditor.Benchmarks.SaveFormatBenchmarks-report-github.md
+  BenchmarkDotNet.Artifacts/results/StalkerSaveEditor.Benchmarks.SaveFormatBenchmarks-report.html
+
+// * Detailed results *
+SaveFormatBenchmarks.ParseSoc: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+Runtime = .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3; GC = Concurrent Workstation
+Mean = 1.935 μs, StdErr = 0.038 μs (1.94%), N = 3, StdDev = 0.065 μs
+Min = 1.867 μs, Q1 = 1.904 μs, Median = 1.942 μs, Q3 = 1.969 μs, Max = 1.996 μs
+IQR = 0.065 μs, LowerFence = 1.807 μs, UpperFence = 2.066 μs
+ConfidenceInterval = [0.749 μs; 3.121 μs] (CI 99.9%), Margin = 1.186 μs (61.27% of Mean)
+Skewness = -0.1, Kurtosis = 0.67, MValue = 2
+-------------------- Histogram --------------------
+[1.808 μs ; 1.910 μs) | @
+[1.910 μs ; 2.028 μs) | @@
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet v0.15.8, Linux Ubuntu 26.04.1 LTS (Resolute Raccoon)
+AMD Ryzen 5 4500U with Radeon Graphics 1.38GHz, 1 CPU, 6 logical and 6 physical cores
+.NET SDK 10.0.112
+  [Host]   : .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3
+  ShortRun : .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3
+
+Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+
+| Method   | Mean     | Error    | StdDev    | Gen0   | Allocated |
+|--------- |---------:|---------:|----------:|-------:|----------:|
+| ParseSoc | 1.935 μs | 1.186 μs | 0.0650 μs | 1.7128 |    3.5 KB |
+
+// * Legends *
+  Mean      : Arithmetic mean of all measurements
+  Error     : Half of 99.9% confidence interval
+  StdDev    : Standard deviation of all measurements
+  Gen0      : GC Generation 0 collects per 1000 operations
+  Allocated : Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)
+  1 μs      : 1 Microsecond (0.000001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:10 (10.52 sec), executed benchmarks: 1
+
+Global total time: 00:00:24 (24.58 sec), executed benchmarks: 1
+// * Artifacts cleanup *
+Artifacts cleanup is finished

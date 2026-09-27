@@ -11,6 +11,9 @@ public sealed class XRayTrilogySave
         uint money,
         int moneyOffset,
         int? playerFactionIndex,
+        int? playerFactionOffset,
+        XRayRelationRegistry? relationRegistry,
+        IReadOnlyList<XRayFactionRelation> factionRelations,
         float? actorHealth,
         int? actorRank,
         int? actorReputation,
@@ -30,6 +33,10 @@ public sealed class XRayTrilogySave
         Money = money;
         MoneyOffset = moneyOffset;
         PlayerFactionIndex = playerFactionIndex;
+        PlayerFactionOffset = playerFactionOffset;
+        RelationRegistry = relationRegistry;
+        FactionRelations = factionRelations;
+        FactionRelationsEditable = relationRegistry is not null;
         ActorHealth = actorHealth;
         ActorRank = actorRank;
         ActorReputation = actorReputation;
@@ -58,6 +65,14 @@ public sealed class XRayTrilogySave
 
     public int? PlayerFactionIndex { get; }
 
+    internal int? PlayerFactionOffset { get; }
+
+    internal XRayRelationRegistry? RelationRegistry { get; }
+
+    public IReadOnlyList<XRayFactionRelation> FactionRelations { get; }
+
+    public bool FactionRelationsEditable { get; }
+
     public float? ActorHealth { get; }
 
     public int? ActorRank { get; }
@@ -79,6 +94,8 @@ public sealed class XRayTrilogySave
     public IReadOnlyList<XRayStash> Stashes { get; }
 }
 
+public sealed record XRayFactionRelation(int CommunityIndex, int Value);
+
 internal sealed record XRayRegistryObject(
     string Name,
     string NameReplace,
@@ -93,6 +110,8 @@ internal sealed record XRayRegistryObject(
     int UpdateLength,
     int? ClientDataOffset,
     int ClientDataLength);
+
+internal readonly record struct XRayPlacementAnchor(ushort Value, int Offset);
 
 public sealed class XRayStash
 {
@@ -119,6 +138,9 @@ public sealed class XRayStash
 
 public sealed class XRayInventoryItem
 {
+    private readonly ushort _placementValue;
+    private readonly int _placementOffset;
+
     internal XRayInventoryItem(
         ushort handle,
         ushort parentId,
@@ -129,7 +151,12 @@ public sealed class XRayInventoryItem
         bool editableCount,
         IReadOnlyList<string>? upgrades,
         int? stackStateCountOffset,
-        int? stackUpdateCountOffset)
+        int? stackUpdateCountOffset,
+        float? condition,
+        int? conditionStateOffset,
+        int? conditionUpdateOffset,
+        int? clientConditionOffset,
+        XRayPlacementAnchor? placement)
     {
         Handle = handle;
         ParentId = parentId;
@@ -141,6 +168,12 @@ public sealed class XRayInventoryItem
         Upgrades = upgrades;
         StackStateCountOffset = stackStateCountOffset;
         StackUpdateCountOffset = stackUpdateCountOffset;
+        Condition = condition;
+        ConditionStateOffset = conditionStateOffset;
+        ConditionUpdateOffset = conditionUpdateOffset;
+        ClientConditionOffset = clientConditionOffset;
+        _placementValue = placement?.Value ?? 0;
+        _placementOffset = placement?.Offset ?? -1;
     }
 
     public ushort Handle { get; }
@@ -157,11 +190,41 @@ public sealed class XRayInventoryItem
 
     public bool EditableCount { get; }
 
-    public float? Condition => null;
+    public float? Condition { get; }
+
+    public bool ConditionEditable => Condition is not null && ConditionStateOffset is not null;
 
     public IReadOnlyList<string>? Upgrades { get; }
+
+    public string? PlacementType => _placementOffset < 0
+        ? null
+        : (_placementValue & 0x0F) switch
+        {
+            1 => "slot",
+            2 => "belt",
+            3 => "ruck",
+            _ => null,
+        };
+
+    public int? PlacementSlot => _placementOffset < 0 ? null : (_placementValue >> 4) & 0x3F;
+
+    public int? PlacementBaseSlot => _placementOffset < 0 ? null : (_placementValue >> 10) & 0x3F;
+
+    public string? PlacementStorage => _placementOffset < 0
+        ? null
+        : (_placementValue & 0x0F) == 1 ? "equipped" : "inventory";
+
+    public bool PlacementEditable => _placementOffset >= 0;
 
     internal int? StackStateCountOffset { get; }
 
     internal int? StackUpdateCountOffset { get; }
+
+    internal int? ConditionStateOffset { get; }
+
+    internal int? ConditionUpdateOffset { get; }
+
+    internal int? ClientConditionOffset { get; }
+
+    internal int? PlacementOffset => _placementOffset >= 0 ? _placementOffset : null;
 }

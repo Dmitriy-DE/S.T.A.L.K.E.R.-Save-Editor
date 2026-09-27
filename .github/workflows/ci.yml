@@ -54,6 +54,9 @@ jobs:
       - name: Test
         run: dotnet test StalkerSaveEditor.sln --configuration Release --no-build --no-restore
 
+      - name: Test benchmark regression checker
+        run: python -m unittest discover -s tests/tools -p 'test_*.py'
+
       - name: Check CLI version command
         run: dotnet src/StalkerSaveEditor.Cli/bin/Release/net10.0/StalkerSaveEditor.Cli.dll version
 
@@ -70,11 +73,14 @@ jobs:
 
       - name: Run short performance benchmarks
         if: runner.os == 'Linux'
-        run: dotnet run --project benchmarks/StalkerSaveEditor.Benchmarks.csproj --configuration Release --no-build -- --filter '*' --job Short --exporters csv --artifacts artifacts/benchmarks
+        run: |
+          for run in 1 2 3; do
+            dotnet run --project benchmarks/StalkerSaveEditor.Benchmarks.csproj --configuration Release --no-build -- --filter '*' --job Short --exporters csv --artifacts "artifacts/benchmarks/run-${run}"
+          done
 
       - name: Check performance regression threshold
         if: runner.os == 'Linux'
-        run: python tools/check_benchmark_regressions.py --baseline benchmarks/baseline.json --reports artifacts/benchmarks/results
+        run: python tools/check_benchmark_regressions.py --baseline benchmarks/baseline.json --reports artifacts/benchmarks
 
       - name: Upload performance report
         if: always() && runner.os == 'Linux'

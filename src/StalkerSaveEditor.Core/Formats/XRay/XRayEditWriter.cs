@@ -16,19 +16,28 @@ public static class XRayEditWriter
         if ((editKinds & (EditKind.Delete | EditKind.Add)) != EditKind.None)
         {
             throw new XRayFormatException(
-                "X-Ray edit: EditPlan cannot mix add/delete operations with money, stacks, or stash transfers.");
+                "X-Ray edit: EditPlan cannot mix add/delete operations with money, stacks, durability, placement, or stash transfers.");
         }
 
         const EditKind supportedKinds =
-            EditKind.Money | EditKind.StackCounts | EditKind.XRayStashTransfer | EditKind.Upgrades;
+            EditKind.Money |
+            EditKind.StackCounts |
+            EditKind.XRayStashTransfer |
+            EditKind.Upgrades |
+            EditKind.Faction |
+            EditKind.Durability |
+            EditKind.Placement;
         if ((editKinds & ~supportedKinds) != EditKind.None)
         {
             throw new XRayFormatException("X-Ray edit: EditPlan contains an unsupported X-Ray edit kind.");
         }
 
-        var hasMoneyOrStacks = (editKinds & (EditKind.Money | EditKind.StackCounts)) != EditKind.None;
-        var hasStashMoves = (editKinds & EditKind.XRayStashTransfer) != EditKind.None;
-        if ((editKinds & EditKind.Upgrades) != EditKind.None)
+        if (editKinds == EditKind.None)
+        {
+            throw new XRayFormatException("X-Ray edit: EditPlan must include a supported X-Ray edit.");
+        }
+
+        if (editKinds == EditKind.Upgrades)
         {
             var upgradeCatalog = catalogs?.Upgrades;
             if (upgradeCatalog is null)
@@ -36,63 +45,107 @@ public static class XRayEditWriter
                 throw new XRayFormatException("X-Ray edit: upgrade edits require a release-matched upgrade catalog.");
             }
 
-            var upgradesOnlyPlan = new EditPlan(plan.SourceSha256, upgrades: plan.Upgrades);
-            var upgradesEdit = XRayUpgradeWriter.Prepare(source, upgradesOnlyPlan, upgradeCatalog);
-            if (!hasMoneyOrStacks && !hasStashMoves)
-            {
-                return new PreparedEdit(plan, upgradesEdit.Data.Span);
-            }
-
-            var remainingPlan = new EditPlan(
-                Sha256(upgradesEdit.Data.Span),
-                money: plan.Money,
-                stackCounts: plan.StackCounts,
-                stashTakes: plan.StashTakes,
-                stashPuts: plan.StashPuts);
-            var remainingEdit = Prepare(upgradesEdit.Data.Span, remainingPlan);
-            return new PreparedEdit(plan, remainingEdit.Data.Span);
+            return XRayUpgradeWriter.Prepare(source, plan, upgradeCatalog);
         }
 
-        if (!hasMoneyOrStacks && !hasStashMoves)
+        if (editKinds == EditKind.Faction)
         {
-            throw new XRayFormatException("X-Ray edit: EditPlan must include a supported X-Ray edit.");
+            return XRayFactionWriter.Prepare(source, plan, catalogs?.Factions);
         }
 
-        if (hasStashMoves && !hasMoneyOrStacks)
+        if (editKinds == EditKind.Durability)
+        {
+            return XRayDurabilityWriter.Prepare(source, plan);
+        }
+
+        if (editKinds == EditKind.Placement)
+        {
+            return XRayPlacementWriter.Prepare(source, plan);
+        }
+
+        if (editKinds == EditKind.Money)
+        {
+            return XRayMoneyWriter.Prepare(source, plan);
+        }
+
+        if (editKinds == EditKind.StackCounts)
+        {
+            return XRayStackWriter.Prepare(source, plan);
+        }
+
+        if (editKinds == EditKind.XRayStashTransfer)
         {
             return XRayStashWriter.Prepare(source, plan);
         }
 
-        if (hasStashMoves)
+        var working = source.ToArray();
+        var currentSha256 = plan.SourceSha256;
+        if ((editKinds & EditKind.Upgrades) != EditKind.None)
         {
-            var numericPlan = new EditPlan(
-                plan.SourceSha256,
-                money: plan.Money,
-                stackCounts: plan.StackCounts);
-            var numericEdit = Prepare(source, numericPlan);
-            var stashPlan = new EditPlan(
-                Sha256(numericEdit.Data.Span),
-                stashTakes: plan.StashTakes,
-                stashPuts: plan.StashPuts);
-            var stashEdit = XRayStashWriter.Prepare(numericEdit.Data.Span, stashPlan);
-            return new PreparedEdit(plan, stashEdit.Data.Span);
+            var upgradeCatalog = catalogs?.Upgrades
+                ?? throw new XRayFormatException("X-Ray edit: upgrade edits require a release-matched upgrade catalog.");
+            working = XRayUpgradeWriter.Prepare(
+                working,
+                new EditPlan(currentSha256, upgrades: plan.Upgrades),
+                upgradeCatalog).Data.ToArray();
+            currentSha256 = Sha256(working);
         }
 
-        if ((editKinds & (EditKind.Money | EditKind.StackCounts)) ==
-            (EditKind.Money | EditKind.StackCounts))
+        if ((editKinds & EditKind.Money) != EditKind.None)
         {
-            var moneyPlan = new EditPlan(plan.SourceSha256, money: plan.Money);
-            var moneyEdit = XRayMoneyWriter.Prepare(source, moneyPlan);
-            var stackPlan = new EditPlan(
-                Sha256(moneyEdit.Data.Span),
-                stackCounts: plan.StackCounts);
-            var stackEdit = XRayStackWriter.Prepare(moneyEdit.Data.Span, stackPlan);
-            return new PreparedEdit(plan, stackEdit.Data.Span);
+            working = XRayMoneyWriter.Prepare(
+                working,
+                new EditPlan(currentSha256, money: plan.Money)).Data.ToArray();
+            currentSha256 = Sha256(working);
         }
 
-        return (editKinds & EditKind.Money) != EditKind.None
-            ? XRayMoneyWriter.Prepare(source, new EditPlan(plan.SourceSha256, money: plan.Money))
-            : XRayStackWriter.Prepare(source, new EditPlan(plan.SourceSha256, stackCounts: plan.StackCounts));
+        if ((editKinds & EditKind.StackCounts) != EditKind.None)
+        {
+            working = XRayStackWriter.Prepare(
+                working,
+                new EditPlan(currentSha256, stackCounts: plan.StackCounts)).Data.ToArray();
+            currentSha256 = Sha256(working);
+        }
+
+        if ((editKinds & EditKind.Durability) != EditKind.None)
+        {
+            working = XRayDurabilityWriter.Prepare(
+                working,
+                new EditPlan(currentSha256, durability: plan.Durability)).Data.ToArray();
+            currentSha256 = Sha256(working);
+        }
+
+        if ((editKinds & EditKind.Placement) != EditKind.None)
+        {
+            working = XRayPlacementWriter.Prepare(
+                working,
+                new EditPlan(currentSha256, placements: plan.Placements)).Data.ToArray();
+            currentSha256 = Sha256(working);
+        }
+
+        if ((editKinds & EditKind.XRayStashTransfer) != EditKind.None)
+        {
+            working = XRayStashWriter.Prepare(
+                working,
+                new EditPlan(
+                    currentSha256,
+                    stashTakes: plan.StashTakes,
+                    stashPuts: plan.StashPuts)).Data.ToArray();
+            currentSha256 = Sha256(working);
+        }
+
+        if ((editKinds & EditKind.Faction) != EditKind.None)
+        {
+            working = XRayFactionWriter.Prepare(
+                working,
+                new EditPlan(
+                    currentSha256,
+                    playerFaction: plan.PlayerFaction,
+                    factionRelations: plan.FactionRelations),
+                catalogs?.Factions).Data.ToArray();
+        }
+
+        return new PreparedEdit(plan, working);
     }
 
     private static string Sha256(ReadOnlySpan<byte> data) =>

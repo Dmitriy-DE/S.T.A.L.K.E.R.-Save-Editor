@@ -22,7 +22,7 @@ src/
     Formats/Enhanced/              EE = XRay container + own ALIFE versions
     Formats/Stalker2/              GVAS/Kraken container, name tables, inventory, stash
     Codecs/                        Kraken (P/Invoke to native ooz), LZO1X (managed)
-    Editing/                       immutable EditPlan, PreparedEdit, validation
+    Editing/                       immutable EditPlan, PreparedEdit, drafts, validation
     Catalogs/                      item names, icons, official names (same JSON as Python)
     Capabilities/                  CapabilityMaturity, FeatureCapability (+ evidence)
     Backups/                       backup + recovery artifacts, fresh-SHA checks
@@ -41,6 +41,15 @@ tests/
 
 `ISaveSource` (`LocalSaveSource`, `SteamCloudSaveSource`) keeps Core free of
 Steam and UI. Detection is by content, never by path (AGENTS rule).
+
+`Editing/DraftStore` keeps undoable, unapplied `EditPlan` snapshots under the
+application data directory, keyed by the source save's lowercase SHA256. Its
+schema 2 stores only the plan and hash, never a save path. It can import the
+Python draft schema 1. Legacy edits that the current C# plan cannot represent
+are preserved as opaque JSON and disable applying or extending that snapshot
+until the caller explicitly discards them.
+Draft files are replaced atomically, limited to 2 MiB, and removed when the
+current plan is empty.
 
 ## Rules carried over from the Python repo
 

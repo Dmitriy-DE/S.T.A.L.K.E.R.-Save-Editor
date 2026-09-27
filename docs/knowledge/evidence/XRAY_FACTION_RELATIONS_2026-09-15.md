@@ -60,6 +60,12 @@ registry сохраняются. Личные отношения не смеши
 - Synthetic tests проверяют patch одной строки, добавление отсутствующей
   строки, сохранение personal/other rows и round-trip.
 
+C#-порт в StalkerSaveEditor.Core использует тот же ограниченный префикс
+chunk 9, изменяет только actor row и проверяет точные ключи фракций и пределы
+goodwill. Синтетические SoC/CS/CoP фикстуры, созданные Python-оракулом,
+проверяют совпадение выходных байтов. Значения CS/CoP Enhanced Edition
+читаются, но запись остаётся unsupported согласно Python capability registry.
+
 Запись в production UI для трёх оригинальных релизов включена как
 `experimental_fields`: Qt/web показывают предупреждение, desktop backup
 обязателен, browser скачивает новую копию без изменения источника. Controlled

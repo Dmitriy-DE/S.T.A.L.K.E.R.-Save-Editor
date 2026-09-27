@@ -15,7 +15,12 @@ public sealed record EditPlan
         IReadOnlyCollection<ItemAddRequest>? adds = null,
         IReadOnlyCollection<ushort>? stashTakes = null,
         IReadOnlyCollection<StashPutRequest>? stashPuts = null,
-        IReadOnlyDictionary<ushort, IReadOnlyList<string>>? upgrades = null)
+        IReadOnlyDictionary<ushort, IReadOnlyList<string>>? upgrades = null,
+        string? playerFaction = null,
+        IReadOnlyDictionary<string, int>? factionRelations = null,
+        uint? stalker2StashTakeHandle = null,
+        IReadOnlyDictionary<uint, double>? durability = null,
+        IReadOnlyCollection<XRayPlacementChange>? placements = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -107,6 +112,75 @@ public sealed record EditPlan
         }
 
         Upgrades = new ReadOnlyDictionary<ushort, IReadOnlyList<string>>(upgradeEdits);
+        if (playerFaction is not null && string.IsNullOrWhiteSpace(playerFaction))
+        {
+            throw new ArgumentException("Player faction key must not be empty.", nameof(playerFaction));
+        }
+
+        PlayerFaction = playerFaction;
+        var relationValues = factionRelations is null
+            ? new Dictionary<string, int>(StringComparer.Ordinal)
+            : new Dictionary<string, int>(factionRelations, StringComparer.Ordinal);
+        if (relationValues.Keys.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException("Faction relation keys must not be empty.", nameof(factionRelations));
+        }
+
+        FactionRelations = new ReadOnlyDictionary<string, int>(relationValues);
+        if (stalker2StashTakeHandle is 0 or uint.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(stalker2StashTakeHandle),
+                "S2 stash item handles must be neither zero nor the tombstone value.");
+        }
+
+        if (stalker2StashTakeHandle is not null &&
+            (stashTakeHandles.Length > 0 || stashPutRequests.Length > 0 || handles.Length > 0 ||
+             placements?.Count > 0))
+        {
+            throw new ArgumentException(
+                "An S2 stash transfer cannot be combined with X-Ray stash or removal operations.",
+                nameof(stalker2StashTakeHandle));
+        }
+
+        Stalker2StashTakeHandle = stalker2StashTakeHandle;
+
+        var placementChanges = placements?.ToArray() ?? [];
+        if (placementChanges.Any(change => change is null))
+        {
+            throw new ArgumentException("Placement changes must not contain null values.", nameof(placements));
+        }
+
+        if (placementChanges.Select(change => change.Handle).Distinct().Count() != placementChanges.Length)
+        {
+            throw new ArgumentException("Placement handles must be unique.", nameof(placements));
+        }
+
+        if (placementChanges.Any(change => stashTakeHandles.Contains((ushort)change.Handle) ||
+                stashPutRequests.Any(request => request.ObjectId == change.Handle)))
+        {
+            throw new ArgumentException("An item cannot be moved to a stash and repositioned in one edit plan.");
+        }
+
+        Placements = Array.AsReadOnly(placementChanges);
+
+        var durabilityValues = new Dictionary<uint, double>();
+        if (durability is not null)
+        {
+            foreach (var (handle, condition) in durability)
+            {
+                if (!double.IsFinite(condition) || condition is < 0 or > 1)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(durability),
+                        "Durability values must be finite and in the range 0..1.");
+                }
+
+                durabilityValues.Add(handle, condition);
+            }
+        }
+
+        Durability = new ReadOnlyDictionary<uint, double>(durabilityValues);
         EditKinds = DetermineEditKinds();
     }
 
@@ -125,6 +199,16 @@ public sealed record EditPlan
     public IReadOnlyList<StashPutRequest> StashPuts { get; }
 
     public IReadOnlyDictionary<ushort, IReadOnlyList<string>> Upgrades { get; }
+
+    public string? PlayerFaction { get; }
+
+    public IReadOnlyDictionary<string, int> FactionRelations { get; }
+
+    public uint? Stalker2StashTakeHandle { get; }
+
+    public IReadOnlyDictionary<uint, double> Durability { get; }
+
+    public IReadOnlyList<XRayPlacementChange> Placements { get; }
 
     public EditKind EditKinds { get; }
 
@@ -159,6 +243,26 @@ public sealed record EditPlan
         if (Upgrades.Count > 0)
         {
             kinds |= EditKind.Upgrades;
+        }
+
+        if (PlayerFaction is not null || FactionRelations.Count > 0)
+        {
+            kinds |= EditKind.Faction;
+        }
+
+        if (Stalker2StashTakeHandle is not null)
+        {
+            kinds |= EditKind.Stalker2StashTransfer;
+        }
+
+        if (Durability.Count > 0)
+        {
+            kinds |= EditKind.Durability;
+        }
+
+        if (Placements.Count > 0)
+        {
+            kinds |= EditKind.Placement;
         }
 
         return kinds;

@@ -134,12 +134,12 @@ public sealed class XRayTrilogyReaderTests
             handle_hex = $"0x{item.Handle:X8}",
             placement = new
             {
-                base_slot = (int?)null,
+                base_slot = item.PlacementBaseSlot,
                 cells = Array.Empty<object>(),
                 height = (int?)null,
-                slot = (int?)null,
-                storage = (string?)null,
-                type = (string?)null,
+                slot = item.PlacementSlot,
+                storage = item.PlacementStorage,
+                type = item.PlacementType,
                 width = (int?)null,
                 x = (int?)null,
                 y = (int?)null,

@@ -176,7 +176,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public bool CanEditMoney => SelectedSave?.CanEditMoney == true;
 
-    public bool CanSave => !_isSaving && SelectedSave is not null && HasDraftChanges && InputsAreValid(SelectedSave);
+    public bool CanSave => !_isSaving && SelectedSave is not null && SelectedSave.ReleaseId != "stalker2" && HasDraftChanges && InputsAreValid(SelectedSave);
 
     public bool CanUndo => _currentJournal?.CanUndo == true;
     public bool CanRedo => _currentJournal?.CanRedo == true;
@@ -451,7 +451,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             var source = File.ReadAllBytes(selected.FilePath);
             var catalog = Catalogs.TryGetValue(selected.ReleaseId, out var bundle) ? bundle : null;
-            var prepared = PrepareSaveEdit(source, plan, selected.ReleaseId, catalog);
+            var prepared = XRayEditWriter.Prepare(source, plan, catalog);
 
             var receipt = LocalSaveReplacement.ReplaceLocal(
                 selected.FilePath,
@@ -485,49 +485,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             OnPropertyChanged(nameof(CanSave));
             SaveCommand.NotifyCanExecuteChanged();
         }
-    }
-
-    private PreparedEdit PrepareSaveEdit(byte[] source, EditPlan plan, string releaseId, CatalogBundle? catalog)
-    {
-        if (releaseId == "stalker2")
-        {
-            var working = source;
-            PreparedEdit? last = null;
-            if (plan.Money.HasValue)
-            {
-                last = Stalker2MoneyWriter.Prepare(working, new EditPlan(Sha256(working), money: plan.Money));
-                working = last.Data.ToArray();
-            }
-            if (plan.StackCounts.Count > 0)
-            {
-                last = Stalker2StackWriter.Prepare(working, new EditPlan(Sha256(working), stackCounts: plan.StackCounts));
-                working = last.Data.ToArray();
-            }
-            if (plan.Durability.Count > 0)
-            {
-                last = Stalker2DurabilityWriter.Prepare(working, new EditPlan(Sha256(working), durability: plan.Durability));
-                working = last.Data.ToArray();
-            }
-            if (plan.Stalker2StashTakeHandle.HasValue)
-            {
-                last = Stalker2StashWriter.Prepare(working, new EditPlan(Sha256(working), stalker2StashTakeHandle: plan.Stalker2StashTakeHandle));
-            }
-            return last ?? throw new InvalidOperationException("No valid S2 edits to apply.");
-        }
-
-        // X-Ray
-        if (plan.DetachHandles.Count > 0)
-        {
-            return XRayDeleteWriter.Prepare(source, new EditPlan(plan.SourceSha256, detachHandles: plan.DetachHandles));
-        }
-
-        if (plan.Adds.Count > 0)
-        {
-            var itemsCatalog = catalog?.Items ?? throw new InvalidOperationException("Item addition requires catalog.");
-            return XRayAddWriter.Prepare(source, new EditPlan(plan.SourceSha256, adds: plan.Adds), itemsCatalog);
-        }
-
-        return XRayEditWriter.Prepare(source, plan, catalog);
     }
 
     private EditPlan BuildCurrentEditPlan(SaveFileSummary save)
@@ -902,8 +859,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             playerFaction = def?.DisplayName ?? def?.Key;
         }
 
-        // Canonical transitions
-        var transitions = GetCanonicalTransitions(formatId);
+        // Transitions are not fabricated; empty until Core Level Changers API is available
+        var transitions = Array.Empty<TransitionViewModel>();
 
         var levelName = save.Stashes.FirstOrDefault(s => !string.IsNullOrEmpty(s.Level))?.Level;
         if (!string.IsNullOrEmpty(levelName))
@@ -976,40 +933,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             lastModified: lastModified,
             crcOk: save.StoredCrc32 == save.ComputedCrc32);
     }
-
-    private static IReadOnlyList<TransitionViewModel> GetCanonicalTransitions(string releaseId) => releaseId switch
-    {
-        "stalker-cop" or "stalker-cop-ee" =>
-        [
-            new TransitionViewModel("Затон", "Окрестности Юпитера", "Станция Янов", 298.5f, 5.2f, -120.4f, false),
-            new TransitionViewModel("Окрестности Юпитера", "Затон", "Скадовск", 112.0f, -4.1f, 180.3f, false),
-            new TransitionViewModel("Окрестности Юпитера", "Припять", "Прачечная", 18.2f, 0.0f, -22.5f, true),
-            new TransitionViewModel("Припять", "Окрестности Юпитера", "Станция Янов", -85.1f, 3.4f, 92.0f, false),
-        ],
-        "stalker-cs" or "stalker-cs-ee" =>
-        [
-            new TransitionViewModel("Болота", "Кордон", "Южный блокпост", -160.0f, 2.5f, -340.0f, false),
-            new TransitionViewModel("Кордон", "Свалка", "Северный блокпост", 35.0f, 0.0f, 280.0f, false),
-            new TransitionViewModel("Свалка", "Тёмная Долина", "Восточный переход", 240.0f, 1.2f, 15.0f, false),
-            new TransitionViewModel("Свалка", "Агропром", "Западный переход", -210.0f, -1.0f, -50.0f, false),
-            new TransitionViewModel("Свалка", "Военные Склады", "Северные холмы", 12.0f, 4.0f, 310.0f, false),
-            new TransitionViewModel("Военные Склады", "Рыжий Лес", "Мост через реку", -180.0f, -2.5f, 220.0f, false),
-            new TransitionViewModel("Рыжий Лес", "Лиманск", "Мост в город", 45.0f, 0.5f, 195.0f, true),
-        ],
-        _ =>
-        [
-            new TransitionViewModel("Кордон", "Свалка", "Северный блокпост", 38.0f, 1.0f, 290.0f, false),
-            new TransitionViewModel("Свалка", "Агропром", "Западные ворота", -220.0f, 0.0f, -60.0f, false),
-            new TransitionViewModel("Свалка", "Тёмная Долина", "Восточный туннель", 250.0f, 2.0f, 20.0f, false),
-            new TransitionViewModel("Свалка", "Бар «100 Рентген»", "Южная застава", 15.0f, 0.0f, 320.0f, false),
-            new TransitionViewModel("Бар", "Дикая Территория", "Западная стройка", -140.0f, 1.5f, 80.0f, false),
-            new TransitionViewModel("Дикая Территория", "Янтарь", "Лаборатория Сахарова", -290.0f, -5.0f, 40.0f, false),
-            new TransitionViewModel("Бар", "Армейские Склады", "Северный блокпост", 20.0f, 3.0f, 340.0f, false),
-            new TransitionViewModel("Армейские Склады", "Радар", "Выжигатель Мозгов", 80.0f, 8.0f, 390.0f, false),
-            new TransitionViewModel("Радар", "Припять", "Южная окраина", 10.0f, 2.0f, 450.0f, false),
-            new TransitionViewModel("Припять", "ЧАЭС", "Саркофаг", 0.0f, 0.0f, 500.0f, true),
-        ],
-    };
 
     private static void VerifyReadBack(ReadOnlySpan<byte> data, string expectedReleaseId, EditPlan plan)
     {

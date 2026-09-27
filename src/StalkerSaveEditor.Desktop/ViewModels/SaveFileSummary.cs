@@ -127,7 +127,7 @@ public sealed class SaveFileSummary
         }
     }
 
-    public string HealthDisplay => ActorHealth.HasValue ? $"{(int)(ActorHealth.Value * 100)}%" : "100%";
+    public string HealthDisplay => ActorHealth.HasValue ? $"{(int)(ActorHealth.Value * 100)}%" : "—";
 
     public string RankDisplay => ActorRank.HasValue ? ActorRank.Value switch
     {

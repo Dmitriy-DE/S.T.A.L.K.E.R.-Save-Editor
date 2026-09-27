@@ -17,13 +17,14 @@ mkdir -p "${APP_DIR}/Contents/Resources"
 mkdir -p "${DIST}"
 
 # 1. Publish .NET self-contained
+# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
 dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
     -c Release \
     -r "${RID}" \
     --self-contained true \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:TreatWarningsAsErrors=false \
+    -p:NoWarn="IL3000" \
     -o "${APP_DIR}/Contents/MacOS"
 
 mv "${APP_DIR}/Contents/MacOS/StalkerSaveEditor.Desktop" "${APP_DIR}/Contents/MacOS/StalkerSaveEditor"

@@ -12,13 +12,14 @@ rm -rf "${WIN_DIST}"
 mkdir -p "${WIN_DIST}"
 mkdir -p "${DIST}"
 
+# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
 dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
     -c Release \
     -r win-x64 \
     --self-contained true \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:TreatWarningsAsErrors=false \
+    -p:NoWarn="IL3000" \
     -o "${WIN_DIST}"
 
 cp "${WIN_DIST}/StalkerSaveEditor.Desktop.exe" "${DIST}/StalkerSaveEditor-v${VERSION}-win-x64.exe"

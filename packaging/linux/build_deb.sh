@@ -35,13 +35,14 @@ EOF
 
 # 3. Publish .NET self-contained single file
 echo "Publishing .NET project for linux-x64..."
+# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
 dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
     -c Release \
     -r linux-x64 \
     --self-contained true \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:TreatWarningsAsErrors=false \
+    -p:NoWarn="IL3000" \
     -o "${PKG_ROOT}/usr/bin"
 
 mv "${PKG_ROOT}/usr/bin/StalkerSaveEditor.Desktop" "${PKG_ROOT}/usr/bin/stalker-save-editor"

@@ -16,14 +16,14 @@ New-Item -ItemType Directory -Force -Path $WinDist | Out-Null
 if (!(Test-Path $Dist)) { New-Item -ItemType Directory -Force -Path $Dist | Out-Null }
 
 # 2. Publish single-file executable
-Write-Host "Publishing single-file self-contained executable..."
+# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
 dotnet publish "$Root\src\StalkerSaveEditor.Desktop\StalkerSaveEditor.Desktop.csproj" `
     -c Release `
     -r win-x64 `
     --self-contained true `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:TreatWarningsAsErrors=false `
+    -p:NoWarn="IL3000" `
     -o $WinDist
 
 Rename-Item -Path "$WinDist\StalkerSaveEditor.Desktop.exe" -NewName "StalkerSaveEditor.exe"

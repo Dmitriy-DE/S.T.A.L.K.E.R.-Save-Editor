@@ -17,6 +17,7 @@ mkdir -p "${APP_DIR}/usr/lib"
 mkdir -p "${OUTPUT_DIR}"
 
 # 2. Publish .NET self-contained single file
+# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
 echo "Publishing .NET project for linux-x64..."
 dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
     -c Release \
@@ -24,7 +25,7 @@ dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.
     --self-contained true \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:TreatWarningsAsErrors=false \
+    -p:NoWarn="IL3000" \
     -o "${APP_DIR}/usr/bin"
 
 # Rename executable to match launcher
@@ -39,22 +40,29 @@ cp "${ROOT}/packaging/linux/stalker-save-editor.desktop" "${APP_DIR}/stalker-sav
 cp "${ROOT}/packaging/linux/stalker-save-editor.png" "${APP_DIR}/stalker-save-editor.png"
 cp "${ROOT}/packaging/linux/stalker-save-editor.png" "${APP_DIR}/.DirIcon"
 
-# 4. Pack AppImage using appimagetool
+# 4. Pack AppImage using pinned appimagetool version
 APPIMAGE_BIN="${OUTPUT_DIR}/StalkerSaveEditor-${VERSION}-${ARCH}.AppImage"
 
 if ! command -v appimagetool &> /dev/null; then
-    echo "appimagetool not found in PATH, downloading standalone tool..."
-    TOOL_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-    curl -sSL -o "${BUILD_DIR}/appimagetool" "${TOOL_URL}" || true
-    if [ -f "${BUILD_DIR}/appimagetool" ]; then
-        chmod +x "${BUILD_DIR}/appimagetool"
-        ARCH=x86_64 "${BUILD_DIR}/appimagetool" "${APP_DIR}" "${APPIMAGE_BIN}"
-    else
-        echo "Warning: Could not download appimagetool; AppDir prepared at ${APP_DIR}"
-        exit 0
-    fi
+    APPIMAGETOOL_VERSION="1.9.1"
+    echo "appimagetool not found in PATH, downloading pinned release v${APPIMAGETOOL_VERSION}..."
+    TOOL_URL="https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+    curl -fsSL -o "${BUILD_DIR}/appimagetool" "${TOOL_URL}" || {
+        echo "Error: Failed to download appimagetool v${APPIMAGETOOL_VERSION} from ${TOOL_URL}" >&2
+        exit 1
+    }
+    chmod +x "${BUILD_DIR}/appimagetool"
+    APPIMAGETOOL_CMD="${BUILD_DIR}/appimagetool --appimage-extract-and-run"
 else
-    ARCH=x86_64 appimagetool "${APP_DIR}" "${APPIMAGE_BIN}"
+    APPIMAGETOOL_CMD="appimagetool"
 fi
 
-echo "AppImage created: ${APPIMAGE_BIN}"
+echo "Generating AppImage..."
+ARCH=x86_64 ${APPIMAGETOOL_CMD} "${APP_DIR}" "${APPIMAGE_BIN}"
+
+if [ ! -f "${APPIMAGE_BIN}" ]; then
+    echo "Error: AppImage packaging failed; target file ${APPIMAGE_BIN} was not generated." >&2
+    exit 1
+fi
+
+echo "AppImage created successfully: ${APPIMAGE_BIN}"

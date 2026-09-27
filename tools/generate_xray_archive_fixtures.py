@@ -62,6 +62,8 @@ def main() -> int:
     args = parser.parse_args()
     python_repo = args.python_repo.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
+    # The Python repository is an oracle input only; do not leave __pycache__ there.
+    sys.dont_write_bytecode = True
     sys.path.insert(0, str(python_repo))
     from editor.xray_catalog import _read_xray_archive
 

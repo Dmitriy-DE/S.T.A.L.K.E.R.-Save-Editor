@@ -35,7 +35,7 @@ public sealed class CompanionProtocolClientTests
         foreach (var fixtureName in new[] { "mark", "jump_last", "quicksave", "hotkeys_on", "hotkeys_off" })
         {
             using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
-            var client = game.CreateClient("b6request", timeout: TimeSpan.FromSeconds(2));
+            var client = game.CreateClient("b6request", timeout: ReplyDrivenTimeout);
             using var golden = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(GoldenDirectory, $"{fixtureName}.json")));
             var commandWords = golden.RootElement.GetProperty("command").GetString()!
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -101,7 +101,7 @@ public sealed class CompanionProtocolClientTests
     public async Task Writes_atomically_and_waits_for_the_reply_with_the_same_id()
     {
         using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
-        var client = game.CreateClient("request-1", timeout: TimeSpan.FromSeconds(2));
+        var client = game.CreateClient("request-1", timeout: ReplyDrivenTimeout);
         var commandPath = Path.Combine(game.AppDataRoot, "save_editor_cmd.txt");
         var temporaryPath = Path.Combine(game.AppDataRoot, "save_editor_cmd.tmp");
         var replyPath = Path.Combine(game.AppDataRoot, "save_editor_out.txt");
@@ -127,7 +127,7 @@ public sealed class CompanionProtocolClientTests
     public async Task Serializes_commands_and_does_not_publish_the_next_until_the_first_is_consumed()
     {
         using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
-        var client = game.CreateClientSequence("request-1", "request-2", timeout: TimeSpan.FromSeconds(2));
+        var client = game.CreateClientSequence("request-1", "request-2", timeout: ReplyDrivenTimeout);
         var commandPath = Path.Combine(game.AppDataRoot, "save_editor_cmd.txt");
         var replyPath = Path.Combine(game.AppDataRoot, "save_editor_out.txt");
 
@@ -202,7 +202,8 @@ public sealed class CompanionProtocolClientTests
     public async Task Does_not_remove_a_replaced_command_after_timeout()
     {
         using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
-        var client = game.CreateClient("request-1", timeout: TimeSpan.FromMilliseconds(100));
+        // Long enough that a stalled runner cannot expire the request before the test replaces the command.
+        var client = game.CreateClient("request-1", timeout: TimeSpan.FromSeconds(1));
         var commandPath = Path.Combine(game.AppDataRoot, "save_editor_cmd.txt");
         var send = client.SendAsync("ping");
         await WaitForFile(commandPath);
@@ -213,9 +214,13 @@ public sealed class CompanionProtocolClientTests
         Assert.Equal("v1 foreign info\n", File.ReadAllText(commandPath));
     }
 
+    // Happy-path tests finish as soon as the reply file appears; the timeout only guards against a hang,
+    // so it is generous to survive slow CI runners. Timeout behaviour has its own short-timeout tests.
+    private static readonly TimeSpan ReplyDrivenTimeout = TimeSpan.FromSeconds(30);
+
     private static async Task WaitForFile(string path)
     {
-        var timeoutAt = DateTime.UtcNow + TimeSpan.FromSeconds(2);
+        var timeoutAt = DateTime.UtcNow + ReplyDrivenTimeout;
         while (!File.Exists(path) && DateTime.UtcNow < timeoutAt)
         {
             await Task.Delay(10);

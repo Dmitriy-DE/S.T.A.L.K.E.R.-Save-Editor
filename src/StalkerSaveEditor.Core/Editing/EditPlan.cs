@@ -10,7 +10,7 @@ public sealed record EditPlan
     public EditPlan(
         string sourceSha256,
         uint? money = null,
-        IReadOnlyDictionary<ushort, uint>? stackCounts = null,
+        IReadOnlyDictionary<uint, uint>? stackCounts = null,
         IReadOnlyCollection<ushort>? detachHandles = null,
         IReadOnlyCollection<ItemAddRequest>? adds = null)
     {
@@ -22,10 +22,10 @@ public sealed record EditPlan
 
         SourceSha256 = sourceSha256.ToLowerInvariant();
         Money = money;
-        StackCounts = new ReadOnlyDictionary<ushort, uint>(
+        StackCounts = new ReadOnlyDictionary<uint, uint>(
             stackCounts is null
-                ? new Dictionary<ushort, uint>()
-                : new Dictionary<ushort, uint>(stackCounts));
+                ? new Dictionary<uint, uint>()
+                : new Dictionary<uint, uint>(stackCounts));
         var handles = detachHandles?.ToArray() ?? [];
         if (handles.Distinct().Count() != handles.Length)
         {
@@ -47,7 +47,7 @@ public sealed record EditPlan
 
     public uint? Money { get; }
 
-    public IReadOnlyDictionary<ushort, uint> StackCounts { get; }
+    public IReadOnlyDictionary<uint, uint> StackCounts { get; }
 
     public IReadOnlyList<ushort> DetachHandles { get; }
 

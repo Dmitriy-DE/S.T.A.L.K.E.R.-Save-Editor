@@ -14,7 +14,7 @@ public sealed class XRayEditWriterTests
         var plan = new EditPlan(
             Sha256(source),
             money: 9_876,
-            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 44 });
+            stackCounts: new Dictionary<uint, uint> { [0x1234] = 44 });
 
         var prepared = XRayEditWriter.Prepare(source, plan);
         var parsed = XRayTrilogyReader.FromBytes(prepared.Data.Span);
@@ -33,7 +33,7 @@ public sealed class XRayEditWriterTests
         var plan = new EditPlan(
             new string('0', 64),
             money: 9_876,
-            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 44 });
+            stackCounts: new Dictionary<uint, uint> { [0x1234] = 44 });
 
         Assert.Throws<XRayFormatException>(() => XRayEditWriter.Prepare(source, plan));
     }

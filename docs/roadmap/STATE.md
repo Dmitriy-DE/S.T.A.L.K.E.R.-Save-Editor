@@ -53,7 +53,14 @@
 ## Исполнители
 
 - **Codex:** один финальный бриф `~/save-editor-review/briefs/CODEX_FINAL.md` — всё до конца, с критериями приёмки, без остановок на ожидание слияний. Ждём его PR.
-- **Gemini:** пакет 9 сделан (#33–#38). Дополнение G6 (функции для ТЧ и ЧН, `docs/knowledge/COMPANION_FEATURES_SOC_CS.md`) начато, упёрлось в лимит сессии.
+- **Gemini:** пакет 9 сделан (#33–#38). Пакет 10 открыт в PR:
+  - #56 (`gemini/b1-desktop-screens`, влит в main) — паритет экранов Avalonia UI, тема, DraftStore (Undo/Redo), делегирование записи исключительно в Core `EditService`, без выдуманных переходов/здоровья (L2 TESTED);
+  - #57 (`gemini/b7-localization`) — 15 локалей, gettext-ключи, 0 расхождений плейсхолдеров (L2 TESTED);
+  - #58 (`gemini/b2-game-audio`) — кроссплатформенные звуки UI, громкость и mute (L2 TESTED);
+  - #60 (`gemini/b4-companion-screen`) — экран компаньона, хоткеи `Ctrl+H/R/M/J/S`, честный статус без фейкового пинга (L2 TESTED);
+  - #61 (`gemini/g6-companion-mod`) — паритет функций ТЧ/ЧН с ЗП, guard `stop_weather_fx` для ЧН, сохранение фактора времени при перемотке, опрос 250 мс только при активных хоткеях (L2 TESTED);
+  - #62 (`gemini/d-packaging`) — Linux (.deb + AppImage с appimagetool 1.9.1), Windows (.exe + Inno Setup с NoWarn IL3000), macOS (.app + .dmg) (L3 PACKAGED);
+  - #64 (`gemini/e-ci-docs`) — CI-проверка companion mod в GitHub Actions, документация без выдуманных данных, единый `EditService` в Core для X-Ray и S2 с диспетчером `Stalker2EditWriter` и безопасным отключением S2-записи в UI (L2 TESTED).
 - **Claude:** ревью и слияние; компаньон ЗП; проверка меню ТЧ и ЧН перед выдачей владельцу.
 
 ## Что проверять владельцу дальше (в ЗП)

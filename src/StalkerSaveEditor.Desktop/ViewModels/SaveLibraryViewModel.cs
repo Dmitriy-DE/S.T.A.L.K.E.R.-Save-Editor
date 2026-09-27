@@ -176,7 +176,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public bool CanEditMoney => SelectedSave?.CanEditMoney == true;
 
-    public bool CanSave => !_isSaving && SelectedSave is not null && SelectedSave.ReleaseId != "stalker2" && HasDraftChanges && InputsAreValid(SelectedSave);
+    public bool CanSave => !_isSaving && SelectedSave is not null && EditService.CanEdit(SelectedSave.ReleaseId) && HasDraftChanges && InputsAreValid(SelectedSave);
 
     public bool CanUndo => _currentJournal?.CanUndo == true;
     public bool CanRedo => _currentJournal?.CanRedo == true;
@@ -451,13 +451,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             var source = File.ReadAllBytes(selected.FilePath);
             var catalog = Catalogs.TryGetValue(selected.ReleaseId, out var bundle) ? bundle : null;
-            var prepared = XRayEditWriter.Prepare(source, plan, catalog);
+            var prepared = EditService.PrepareEdit(source, plan, selected.ReleaseId, catalog);
 
             var receipt = LocalSaveReplacement.ReplaceLocal(
                 selected.FilePath,
                 prepared,
                 _backupDirectoryProvider(),
-                readBack => VerifyReadBack(readBack.Span, selected.ReleaseId, plan));
+                readBack => EditService.VerifyReadBack(readBack.Span, selected.ReleaseId, plan));
 
             _draftStore.Remove(selected.SourceSha256);
 
@@ -934,38 +934,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             crcOk: save.StoredCrc32 == save.ComputedCrc32);
     }
 
-    private static void VerifyReadBack(ReadOnlySpan<byte> data, string expectedReleaseId, EditPlan plan)
-    {
-        if (expectedReleaseId == "stalker2")
-        {
-            var parsedS2 = Stalker2SaveReader.FromBytes(data);
-            if (plan.Money is { } expectedMoney && parsedS2.Money != expectedMoney)
-            {
-                throw new InvalidDataException("S2 readback money does not match.");
-            }
-            return;
-        }
-
-        XRayTrilogySave parsed;
-        try
-        {
-            parsed = XRayTrilogyReader.FromBytes(data);
-        }
-        catch (XRayFormatException)
-        {
-            parsed = XRayEnhancedReader.FromBytes(data);
-        }
-
-        if (!string.Equals(parsed.FormatId, expectedReleaseId, StringComparison.Ordinal))
-        {
-            throw new InvalidDataException("The replaced save changed its detected release.");
-        }
-
-        if (plan.Money is { } money && parsed.Money != money)
-        {
-            throw new InvalidDataException("The replaced save money does not match the requested value.");
-        }
-    }
 
     private bool HasPendingChanges(SaveFileSummary save)
     {

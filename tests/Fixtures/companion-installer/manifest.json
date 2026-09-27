@@ -1,0 +1,65 @@
+{
+  "synthetic": true,
+  "games": {
+    "soc": {
+      "archive": "soc.db",
+      "entries": [
+        {
+          "name": "gamedata/scripts/bind_stalker.script",
+          "size": 204,
+          "sha256": "bc439321e164d61a7802d13a610c8be9525dbe61fbc749dc1808833851ae1cf2"
+        },
+        {
+          "name": "gamedata/scripts/ui_main_menu.script",
+          "size": 208,
+          "sha256": "0ac60173e801def2ebe63ca6df0f0a50938c4b00288f498ca046bbcc1dd5445c"
+        },
+        {
+          "name": "gamedata/configs/misc/quest_items.ltx",
+          "size": 73,
+          "sha256": "cfdcdc3242feb0f14c1ceb287d5e50ddc3621c2d87ded41acf5a16e2d6eefc1e"
+        }
+      ]
+    },
+    "cs": {
+      "archive": "cs.db",
+      "entries": [
+        {
+          "name": "gamedata/scripts/bind_stalker.script",
+          "size": 203,
+          "sha256": "501cc5a1eac1ad5868b3068679edc5e4982d0a09efaaa92ffff57398d0de3c15"
+        },
+        {
+          "name": "gamedata/scripts/ui_main_menu.script",
+          "size": 207,
+          "sha256": "affc4684f416a6681ff50b878cd9da746ea227d0a662e5f48ee7cab4fa02fceb"
+        },
+        {
+          "name": "gamedata/configs/misc/quest_items.ltx",
+          "size": 72,
+          "sha256": "7d7012e819f42b11b9c73bfc2ee5f6fd36eb9589d8a4e02e8ca9b61232036801"
+        }
+      ]
+    },
+    "cop": {
+      "archive": "cop.db",
+      "entries": [
+        {
+          "name": "gamedata/scripts/bind_stalker.script",
+          "size": 204,
+          "sha256": "a402219adaa36cfdfbfab18dbac5a2fb316644007868812b0f24413d166fd645"
+        },
+        {
+          "name": "gamedata/scripts/ui_main_menu.script",
+          "size": 208,
+          "sha256": "2f99b9f7efe1c81b19fd9ac4350e91881239f44e4070bab6ba7a2e82c92dbdeb"
+        },
+        {
+          "name": "gamedata/configs/misc/quest_items.ltx",
+          "size": 73,
+          "sha256": "d538374969b73ba5965ac6c5faf5f453268aaa858d0e6ad1813b2280e78668c8"
+        }
+      ]
+    }
+  }
+}

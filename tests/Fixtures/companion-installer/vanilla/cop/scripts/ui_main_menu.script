@@ -1,0 +1,9 @@
+-- synthetic vanilla ui_main_menu for cop
+function main_menu:OnKeyboard(dik, keyboard_action)
+	if keyboard_action == WINDOW_KEY_PRESSED then
+		if dik == DIK_Q then
+			self:Close()
+		end
+	end
+	return true
+end

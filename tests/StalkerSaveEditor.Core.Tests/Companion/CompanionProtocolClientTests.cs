@@ -30,6 +30,37 @@ public sealed class CompanionProtocolClientTests
     }
 
     [Fact]
+    public async Task Publishes_the_new_hotkey_protocol_commands_from_golden_examples()
+    {
+        foreach (var fixtureName in new[] { "mark", "jump_last", "quicksave", "hotkeys_on", "hotkeys_off" })
+        {
+            using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
+            var client = game.CreateClient("b6request", timeout: TimeSpan.FromSeconds(2));
+            using var golden = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(GoldenDirectory, $"{fixtureName}.json")));
+            var commandWords = golden.RootElement.GetProperty("command").GetString()!
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var expectedReply = golden.RootElement.GetProperty("reply").GetString()!;
+            var command = commandWords[2];
+            var arguments = commandWords.Skip(3).ToArray();
+            var commandPath = Path.Combine(game.AppDataRoot, "save_editor_cmd.txt");
+            var replyPath = Path.Combine(game.AppDataRoot, "save_editor_out.txt");
+
+            var send = client.SendAsync(command, arguments);
+            await WaitForFile(commandPath);
+            Assert.Equal($"v1 b6request {string.Join(' ', commandWords.Skip(2))}", File.ReadAllText(commandPath).Trim());
+            File.Delete(commandPath);
+            File.WriteAllText(replyPath, expectedReply.Replace(
+                $"v1 {commandWords[1]} ",
+                "v1 b6request ",
+                StringComparison.Ordinal));
+
+            var reply = await send;
+
+            Assert.Equal("b6request", reply.Id);
+        }
+    }
+
+    [Fact]
     public void Resolves_app_data_root_from_fsgame_aliases_without_guessing()
     {
         using var game = SyntheticGame.Create(
@@ -141,6 +172,8 @@ public sealed class CompanionProtocolClientTests
     [InlineData("money", "1.5")]
     [InlineData("teleport", "NaN|0|0")]
     [InlineData("weather", "rain|later")]
+    [InlineData("mark", "unexpected")]
+    [InlineData("hotkeys", "maybe")]
     public async Task Rejects_arguments_outside_the_protocol_table_before_writing(string command, string arguments)
     {
         using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");

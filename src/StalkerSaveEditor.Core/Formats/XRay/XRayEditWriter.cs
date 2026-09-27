@@ -9,19 +9,28 @@ public static class XRayEditWriter
     public static PreparedEdit Prepare(
         ReadOnlySpan<byte> source,
         EditPlan plan,
-        UpgradeCatalog? upgradeCatalog = null)
+        CatalogBundle? catalogs = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        var hasMoneyOrStacks = plan.Money is not null || plan.StackCounts.Count > 0;
-        var hasStashMoves = plan.StashTakes.Count > 0 || plan.StashPuts.Count > 0;
-        if (plan.DetachHandles.Count > 0 || plan.Adds.Count > 0)
+        var editKinds = plan.EditKinds;
+        if ((editKinds & (EditKind.Delete | EditKind.Add)) != EditKind.None)
         {
             throw new XRayFormatException(
                 "X-Ray edit: EditPlan cannot mix add/delete operations with money, stacks, or stash transfers.");
         }
 
-        if (plan.Upgrades.Count > 0)
+        const EditKind supportedKinds =
+            EditKind.Money | EditKind.StackCounts | EditKind.XRayStashTransfer | EditKind.Upgrades;
+        if ((editKinds & ~supportedKinds) != EditKind.None)
         {
+            throw new XRayFormatException("X-Ray edit: EditPlan contains an unsupported X-Ray edit kind.");
+        }
+
+        var hasMoneyOrStacks = (editKinds & (EditKind.Money | EditKind.StackCounts)) != EditKind.None;
+        var hasStashMoves = (editKinds & EditKind.XRayStashTransfer) != EditKind.None;
+        if ((editKinds & EditKind.Upgrades) != EditKind.None)
+        {
+            var upgradeCatalog = catalogs?.Upgrades;
             if (upgradeCatalog is null)
             {
                 throw new XRayFormatException("X-Ray edit: upgrade edits require a release-matched upgrade catalog.");
@@ -69,9 +78,10 @@ public static class XRayEditWriter
             return new PreparedEdit(plan, stashEdit.Data.Span);
         }
 
-        if (plan.Money is { } money && plan.StackCounts.Count > 0)
+        if ((editKinds & (EditKind.Money | EditKind.StackCounts)) ==
+            (EditKind.Money | EditKind.StackCounts))
         {
-            var moneyPlan = new EditPlan(plan.SourceSha256, money: money);
+            var moneyPlan = new EditPlan(plan.SourceSha256, money: plan.Money);
             var moneyEdit = XRayMoneyWriter.Prepare(source, moneyPlan);
             var stackPlan = new EditPlan(
                 Sha256(moneyEdit.Data.Span),
@@ -80,7 +90,7 @@ public static class XRayEditWriter
             return new PreparedEdit(plan, stackEdit.Data.Span);
         }
 
-        return plan.Money is not null
+        return (editKinds & EditKind.Money) != EditKind.None
             ? XRayMoneyWriter.Prepare(source, new EditPlan(plan.SourceSha256, money: plan.Money))
             : XRayStackWriter.Prepare(source, new EditPlan(plan.SourceSha256, stackCounts: plan.StackCounts));
     }

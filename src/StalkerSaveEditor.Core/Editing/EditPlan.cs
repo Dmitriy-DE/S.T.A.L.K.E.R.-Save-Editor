@@ -107,6 +107,7 @@ public sealed record EditPlan
         }
 
         Upgrades = new ReadOnlyDictionary<ushort, IReadOnlyList<string>>(upgradeEdits);
+        EditKinds = DetermineEditKinds();
     }
 
     public string SourceSha256 { get; }
@@ -124,4 +125,42 @@ public sealed record EditPlan
     public IReadOnlyList<StashPutRequest> StashPuts { get; }
 
     public IReadOnlyDictionary<ushort, IReadOnlyList<string>> Upgrades { get; }
+
+    public EditKind EditKinds { get; }
+
+    private EditKind DetermineEditKinds()
+    {
+        var kinds = EditKind.None;
+        if (Money is not null)
+        {
+            kinds |= EditKind.Money;
+        }
+
+        if (StackCounts.Count > 0)
+        {
+            kinds |= EditKind.StackCounts;
+        }
+
+        if (DetachHandles.Count > 0)
+        {
+            kinds |= EditKind.Delete;
+        }
+
+        if (Adds.Count > 0)
+        {
+            kinds |= EditKind.Add;
+        }
+
+        if (StashTakes.Count > 0 || StashPuts.Count > 0)
+        {
+            kinds |= EditKind.XRayStashTransfer;
+        }
+
+        if (Upgrades.Count > 0)
+        {
+            kinds |= EditKind.Upgrades;
+        }
+
+        return kinds;
+    }
 }

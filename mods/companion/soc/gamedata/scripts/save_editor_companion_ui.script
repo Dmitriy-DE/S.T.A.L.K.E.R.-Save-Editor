@@ -1,10 +1,9 @@
 --[[
-  Save Editor companion — in-game menu for Call of Pripyat (Esc, then F1).
-  Layout is the editor's own: tab rail, filtered list, item card with the
-  game's icon and context buttons. Every texture and control is a vanilla CoP
-  one (see ui_save_editor_companion.xml). Window code follows the vanilla load
-  dialog (ui_load_dialog.script) and the «Повелитель Зоны 5.0» trainer:
-  https://github.com/xray-storage/so-xray/blob/master/gamedata/scripts/ui_god_dialog.script
+  Save Editor companion — in-game menu for Shadow of Chernobyl (Esc, then F1).
+  Layout is the editor's own: tab rail, category filter, item list with side
+  column, item card with the game's icon and context buttons. Every texture
+  and control is adapted for SoC engine (CUIListWnd, CUIListItemEx, CUIStatic,
+  no vector2, SetWndPos(x, y), SetWndSize(w, h), SetTextColor(a, r, g, b)).
   Actions live in save_editor_companion.script; item lists come from
   save_editor_catalog.script (generated from the editor's catalog).
   Source is UTF-8; the installer writes it as windows-1251 for the game.
@@ -15,7 +14,7 @@ local MAX_COUNT = 100
 local TIME_FACTORS = { 1, 2, 5, 10, 20, 50, 100 }
 local POINTS_FILE = "save_editor_points.txt"
 local ICON_TEXTURE = "ui\\ui_icon_equipment"
-local ICON_CELL = 50 -- inventory grid cell in ui_icon_equipment (CoP)
+local ICON_CELL = 50 -- inventory grid cell in ui_icon_equipment
 local PICTURE_X, PICTURE_Y, PICTURE_W, PICTURE_H = 686, 120, 252, 162
 local TAB_Y, TAB_STEP = 116, 40
 
@@ -37,7 +36,6 @@ local FACTIONS = {
 	stalker = "Сталкеры", bandit = "Бандиты", dolg = "Долг", freedom = "Свобода", army = "Военные",
 	monolith = "Монолит", killer = "Наёмники", zombied = "Зомбированные", csky = "Чистое небо", ecolog = "Учёные",
 }
--- Creature section prefixes to readable names (longest prefix first).
 local CREATURES = {
 	{ "m_poltergeist", "Полтергейст" }, { "m_controller", "Контролёр" }, { "pseudodog", "Псевдособака" },
 	{ "psy_dog", "Пси-собака" }, { "bloodsucker", "Кровосос" }, { "tushkano", "Тушкан" }, { "chimera", "Химера" },
@@ -74,7 +72,7 @@ local function squad_title(squad)
 	return (FACTIONS[squad.faction] or squad.faction) .. ": " .. name
 end
 
-local SPAWN_FILTERS = { { id = "favorites", title = "Избранное" } }
+local SPAWN_FILTERS = {}
 for _, f in ipairs(ITEM_FILTERS) do
 	table.insert(SPAWN_FILTERS, f)
 end
@@ -88,62 +86,18 @@ for _, f in ipairs(ITEM_FILTERS) do
 end
 local TELEPORT_FILTERS = { { id = "places", title = "Места" }, { id = "points", title = "Мои точки" } }
 
-local CHECKS = { "god", "stamina", "bleeding", "repair", "ammo", "life" }
-local TABS = { "modes", "player", "inventory", "spawn", "npc", "teleport", "world", "map" }
-local NPC_TAB_FILTERS = { { id = "groups", title = "Группировки" }, { id = "actions", title = "Действия" } }
-local GOODWILL_STEP = 500
-local FAVORITES_FILE = "save_editor_favorites.txt"
-local last_spawn = nil -- { section = ..., count = ... } for "repeat"
+local CHECKS = { "god", "stamina", "bleeding", "repair", "ammo" }
+local TABS = { "player", "inventory", "spawn", "teleport", "world" }
 
--- windows-1251 lower case, so the search matches Cyrillic names too
-local function lower1251(text)
-	return (string.gsub(string.lower(text), "[\192-\223\168]", function(c)
-		local b = string.byte(c)
-		if b == 168 then
-			return string.char(184)
-		end
-		return string.char(b + 32)
-	end))
-end
-
-local function favorites_path()
-	return getFS():update_path("$app_data_root$", FAVORITES_FILE)
-end
-
-local function load_favorites()
-	local set, list = {}, {}
-	local f = io.open(favorites_path(), "r")
-	if f ~= nil then
-		for line in f:lines() do
-			if line ~= "" and not set[line] then
-				set[line] = true
-				table.insert(list, line)
-			end
-		end
-		f:close()
-	end
-	return set, list
-end
-
-local function save_favorites(list)
-	local f = io.open(favorites_path(), "w")
-	if f == nil then
-		return
-	end
-	for _, section in ipairs(list) do
-		f:write(section, "\n")
-	end
-	f:close()
-end
-
--- section -> catalog category, for filtering the live inventory
 local category_of = nil
 local function category(section)
 	if category_of == nil then
 		category_of = {}
-		for name, sections in pairs(save_editor_catalog.items) do
-			for _, s in ipairs(sections) do
-				category_of[s] = name
+		if save_editor_catalog ~= nil and save_editor_catalog.items ~= nil then
+			for name, sections in pairs(save_editor_catalog.items) do
+				for _, s in ipairs(sections) do
+					category_of[s] = name
+				end
 			end
 		end
 	end
@@ -166,7 +120,6 @@ local function item_title(section)
 	return game.translate_string(ini:r_string(section, "inv_name"))
 end
 
--- Saved points: one line "level|x|y|z|game_vertex|name" in $app_data_root$.
 local function points_path()
 	return getFS():update_path("$app_data_root$", POINTS_FILE)
 end
@@ -201,13 +154,32 @@ local function save_points(points)
 	f:close()
 end
 
-class "companion_row" (CUIListBoxItem)
+local function set_texture_rect(static, x, y, w, h)
+	local ok = pcall(function() static:SetOriginalRect(x, y, w, h) end)
+	if not ok then
+		pcall(function() static:SetOriginalRect(Frect():set(x, y, x + w, y + h)) end)
+	end
+end
 
-function companion_row:__init(height) super(height)
-	self:SetTextColor(GetARGB(255, 216, 186, 140))
-	self.main = self:GetTextItem()
+class "companion_row" (CUIListItemEx)
+
+function companion_row:__init(height, main_w, side_w) super()
+	self:SetWndRect(0, 0, main_w + side_w + 10, height)
+	local ca, cr, cg, cb = 255, 216, 186, 140
+
+	self.main = CUIStatic()
+	self.main:SetAutoDelete(true)
+	self:AttachChild(self.main)
+	self.main:SetWndRect(0, 0, main_w, height)
 	self.main:SetFont(GetFontLetterica16Russian())
-	self.main:SetEllipsis(true)
+	self.main:SetTextColor(ca, cr, cg, cb)
+
+	self.side = CUIStatic()
+	self.side:SetAutoDelete(true)
+	self:AttachChild(self.side)
+	self.side:SetWndRect(main_w + 4, 0, side_w, height)
+	self.side:SetFont(GetFontLetterica16Russian())
+	self.side:SetTextColor(ca, cr, cg, cb)
 end
 
 class "companion_dialog" (CUIScriptWnd)
@@ -224,7 +196,7 @@ function companion_dialog:__init(owner) super()
 end
 
 function companion_dialog:InitControls()
-	self:SetWndRect(Frect():set(0, 0, 1024, 768))
+	self:SetWndRect(0, 0, 1024, 768)
 	local xml = CScriptXmlInit()
 	self.xml = xml
 	xml:ParseFile("ui_save_editor_companion.xml")
@@ -234,9 +206,9 @@ function companion_dialog:InitControls()
 	xml:InitWindow("list_item", 0, probe)
 	self.row_height = probe:GetHeight()
 	xml:InitWindow("form:col_main", 0, probe)
-	self.col_main = vector2():set(probe:GetWidth(), probe:GetHeight())
+	self.col_main = { x = probe:GetWidth(), y = probe:GetHeight() }
 	xml:InitWindow("form:col_side", 0, probe)
-	self.col_side = vector2():set(probe:GetWidth(), probe:GetHeight())
+	self.col_side = { x = probe:GetWidth(), y = probe:GetHeight() }
 
 	local form = xml:InitStatic("form", self)
 	self.form = form
@@ -246,7 +218,7 @@ function companion_dialog:InitControls()
 	end
 	self.tab_marker = xml:InitStatic("form:tab_marker", form)
 	xml:InitStatic("form:title", form)
-	self.header = xml:InitTextWnd("form:header", form)
+	self.header = xml:InitStatic("form:header", form)
 
 	self.tab_buttons = {}
 	for _, tab in ipairs(TABS) do
@@ -255,15 +227,18 @@ function companion_dialog:InitControls()
 		self.tab_buttons[tab] = button
 	end
 
-	self.search = xml:InitEditBox("form:search", form)
-	self:Register(self.search, "search")
-	self.filter_box = xml:InitComboBox("form:filter", form)
-	self:Register(self.filter_box, "filter")
+	self.btn_filter_prev = xml:Init3tButton("form:btn_filter_prev", form)
+	self:Register(self.btn_filter_prev, "btn_filter_prev")
+	self.btn_filter = xml:Init3tButton("form:btn_filter", form)
+	self:Register(self.btn_filter, "btn_filter")
+	self.btn_filter_next = xml:Init3tButton("form:btn_filter_next", form)
+	self:Register(self.btn_filter_next, "btn_filter_next")
+
 	self.list_parts = {}
 	for _, name in ipairs({ "list_panel", "list_line_t", "list_line_b" }) do
 		table.insert(self.list_parts, xml:InitStatic("form:" .. name, form))
 	end
-	self.list_box = xml:InitListBox("form:list", form)
+	self.list_box = xml:InitList("form:list", form)
 	self.list_box:ShowSelectedItem(true)
 	self:Register(self.list_box, "list_window")
 
@@ -277,8 +252,8 @@ function companion_dialog:InitControls()
 	end
 
 	self.picture = xml:InitStatic("form:picture", form)
-	self.card_title = xml:InitTextWnd("form:card_title", form)
-	self.card_text = xml:InitTextWnd("form:card_text", form)
+	self.card_title = xml:InitStatic("form:card_title", form)
+	self.card_text = xml:InitStatic("form:card_text", form)
 
 	self.buttons = {}
 	for _, name in ipairs({ "btn_a", "btn_b", "btn_c", "btn_minus", "btn_plus", "btn_close" }) do
@@ -286,8 +261,8 @@ function companion_dialog:InitControls()
 		self:Register(button, name)
 		self.buttons[name] = button
 	end
-	self.value = xml:InitTextWnd("form:value", form)
-	self.status = xml:InitTextWnd("form:status", form)
+	self.value = xml:InitStatic("form:value", form)
+	self.status = xml:InitStatic("form:status", form)
 end
 
 function companion_dialog:InitCallBacks()
@@ -295,6 +270,9 @@ function companion_dialog:InitCallBacks()
 	for _, tab in ipairs(TABS) do
 		self:AddCallback("tab_" .. tab, clicked, function() self:SelectTab(tab) end, self)
 	end
+	self:AddCallback("btn_filter_prev", clicked, self.OnFilterPrev, self)
+	self:AddCallback("btn_filter", clicked, self.OnFilterNext, self)
+	self:AddCallback("btn_filter_next", clicked, self.OnFilterNext, self)
 	self:AddCallback("btn_a", clicked, function() self:Action("a") end, self)
 	self:AddCallback("btn_b", clicked, function() self:Action("b") end, self)
 	self:AddCallback("btn_c", clicked, function() self:Action("c") end, self)
@@ -309,13 +287,9 @@ function companion_dialog:InitCallBacks()
 			save_editor_companion.set_toggle(id, false)
 		end, self)
 	end
-	self:AddCallback("filter", ui_events.LIST_ITEM_SELECT, self.OnFilter, self)
-	self:AddCallback("search", ui_events.EDIT_TEXT_COMMIT, function() self:Fill() end, self)
 	self:AddCallback("list_window", ui_events.LIST_ITEM_CLICKED, self.OnSelect, self)
 	self:AddCallback("list_window", ui_events.WINDOW_LBUTTON_DB_CLICK, function() self:Action("a") end, self)
 end
-
--- ---------------------------------------------------------------- helpers
 
 function companion_dialog:Say(text)
 	self.status:SetText(text or "")
@@ -327,7 +301,7 @@ function companion_dialog:SetButton(name, text)
 		button:Show(false)
 	else
 		button:Show(true)
-		button:TextControl():SetText(text)
+		button:SetText(text)
 	end
 end
 
@@ -353,9 +327,9 @@ function companion_dialog:ShowIcon(section)
 	local scale = math.min(PICTURE_W / pw, PICTURE_H / ph, 1.5)
 	local dw, dh = pw * scale, ph * scale
 	self.picture:InitTexture(ICON_TEXTURE)
-	self.picture:SetTextureRect(Frect():set(x * ICON_CELL, y * ICON_CELL, x * ICON_CELL + pw, y * ICON_CELL + ph))
-	self.picture:SetWndPos(vector2():set(PICTURE_X + (PICTURE_W - dw) / 2, PICTURE_Y + (PICTURE_H - dh) / 2))
-	self.picture:SetWndSize(vector2():set(dw, dh))
+	set_texture_rect(self.picture, x * ICON_CELL, y * ICON_CELL, pw, ph)
+	self.picture:SetWndPos(PICTURE_X + (PICTURE_W - dw) / 2, PICTURE_Y + (PICTURE_H - dh) / 2)
+	self.picture:SetWndSize(dw, dh)
 	self.picture:Show(true)
 end
 
@@ -366,21 +340,19 @@ function companion_dialog:Card(title, text, section)
 end
 
 function companion_dialog:AddRow(main, side, row)
-	local item = companion_row(self.row_height)
-	item.main:SetWndSize(self.col_main)
+	local item = companion_row(self.row_height, self.col_main.x, self.col_side.x)
 	item.main:SetText(main)
 	if side ~= nil then
-		local field = item:AddTextField(side, self.col_side.x)
-		field:SetFont(GetFontLetterica16Russian())
-		field:SetWndPos(vector2():set(self.col_main.x + 4, 0))
-		field:SetWndSize(self.col_side)
+		item.side:SetText(side)
+	else
+		item.side:SetText("")
 	end
-	self.list_box:AddExistingItem(item)
+	self.list_box:AddItem(item)
 	table.insert(self.rows, row)
 end
 
 function companion_dialog:Selected()
-	local index = self.list_box:GetSelectedIndex()
+	local index = self.list_box:GetSelectedItem()
 	if index == nil or index < 0 then
 		return nil
 	end
@@ -389,17 +361,46 @@ end
 
 function companion_dialog:SetFilters(filters)
 	self.filters = filters
-	self.filter_box:ClearList()
-	if filters == nil then
-		self.filter_box:Show(false)
-		return
-	end
-	for index, f in ipairs(filters) do
-		self.filter_box:AddItem(f.title, index - 1)
-	end
 	self.filter = 1
-	self.filter_box:SetText(filters[1].title)
-	self.filter_box:Show(true)
+	local show = filters ~= nil and #filters > 0
+	self.btn_filter_prev:Show(show)
+	self.btn_filter:Show(show)
+	self.btn_filter_next:Show(show)
+	self:UpdateFilterText()
+end
+
+function companion_dialog:UpdateFilterText()
+	if self.filters and self.filters[self.filter] then
+		local total = #self.filters
+		local text = string.format("<  %s (%d/%d)  >", self.filters[self.filter].title, self.filter, total)
+		self.btn_filter:SetText(text)
+	end
+end
+
+function companion_dialog:OnFilterPrev()
+	if self.filters and #self.filters > 0 then
+		self.filter = self.filter - 1
+		if self.filter < 1 then
+			self.filter = #self.filters
+		end
+		self:UpdateFilterText()
+		self:Fill()
+	end
+end
+
+function companion_dialog:OnFilterNext()
+	if self.filters and #self.filters > 0 then
+		self.filter = self.filter + 1
+		if self.filter > #self.filters then
+			self.filter = 1
+		end
+		self:UpdateFilterText()
+		self:Fill()
+	end
+end
+
+function companion_dialog:FilterId()
+	return self.filters and self.filters[self.filter] and self.filters[self.filter].id or nil
 end
 
 function companion_dialog:ShowList(visible)
@@ -408,25 +409,23 @@ function companion_dialog:ShowList(visible)
 	end
 	self.list_box:Show(visible)
 	for _, id in ipairs(CHECKS) do
-		self.checks[id]:Show(not visible and self.tab == "modes")
+		self.checks[id]:Show(not visible and self.tab == "player")
 	end
 end
-
--- ---------------------------------------------------------------- tabs
 
 function companion_dialog:SelectTab(tab)
 	self.tab = tab
 	for index, name in ipairs(TABS) do
 		local active = name == tab
-		self.tab_buttons[name]:TextControl():SetTextColor(
-			active and GetARGB(255, 214, 166, 45) or GetARGB(255, 162, 157, 144))
 		if active then
-			self.tab_marker:SetWndPos(vector2():set(62, TAB_Y + (index - 1) * TAB_STEP))
+			self.tab_buttons[name]:SetTextColor(255, 214, 166, 45)
+			self.tab_marker:SetWndPos(62, TAB_Y + (index - 1) * TAB_STEP)
+		else
+			self.tab_buttons[name]:SetTextColor(255, 162, 157, 144)
 		end
 	end
 	self:Say("")
-	self.search:Show(tab == "spawn")
-	if tab == "modes" then
+	if tab == "player" then
 		self:SetFilters(nil)
 		self:ShowList(false)
 	elseif tab == "inventory" then
@@ -434,32 +433,15 @@ function companion_dialog:SelectTab(tab)
 		self:ShowList(true)
 	elseif tab == "spawn" then
 		self:SetFilters(SPAWN_FILTERS)
-		self.filter = 2 -- start on weapons, not the favourites
-		self.filter_box:SetText(SPAWN_FILTERS[2].title)
-		self:ShowList(true)
-	elseif tab == "npc" then
-		self:SetFilters(NPC_TAB_FILTERS)
 		self:ShowList(true)
 	elseif tab == "teleport" then
 		self:SetFilters(TELEPORT_FILTERS)
 		self:ShowList(true)
-	elseif tab == "world" then
-		self:SetFilters(nil)
-		self:ShowList(true)
 	else
 		self:SetFilters(nil)
-		self:ShowList(true)
+		self:ShowList(false)
 	end
 	self:Fill()
-end
-
-function companion_dialog:OnFilter()
-	self.filter = self.filter_box:CurrentID() + 1
-	self:Fill()
-end
-
-function companion_dialog:FilterId()
-	return self.filters and self.filters[self.filter].id or nil
 end
 
 function companion_dialog:Fill()
@@ -467,90 +449,40 @@ function companion_dialog:Fill()
 	self.rows = {}
 	self:Header()
 	local tab = self.tab
-	self:ShowStepper(false)
-	if tab == "modes" then
-		self:Card("Режимы", "Галочки действуют, пока включены, и сохраняются между запусками.\\nЗапасная жизнь срабатывает один раз и выключается.", nil)
-		self:SetButton("btn_a", nil)
-		self:SetButton("btn_b", nil)
-		self:SetButton("btn_c", nil)
-	elseif tab == "player" then
-		self:Actions({
-			{ "+10 000 RU", "Добавить деньги.", function() return save_editor_companion.run("money", { tostring(MONEY_STEP) }) end },
-			{ "-10 000 RU", "Забрать деньги.", function() return save_editor_companion.run("money", { tostring(-MONEY_STEP) }) end },
-			{ "Вылечить", "Здоровье, выносливость, пси, радиация.", function() return save_editor_companion.run("heal", {}) end },
-			{ "Выдать амулет компаньона", "Артефакт: +500 кг веса и без голода. Повесь на пояс.", function()
-				save_editor_companion.give_section("se_companion_amulet")
-				return "ok", "Амулет в рюкзаке"
-			end },
-			{ "Выдать быстрые действия", "Лечение, починка, метка, к метке, сейв. Перетащи в быстрые слоты (F1-F4) и жми клавишу.", save_editor_companion.give_action_items },
-			{ "Быстрый сейв", "Сохранение se_quick в любом месте.", save_editor_companion.quick_save },
-			{ "Загрузить быстрый сейв", "Загрузить se_quick.", save_editor_companion.quick_load },
-		})
+	if tab == "player" then
+		self:Card("Персонаж", string.format(
+			"Здоровье %d%%\\nВыносливость %d%%\\nРадиация %d%%\\nДеньги %d RU",
+			db.actor.health * 100, db.actor.power * 100, db.actor.radiation * 100, db.actor:money()
+		), nil)
+		self:SetButton("btn_a", "+10 000 RU")
+		self:SetButton("btn_b", "-10 000 RU")
+		self:SetButton("btn_c", "Вылечить")
+		self:ShowStepper(false)
 	elseif tab == "inventory" then
 		self:FillInventory()
 		self:SetButton("btn_a", "Починить")
 		self:SetButton("btn_b", "Дубликат")
 		self:SetButton("btn_c", "Удалить")
+		self:ShowStepper(false)
 	elseif tab == "spawn" then
 		self:FillSpawn()
-		local filter = self:FilterId()
-		local npc = filter == "stalkers" or filter == "mutants" or filter == "characters"
+		local npc = self:FilterId() == "stalkers" or self:FilterId() == "mutants" or self:FilterId() == "characters"
 		self:SetButton("btn_a", npc and "Заспавнить отряд" or "Выдать")
-		if filter == "stalkers" then
-			self:SetButton("btn_b", "Одного сталкера (командира)")
-		elseif npc then
-			self:SetButton("btn_b", nil)
-		else
-			self:SetButton("btn_b", "В избранное / убрать")
-		end
-		self:SetButton("btn_c", last_spawn and ("Повторить: " .. (item_title(last_spawn.section) or last_spawn.section)) or nil)
+		self:SetButton("btn_b", self:FilterId() == "stalkers" and "Одного сталкера" or nil)
+		self:SetButton("btn_c", nil)
 		self:ShowStepper(not npc)
-	elseif tab == "npc" then
-		if self:FilterId() == "groups" then
-			for _, community in ipairs(save_editor_companion.COMMUNITIES) do
-				self:AddRow(FACTIONS[community] or community, tostring(save_editor_companion.community_goodwill(community)),
-					{ kind = "community", community = community })
-			end
-			self:Card("Группировки", "Отношение группировки к тебе. Больше 1000 — друзья, меньше -1000 — враги.", nil)
-			self:SetButton("btn_a", "+" .. GOODWILL_STEP)
-			self:SetButton("btn_b", "-" .. GOODWILL_STEP)
-			self:SetButton("btn_c", nil)
-		else
-			self:Actions({
-				{ "Позвать ближайшего сталкера", "Ближайший живой сталкер в радиусе 100 м встанет рядом.", function() return save_editor_companion.call_nearest(100) end },
-				{ "Сделать отряд ближайшего союзным", "Весь отряд ближайшего сталкера станет дружелюбным.", function() return save_editor_companion.befriend_nearest_squad(100) end },
-				{ "Убрать врагов вокруг (60 м)", "Враждебные NPC и мутанты в радиусе 60 м. Сюжетные не трогаются.", function() return save_editor_companion.kill_enemies(60) end },
-				{ "Убрать трупы вокруг (100 м)", "Тела в радиусе 100 м. Сюжетные не трогаются.", function() return save_editor_companion.remove_corpses(100) end },
-			})
-		end
 	elseif tab == "teleport" then
 		self:FillTeleport()
 		self:SetButton("btn_a", "Перенестись")
 		self:SetButton("btn_b", "Запомнить здесь")
 		self:SetButton("btn_c", self:FilterId() == "points" and "Удалить точку" or nil)
-	elseif tab == "world" then
-		self:Actions({
-			{ "Начать выброс", "Выброс начнётся после закрытия меню.", function()
-				if surge_manager == nil or surge_manager.start_surge == nil then
-					return "unsupported", "Выброса в этой игре нет"
-				end
-				surge_manager.start_surge()
-				return "ok", "Выброс начинается", true
-			end },
-			{ "Остановить выброс", "Прервать идущий выброс.", save_editor_companion.stop_surge },
-			{ "Утро (06:00)", "Перемотать время вперёд.", function() return save_editor_companion.set_hour(6) end },
-			{ "День (12:00)", "Перемотать время вперёд.", function() return save_editor_companion.set_hour(12) end },
-			{ "Вечер (18:00)", "Перемотать время вперёд.", function() return save_editor_companion.set_hour(18) end },
-			{ "Ночь (00:00)", "Перемотать время вперёд.", function() return save_editor_companion.set_hour(0) end },
-		})
-		self:FillWeather()
-		self:ShowStepper(true)
+		self:ShowStepper(false)
 	else
-		self:Actions({
-			{ "Отметить все тайники", "Все тайники, которые знает игра, появятся на карте ПДА.", save_editor_companion.mark_stashes },
-			{ "Отметить артефакты на уровне", "Артефакты, лежащие на этой локации.", save_editor_companion.mark_artefacts },
-			{ "Убрать мои метки", "Снять метки, поставленные компаньоном.", save_editor_companion.clear_marks },
-		})
+		self:Card("Мир", "Скорость времени кнопками - и +.\\nВыброс начнётся сразу после закрытия меню.", nil)
+		self:SetButton("btn_a", "Выброс")
+		self:SetButton("btn_b", nil)
+		self:SetButton("btn_c", nil)
+		self:ShowStepper(true)
 	end
 	self:UpdateValue()
 end
@@ -569,16 +501,6 @@ function companion_dialog:UpdateValue()
 	end
 end
 
-function companion_dialog:Actions(list)
-	for _, entry in ipairs(list) do
-		self:AddRow(entry[1], nil, { kind = "action", title = entry[1], hint = entry[2], run = entry[3] })
-	end
-	self:Card(self.tab_titles and self.tab_titles[self.tab] or "", "Выбери действие и нажми «Выполнить».", nil)
-	self:SetButton("btn_a", "Выполнить")
-	self:SetButton("btn_b", nil)
-	self:SetButton("btn_c", nil)
-end
-
 function companion_dialog:FillInventory()
 	local wanted = self:FilterId()
 	local active = db.actor:active_item()
@@ -589,8 +511,6 @@ function companion_dialog:FillInventory()
 			table.insert(items, item)
 		end
 	end)
-	-- Weapons and outfits stay one row each (own condition); everything else
-	-- with the same section is one row with a count.
 	local rows, by_section = {}, {}
 	for _, item in ipairs(items) do
 		local section = item:section()
@@ -627,13 +547,11 @@ function companion_dialog:FillSpawn()
 		return
 	end
 	local rows = {}
-	local query = lower1251(self.search:GetText() or "")
-	local fav_set, fav_list = load_favorites()
-	local sections = self:FilterId() == "favorites" and fav_list or (save_editor_catalog.items[self:FilterId()] or {})
-	for _, section in ipairs(sections) do
+	local items_list = save_editor_catalog and save_editor_catalog.items and save_editor_catalog.items[self:FilterId()] or {}
+	for _, section in ipairs(items_list) do
 		local title = item_title(section)
-		if title ~= nil and (query == "" or string.find(lower1251(title), query, 1, true) or string.find(section, query, 1, true)) then
-			table.insert(rows, { title = (fav_set[section] and "* " or "") .. title, section = section })
+		if title ~= nil then
+			table.insert(rows, { title = title, section = section })
 		end
 	end
 	table.sort(rows, function(a, b) return a.title < b.title end)
@@ -692,30 +610,12 @@ function companion_dialog:FillTeleport()
 			self:AddRow(smart.title, game.translate_string(smart.level), { kind = "smart", smart = smart })
 		end
 	end
-	self:Card("Места", "Переход между локациями работает в ЗП.", nil)
+	self:Card("Места", "Переход между локациями через временный level_changer.", nil)
 end
-
-function companion_dialog:FillWeather()
-	local weathers = save_editor_weather and save_editor_weather.list or {}
-	for _, w in ipairs(weathers) do
-		self:AddRow(w.title, w.id, { kind = "weather", weather = w })
-	end
-	local cur = level.get_weather and level.get_weather() or "default"
-	self:Card("Погода и время", "Текущая погода: " .. cur .. "\\nСкорость времени: кнопки - и +.\\nВыбери погоду и нажми «Выполнить».", nil)
-end
-
--- ---------------------------------------------------------------- actions
 
 function companion_dialog:OnSelect()
 	local row = self:Selected()
 	if row == nil then
-		return
-	end
-	if row.kind == "action" then
-		self:Card(row.title, row.hint, nil)
-		return
-	elseif row.kind == "community" then
-		self:Card(FACTIONS[row.community] or row.community, "Отношение: " .. save_editor_companion.community_goodwill(row.community), nil)
 		return
 	end
 	if row.kind == "inventory" then
@@ -744,8 +644,8 @@ function companion_dialog:OnSelect()
 		self:Card(row.title, text, nil)
 		if row.filter == "characters" and row.squad.icon ~= "" then
 			self.picture:InitTexture(row.squad.icon)
-			self.picture:SetWndPos(vector2():set(PICTURE_X + (PICTURE_W - 165) / 2, PICTURE_Y + (PICTURE_H - 108) / 2))
-			self.picture:SetWndSize(vector2():set(165, 108))
+			self.picture:SetWndPos(PICTURE_X + (PICTURE_W - 165) / 2, PICTURE_Y + (PICTURE_H - 108) / 2)
+			self.picture:SetWndSize(165, 108)
 			self.picture:Show(true)
 		end
 	elseif row.kind == "smart" then
@@ -753,16 +653,6 @@ function companion_dialog:OnSelect()
 	elseif row.kind == "point" then
 		local p = self.points[row.index]
 		self:Card(p.name, game.translate_string(p.level), nil)
-	elseif row.kind == "weather" then
-		local current = level.get_weather and level.get_weather() or ""
-		local text = "Секция: " .. row.weather.id
-		if row.weather.desc and row.weather.desc ~= "" then
-			text = text .. "\\n" .. row.weather.desc
-		end
-		if current ~= "" then
-			text = text .. "\\nТекущая: " .. current
-		end
-		self:Card(row.weather.title, text, nil)
 	end
 end
 
@@ -786,67 +676,37 @@ end
 
 function companion_dialog:Action(which)
 	local tab = self.tab
-	local row = self:Selected()
-	if row ~= nil and row.kind == "weather" and which == "a" then
-		local status, text = save_editor_companion.run("weather", { row.weather.id })
-		self:Say(status == "ok" and ("Погода: " .. row.weather.title) or (text or "Ошибка"))
-		self:OnSelect()
-		return
-	end
-	if row ~= nil and row.kind == "action" and which == "a" then
-		local ok, status, text, close = pcall(row.run)
-		if not ok then
-			self:Say(tostring(status))
+	if tab == "player" then
+		if which == "a" then
+			save_editor_companion.run("money", { tostring(MONEY_STEP) })
+		elseif which == "b" then
+			local status, text = save_editor_companion.run("money", { tostring(-MONEY_STEP) })
+			if status ~= "ok" then
+				self:Say(text)
+			end
+		else
+			save_editor_companion.run("heal", {})
+			self:Say("Вылечен")
+		end
+		self:Fill()
+	elseif tab == "world" then
+		if surge_manager == nil or surge_manager.start_surge == nil then
+			self:Say("Выброс в этой игре не поддерживается")
 			return
 		end
-		self:Say((status == "ok" and "Готово: " or "") .. tostring(text or ""))
-		if close then
-			self:Close(true)
-		else
-			self:Header()
-		end
-		return
-	end
-	if row ~= nil and row.kind == "community" then
-		save_editor_companion.change_goodwill(row.community, which == "a" and GOODWILL_STEP or -GOODWILL_STEP)
-		self:Fill()
-		return
-	end
-	if tab == "spawn" and row ~= nil and row.kind == "spawn" and which == "b" then
-		local set, list = load_favorites()
-		if set[row.section] then
-			local kept = {}
-			for _, s in ipairs(list) do
-				if s ~= row.section then
-					table.insert(kept, s)
-				end
-			end
-			save_favorites(kept)
-			self:Say("Убрано из избранного")
-		else
-			table.insert(list, row.section)
-			save_favorites(list)
-			self:Say("В избранном")
-		end
-		self:Fill()
-		return
-	end
-	if tab == "spawn" and which == "c" and last_spawn ~= nil then
-		local status, text = save_editor_companion.run("give", { last_spawn.section, tostring(last_spawn.count) })
-		self:Say(status == "ok" and ("Выдано ещё: " .. (item_title(last_spawn.section) or last_spawn.section) .. " x" .. last_spawn.count) or text)
-		return
-	end
-	if tab ~= "spawn" and tab ~= "inventory" and tab ~= "teleport" then
-		self:Say("Выбери строку в списке")
-		return
-	end
-	if tab == "spawn" then
+		surge_manager.start_surge()
+		self:Close(true)
+	elseif tab == "spawn" then
 		local row = self:Selected()
 		if row == nil then
 			self:Say("Выбери предмет в списке")
 			return
 		end
 		if row.kind == "npc" then
+			if save_editor_companion.spawn_squad == nil then
+				self:Say("Спавн NPC пока не поддерживается")
+				return
+			end
 			local status, text = save_editor_companion.spawn_squad(row.squad.id, which == "b")
 			if status ~= "ok" then
 				self:Say(tostring(text))
@@ -856,11 +716,7 @@ function companion_dialog:Action(which)
 			return
 		end
 		local status, text = save_editor_companion.run("give", { row.section, tostring(self.count) })
-		self:Say(status == "ok" and ("Выдано: " .. item_title(row.section) .. " x" .. self.count) or text)
-		if status == "ok" then
-			last_spawn = { section = row.section, count = self.count }
-			self:SetButton("btn_c", "Повторить: " .. item_title(row.section))
-		end
+		self:Say(status == "ok" and ("Выдано: " .. (item_title(row.section) or row.section) .. " x" .. self.count) or text)
 	elseif tab == "inventory" then
 		self:InventoryAction(which)
 	elseif tab == "teleport" then
@@ -946,25 +802,26 @@ end
 
 function companion_dialog:Close(to_game)
 	if self.owner == nil then
-		-- opened over the running game from the companion PDA
-		self:HideDialog()
+		level.start_stop_menu(self, true)
 		return
 	end
-	self.owner:ShowDialog(true)
-	self:HideDialog()
+	if self:GetHolder() then
+		self:GetHolder():start_stop_menu(self, true)
+	else
+		level.start_stop_menu(self, true)
+	end
 	self.owner:Show(true)
-	if to_game then
+	if to_game and self.owner.OnButton_return_game then
 		self.owner:OnButton_return_game()
 	end
 end
 
--- Opened by using the companion PDA: over the game, which keeps running.
 function open_overlay()
 	if db.actor == nil or not db.actor:alive() then
 		return
 	end
 	local dlg = companion_dialog(nil)
-	dlg:ShowDialog(true)
+	level.start_stop_menu(dlg, true)
 end
 
 function companion_dialog:OnKeyboard(dik, keyboard_action)
@@ -979,12 +836,14 @@ function companion_dialog:OnKeyboard(dik, keyboard_action)
 	return true
 end
 
--- Called from main_menu:OnKeyboard while the pause menu is open.
 function on_menu_key(dik, menu)
 	if dik == DIK_keys.DIK_F1 and level.present() and db.actor ~= nil and db.actor:alive() then
 		local dlg = companion_dialog(menu)
-		dlg:ShowDialog(true)
-		menu:HideDialog()
+		if menu:GetHolder() then
+			menu:GetHolder():start_stop_menu(dlg, true)
+		else
+			level.start_stop_menu(dlg, true)
+		end
 		menu:Show(false)
 	end
 end

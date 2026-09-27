@@ -432,7 +432,7 @@ local function apply_toggles()
 		actor.power = 1
 	end
 	if t.bleeding then
-		actor.bleeding = 1
+		stop_bleeding(actor)
 	end
 	if t.repair then
 		for slot = 0, SLOT_LIMIT - 1 do
@@ -793,6 +793,9 @@ end
 
 -- Time of day: advance game time to the next given hour (CoP change_game_time).
 function set_hour(hour)
+	if level.change_game_time == nil then
+		return "unsupported", "Перемотка времени есть только в ЗП"
+	end
 	local now = level.get_time_hours()
 	local delta = (hour - now) % 24
 	if delta == 0 then
@@ -964,11 +967,16 @@ function clear_marks()
 	return "ok", "removed=" .. n
 end
 
+-- actor.bleeding exists only in CoP (SoC/CS lua_help has no such property).
+function stop_bleeding(actor)
+	pcall(function() actor.bleeding = 1 end)
+end
+
 -- Quick-slot items: section -> action. Using one runs it and gives it back.
 ACTION_ITEMS = {
 	se_act_heal = function()
 		run("heal", {})
-		db.actor.bleeding = 1
+		stop_bleeding(db.actor)
 	end,
 	se_act_repair = function() run("repair_equipped", {}) end,
 	se_act_mark = function() mark_here() end,

@@ -85,7 +85,7 @@ for _, f in ipairs(ITEM_FILTERS) do
 end
 local TELEPORT_FILTERS = { { id = "places", title = "Места" }, { id = "points", title = "Мои точки" } }
 
-local CHECKS = { "god", "stamina", "bleeding", "repair", "ammo" }
+local CHECKS = { "god", "stamina", "repair", "ammo" }
 local TABS = { "player", "inventory", "spawn", "teleport", "world" }
 
 local category_of = nil

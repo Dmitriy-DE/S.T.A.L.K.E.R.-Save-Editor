@@ -111,6 +111,53 @@ public static class XRayTrilogyReader
             raw.Slice(actor.StateOffset, actor.StateLength),
             actor.Version,
             actor.StateOffset);
+        var factionRelations = Array.Empty<XRayFactionRelation>();
+        XRayRelationRegistry? relationRegistry = null;
+        if (format.Id is "stalker-soc" or "stalker-cs" or "stalker-cop" or
+            "stalker-cs-ee" or "stalker-cop-ee")
+        {
+            XRayChunk? relationChunk = null;
+            var duplicateRelationChunk = false;
+            foreach (var chunk in chunks)
+            {
+                if (chunk.Type != 9)
+                {
+                    continue;
+                }
+
+                if (relationChunk is not null)
+                {
+                    duplicateRelationChunk = true;
+                    break;
+                }
+
+                relationChunk = chunk;
+            }
+
+            if (relationChunk is not null && !duplicateRelationChunk)
+            {
+                if (XRayRelationRegistry.TryParse(
+                    relationChunk.Data.Span,
+                    infoPortionsHaveTimestamp: format.Id != "stalker-cop",
+                    out var candidate))
+                {
+                    var actorRelations = candidate!.ForCharacter(actor.ObjectId);
+                    if (actorRelations is not null)
+                    {
+                        relationRegistry = candidate;
+                        factionRelations = new XRayFactionRelation[actorRelations.Communities.Count];
+                        for (var index = 0; index < factionRelations.Length; index++)
+                        {
+                            var relation = actorRelations.Communities[index];
+                            factionRelations[index] = new XRayFactionRelation(
+                                relation.CommunityId,
+                                relation.Goodwill);
+                        }
+                    }
+                }
+            }
+        }
+
         var items = new List<XRayInventoryItem>();
         foreach (var record in records)
         {
@@ -186,6 +233,9 @@ public static class XRayTrilogyReader
             actorState.Money,
             actorState.MoneyOffset,
             actorState.PlayerFactionIndex,
+            actorState.PlayerFactionOffset,
+            relationRegistry,
+            Array.AsReadOnly(factionRelations),
             actorState.Health,
             actorState.Rank,
             actorState.Reputation,
@@ -527,8 +577,10 @@ public static class XRayTrilogyReader
         }
 
         int? faction = null;
+        int? factionOffset = null;
         if (version > 85)
         {
+            factionOffset = checked(stateOffset + reader.Position);
             faction = reader.ReadInt32();
         }
 
@@ -555,7 +607,7 @@ public static class XRayTrilogyReader
             reader.Skip(2); // deadbody can take, closed
         }
 
-        return new ActorState(money, moneyOffset, faction, health, rank, reputation, name);
+        return new ActorState(money, moneyOffset, faction, factionOffset, health, rank, reputation, name);
     }
 
     private static void ReadDynamicVisualState(ref SpanReader reader, ushort version)
@@ -842,6 +894,7 @@ public static class XRayTrilogyReader
         uint Money,
         int MoneyOffset,
         int? PlayerFactionIndex,
+        int? PlayerFactionOffset,
         float? Health,
         int? Rank,
         int? Reputation,

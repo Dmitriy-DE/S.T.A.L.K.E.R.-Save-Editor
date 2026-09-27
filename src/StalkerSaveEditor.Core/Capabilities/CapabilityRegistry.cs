@@ -12,17 +12,23 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
-                    CapabilityMaturity.Verified),
+                    CapabilityMaturity.Verified,
+                    CapabilityMaturity.Experimental,
+                    CapabilityMaturity.Experimental),
                 ["stalker-cs"] = Create(
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
-                    CapabilityMaturity.Verified),
+                    CapabilityMaturity.Verified,
+                    CapabilityMaturity.Experimental,
+                    CapabilityMaturity.Experimental),
                 ["stalker-cop"] = Create(
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
-                    CapabilityMaturity.Verified),
+                    CapabilityMaturity.Verified,
+                    CapabilityMaturity.Experimental,
+                    CapabilityMaturity.Experimental),
                 ["stalker-soc-ee"] = Create(
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Experimental,
@@ -67,7 +73,9 @@ public static class CapabilityRegistry
         CapabilityMaturity money,
         CapabilityMaturity stacks,
         CapabilityMaturity addItems,
-        CapabilityMaturity removeItems) =>
+        CapabilityMaturity removeItems,
+        CapabilityMaturity relations = CapabilityMaturity.Unsupported,
+        CapabilityMaturity playerFaction = CapabilityMaturity.Unsupported) =>
         new ReadOnlyDictionary<string, CapabilitySupport>(
             new Dictionary<string, CapabilitySupport>(StringComparer.Ordinal)
             {
@@ -75,5 +83,7 @@ public static class CapabilityRegistry
                 ["edit_stacks"] = new(stacks),
                 ["add_items"] = new(addItems),
                 ["remove_items"] = new(removeItems),
+                ["edit_relations"] = new(relations),
+                ["edit_player_faction"] = new(playerFaction),
             });
 }

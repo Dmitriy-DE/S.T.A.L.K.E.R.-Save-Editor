@@ -11,6 +11,9 @@ public sealed class XRayTrilogySave
         uint money,
         int moneyOffset,
         int? playerFactionIndex,
+        int? playerFactionOffset,
+        XRayRelationRegistry? relationRegistry,
+        IReadOnlyList<XRayFactionRelation> factionRelations,
         float? actorHealth,
         int? actorRank,
         int? actorReputation,
@@ -30,6 +33,10 @@ public sealed class XRayTrilogySave
         Money = money;
         MoneyOffset = moneyOffset;
         PlayerFactionIndex = playerFactionIndex;
+        PlayerFactionOffset = playerFactionOffset;
+        RelationRegistry = relationRegistry;
+        FactionRelations = factionRelations;
+        FactionRelationsEditable = relationRegistry is not null;
         ActorHealth = actorHealth;
         ActorRank = actorRank;
         ActorReputation = actorReputation;
@@ -58,6 +65,14 @@ public sealed class XRayTrilogySave
 
     public int? PlayerFactionIndex { get; }
 
+    internal int? PlayerFactionOffset { get; }
+
+    internal XRayRelationRegistry? RelationRegistry { get; }
+
+    public IReadOnlyList<XRayFactionRelation> FactionRelations { get; }
+
+    public bool FactionRelationsEditable { get; }
+
     public float? ActorHealth { get; }
 
     public int? ActorRank { get; }
@@ -78,6 +93,8 @@ public sealed class XRayTrilogySave
 
     public IReadOnlyList<XRayStash> Stashes { get; }
 }
+
+public sealed record XRayFactionRelation(int CommunityIndex, int Value);
 
 internal sealed record XRayRegistryObject(
     string Name,

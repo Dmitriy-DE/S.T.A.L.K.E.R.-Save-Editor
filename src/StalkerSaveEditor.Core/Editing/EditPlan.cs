@@ -15,7 +15,9 @@ public sealed record EditPlan
         IReadOnlyCollection<ItemAddRequest>? adds = null,
         IReadOnlyCollection<ushort>? stashTakes = null,
         IReadOnlyCollection<StashPutRequest>? stashPuts = null,
-        IReadOnlyDictionary<ushort, IReadOnlyList<string>>? upgrades = null)
+        IReadOnlyDictionary<ushort, IReadOnlyList<string>>? upgrades = null,
+        string? playerFaction = null,
+        IReadOnlyDictionary<string, int>? factionRelations = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -107,6 +109,21 @@ public sealed record EditPlan
         }
 
         Upgrades = new ReadOnlyDictionary<ushort, IReadOnlyList<string>>(upgradeEdits);
+        if (playerFaction is not null && string.IsNullOrWhiteSpace(playerFaction))
+        {
+            throw new ArgumentException("Player faction key must not be empty.", nameof(playerFaction));
+        }
+
+        PlayerFaction = playerFaction;
+        var relationValues = factionRelations is null
+            ? new Dictionary<string, int>(StringComparer.Ordinal)
+            : new Dictionary<string, int>(factionRelations, StringComparer.Ordinal);
+        if (relationValues.Keys.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException("Faction relation keys must not be empty.", nameof(factionRelations));
+        }
+
+        FactionRelations = new ReadOnlyDictionary<string, int>(relationValues);
         EditKinds = DetermineEditKinds();
     }
 
@@ -125,6 +142,10 @@ public sealed record EditPlan
     public IReadOnlyList<StashPutRequest> StashPuts { get; }
 
     public IReadOnlyDictionary<ushort, IReadOnlyList<string>> Upgrades { get; }
+
+    public string? PlayerFaction { get; }
+
+    public IReadOnlyDictionary<string, int> FactionRelations { get; }
 
     public EditKind EditKinds { get; }
 
@@ -159,6 +180,11 @@ public sealed record EditPlan
         if (Upgrades.Count > 0)
         {
             kinds |= EditKind.Upgrades;
+        }
+
+        if (PlayerFaction is not null || FactionRelations.Count > 0)
+        {
+            kinds |= EditKind.Faction;
         }
 
         return kinds;

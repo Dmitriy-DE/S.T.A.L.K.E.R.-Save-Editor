@@ -23,37 +23,59 @@
 			<text font="letterica16" r="162" g="157" b="144" align="r" vert_align="c"/>
 		</header>
 		<tab_marker x="62" y="116" width="3" height="34" stretch="1"><texture>ui\se_companion\amber</texture></tab_marker>
-		<tab_player x="62" y="116" width="160" height="34" stretch="1">
+		<tab_modes x="62" y="116" width="160" height="34" stretch="1">
+			<texture_e>ui\se_companion\tab_e</texture_e>
+			<texture_h>ui\se_companion\tab_h</texture_h>
+			<texture_t>ui\se_companion\tab_t</texture_t>
+			<text font="letterica18" align="l" x="22">Режимы</text>
+		</tab_modes>
+		<tab_player x="62" y="156" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Персонаж</text>
 		</tab_player>
-		<tab_inventory x="62" y="156" width="160" height="34" stretch="1">
+		<tab_inventory x="62" y="196" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Инвентарь</text>
 		</tab_inventory>
-		<tab_spawn x="62" y="196" width="160" height="34" stretch="1">
+		<tab_spawn x="62" y="236" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Спавн</text>
 		</tab_spawn>
-		<tab_teleport x="62" y="236" width="160" height="34" stretch="1">
+		<tab_npc x="62" y="276" width="160" height="34" stretch="1">
+			<texture_e>ui\se_companion\tab_e</texture_e>
+			<texture_h>ui\se_companion\tab_h</texture_h>
+			<texture_t>ui\se_companion\tab_t</texture_t>
+			<text font="letterica18" align="l" x="22">NPC</text>
+		</tab_npc>
+		<tab_teleport x="62" y="316" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Телепорт</text>
 		</tab_teleport>
-		<tab_world x="62" y="276" width="160" height="34" stretch="1">
+		<tab_world x="62" y="356" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Мир</text>
 		</tab_world>
-		<filter x="242" y="116" width="420" height="21" list_length="12">
+		<tab_map x="62" y="396" width="160" height="34" stretch="1">
+			<texture_e>ui\se_companion\tab_e</texture_e>
+			<texture_h>ui\se_companion\tab_h</texture_h>
+			<texture_t>ui\se_companion\tab_t</texture_t>
+			<text font="letterica18" align="l" x="22">Карта</text>
+		</tab_map>
+		<search x="452" y="115" width="210" height="23">
+			<texture>ui_inGame2_edit_box_1</texture>
+			<text x="3" font="letterica16" vert_align="c"/>
+		</search>
+		<filter x="242" y="116" width="200" height="21" list_length="12">
 			<text_color>
 				<e r="216" g="186" b="140"/>
 				<d color="ui_gray"/>
@@ -85,6 +107,10 @@
 			<texture>ui_inGame2_checkbox</texture>
 			<text font="letterica18" vert_align="c" r="216" g="210" b="190">Авторемонт надетого</text>
 		</check_repair>
+		<check_life x="252" y="340" width="360" height="29">
+			<texture>ui_inGame2_checkbox</texture>
+			<text font="letterica18" vert_align="c" r="216" g="210" b="190">Запасная жизнь (один раз)</text>
+		</check_life>
 		<check_ammo x="252" y="304" width="360" height="29">
 			<texture>ui_inGame2_checkbox</texture>
 			<text font="letterica18" vert_align="c" r="216" g="210" b="190">Бесконечные патроны</text>

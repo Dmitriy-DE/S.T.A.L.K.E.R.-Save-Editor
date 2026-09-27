@@ -102,6 +102,36 @@ public sealed class Stalker2MoneyWriterTests
     }
 
     [Fact]
+    public void Rejects_xray_stash_operations_in_both_stalker2_writers()
+    {
+        var moneySource = ReadFixture("s2-money-source.sav");
+        var moneySha = Sha256(moneySource);
+        var moneyPlan = new EditPlan(moneySha, money: 1234, stashTakes: [1]);
+        var moneyPutPlan = new EditPlan(
+            moneySha,
+            money: 1234,
+            stashPuts: [new StashPutRequest(1, 2)]);
+
+        Assert.Throws<Stalker2FormatException>(() => Stalker2MoneyWriter.Prepare(moneySource, moneyPlan));
+        Assert.Throws<Stalker2FormatException>(() => Stalker2MoneyWriter.Prepare(moneySource, moneyPutPlan));
+
+        var stackSource = File.ReadAllBytes(Path.Combine(
+            AppContext.BaseDirectory,
+            "Fixtures",
+            "writer-s2-stacks",
+            "s2-stacks-source.sav"));
+        var stackCounts = new Dictionary<uint, uint> { [0x3000_0001] = 7 };
+        var stackPlan = new EditPlan(Sha256(stackSource), stackCounts: stackCounts, stashTakes: [1]);
+        var stackPutPlan = new EditPlan(
+            Sha256(stackSource),
+            stackCounts: stackCounts,
+            stashPuts: [new StashPutRequest(1, 2)]);
+
+        Assert.Throws<Stalker2FormatException>(() => Stalker2StackWriter.Prepare(stackSource, stackPlan));
+        Assert.Throws<Stalker2FormatException>(() => Stalker2StackWriter.Prepare(stackSource, stackPutPlan));
+    }
+
+    [Fact]
     public void Rejects_foreign_formats_and_corrupt_containers()
     {
         var originalXray = File.ReadAllBytes(

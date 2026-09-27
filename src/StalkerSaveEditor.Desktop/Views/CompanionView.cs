@@ -33,7 +33,7 @@ public sealed class CompanionView : UserControl
         var headerPanel = new StackPanel { Spacing = 6 };
         headerPanel.Children.Add(new TextBlock
         {
-            Text = "ИНТЕЛЛЕКТУАЛЬНЫЙ КОМПАНЬОН (COMPANION MOD)",
+            Text = "МОД-КОМПАНЬОН",
             FontSize = 18,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushTextPrimary,
@@ -41,7 +41,7 @@ public sealed class CompanionView : UserControl
         });
         headerPanel.Children.Add(new TextBlock
         {
-            Text = "Интеграция с движком X-Ray в реальном времени: телепортация по меткам, быстрое сохранение, хоткеи без сворачивания игры.",
+            Text = "Меню в игре: Esc → F1 или КПК компаньона. Установка из приложения появится вместе с установщиком (#59).",
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextMuted,
         });
@@ -168,7 +168,7 @@ public sealed class CompanionView : UserControl
 
         hotkeysStack.Children.Add(new TextBlock
         {
-            Text = "Клавиши перехватываются внутри игры через модуль companion_hotkeys.lua (опрос 250 мс без просадки FPS).",
+            Text = "Сочетания ловит приложение (игра их скриптам не отдаёт) и передаёт команду моду. Работает, когда включены горячие клавиши.",
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextMuted,
         });

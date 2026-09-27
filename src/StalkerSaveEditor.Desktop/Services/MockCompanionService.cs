@@ -41,14 +41,13 @@ public sealed class MockCompanionService : ICompanionService
 
     public Task<bool> InstallAsync(string gameReleaseId, CancellationToken ct = default)
     {
-        _states[gameReleaseId] = CompanionState.Installed;
-        return Task.FromResult(true);
+        // Installer is not in Core yet (#59): report failure instead of pretending.
+        return Task.FromResult(false);
     }
 
     public Task<bool> UninstallAsync(string gameReleaseId, CancellationToken ct = default)
     {
-        _states[gameReleaseId] = CompanionState.NotInstalled;
-        return Task.FromResult(true);
+        return Task.FromResult(false);
     }
 
     public Task<TimeSpan?> PingAsync(string gameReleaseId, CancellationToken ct = default)

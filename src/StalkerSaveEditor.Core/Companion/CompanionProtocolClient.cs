@@ -141,6 +141,8 @@ public sealed class CompanionProtocolClient
             case "heal":
             case "repair_equipped":
             case "list_inventory":
+            case "mark":
+            case "jump_last":
                 RequireArgumentCount(command, arguments, 0, 0);
                 break;
             case "give":
@@ -179,6 +181,17 @@ public sealed class CompanionProtocolClient
                     arguments.Count == 2 && !string.Equals(arguments[1], "now", StringComparison.Ordinal))
                 {
                     throw new ArgumentException("Weather accepts an optional section and the literal 'now'.", nameof(arguments));
+                }
+
+                break;
+            case "quicksave":
+                RequireArgumentCount(command, arguments, 0, 1);
+                break;
+            case "hotkeys":
+                RequireArgumentCount(command, arguments, 1, 1);
+                if (arguments[0] is not ("on" or "off"))
+                {
+                    throw new ArgumentException("Hotkeys accepts only 'on' or 'off'.", nameof(arguments));
                 }
 
                 break;

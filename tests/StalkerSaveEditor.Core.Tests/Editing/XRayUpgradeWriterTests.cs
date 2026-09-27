@@ -59,7 +59,7 @@ public sealed class XRayUpgradeWriterTests
     public void Upgrade_write_matches_python_container_and_unpacked_bytes(UpgradeVector vector)
     {
         var source = ReadFixture(vector.Source);
-        var catalog = ReadCatalog(vector.ReleaseId, "up_a_wpn_test", "up_c_wpn_test");
+        var catalog = ReadCatalogBundle(vector.ReleaseId, "up_a_wpn_test", "up_c_wpn_test");
         var plan = Plan(source, vector.Handle, vector.TargetUpgrades);
 
         var prepared = XRayEditWriter.Prepare(source, plan, catalog);
@@ -117,7 +117,7 @@ public sealed class XRayUpgradeWriterTests
         var prepared = XRayEditWriter.Prepare(
             source,
             plan,
-            ReadCatalog("stalker-cop", "up_a_wpn_test", "up_c_wpn_test"));
+            ReadCatalogBundle("stalker-cop", "up_a_wpn_test", "up_c_wpn_test"));
         var parsed = XRayTrilogyReader.FromBytes(prepared.Data.Span);
 
         Assert.Equal(4321u, parsed.Money);
@@ -177,7 +177,10 @@ public sealed class XRayUpgradeWriterTests
         }
     }
 
-    private static UpgradeCatalog ReadCatalog(string formatId, params string[] keys)
+    private static UpgradeCatalog ReadCatalog(string formatId, params string[] keys) =>
+        Assert.IsType<UpgradeCatalog>(ReadCatalogBundle(formatId, keys).Upgrades);
+
+    private static CatalogBundle ReadCatalogBundle(string formatId, params string[] keys)
     {
         var baseRelease = formatId.EndsWith("-ee", StringComparison.Ordinal)
             ? formatId[..^3]
@@ -198,7 +201,7 @@ public sealed class XRayUpgradeWriterTests
                 [baseRelease] = new { items = Array.Empty<object>(), upgrades = definitions },
             },
         });
-        return Assert.IsType<UpgradeCatalog>(CatalogBundleReader.Load(Encoding.UTF8.GetBytes(json))[baseRelease].Upgrades);
+        return CatalogBundleReader.Load(Encoding.UTF8.GetBytes(json))[baseRelease];
     }
 
     private static byte[] ReadFixture(string name) =>

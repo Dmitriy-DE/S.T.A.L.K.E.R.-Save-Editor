@@ -22,8 +22,7 @@ public static class XRayUpgradeWriter
             throw Error("EditPlan must include at least one item upgrade vector.");
         }
 
-        if (plan.Money is not null || plan.StackCounts.Count > 0 || plan.DetachHandles.Count > 0 ||
-            plan.Adds.Count > 0 || plan.StashTakes.Count > 0 || plan.StashPuts.Count > 0)
+        if (plan.EditKinds != EditKind.Upgrades)
         {
             throw Error("Upgrade-only writer does not accept money, stack, delete, add, or stash-transfer edits.");
         }

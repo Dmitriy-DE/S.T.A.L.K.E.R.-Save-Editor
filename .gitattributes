@@ -1,2 +1,3 @@
 /tests/Fixtures/xray-archive/*.bin binary
 /tests/Fixtures/xray-archive/*.db binary
+/tests/Fixtures/companion-installer/vanilla/**/*.script binary

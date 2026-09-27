@@ -57,7 +57,39 @@ def archive_for(game: str) -> tuple[bytes, list[dict[str, object]]]:
     return archive_for_files(files)
 
 
+def write_vanilla_fixtures() -> None:
+    """Create compact, synthetic scripts with the encoding and syntax shape used by X-Ray."""
+    for game in ("soc", "cs", "cop"):
+        game_root = FIXTURES / "vanilla" / game / "scripts"
+        game_root.mkdir(parents=True, exist_ok=True)
+        bind = (
+            f"-- synthetic {game} actor fixture: фикстура\r\n"
+            "function actor_binder:update(delta)\r\n"
+            "\tobject_binder.update(self, delta)\r\n"
+            "end\r\n"
+            "\r\n"
+            "function actor_binder:use_inventory_item(obj)\r\n"
+            "\tself:use_inventory_item(obj)\r\n"
+            "end\r\n"
+        )
+        menu = (
+            f"-- synthetic {game} menu fixture: меню\r\n"
+            "function main_menu:OnKeyboard(dik, keyboard_action)\r\n"
+            "\tif keyboard_action == ui_events.WINDOW_KEY_PRESSED then\r\n"
+            "\t\tif dik == DIK_keys.DIK_Q then\r\n"
+            "\t\t\tself:Close()\r\n"
+            "\t\tend\r\n"
+            "\t \t\r\n"
+            "\tend\r\n"
+            "\treturn true\r\n"
+            "end\r\n"
+        )
+        (game_root / "bind_stalker.script").write_bytes(bind.encode("cp1251"))
+        (game_root / "ui_main_menu.script").write_bytes(menu.encode("cp1251"))
+
+
 def main() -> None:
+    write_vanilla_fixtures()
     games = {}
     for game in ("soc", "cs", "cop"):
         archive, entries = archive_for(game)
@@ -67,7 +99,7 @@ def main() -> None:
     patch_name = "gamedata/scripts/ui_main_menu.script"
     vanilla_menu = (FIXTURES / "vanilla" / "cop" / "scripts" / "ui_main_menu.script").read_bytes()
     for patch_number in (1, 2):
-        patch_contents = vanilla_menu + f"\n-- synthetic patch overlay {patch_number:02d}\n".encode("ascii")
+        patch_contents = vanilla_menu + f"\r\n-- synthetic patch overlay {patch_number:02d}\r\n".encode("ascii")
         patch_archive, patch_entries = archive_for_files([(patch_name, patch_contents)])
         patch_archive_name = f"cop-patch-{patch_number:02d}.db"
         (FIXTURES / patch_archive_name).write_bytes(patch_archive)

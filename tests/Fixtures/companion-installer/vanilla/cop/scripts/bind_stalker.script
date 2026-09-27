@@ -1,8 +1,8 @@
--- synthetic vanilla bind_stalker for cop
+-- synthetic cop actor fixture: фикстура
 function actor_binder:update(delta)
 	object_binder.update(self, delta)
 end
 
 function actor_binder:use_inventory_item(obj)
-	self.actor:use_inventory_item(obj)
+	self:use_inventory_item(obj)
 end

@@ -76,6 +76,64 @@ public sealed class CompanionInstallerTests
         Assert.Empty(Directory.EnumerateFileSystemEntries(game.AppDataDirectory));
     }
 
+    [Fact]
+    public void Root_archive_alias_without_add_path_uses_game_directory()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.ShadowOfChernobyl);
+        var fsgamePath = Path.Combine(game.GameDirectory, "fsgame.ltx");
+        var fsgame = File.ReadAllText(fsgamePath).Replace(
+            "$arch_dir$ = false| false| $fs_root$|",
+            "$arch_dir$ = false| false| $fs_root$",
+            StringComparison.Ordinal);
+        File.WriteAllText(fsgamePath, fsgame);
+        var installer = new CompanionInstaller(ModSourceRoot);
+
+        var result = installer.Install(CompanionGame.ShadowOfChernobyl, game.GameDirectory);
+
+        Assert.True(result.Success);
+        AssertHooked(game.GameDirectory);
+    }
+
+    [Fact]
+    public void Hook_patching_accepts_real_key_namespaces_and_preserves_cp1251_crlf_and_blank_whitespace()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var codePage = Encoding.GetEncoding(1251);
+        var originalMenu = codePage.GetBytes(
+            "-- синтетическая меню-фикстура\r\n" +
+            "function main_menu:OnKeyboard(dik, keyboard_action)\r\n" +
+            "\tif keyboard_action == ui_events.WINDOW_KEY_PRESSED then\r\n" +
+            "\t\tif dik == DIK_keys.DIK_Q then\r\n" +
+            "\t\t\tself:Close()\r\n" +
+            "\t\tend\r\n" +
+            "\t \t\r\n" +
+            "\tend\r\n" +
+            "\treturn true\r\n" +
+            "end\r\n");
+        const string menuHook = "if save_editor_companion_ui then save_editor_companion_ui.on_menu_key(dik, self) end";
+
+        var installedMenu = CompanionHookPatcher.PatchMainMenu(originalMenu);
+        var menuText = codePage.GetString(installedMenu);
+        Assert.Contains($"\t\tend\r\n\t\t{menuHook}\r\n\t \t\r\n", menuText, StringComparison.Ordinal);
+        Assert.Equal(originalMenu, CompanionHookPatcher.RemoveMainMenuHook(installedMenu));
+
+        var originalBind = codePage.GetBytes(
+            "-- синтетическая actor-фикстура\r\n" +
+            "function actor_binder:update(delta)\r\n" +
+            "\tobject_binder.update(self, delta)\r\n" +
+            "end\r\n" +
+            "\r\n" +
+            "function actor_binder:use_inventory_item(obj)\r\n" +
+            "\tself:use_inventory_item(obj)\r\n" +
+            "end\r\n");
+        const string useItemHook = "if save_editor_companion then save_editor_companion.on_use(obj) end";
+
+        var installedBind = CompanionHookPatcher.PatchBindStalker(originalBind);
+        var bindText = codePage.GetString(installedBind);
+        Assert.Contains($"function actor_binder:use_inventory_item(obj)\r\n\t{useItemHook}\r\n", bindText, StringComparison.Ordinal);
+        Assert.Equal(originalBind, CompanionHookPatcher.RemoveBindStalkerHooks(installedBind));
+    }
+
     [Theory]
     [InlineData(CompanionGame.ShadowOfChernobyl, "soc")]
     [InlineData(CompanionGame.ClearSky, "cs")]

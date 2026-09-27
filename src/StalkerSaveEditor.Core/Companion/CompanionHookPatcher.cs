@@ -21,7 +21,12 @@ internal static partial class CompanionHookPatcher
     {
         var text = Latin1.GetString(original);
         text = InsertAfterAnchorLine(text, UpdateAnchor, UpdateHook, "scripts/bind_stalker.script");
-        text = InsertAfterAnchorLine(text, UseItemAnchor, UseItemHook, "scripts/bind_stalker.script");
+        text = InsertAfterAnchorLine(
+            text,
+            UseItemAnchor,
+            UseItemHook,
+            "scripts/bind_stalker.script",
+            indentFromFollowingLine: true);
         return Latin1.GetBytes(text);
     }
 
@@ -129,7 +134,12 @@ internal static partial class CompanionHookPatcher
         return Latin1.GetBytes(text);
     }
 
-    private static string InsertAfterAnchorLine(string text, string anchor, string hook, string file)
+    private static string InsertAfterAnchorLine(
+        string text,
+        string anchor,
+        string hook,
+        string file,
+        bool indentFromFollowingLine = false)
     {
         var anchorIndex = FindUnique(text, anchor, file);
         if (Count(text, hook) > 0)
@@ -153,8 +163,40 @@ internal static partial class CompanionHookPatcher
         }
 
         var newline = FindNewline(text);
-        var indentation = prefix.ToString();
+        var indentation = indentFromFollowingLine
+            ? FindFollowingLineIndentation(text, lineEnd, file)
+            : prefix.ToString();
         return text.Insert(lineEnd, newline + indentation + hook);
+    }
+
+    private static string FindFollowingLineIndentation(string text, int anchorLineEnd, string file)
+    {
+        var lineStart = anchorLineEnd + NewlineLengthAt(text, anchorLineEnd);
+        while (lineStart < text.Length)
+        {
+            var lineEnd = FindLineContentEnd(text, lineStart);
+            var line = text.AsSpan(lineStart, lineEnd - lineStart);
+            var contentStart = 0;
+            while (contentStart < line.Length && line[contentStart] is ' ' or '\t')
+            {
+                contentStart++;
+            }
+
+            if (contentStart < line.Length)
+            {
+                return line[..contentStart].ToString();
+            }
+
+            var newlineLength = NewlineLengthAt(text, lineEnd);
+            if (newlineLength == 0)
+            {
+                break;
+            }
+
+            lineStart = lineEnd + newlineLength;
+        }
+
+        throw AnchorError(file, "could not determine indentation for the first function body line");
     }
 
     private static string RemoveAfterAnchorLine(string text, string anchor, string hook, string file)
@@ -449,9 +491,9 @@ internal static partial class CompanionHookPatcher
     private static CompanionInstallerException AnchorError(string file, string detail) =>
         new($"Cannot install companion hook in {file}: {detail}.", file);
 
-    [GeneratedRegex(@"\bif\s+keyboard_action\s*==\s*WINDOW_KEY_PRESSED\s+then\b", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\bif\s+keyboard_action\s*==\s*(?:ui_events\s*\.\s*)?WINDOW_KEY_PRESSED\s+then\b", RegexOptions.CultureInvariant)]
     private static partial Regex WindowKeyRegex();
 
-    [GeneratedRegex(@"\bif\s+dik\s*==\s*DIK_Q\s+then\b", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\bif\s+dik\s*==\s*(?:DIK_keys\s*\.\s*)?DIK_Q\s+then\b", RegexOptions.CultureInvariant)]
     private static partial Regex QuitKeyRegex();
 }

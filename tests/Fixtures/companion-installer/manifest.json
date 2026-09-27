@@ -6,13 +6,13 @@
       "entries": [
         {
           "name": "gamedata/scripts/bind_stalker.script",
-          "size": 204,
-          "sha256": "bc439321e164d61a7802d13a610c8be9525dbe61fbc749dc1808833851ae1cf2"
+          "size": 205,
+          "sha256": "381386fb036780444fceb3cf61100f4d6c2aceb50e7fb614c2644b0d0f413618"
         },
         {
           "name": "gamedata/scripts/ui_main_menu.script",
-          "size": 208,
-          "sha256": "0ac60173e801def2ebe63ca6df0f0a50938c4b00288f498ca046bbcc1dd5445c"
+          "size": 235,
+          "sha256": "18441f41717529a4c2f2a3e6e74d9cfe467f173a7d47457369817346293f8d91"
         },
         {
           "name": "gamedata/configs/misc/quest_items.ltx",
@@ -26,13 +26,13 @@
       "entries": [
         {
           "name": "gamedata/scripts/bind_stalker.script",
-          "size": 203,
-          "sha256": "501cc5a1eac1ad5868b3068679edc5e4982d0a09efaaa92ffff57398d0de3c15"
+          "size": 204,
+          "sha256": "20fe1046d58cac7b0f14be97c352532063022b643ee6bba62df9509606e7d097"
         },
         {
           "name": "gamedata/scripts/ui_main_menu.script",
-          "size": 207,
-          "sha256": "affc4684f416a6681ff50b878cd9da746ea227d0a662e5f48ee7cab4fa02fceb"
+          "size": 234,
+          "sha256": "b1681921fd4e0089d9328f9a8b3f4d1a78478eee77359710b980e660c4bb982b"
         },
         {
           "name": "gamedata/configs/misc/quest_items.ltx",
@@ -46,13 +46,13 @@
       "entries": [
         {
           "name": "gamedata/scripts/bind_stalker.script",
-          "size": 204,
-          "sha256": "a402219adaa36cfdfbfab18dbac5a2fb316644007868812b0f24413d166fd645"
+          "size": 205,
+          "sha256": "2e7a79c6867e96f928e778d7a1a247ac4ed8833bb43fefdd8eef618dfad33c79"
         },
         {
           "name": "gamedata/scripts/ui_main_menu.script",
-          "size": 208,
-          "sha256": "2f99b9f7efe1c81b19fd9ac4350e91881239f44e4070bab6ba7a2e82c92dbdeb"
+          "size": 235,
+          "sha256": "45d45354c4afa169ac2c911e832d514217cbb92ee1fad58ec6413ac6c43a1976"
         },
         {
           "name": "gamedata/configs/misc/quest_items.ltx",
@@ -64,16 +64,16 @@
       "patchEntries01": [
         {
           "name": "gamedata/scripts/ui_main_menu.script",
-          "size": 239,
-          "sha256": "34db8b81289461ee20c0eccfd27e8dd425cfd911e9448af8b676a1b28491d300"
+          "size": 268,
+          "sha256": "3391caacb12b07d564ab39697bd4c17a827e03f83c6ad89b97e704ff9333a09c"
         }
       ],
       "patchArchive02": "cop-patch-02.db",
       "patchEntries02": [
         {
           "name": "gamedata/scripts/ui_main_menu.script",
-          "size": 239,
-          "sha256": "17c93e7b1e70dfbac358b89b89bbed86b169aaba279c1a1608cd9c6a8d59239c"
+          "size": 268,
+          "sha256": "831f2d5c3afb8637f50c803561b24690cb85c038679f6238cdd7c019d68d073d"
         }
       ]
     }

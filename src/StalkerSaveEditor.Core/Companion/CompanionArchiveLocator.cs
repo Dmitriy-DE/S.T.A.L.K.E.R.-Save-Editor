@@ -133,7 +133,7 @@ internal static class CompanionArchiveLocator
                 .Split('|')
                 .Select(field => field.Trim().Trim('"'))
                 .ToArray();
-            if (fields.Length < 4 ||
+            if (fields.Length < 3 ||
                 !bool.TryParse(fields[0], out var recursive) ||
                 !bool.TryParse(fields[1], out _))
             {

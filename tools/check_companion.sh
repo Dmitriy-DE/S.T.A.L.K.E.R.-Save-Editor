@@ -7,4 +7,5 @@ status=0
 while IFS= read -r -d '' file; do
 	"$luac" -p "$file" || status=1
 done < <(find "$root/mods/companion" -name '*.script' -print0)
+python3 "$root/tools/check_companion_ui.py" || status=1
 exit $status

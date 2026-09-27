@@ -83,5 +83,13 @@ public sealed class SteamReadOnlyClientTests
             FileName = fileName;
             return Task.FromResult(Data);
         }
+
+        public Task WriteAsync(
+            int appId,
+            string fileName,
+            ReadOnlyMemory<byte> data,
+            TimeSpan timeout,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 }

@@ -16,6 +16,13 @@ internal interface ISteamWorkerProcessRunner
         string fileName,
         TimeSpan timeout,
         CancellationToken cancellationToken);
+
+    Task WriteAsync(
+        int appId,
+        string fileName,
+        ReadOnlyMemory<byte> data,
+        TimeSpan timeout,
+        CancellationToken cancellationToken);
 }
 
 internal interface ISteamGameSessionRunner
@@ -151,10 +158,45 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
         }
     }
 
+    public async Task WriteAsync(
+        int appId,
+        string fileName,
+        ReadOnlyMemory<byte> data,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        if (appId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(appId), "Steam app id must be positive.");
+        }
+
+        if (data.IsEmpty || data.Length > SteamNativeRemoteStorage.MaximumFileBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(data), "Steam Cloud writes must contain 1..64 MiB.");
+        }
+
+        if (timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), "Worker timeout must be positive.");
+        }
+
+        var response = await RunAsync(
+            new WorkerRequest("write", appId, fileName, data.Length),
+            timeout,
+            cancellationToken,
+            data).ConfigureAwait(false);
+        if (response.Header.GetProperty("type").GetString() != "ok")
+        {
+            throw new InvalidDataException("Steam worker returned an unexpected write response.");
+        }
+    }
+
     private async Task<WorkerResponse> RunAsync(
         WorkerRequest request,
         TimeSpan timeout,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ReadOnlyMemory<byte> payload = default)
     {
         var startInfo = CreateStartInfo(request.AppId);
         using var process = _factory.Start(startInfo);
@@ -168,6 +210,11 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
             var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, JsonOptions);
             await process.StandardInput.WriteAsync(requestBytes, timeoutSource.Token).ConfigureAwait(false);
             await process.StandardInput.WriteAsync("\n"u8.ToArray(), timeoutSource.Token).ConfigureAwait(false);
+            if (!payload.IsEmpty)
+            {
+                await process.StandardInput.WriteAsync(payload, timeoutSource.Token).ConfigureAwait(false);
+            }
+
             await process.StandardInput.FlushAsync(timeoutSource.Token).ConfigureAwait(false);
             process.StandardInput.Dispose();
 
@@ -305,7 +352,7 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private sealed record WorkerRequest(string Operation, int AppId, string? FileName);
+    private sealed record WorkerRequest(string Operation, int AppId, string? FileName, int? Size = null);
 
     private sealed record WorkerResponse(JsonElement Header, byte[] Data);
 }

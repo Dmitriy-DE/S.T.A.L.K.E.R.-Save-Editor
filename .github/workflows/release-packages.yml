@@ -1,0 +1,151 @@
+name: Release Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: false
+        default: '1.4.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux (AppImage & DEB)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 file dpkg
+
+      - name: Determine Version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG="${GITHUB_REF#refs/tags/v}"
+            echo "version=${TAG}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Debian Package
+        run: |
+          ./packaging/linux/build_deb.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Build AppImage Package
+        run: |
+          ./packaging/linux/build_appimage.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-linux
+          path: dist/*
+
+  build-windows:
+    name: Build Windows (EXE & Installer)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress
+
+      - name: Determine Version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG="${GITHUB_REF#refs/tags/v}"
+            echo "version=${TAG}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Windows Executable and Setup
+        shell: pwsh
+        run: |
+          packaging/windows/build_windows.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-windows
+          path: dist/*
+
+  build-macos:
+    name: Build macOS (DMG)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Determine Version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG="${GITHUB_REF#refs/tags/v}"
+            echo "version=${TAG}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build macOS Apple Silicon (arm64)
+        run: |
+          ./packaging/macos/build_macos.sh "${{ steps.ver.outputs.version }}" "osx-arm64"
+
+      - name: Build macOS Intel (x64)
+        run: |
+          ./packaging/macos/build_macos.sh "${{ steps.ver.outputs.version }}" "osx-x64"
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-macos
+          path: dist/*
+
+  release:
+    name: Publish Release Artifacts
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all built packages
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true

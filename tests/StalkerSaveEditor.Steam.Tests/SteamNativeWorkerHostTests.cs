@@ -60,6 +60,34 @@ public sealed class SteamNativeWorkerHostTests
         Assert.False(factoryCalled);
     }
 
+    [Fact]
+    public async Task Game_session_starts_as_the_requested_app_and_stops_after_stdin_closes()
+    {
+        var storage = new FakeRemoteStorage();
+        using var input = new SessionInputStream();
+        using var output = new MemoryStream();
+
+        var running = SteamNativeWorkerHost.RunGameSessionAsync(
+            1643320,
+            input,
+            output,
+            _ => storage,
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromMilliseconds(5),
+            TimeSpan.Zero);
+        await storage.CallbacksStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        input.CloseInput();
+        Assert.Equal(0, await running.WaitAsync(TimeSpan.FromSeconds(2)));
+
+        var lines = Encoding.UTF8.GetString(output.ToArray()).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        using var ready = JsonDocument.Parse(lines[0]);
+        using var closed = JsonDocument.Parse(lines[1]);
+        Assert.Equal("ready", ready.RootElement.GetProperty("type").GetString());
+        Assert.Equal("ok", closed.RootElement.GetProperty("type").GetString());
+        Assert.Equal(1643320, storage.AppId);
+        Assert.True(storage.CallbackCount >= 5);
+    }
+
     private static MemoryStream Request(string json) =>
         new(Encoding.UTF8.GetBytes(json + "\n"));
 
@@ -80,7 +108,17 @@ public sealed class SteamNativeWorkerHostTests
 
         public byte[] Data { get; init; } = [4, 5, 6, 7];
 
+        public int CallbackCount { get; private set; }
+
+        public TaskCompletionSource CallbacksStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public void Initialize(int appId) => AppId = appId;
+
+        public void RunCallbacks()
+        {
+            CallbackCount++;
+            CallbacksStarted.TrySetResult();
+        }
 
         public IReadOnlyList<SteamCloudFile> ListFiles()
         {
@@ -95,5 +133,48 @@ public sealed class SteamNativeWorkerHostTests
         }
 
         public void Dispose() { }
+    }
+
+    private sealed class SessionInputStream : Stream
+    {
+        private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public void CloseInput() => _closed.TrySetResult();
+
+        public override void Flush() => throw new NotSupportedException();
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await _closed.Task.WaitAsync(cancellationToken);
+            return 0;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            CloseInput();
+            base.Dispose(disposing);
+        }
     }
 }

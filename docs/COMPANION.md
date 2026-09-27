@@ -2,8 +2,6 @@
 
 The S.T.A.L.K.E.R. Save Editor Companion provides a live bridge between the desktop editor and running X-Ray engine games without requiring the player to exit or reload their save.
 
-![Companion Screen](images/screen_companion.png)
-
 ---
 
 ## 1. Architecture & Communication Protocol
@@ -15,7 +13,7 @@ Desktop Editor                           Game (X-Ray Engine)
       |                                           |
       |-- 1. Writes save_editor_cmd.tmp --------->|
       |-- 2. Atomically renames to .txt --------->|
-      |                                           | (Polled every 250 ms in actor_binder)
+      |                                           | (Polled every 250 ms when hotkeys active, otherwise 2000 ms)
       |                                           |-- 3. Reads & deletes command file
       |                                           |-- 4. Executes Lua engine call
       |                                           |-- 5. Writes save_editor_out.tmp
@@ -93,12 +91,12 @@ The desktop application provides a dedicated **Companion** tab featuring:
 
 1. **Connection Status**: Real-time polling indicator, latency measurement, and protocol version detection.
 2. **Hook Management**: Game path selection, installation verification, and clean rollback.
-3. **In-Game Hotkey Manager**:
-   - Menu Toggle (`F1` default)
-   - Jump to Last Bookmark (`F2` default)
-   - Immediate Quicksave (`F5` default)
-   - Emergency Full Heal (`F9` default)
-4. **Live Actions**: Instant heal, repair gear, add roubles, and jump to level locations directly from the desktop UI.
+3. **In-Game Hotkey Manager** (does not conflict with vanilla game F-keys):
+   - Fast Heal & Clear Rads (`Ctrl+H`)
+   - Repair Equipped Gear (`Ctrl+R`)
+   - Add Money (`Ctrl+M`)
+   - Jump to Last Bookmark (`Ctrl+J`)
+   - Immediate Quicksave (`Ctrl+S`)
 
 ---
 

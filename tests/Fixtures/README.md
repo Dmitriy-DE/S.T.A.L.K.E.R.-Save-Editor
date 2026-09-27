@@ -91,3 +91,13 @@ python tools/generate_xray_stash_fixtures.py \
 The fixture set contains no game saves. Backpack-to-stash transfers and direct
 stash additions are C#-only synthetic contracts under decision D14; Python has
 no corresponding writer oracle.
+
+The `drafts/python-v1-draft.json` fixture is generated through the Python
+`DraftStore` using only synthetic plans. It verifies migration of the legacy
+schema 1 undo history into the C# schema 2 store. Regenerate it with:
+
+```bash
+python tools/generate_draft_fixtures.py \
+  --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor \
+  --output-dir tests/Fixtures/drafts
+```

@@ -30,6 +30,16 @@ python tools/generate_xray_stack_fixtures.py --python-repo /path/to/S.T.A.L.K.E.
 The vectors cover original trilogy and Enhanced Edition formats and include
 both packed saves and expected decompressed container bytes.
 
+The small X-Ray database archive under `xray-archive/` is synthetic. Its
+generator verifies the config, localization, and asset entries through the
+Python oracle's `editor.xray_catalog._read_xray_archive` before writing the
+fixture bytes and expected entry data:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python tools/generate_xray_archive_fixtures.py \
+  --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor
+```
+
 S2 money writer vectors under `writer-s2-money/` are generated from the
 Python `prepare_edit` oracle and its native Kraken encoder. Build the encoder
 into a temporary directory, add that directory to `PYTHONPATH`, then run:

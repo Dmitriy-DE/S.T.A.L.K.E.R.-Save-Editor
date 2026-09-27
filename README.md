@@ -21,6 +21,10 @@ inventory layout, save-local item name tables, and recognized stash layout.
 It remains read-only in the desktop editor. See the
 [CS-4 S2 reader scope](docs/CS4_STALKER2.md).
 
+Core reads X-Ray `.db`, `.xdb`, and `.xrp` archives on demand, with FAT CRC
+verification and the supported header variants. See the
+[CS-6 X-Ray archive scope](docs/CS6_XRAY_ARCHIVES.md).
+
 See the [CS-6 local editing and recovery flow](docs/CS6_LOCAL_EDITING.md).
 
 The `StalkerSaveEditor.Steam` library exposes Steam RemoteStorage list and read

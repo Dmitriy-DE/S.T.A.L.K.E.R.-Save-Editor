@@ -24,7 +24,8 @@
 --]]
 
 local PROTOCOL = "v1"
-local POLL_MS = 250
+local POLL_MS_DEFAULT = 2000
+local POLL_MS_HOTKEYS = 250
 local MAX_GIVE = 100
 local SLOT_LIMIT = 13 -- highest slot index is below this in all three games
 
@@ -376,7 +377,7 @@ function handlers.hotkeys(args)
 	end
 	if news_manager ~= nil and news_manager.send_tip ~= nil and db.actor ~= nil then
 		pcall(function()
-			news_manager.send_tip(db.actor, "ХОТКЕИ: " .. (hotkeys_active and "ВКЛЮЧЕНЫ [F5-F8]" or "ВЫКЛЮЧЕНЫ"), nil, nil, 3000)
+			news_manager.send_tip(db.actor, "ХОТКЕИ: " .. (hotkeys_active and "ВКЛЮЧЕНЫ [Ctrl+H/R/M/J/S]" or "ВЫКЛЮЧЕНЫ"), nil, nil, 3000)
 		end)
 	end
 	return "ok", "hotkeys=" .. (hotkeys_active and "on" or "off")
@@ -829,6 +830,7 @@ function quick_load()
 end
 
 local fast_forward_hour = nil
+local saved_time_factor = nil
 
 -- Time of day: advance game time to the next given hour (CoP change_game_time or SoC/CS rewind).
 function set_hour(hour)
@@ -842,6 +844,9 @@ function set_hour(hour)
 		return "ok", string.format("%02d:00", hour)
 	else
 		fast_forward_hour = hour
+		if saved_time_factor == nil and level.get_time_factor ~= nil then
+			saved_time_factor = level.get_time_factor()
+		end
 		level.set_time_factor(5000)
 		return "ok", string.format("%02d:00 (rewinding)", hour)
 	end
@@ -880,7 +885,9 @@ function stop_surge()
 		xr_surge_hide.start_surge = false
 		xr_surge_hide.surge_activated = false
 		xr_surge_hide.surge_finished = true
-		level.stop_weather_fx()
+		if level.stop_weather_fx ~= nil then
+			level.stop_weather_fx()
+		end
 		return "ok", "surge stopped"
 	end
 	return "unsupported", "no surge in this game"
@@ -1181,13 +1188,16 @@ function update()
 	if db.actor ~= nil and fast_forward_hour ~= nil then
 		if level.get_time_hours() == fast_forward_hour then
 			fast_forward_hour = nil
-			level.set_time_factor(10)
+			local restore_factor = saved_time_factor or 10
+			saved_time_factor = nil
+			level.set_time_factor(restore_factor)
 		end
 	end
 	if db.actor == nil or time_global() < next_poll then
 		return
 	end
-	next_poll = time_global() + POLL_MS
+	local poll_interval = hotkeys_active and POLL_MS_HOTKEYS or POLL_MS_DEFAULT
+	next_poll = time_global() + poll_interval
 	local cmd = paths()
 	local f = io.open(cmd, "r")
 	if f == nil then

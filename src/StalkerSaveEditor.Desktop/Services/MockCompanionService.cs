@@ -27,8 +27,8 @@ public sealed class MockCompanionService : ICompanionService
     private static List<CompanionHotkey> CreateDefaultHotkeys() =>
     [
         new("heal", "Ctrl+H", "Быстрое лечение и снятие радиации"),
-        new("repair", "Ctrl+R", "Починка экипированного оружия и брони"),
-        new("money", "Ctrl+M", "Пополнение баланса сталкера"),
+        new("repair_equipped", "Ctrl+R", "Починка экипированного оружия и брони"),
+        new("mark", "Ctrl+M", "Поставить метку на текущем месте"),
         new("jump_last", "Ctrl+J", "Мгновенный прыжок к последней телепорт-метке"),
         new("quicksave", "Ctrl+S", "Быстрое сохранение с меткой времени"),
     ];

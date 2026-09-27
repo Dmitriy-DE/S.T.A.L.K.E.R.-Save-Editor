@@ -1,11 +1,15 @@
 using System.Security.Cryptography;
+using StalkerSaveEditor.Core.Catalogs;
 using StalkerSaveEditor.Core.Editing;
 
 namespace StalkerSaveEditor.Core.Formats.XRay;
 
 public static class XRayEditWriter
 {
-    public static PreparedEdit Prepare(ReadOnlySpan<byte> source, EditPlan plan)
+    public static PreparedEdit Prepare(
+        ReadOnlySpan<byte> source,
+        EditPlan plan,
+        UpgradeCatalog? upgradeCatalog = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         var hasMoneyOrStacks = plan.Money is not null || plan.StackCounts.Count > 0;
@@ -14,6 +18,30 @@ public static class XRayEditWriter
         {
             throw new XRayFormatException(
                 "X-Ray edit: EditPlan cannot mix add/delete operations with money, stacks, or stash transfers.");
+        }
+
+        if (plan.Upgrades.Count > 0)
+        {
+            if (upgradeCatalog is null)
+            {
+                throw new XRayFormatException("X-Ray edit: upgrade edits require a release-matched upgrade catalog.");
+            }
+
+            var upgradesOnlyPlan = new EditPlan(plan.SourceSha256, upgrades: plan.Upgrades);
+            var upgradesEdit = XRayUpgradeWriter.Prepare(source, upgradesOnlyPlan, upgradeCatalog);
+            if (!hasMoneyOrStacks && !hasStashMoves)
+            {
+                return new PreparedEdit(plan, upgradesEdit.Data.Span);
+            }
+
+            var remainingPlan = new EditPlan(
+                Sha256(upgradesEdit.Data.Span),
+                money: plan.Money,
+                stackCounts: plan.StackCounts,
+                stashTakes: plan.StashTakes,
+                stashPuts: plan.StashPuts);
+            var remainingEdit = Prepare(upgradesEdit.Data.Span, remainingPlan);
+            return new PreparedEdit(plan, remainingEdit.Data.Span);
         }
 
         if (!hasMoneyOrStacks && !hasStashMoves)

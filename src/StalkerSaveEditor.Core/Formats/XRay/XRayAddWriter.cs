@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using StalkerSaveEditor.Core.Capabilities;
@@ -38,9 +39,10 @@ public static class XRayAddWriter
             throw Error("EditPlan must include at least one item to add.");
         }
 
-        if (plan.Money is not null || plan.StackCounts.Count > 0 || plan.DetachHandles.Count > 0)
+        if (plan.Money is not null || plan.StackCounts.Count > 0 || plan.DetachHandles.Count > 0 ||
+            plan.StashTakes.Count > 0 || plan.StashPuts.Count > 0)
         {
-            throw Error("Add-only writer does not accept money, stack, or delete edits.");
+            throw Error("Add-only writer does not accept money, stack, delete, or stash-transfer edits.");
         }
 
         var sourceBytes = source.ToArray();
@@ -67,13 +69,9 @@ public static class XRayAddWriter
         var working = sourceBytes;
         foreach (var request in plan.Adds)
         {
-            if (!string.Equals(request.Destination, "inventory", StringComparison.Ordinal))
-            {
-                throw Error($"Destination '{request.Destination}' is not supported by the X-Ray inventory writer.");
-            }
-
             var current = ReadSupported(working);
             EnsureFormat(current, formatId);
+            var parentId = ResolveDestinationParent(current, request.Destination);
             var definition = catalog.Resolve(request.ItemKey)
                 ?? throw Error($"Item key '{request.ItemKey}' is absent from the item catalog.");
             var family = DefinitionFamily(definition)
@@ -104,7 +102,7 @@ public static class XRayAddWriter
                     ?? throw Error("The selected registry template disappeared during the add operation.");
 
                 var objectId = AllocateObjectId(current.RegistryObjects);
-                var record = CloneRecord(current.Container.Raw.Span, template, request.ItemKey, objectId, current.ActorId);
+                var record = CloneRecord(current.Container.Raw.Span, template, request.ItemKey, objectId, parentId);
                 working = AppendRecord(current.Container, record);
 
                 current = ReadSupported(working);
@@ -126,7 +124,7 @@ public static class XRayAddWriter
                     working = SetAmmoCount(current, added, request.Quantity);
                 }
 
-                additions.Add(new AddedObject(objectId, request.ItemKey, request.Quantity, family));
+                additions.Add(new AddedObject(objectId, parentId, request.ItemKey, request.Quantity, family));
             }
         }
 
@@ -141,7 +139,7 @@ public static class XRayAddWriter
             }
 
             var added = roundTrip.RegistryObjects.FirstOrDefault(item => item.ObjectId == addition.ObjectId);
-            if (added is null || added.Name != addition.ItemKey || added.ParentId != roundTrip.ActorId)
+            if (added is null || added.Name != addition.ItemKey || added.ParentId != addition.ParentId)
             {
                 throw Error($"Added item '{addition.ItemKey}' did not pass its registry round-trip.");
             }
@@ -185,6 +183,33 @@ public static class XRayAddWriter
         string.IsNullOrWhiteSpace(definition.SerializationFamily)
             ? InferKnownFamily(definition.Key)
             : definition.SerializationFamily;
+
+    private static ushort ResolveDestinationParent(XRayTrilogySave save, string destination)
+    {
+        if (string.Equals(destination, "inventory", StringComparison.Ordinal))
+        {
+            return save.ActorId;
+        }
+
+        const string stashPrefix = "stash:";
+        if (!destination.StartsWith(stashPrefix, StringComparison.Ordinal) ||
+            !ushort.TryParse(
+                destination.AsSpan(stashPrefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var boxId))
+        {
+            throw Error($"Destination '{destination}' must be 'inventory' or 'stash:<box_id>'.");
+        }
+
+        var box = save.RegistryObjects.FirstOrDefault(item => item.ObjectId == boxId);
+        if (box is null || !string.Equals(box.Name, "inventory_box", StringComparison.Ordinal))
+        {
+            throw Error($"Destination stash box 0x{boxId:X4} is missing or is not an inventory_box.");
+        }
+
+        return box.ObjectId;
+    }
 
     private static string ObjectFamily(XRayRegistryObject item, ItemCatalog catalog)
     {
@@ -249,7 +274,7 @@ public static class XRayAddWriter
         return FrameRecord(spawn, update);
     }
 
-    private static byte[] PatchSpawnIdentity(ReadOnlySpan<byte> spawn, string name, ushort objectId, ushort parentId)
+    internal static byte[] PatchSpawnIdentity(ReadOnlySpan<byte> spawn, string name, ushort objectId, ushort parentId)
     {
         if (name.Contains('\0'))
         {
@@ -299,7 +324,7 @@ public static class XRayAddWriter
         position = checked(position + terminator + 1);
     }
 
-    private static byte[] FrameRecord(ReadOnlySpan<byte> spawn, ReadOnlySpan<byte> update)
+    internal static byte[] FrameRecord(ReadOnlySpan<byte> spawn, ReadOnlySpan<byte> update)
     {
         if (spawn.Length > ushort.MaxValue || update.Length > ushort.MaxValue)
         {
@@ -316,14 +341,17 @@ public static class XRayAddWriter
         return record;
     }
 
-    private static byte[] ResetAddedState(ReadOnlySpan<byte> raw, XRayRegistryObject item)
+    internal static byte[] ResetAddedState(
+        ReadOnlySpan<byte> raw,
+        XRayRegistryObject item,
+        bool keepUpgrades = false)
     {
         var spawnOffset = checked(item.RecordOffset + sizeof(ushort));
         var spawnLength = BinaryPrimitives.ReadUInt16LittleEndian(raw[item.RecordOffset..]);
         var spawn = raw.Slice(spawnOffset, spawnLength).ToArray();
         var changed = false;
 
-        if (item.Version > 123)
+        if (item.Version > 123 && !keepUpgrades)
         {
             if (!XRayTrilogyReader.TryReadUpgrades(
                     raw,
@@ -396,7 +424,7 @@ public static class XRayAddWriter
         return FrameRecord(spawn, raw.Slice(item.UpdateOffset, item.UpdateLength));
     }
 
-    private static bool TryReadPlacement(ReadOnlySpan<byte> data, out ushort place)
+    internal static bool TryReadPlacement(ReadOnlySpan<byte> data, out ushort place)
     {
         place = BinaryPrimitives.ReadUInt16LittleEndian(data);
         var placeType = place & 0x0F;
@@ -449,7 +477,7 @@ public static class XRayAddWriter
         return container.Build(RebuildRaw(container, objectChunk, payload));
     }
 
-    private static byte[] ReplaceRecord(XRayContainer container, XRayRegistryObject item, ReadOnlySpan<byte> record)
+    internal static byte[] ReplaceRecord(XRayContainer container, XRayRegistryObject item, ReadOnlySpan<byte> record)
     {
         var objectChunk = GetObjectChunk(container);
         var data = objectChunk.Data.Span;
@@ -563,5 +591,5 @@ public static class XRayAddWriter
 
     private static XRayFormatException Error(string message) => new($"X-Ray add edit: {message}");
 
-    private sealed record AddedObject(ushort ObjectId, string ItemKey, uint Quantity, string Family);
+    private sealed record AddedObject(ushort ObjectId, ushort ParentId, string ItemKey, uint Quantity, string Family);
 }

@@ -23,6 +23,35 @@ public static class XRayTrilogyReader
         new("stalker-cs-ee", 6, 54, [128], ["marsh"u8.ToArray()], ["zaton"u8.ToArray()]),
         new("stalker-cop-ee", 6, 54, [128], ["zaton"u8.ToArray()], ["marsh"u8.ToArray()]),
     ];
+    private static readonly IReadOnlyDictionary<string, string> StashLevels =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["esc"] = "Кордон",
+            ["gar"] = "Свалка",
+            ["mar"] = "Болота",
+            ["val"] = "Тёмная долина",
+            ["agr"] = "Агропром",
+            ["red"] = "Рыжий лес",
+            ["yan"] = "Янтарь",
+            ["mil"] = "Армейские склады",
+            ["lim"] = "Лиманск",
+            ["hos"] = "Госпиталь",
+            ["bar"] = "Бар",
+            ["ros"] = "Дикая территория",
+            ["zat"] = "Затон",
+            ["jup"] = "Юпитер",
+            ["pri"] = "Припять",
+            ["l01"] = "Кордон",
+            ["l02"] = "Свалка",
+            ["l03"] = "Агропром",
+            ["l04"] = "Тёмная долина",
+            ["l05"] = "Бар",
+            ["l06"] = "Дикая территория",
+            ["l07"] = "Армейские склады",
+            ["l08"] = "Янтарь",
+            ["l10"] = "Рыжий лес",
+            ["l11"] = "Припять",
+        };
 
     public static XRayTrilogySave FromBytes(ReadOnlySpan<byte> data) => Read(data, enhanced: false);
 
@@ -90,50 +119,62 @@ public static class XRayTrilogyReader
                 continue;
             }
 
-            var (kindCode, category) = CategoryForName(record.Name);
-            var isAmmo = record.Name.StartsWith("ammo_", StringComparison.OrdinalIgnoreCase);
-            ushort? count = null;
-            int? stackStateCountOffset = null;
-            int? stackUpdateCountOffset = null;
-            var editableCount = false;
-            if (isAmmo && TryReadAmmoCount(
-                raw,
-                record,
-                out var parsedCount,
-                out var parsedStateCountOffset,
-                out var parsedUpdateCountOffset))
-            {
-                count = parsedCount;
-                stackStateCountOffset = parsedStateCountOffset;
-                stackUpdateCountOffset = parsedUpdateCountOffset;
-                editableCount = true;
-            }
-
-            IReadOnlyList<string>? upgrades = null;
-            if (record.Version > 123 &&
-                TryReadUpgrades(raw, record, out var parsedUpgrades, out _, out _))
-            {
-                upgrades = Array.AsReadOnly(parsedUpgrades);
-            }
-
-            items.Add(new XRayInventoryItem(
-                record.ObjectId,
-                record.ParentId,
-                record.Name,
-                kindCode,
-                category,
-                count,
-                editableCount,
-                upgrades,
-                stackStateCountOffset,
-                stackUpdateCountOffset));
+            items.Add(ToInventoryItem(raw, record));
         }
 
         items.Sort(static (left, right) => left.Handle.CompareTo(right.Handle));
         var registryObjects = new XRayRegistryObject[records.Count];
+        List<ObjectRecord>? stashBoxes = null;
         for (var index = 0; index < records.Count; index++)
         {
-            registryObjects[index] = ToRegistryObject(records[index]);
+            var record = records[index];
+            registryObjects[index] = ToRegistryObject(record);
+            if (string.Equals(record.Name, "inventory_box", StringComparison.Ordinal))
+            {
+                (stashBoxes ??= []).Add(record);
+            }
+        }
+
+        IReadOnlyList<XRayStash> stashes = Array.Empty<XRayStash>();
+        if (stashBoxes is { Count: > 0 })
+        {
+            var childrenByParent = records
+                .GroupBy(record => record.ParentId)
+                .ToDictionary(group => group.Key, group => group.ToArray());
+            var parsedStashes = new List<XRayStash>(stashBoxes.Count);
+            foreach (var box in stashBoxes)
+            {
+                if (!childrenByParent.TryGetValue(box.ObjectId, out var stashItems) || stashItems.Length == 0)
+                {
+                    continue;
+                }
+
+                var children = new XRayInventoryItem[stashItems.Length];
+                for (var index = 0; index < stashItems.Length; index++)
+                {
+                    children[index] = ToInventoryItem(raw, stashItems[index]);
+                }
+
+                var prefix = box.NameReplace.Split('_', 2)[0];
+                var level = StashLevels.TryGetValue(prefix, out var levelName) ? levelName : null;
+                parsedStashes.Add(new XRayStash(
+                    box.ObjectId,
+                    box.NameReplace,
+                    level,
+                    Array.AsReadOnly(children)));
+            }
+
+            if (parsedStashes.Count > 0)
+            {
+                parsedStashes.Sort(static (left, right) =>
+                {
+                    var levelPresence = (left.Level is null).CompareTo(right.Level is null);
+                    if (levelPresence != 0) return levelPresence;
+                    var level = string.Compare(left.Level, right.Level, StringComparison.Ordinal);
+                    return level != 0 ? level : string.Compare(left.Name, right.Name, StringComparison.Ordinal);
+                });
+                stashes = Array.AsReadOnly(parsedStashes.ToArray());
+            }
         }
 
         return new XRayTrilogySave(
@@ -153,7 +194,49 @@ public static class XRayTrilogyReader
             gameTime,
             timeFactor,
             normalTimeFactor,
-            Array.AsReadOnly(items.ToArray()));
+            Array.AsReadOnly(items.ToArray()),
+            stashes);
+    }
+
+    private static XRayInventoryItem ToInventoryItem(ReadOnlySpan<byte> raw, ObjectRecord record)
+    {
+        var (kindCode, category) = CategoryForName(record.Name);
+        var isAmmo = record.Name.StartsWith("ammo_", StringComparison.OrdinalIgnoreCase);
+        ushort? count = null;
+        int? stackStateCountOffset = null;
+        int? stackUpdateCountOffset = null;
+        var editableCount = false;
+        if (isAmmo && TryReadAmmoCount(
+            raw,
+            record,
+            out var parsedCount,
+            out var parsedStateCountOffset,
+            out var parsedUpdateCountOffset))
+        {
+            count = parsedCount;
+            stackStateCountOffset = parsedStateCountOffset;
+            stackUpdateCountOffset = parsedUpdateCountOffset;
+            editableCount = true;
+        }
+
+        IReadOnlyList<string>? upgrades = null;
+        if (record.Version > 123 &&
+            TryReadUpgrades(raw, record, out var parsedUpgrades, out _, out _))
+        {
+            upgrades = Array.AsReadOnly(parsedUpgrades);
+        }
+
+        return new XRayInventoryItem(
+            record.ObjectId,
+            record.ParentId,
+            record.Name,
+            kindCode,
+            category,
+            count,
+            editableCount,
+            upgrades,
+            stackStateCountOffset,
+            stackUpdateCountOffset);
     }
 
     private static FormatDefinition GetSupportedFormat(
@@ -260,6 +343,7 @@ public static class XRayTrilogyReader
 
             records.Add(new ObjectRecord(
                 spawn.Name,
+                spawn.NameReplace,
                 spawn.ObjectId,
                 spawn.ParentId,
                 spawn.Version,
@@ -290,7 +374,7 @@ public static class XRayTrilogyReader
         }
 
         var name = reader.ReadZeroTerminatedString();
-        _ = reader.ReadZeroTerminatedString();
+        var nameReplace = reader.ReadZeroTerminatedString();
         reader.Skip(2); // game id, respawn point
         reader.Skip(6 * sizeof(float)); // position and angles
         reader.Skip(sizeof(ushort)); // respawn time
@@ -349,6 +433,7 @@ public static class XRayTrilogyReader
         reader.Skip(stateLength);
         return new SpawnRecord(
             name,
+            nameReplace,
             objectId,
             parentId,
             version,
@@ -360,6 +445,7 @@ public static class XRayTrilogyReader
 
     private static XRayRegistryObject ToRegistryObject(ObjectRecord record) => new(
             record.Name,
+            record.NameReplace,
             record.ObjectId,
             record.ParentId,
             record.Version,
@@ -728,6 +814,7 @@ public static class XRayTrilogyReader
 
     private sealed record ObjectRecord(
         string Name,
+        string NameReplace,
         ushort ObjectId,
         ushort ParentId,
         ushort Version,
@@ -742,6 +829,7 @@ public static class XRayTrilogyReader
 
     private sealed record SpawnRecord(
         string Name,
+        string NameReplace,
         ushort ObjectId,
         ushort ParentId,
         ushort Version,

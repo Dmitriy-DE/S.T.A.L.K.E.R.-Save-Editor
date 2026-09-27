@@ -326,7 +326,7 @@ end
 -- Actor properties are deltas (conditions().ChangeHealth/ChangePower/
 -- ChangeBleeding in script_game_object3.cpp), so assigning 1 tops them up:
 -- https://github.com/OpenXRay/xray-16/blob/master/src/xrGame/script_game_object3.cpp
-TOGGLES = { "god", "stamina", "bleeding", "repair", "ammo" }
+TOGGLES = { "god", "stamina", "bleeding", "repair", "ammo", "life" }
 local toggles = nil
 local next_toggle_tick = 0
 local TOGGLE_TICK_MS = 250
@@ -384,6 +384,13 @@ local function apply_toggles()
 	if t.god then
 		actor.health = 1
 		actor.psy_health = 1
+	end
+	-- One spare life: the first time health drops near zero it is restored,
+	-- then the toggle switches itself off. Checked every 250 ms, so a single
+	-- hit larger than the remaining health still kills.
+	if t.life and actor.health < 0.15 then
+		actor.health = 1
+		set_toggle("life", false)
 	end
 	if t.stamina then
 		actor.power = 1
@@ -485,6 +492,7 @@ local PDA_CHECK_MS = 5000
 local MIN_ITEMS_FOR_RETURN = 5
 local next_pda_check = 0
 local pending_menu = false
+pending_action = nil
 
 local function pda_available()
 	return system_ini():section_exist(PDA_SECTION)
@@ -511,10 +519,287 @@ end
 
 -- Called from actor_binder:use_inventory_item (one line in bind_stalker.script).
 function on_use(obj)
-	if obj ~= nil and obj:section() == PDA_SECTION then
+	if obj == nil then
+		return
+	end
+	local action = ACTION_ITEMS[obj:section()]
+	if action ~= nil then
+		give_section(obj:section())
+		pending_action = action -- run on the next update, outside the use callback
+		return
+	end
+	if obj:section() == PDA_SECTION then
 		give_pda()
 		pending_menu = true -- open on the next update, outside the use callback
 	end
+end
+
+-- ------------------------------------------------------------ extra actions
+-- Everything below is Call of Pripyat API (checked against its
+-- lua_help.script); menus for other games call only what their engine has.
+
+local QUICK_SAVE = "se_quick"
+local MARKS = {} -- map spot ids we added, so they can be removed again
+
+function points_path()
+	return getFS():update_path("$app_data_root$", "save_editor_points.txt")
+end
+
+-- Last saved point from the points file (the menu writes the same file).
+local function last_point()
+	local f = io.open(points_path(), "r")
+	if f == nil then
+		return nil
+	end
+	local last = nil
+	for line in f:lines() do
+		local lvl, x, y, z, gv, name = string.match(line, "^([^|]+)|([^|]+)|([^|]+)|([^|]+)|([^|]+)|(.*)$")
+		if lvl ~= nil then
+			last = { level = lvl, pos = vector():set(tonumber(x), tonumber(y), tonumber(z)), gv = tonumber(gv), name = name }
+		end
+	end
+	f:close()
+	return last
+end
+
+function mark_here()
+	local actor = db.actor
+	local count = 0
+	local f = io.open(points_path(), "r")
+	if f ~= nil then
+		for _ in f:lines() do
+			count = count + 1
+		end
+		f:close()
+	end
+	local name = game.translate_string(level.name()) .. " #" .. (count + 1)
+	f = io.open(points_path(), "a")
+	if f == nil then
+		return "error", "cannot write points"
+	end
+	local p = actor:position()
+	f:write(string.format("%s|%.3f|%.3f|%.3f|%d|%s\n", level.name(), p.x, p.y, p.z, actor:game_vertex_id(), name))
+	f:close()
+	return "ok", name
+end
+
+function jump_last()
+	local p = last_point()
+	if p == nil then
+		return "error", "no saved point yet"
+	end
+	return jump_to(p.level, p.pos, p.gv, p.name)
+end
+
+function quick_save()
+	get_console():execute("save " .. QUICK_SAVE)
+	return "ok", QUICK_SAVE
+end
+
+function quick_load()
+	get_console():execute("load " .. QUICK_SAVE)
+	return "ok", QUICK_SAVE
+end
+
+-- Time of day: advance game time to the next given hour (CoP change_game_time).
+function set_hour(hour)
+	local now = level.get_time_hours()
+	local delta = (hour - now) % 24
+	if delta == 0 then
+		delta = 24
+	end
+	level.change_game_time(0, delta, 0)
+	return "ok", string.format("%02d:00", hour)
+end
+
+function stop_surge()
+	if surge_manager == nil or surge_manager.get_surge_manager == nil then
+		return "unsupported", "no surge in this game"
+	end
+	local m = surge_manager.get_surge_manager()
+	if not m.started then
+		return "error", "no surge running"
+	end
+	m:end_surge(true)
+	return "ok", "surge stopped"
+end
+
+-- Online NPCs and monsters around the actor.
+local function around(radius, want)
+	local result = {}
+	local actor = db.actor
+	local sim = alife()
+	for id = 1, MAX_OBJECT_ID do
+		local se = sim:object(id)
+		if se ~= nil and se.online and id ~= actor:id() then
+			local obj = level.object_by_id(id)
+			if obj ~= nil and obj:position():distance_to(actor:position()) <= radius and want(obj, se) then
+				table.insert(result, obj)
+			end
+		end
+	end
+	return result
+end
+
+local function is_creature(obj)
+	return IsStalker(obj) or IsMonster(obj)
+end
+
+function remove_corpses(radius)
+	local removed = 0
+	for _, obj in ipairs(around(radius, function(o) return is_creature(o) and not o:alive() end)) do
+		if get_object_story_id(obj:id()) == nil then -- never touch quest bodies
+			alife():release(alife():object(obj:id()), true)
+			removed = removed + 1
+		end
+	end
+	return "ok", "removed=" .. removed
+end
+
+function kill_enemies(radius)
+	local actor = db.actor
+	local killed = 0
+	for _, obj in ipairs(around(radius, function(o) return is_creature(o) and o:alive() end)) do
+		if obj:relation(actor) == game_object.enemy and get_object_story_id(obj:id()) == nil then
+			obj:kill(actor)
+			killed = killed + 1
+		end
+	end
+	return "ok", "killed=" .. killed
+end
+
+local function nearest_stalker(radius)
+	local best, dist = nil, nil
+	for _, obj in ipairs(around(radius, function(o) return IsStalker(o) and o:alive() end)) do
+		local d = obj:position():distance_to(db.actor:position())
+		if dist == nil or d < dist then
+			best, dist = obj, d
+		end
+	end
+	return best
+end
+
+function call_nearest(radius)
+	local npc = nearest_stalker(radius)
+	if npc == nil then
+		return "error", "nobody within " .. radius .. " m"
+	end
+	npc:set_npc_position(vector():set(db.actor:position()):mad(db.actor:direction(), 2))
+	return "ok", npc:character_name()
+end
+
+function befriend_nearest_squad(radius)
+	local npc = nearest_stalker(radius)
+	if npc == nil then
+		return "error", "nobody within " .. radius .. " m"
+	end
+	local squad = get_object_squad(npc)
+	local count = 0
+	if squad ~= nil then
+		for member in squad:squad_members() do
+			local obj = level.object_by_id(member.id)
+			if obj ~= nil then
+				obj:set_relation(game_object.friend, db.actor)
+				count = count + 1
+			end
+		end
+	else
+		npc:set_relation(game_object.friend, db.actor)
+		count = 1
+	end
+	return "ok", "friends=" .. count
+end
+
+COMMUNITIES = { "stalker", "dolg", "freedom", "bandit", "army", "monolith", "killer", "ecolog", "zombied" }
+
+function community_goodwill(community)
+	return relation_registry.community_goodwill(community, db.actor:id())
+end
+
+function change_goodwill(community, delta)
+	relation_registry.change_community_goodwill(community, db.actor:id(), delta)
+	return "ok", tostring(community_goodwill(community))
+end
+
+-- Map: every stash the game knows (treasure_manager), artefacts on this level.
+function mark_stashes()
+	if treasure_manager == nil or treasure_manager.get_treasure_manager == nil then
+		return "unsupported", "no treasure manager"
+	end
+	local added = 0
+	for _, id in pairs(treasure_manager.get_treasure_manager().secret_restrs) do
+		if not level.map_has_object_spot(id, "treasure") then
+			level.map_add_object_spot(id, "treasure", "")
+			table.insert(MARKS, { id = id, spot = "treasure" })
+			added = added + 1
+		end
+	end
+	return "ok", "stashes=" .. added
+end
+
+local artefact_sections = nil
+local function is_artefact_section(section)
+	if artefact_sections == nil then
+		artefact_sections = {}
+		if save_editor_catalog ~= nil then
+			for _, s in ipairs(save_editor_catalog.items.artifact or {}) do
+				artefact_sections[s] = true
+			end
+		end
+	end
+	return artefact_sections[section] == true
+end
+
+function mark_artefacts()
+	local sim = alife()
+	local added = 0
+	for id = 1, MAX_OBJECT_ID do
+		local se = sim:object(id)
+		if se ~= nil and se.parent_id == 65535 and is_artefact_section(se:section_name()) and level_of(se) == level.name()
+			and not level.map_has_object_spot(id, "primary_object_spot") then
+			level.map_add_object_spot(id, "primary_object_spot", "")
+			table.insert(MARKS, { id = id, spot = "primary_object_spot" })
+			added = added + 1
+		end
+	end
+	return "ok", "artefacts=" .. added
+end
+
+function clear_marks()
+	for _, mark in ipairs(MARKS) do
+		level.map_remove_object_spot(mark.id, mark.spot)
+	end
+	local n = #MARKS
+	MARKS = {}
+	return "ok", "removed=" .. n
+end
+
+-- Quick-slot items: section -> action. Using one runs it and gives it back.
+ACTION_ITEMS = {
+	se_act_heal = function()
+		run("heal", {})
+		db.actor.bleeding = 1
+	end,
+	se_act_repair = function() run("repair_equipped", {}) end,
+	se_act_mark = function() mark_here() end,
+	se_act_return = function() jump_last() end,
+	se_act_save = function() quick_save() end,
+}
+
+function give_section(section)
+	local actor = db.actor
+	alife():create(section, actor:position(), actor:level_vertex_id(), actor:game_vertex_id(), actor:id())
+end
+
+function give_action_items()
+	local given = 0
+	for section in pairs(ACTION_ITEMS) do
+		if system_ini():section_exist(section) and db.actor:object(section) == nil then
+			give_section(section)
+			given = given + 1
+		end
+	end
+	return "ok", "given=" .. given
 end
 
 local function execute(line)
@@ -548,6 +833,11 @@ function update()
 		if lc ~= nil then
 			alife():release(lc, true)
 		end
+	end
+	if db.actor ~= nil and pending_action ~= nil then
+		local action = pending_action
+		pending_action = nil
+		pcall(action)
 	end
 	if db.actor ~= nil and pending_menu then
 		pending_menu = false

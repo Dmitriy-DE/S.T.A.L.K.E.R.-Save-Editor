@@ -17,9 +17,10 @@ public static class XRayMoneyWriter
             throw Error("EditPlan must include a money value.");
         }
 
-        if (plan.StackCounts.Count > 0 || plan.DetachHandles.Count > 0)
+        if (plan.StackCounts.Count > 0 || plan.DetachHandles.Count > 0 || plan.Adds.Count > 0 ||
+            plan.StashTakes.Count > 0 || plan.StashPuts.Count > 0)
         {
-            throw Error("Money-only writer does not accept stack or delete edits.");
+            throw Error("Money-only writer does not accept stack, delete, add, or stash-transfer edits.");
         }
 
         if (money > MaximumMoney)

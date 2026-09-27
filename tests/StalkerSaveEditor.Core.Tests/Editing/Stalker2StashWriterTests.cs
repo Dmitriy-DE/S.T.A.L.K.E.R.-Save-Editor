@@ -120,6 +120,24 @@ public sealed class Stalker2StashWriterTests
             new EditPlan(Sha256(source), money: 100, stalker2StashTakeHandle: handle)));
     }
 
+    [Fact]
+    public void Rejects_durability_when_mixed_with_an_s2_stash_transfer()
+    {
+        using var manifest = ReadManifest();
+        var vector = manifest.RootElement;
+        var source = ReadFixture(GetString(vector, "source"));
+        var handle = vector.GetProperty("handle").GetUInt32();
+        var plan = new EditPlan(
+            Sha256(source),
+            stalker2StashTakeHandle: handle,
+            durability: new Dictionary<uint, double> { [handle] = 0.75d });
+
+        var error = Assert.Throws<Stalker2FormatException>(() =>
+            Stalker2StashWriter.Prepare(source, plan));
+
+        Assert.Contains("does not accept other edits", error.Message, StringComparison.Ordinal);
+    }
+
     private static JsonDocument ReadManifest() =>
         JsonDocument.Parse(File.ReadAllBytes(Path.Combine(FixtureDirectory, "s2-stash-vectors.json")));
 

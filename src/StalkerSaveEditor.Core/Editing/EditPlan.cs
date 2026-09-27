@@ -18,7 +18,8 @@ public sealed record EditPlan
         IReadOnlyDictionary<ushort, IReadOnlyList<string>>? upgrades = null,
         string? playerFaction = null,
         IReadOnlyDictionary<string, int>? factionRelations = null,
-        uint? stalker2StashTakeHandle = null)
+        uint? stalker2StashTakeHandle = null,
+        IReadOnlyDictionary<uint, double>? durability = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -141,6 +142,24 @@ public sealed record EditPlan
         }
 
         Stalker2StashTakeHandle = stalker2StashTakeHandle;
+
+        var durabilityValues = new Dictionary<uint, double>();
+        if (durability is not null)
+        {
+            foreach (var (handle, condition) in durability)
+            {
+                if (!double.IsFinite(condition) || condition is < 0 or > 1)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(durability),
+                        "Durability values must be finite and in the range 0..1.");
+                }
+
+                durabilityValues.Add(handle, condition);
+            }
+        }
+
+        Durability = new ReadOnlyDictionary<uint, double>(durabilityValues);
         EditKinds = DetermineEditKinds();
     }
 
@@ -165,6 +184,8 @@ public sealed record EditPlan
     public IReadOnlyDictionary<string, int> FactionRelations { get; }
 
     public uint? Stalker2StashTakeHandle { get; }
+
+    public IReadOnlyDictionary<uint, double> Durability { get; }
 
     public EditKind EditKinds { get; }
 
@@ -209,6 +230,11 @@ public sealed record EditPlan
         if (Stalker2StashTakeHandle is not null)
         {
             kinds |= EditKind.Stalker2StashTransfer;
+        }
+
+        if (Durability.Count > 0)
+        {
+            kinds |= EditKind.Durability;
         }
 
         return kinds;

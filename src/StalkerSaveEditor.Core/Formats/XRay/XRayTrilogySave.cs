@@ -146,7 +146,11 @@ public sealed class XRayInventoryItem
         bool editableCount,
         IReadOnlyList<string>? upgrades,
         int? stackStateCountOffset,
-        int? stackUpdateCountOffset)
+        int? stackUpdateCountOffset,
+        float? condition,
+        int? conditionStateOffset,
+        int? conditionUpdateOffset,
+        int? clientConditionOffset)
     {
         Handle = handle;
         ParentId = parentId;
@@ -158,6 +162,10 @@ public sealed class XRayInventoryItem
         Upgrades = upgrades;
         StackStateCountOffset = stackStateCountOffset;
         StackUpdateCountOffset = stackUpdateCountOffset;
+        Condition = condition;
+        ConditionStateOffset = conditionStateOffset;
+        ConditionUpdateOffset = conditionUpdateOffset;
+        ClientConditionOffset = clientConditionOffset;
     }
 
     public ushort Handle { get; }
@@ -174,11 +182,19 @@ public sealed class XRayInventoryItem
 
     public bool EditableCount { get; }
 
-    public float? Condition => null;
+    public float? Condition { get; }
+
+    public bool ConditionEditable => Condition is not null && ConditionStateOffset is not null;
 
     public IReadOnlyList<string>? Upgrades { get; }
 
     internal int? StackStateCountOffset { get; }
 
     internal int? StackUpdateCountOffset { get; }
+
+    internal int? ConditionStateOffset { get; }
+
+    internal int? ConditionUpdateOffset { get; }
+
+    internal int? ClientConditionOffset { get; }
 }

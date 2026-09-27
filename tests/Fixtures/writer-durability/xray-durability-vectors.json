@@ -16,7 +16,7 @@
       "invalidHandle": 39321
     }
   },
-  "oracleRevision": "592248677dc4844685290a013cb6778f2d17588d",
+  "oracleRevision": "6f3839cb870161290ae1d404c40e291485c29e37",
   "vectors": [
     {
       "capabilities": {
@@ -75,28 +75,30 @@
         "remove_items": "verified"
       },
       "changedRawOffsets": [
-        353,
-        354,
-        365
+        305,
+        306,
+        361,
+        362,
+        373
       ],
       "expected": "xray-durability-cop-expected.sav",
       "expectedRaw": "xray-durability-cop-expected.raw",
-      "expectedRawSha256": "712a093a066ddf0c94d2547a332ddb4179da8703a8beb947760a17a92dd67de7",
-      "expectedSha256": "39c6304c78ed6c1092794e4ba39fc3a5f21eeecb54268fd3f4bb856a24fc7c28",
+      "expectedRawSha256": "74823c10522613eab6b6640021df7176ae209559a34f3e5737f14fda13ac60a4",
+      "expectedSha256": "822355df9ca0d921228f9674e75e954bb346fd5caf12da9c6d2de9e28c223ef9",
       "handle": 13398,
       "releaseId": "stalker-cop",
       "source": "xray-durability-cop-source.sav",
       "sourceCondition": 0.25,
-      "sourceSha256": "a7580223dda892910d2f945b2ce75da375dd0df34dfd9276e76e5d391ab0cae3",
+      "sourceSha256": "636df95b0114e7c2f4ae101f684f9116c8786c313112fe63589a633529d4e7cc",
       "targetCondition": 0.75
     },
     {
       "capabilities": {
-        "add_items": "experimental",
+        "add_items": "research",
         "edit_durability": "unsupported",
-        "edit_money": "experimental",
-        "edit_stacks": "experimental",
-        "remove_items": "experimental"
+        "edit_money": "research",
+        "edit_stacks": "research",
+        "remove_items": "research"
       },
       "changedRawOffsets": [
         347,
@@ -116,11 +118,11 @@
     },
     {
       "capabilities": {
-        "add_items": "experimental",
+        "add_items": "research",
         "edit_durability": "unsupported",
-        "edit_money": "experimental",
-        "edit_stacks": "experimental",
-        "remove_items": "experimental"
+        "edit_money": "research",
+        "edit_stacks": "research",
+        "remove_items": "research"
       },
       "changedRawOffsets": [
         353,
@@ -140,11 +142,11 @@
     },
     {
       "capabilities": {
-        "add_items": "experimental",
+        "add_items": "research",
         "edit_durability": "unsupported",
-        "edit_money": "experimental",
-        "edit_stacks": "experimental",
-        "remove_items": "experimental"
+        "edit_money": "research",
+        "edit_stacks": "research",
+        "remove_items": "research"
       },
       "changedRawOffsets": [
         353,
@@ -161,6 +163,37 @@
       "sourceCondition": 0.25,
       "sourceSha256": "209e4102272da9d73bf91bd695d2b2b08df7fe1c7388dcb14592b5b0cfe40ae5",
       "targetCondition": 0.75
+    },
+    {
+      "capabilities": {
+        "add_items": "verified",
+        "edit_durability": "experimental",
+        "edit_money": "verified",
+        "edit_stacks": "verified",
+        "remove_items": "verified"
+      },
+      "changedRawOffsets": [
+        303,
+        304,
+        305,
+        306,
+        359,
+        360,
+        361,
+        362,
+        373
+      ],
+      "expected": "xray-durability-cop-q8-rounding-expected.sav",
+      "expectedRaw": "xray-durability-cop-q8-rounding-expected.raw",
+      "expectedRawSha256": "3f7ceda414fd08fecd4791116c5bf0e4a6892b8a5df7a443a8599d87b83613c7",
+      "expectedSha256": "356f92c7ec39c0e9429921c5be06620430cf5707e501e197ac65957b82d7199e",
+      "handle": 13398,
+      "releaseId": "stalker-cop",
+      "source": "xray-durability-cop-source.sav",
+      "sourceCondition": 0.25,
+      "sourceSha256": "636df95b0114e7c2f4ae101f684f9116c8786c313112fe63589a633529d4e7cc",
+      "targetCondition": 0.0019607843137254897,
+      "variant": "q8-rounding"
     }
   ]
 }

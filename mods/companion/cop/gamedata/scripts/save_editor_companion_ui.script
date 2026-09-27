@@ -595,7 +595,17 @@ function companion_dialog:OnSelect()
 	elseif row.kind == "spawn" then
 		self:Card(item_title(row.section), row.section, row.section)
 	elseif row.kind == "npc" then
-		self:Card(row.title, row.squad.id, nil)
+		local text = row.squad.id
+		if row.filter == "stalkers" then
+			local size = row.squad.size or 0
+			if size > 0 then
+				text = text .. string.format("\\nОтряд: командир и ещё %d.", size - 1)
+			else
+				text = text .. "\\nОтряд: командир и 1-2 бойца, состав случайный."
+			end
+			text = text .. "\\nОдин сталкер — это командир отряда."
+		end
+		self:Card(row.title, text, nil)
 		if row.filter == "characters" and row.squad.icon ~= "" then
 			self.picture:InitTexture(row.squad.icon)
 			self.picture:SetWndPos(vector2():set(PICTURE_X + (PICTURE_W - 165) / 2, PICTURE_Y + (PICTURE_H - 108) / 2))
@@ -751,12 +761,26 @@ function companion_dialog:TeleportAction(which)
 end
 
 function companion_dialog:Close(to_game)
+	if self.owner == nil then
+		-- opened over the running game from the companion PDA
+		self:HideDialog()
+		return
+	end
 	self.owner:ShowDialog(true)
 	self:HideDialog()
 	self.owner:Show(true)
 	if to_game then
 		self.owner:OnButton_return_game()
 	end
+end
+
+-- Opened by using the companion PDA: over the game, which keeps running.
+function open_overlay()
+	if db.actor == nil or not db.actor:alive() then
+		return
+	end
+	local dlg = companion_dialog(nil)
+	dlg:ShowDialog(true)
 end
 
 function companion_dialog:OnKeyboard(dik, keyboard_action)

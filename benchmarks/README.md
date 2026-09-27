@@ -6,11 +6,14 @@ elapsed time and allocated bytes for LZO/Kraken decompression, the original
 trilogy, Enhanced Edition releases, and S.T.A.L.K.E.R. 2.
 
 CI runs the short benchmark job three independent times on `ubuntu-24.04`.
-The time gate compares the median of those runs with the baseline, which avoids
-failing on one noisy shared-runner sample. Allocation checks remain per-run, so
-a single allocation regression still fails the job. Both gates use the existing
-30% benchmark regression limit. Reports for all three runs are uploaded as the
-`performance-report` workflow artifact.
+The time gate compares the median of those runs with the baseline only when the
+CPU model and .NET JIT target match the time baseline (`AMD EPYC 7763`,
+`x86-64-v3`). GitHub currently assigns multiple CPU families to this runner
+label; on a different CPU/JIT target, the report records that timing as
+non-comparable and keeps CI green. Allocation checks remain per-run on every
+runner, so a single allocation regression still fails the job. Both gates use
+the existing 30% benchmark regression limit. All run reports are uploaded as
+the `performance-report` workflow artifact.
 
 Time baselines remain from the original benchmark run. Allocation baselines
 were refreshed from main workflow run `36313548439` at commit `ca52791` after

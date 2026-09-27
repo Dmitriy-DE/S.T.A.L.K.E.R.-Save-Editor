@@ -23,6 +23,8 @@ class BenchmarkRegressionTests(unittest.TestCase):
             json.dumps(
                 {
                     "maximumRegressionPercent": 30,
+                    "timeBaselineCpuModel": "AMD EPYC 7763",
+                    "timeBaselineJitTarget": "x86-64-v3",
                     "benchmarks": {
                         "ParseFixture": {
                             "meanNanoseconds": 100,
@@ -40,6 +42,8 @@ class BenchmarkRegressionTests(unittest.TestCase):
         self,
         times: tuple[str, ...],
         allocations: tuple[str, ...],
+        cpu_model: str = "AMD EPYC 7763",
+        jit_target: str = "x86-64-v3",
     ) -> None:
         for index, (mean, allocated) in enumerate(zip(times, allocations, strict=True), start=1):
             results = self.reports / f"run-{index}" / "results"
@@ -48,6 +52,13 @@ class BenchmarkRegressionTests(unittest.TestCase):
                 writer = csv.writer(stream)
                 writer.writerow(("Method", "Mean", "Allocated"))
                 writer.writerow(("ParseFixture", mean, allocated))
+            report = results / "benchmark-report-github.md"
+            report.write_text(
+                "BenchmarkDotNet, Linux\n"
+                f"{cpu_model} 2.45GHz, 1 CPU\n"
+                f"  [Host] : .NET 10, X64 RyuJIT {jit_target}\n",
+                encoding="utf-8",
+            )
 
     def check(self) -> tuple[int, str]:
         output = io.StringIO()
@@ -84,6 +95,34 @@ class BenchmarkRegressionTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "3 independent runs"):
             self.check()
+
+    def test_skips_time_for_a_different_runner_but_checks_allocations(self) -> None:
+        self.write_samples(
+            ("140 ns", "140 ns", "140 ns"),
+            ("100 B", "100 B", "100 B"),
+            cpu_model="Intel Xeon Platinum 8370C",
+            jit_target="x86-64-v4",
+        )
+
+        result, output = self.check()
+
+        self.assertEqual(0, result, output)
+        self.assertIn("time skipped", output)
+        self.assertIn("allocations in run-3", output)
+
+    def test_different_runner_does_not_skip_allocation_regressions(self) -> None:
+        self.write_samples(
+            ("140 ns", "140 ns", "140 ns"),
+            ("100 B", "100 B", "131 B"),
+            cpu_model="Intel Xeon Platinum 8370C",
+            jit_target="x86-64-v4",
+        )
+
+        result, output = self.check()
+
+        self.assertEqual(1, result, output)
+        self.assertIn("time skipped", output)
+        self.assertIn("allocations in run-3 regressed", output)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "baselineRunId": "36262343669",
   "baselineCommit": "72da10a",
+  "timeBaselineCpuModel": "AMD EPYC 7763",
+  "timeBaselineJitTarget": "x86-64-v3",
   "allocationBaselineRunId": "36313548439",
   "allocationBaselineCommit": "ca52791",
   "runner": "ubuntu-24.04 GitHub-hosted",

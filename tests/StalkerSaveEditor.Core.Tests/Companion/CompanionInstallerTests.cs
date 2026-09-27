@@ -100,7 +100,7 @@ public sealed class CompanionInstallerTests
         var relative = Path.Combine("scripts", "bind_stalker.script");
         var loosePath = Path.Combine(game.GameDirectory, "gamedata", relative);
         Directory.CreateDirectory(Path.GetDirectoryName(loosePath)!);
-        var archived = ReadArchiveFiles(game.GameDirectory, "cop.db")[archiveRelative];
+        var archived = ReadArchiveFiles(game.GameDirectory, "configs.db")[archiveRelative];
         var local = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(archived) + "\n-- loose local override\n");
         File.WriteAllBytes(loosePath, local);
         var installer = new CompanionInstaller(ModSourceRoot);
@@ -159,13 +159,14 @@ public sealed class CompanionInstallerTests
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
         var installer = new CompanionInstaller(ModSourceRoot);
         installer.Install(CompanionGame.CallOfPripyat, selectedGameDirectory: game.GameDirectory);
-        var archived = ReadArchiveFiles(game.GameDirectory, "cop.db");
+        var archived = ReadArchiveFiles(game.GameDirectory, "configs.db");
+        var patched = ReadArchiveFiles(game.GameDirectory, "xpatch_02.db");
         AssertModAssetsInstalled(game.GameDirectory, "cop");
         Assert.Equal(
             archived["scripts/bind_stalker.script"],
             CompanionHookPatcher.RemoveBindStalkerHooks(File.ReadAllBytes(Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script"))));
         Assert.Equal(
-            archived["scripts/ui_main_menu.script"],
+            patched["scripts/ui_main_menu.script"],
             CompanionHookPatcher.RemoveMainMenuHook(File.ReadAllBytes(Path.Combine(game.GameDirectory, "gamedata", "scripts", "ui_main_menu.script"))));
         Assert.Equal(
             archived["configs/misc/quest_items.ltx"],
@@ -182,6 +183,84 @@ public sealed class CompanionInstallerTests
         Assert.True(File.Exists(Path.Combine(game.GameDirectory, ".save-editor-companion", "manifest.json")));
         var removed = installer.Uninstall(CompanionGame.CallOfPripyat, game.GameDirectory);
         Assert.True(removed.Success);
+        Assert.False(Directory.Exists(Path.Combine(game.GameDirectory, "gamedata")));
+    }
+
+    [Fact]
+    public void Call_of_pripyat_uses_patches_after_resources_in_fsgame_order()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var resources = ReadArchiveFiles(game.GameDirectory, "configs.db");
+        var lowerPatch = ReadArchiveFiles(game.GameDirectory, "xpatch_01.db");
+        var higherPatch = ReadArchiveFiles(game.GameDirectory, "xpatch_02.db");
+        Assert.NotEqual(resources["scripts/ui_main_menu.script"], lowerPatch["scripts/ui_main_menu.script"]);
+        Assert.NotEqual(lowerPatch["scripts/ui_main_menu.script"], higherPatch["scripts/ui_main_menu.script"]);
+        var installer = new CompanionInstaller(ModSourceRoot);
+
+        installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+
+        var installed = File.ReadAllBytes(Path.Combine(
+            game.GameDirectory,
+            "gamedata",
+            "scripts",
+            "ui_main_menu.script"));
+        Assert.Equal(higherPatch["scripts/ui_main_menu.script"], CompanionHookPatcher.RemoveMainMenuHook(installed));
+    }
+
+    [Fact]
+    public void Recursive_fsgame_archive_alias_finds_nested_archive_files()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var resources = Path.Combine(game.GameDirectory, "resources");
+        var nested = Path.Combine(resources, "nested");
+        Directory.CreateDirectory(nested);
+        File.Move(Path.Combine(resources, "configs.db"), Path.Combine(nested, "configs.db"));
+        var fsgamePath = Path.Combine(game.GameDirectory, "fsgame.ltx");
+        var fsgame = File.ReadAllText(fsgamePath).Replace(
+            "$arch_dir_resources$ = false|",
+            "$arch_dir_resources$ = true|",
+            StringComparison.Ordinal);
+        File.WriteAllText(fsgamePath, fsgame);
+        var installer = new CompanionInstaller(ModSourceRoot);
+
+        var result = installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+
+        Assert.True(result.Success);
+        AssertHooked(game.GameDirectory);
+    }
+
+    [Fact]
+    public void Fsgame_without_archive_aliases_is_reported_in_status_and_not_guessed()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        File.WriteAllText(
+            Path.Combine(game.GameDirectory, "fsgame.ltx"),
+            "$app_data_root$ = true| false| $fs_root$| _appdata_\\\n");
+        var installer = new CompanionInstaller(ModSourceRoot);
+
+        var status = installer.GetStatus(CompanionGame.CallOfPripyat, game.GameDirectory);
+        var exception = Assert.Throws<CompanionInstallerException>(() =>
+            installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory));
+
+        Assert.Contains(status.Issues, issue => issue.Contains("fsgame.ltx", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("archive", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(game.GameDirectory, "gamedata")));
+    }
+
+    [Fact]
+    public void Corrupt_patch_archive_is_reported_and_install_does_not_fall_back_to_resources()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var patchPath = Path.Combine(game.GameDirectory, "patches", "xpatch_02.db");
+        File.WriteAllBytes(patchPath, [1, 2, 3, 4]);
+        var installer = new CompanionInstaller(ModSourceRoot);
+
+        var status = installer.GetStatus(CompanionGame.CallOfPripyat, game.GameDirectory);
+        var exception = Assert.Throws<CompanionInstallerException>(() =>
+            installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory));
+
+        Assert.Contains(status.Issues, issue => issue.Contains("xpatch_02.db", StringComparison.Ordinal));
+        Assert.Equal(patchPath, exception.FilePath);
         Assert.False(Directory.Exists(Path.Combine(game.GameDirectory, "gamedata")));
     }
 
@@ -239,8 +318,9 @@ public sealed class CompanionInstallerTests
 
     private static Dictionary<string, byte[]> ReadArchiveFiles(string gameDirectory, string archiveName)
     {
+        var path = Directory.EnumerateFiles(gameDirectory, archiveName, SearchOption.AllDirectories).Single();
         using var archive = XRayArchiveReader.Open(new MemoryStream(File.ReadAllBytes(
-            Path.Combine(gameDirectory, "db", archiveName))));
+            path)));
         return archive.Entries.ToDictionary(
             entry => entry.Name.Replace("gamedata/", string.Empty, StringComparison.Ordinal),
             entry => archive.ReadFile(entry.Name),
@@ -293,7 +373,6 @@ public sealed class CompanionInstallerTests
             var gameDirectory = Path.Combine(steamApps, "common", gameDirectoryName);
             var appData = Path.Combine(gameDirectory, "_appdata_");
             Directory.CreateDirectory(Path.Combine(steamApps, "common"));
-            Directory.CreateDirectory(Path.Combine(gameDirectory, "db"));
             Directory.CreateDirectory(appData);
             File.WriteAllText(Path.Combine(steamApps, "libraryfolders.vdf"),
                 $"\"libraryfolders\" {{ \"0\" {{ \"path\" \"{steamRoot.Replace("\\", "\\\\", StringComparison.Ordinal)}\" }} }}\n");
@@ -306,7 +385,20 @@ public sealed class CompanionInstallerTests
             };
             File.WriteAllText(Path.Combine(steamApps, $"appmanifest_{appId}.acf"),
                 $"\"AppState\" {{ \"appid\" \"{appId}\" \"installdir\" \"{gameDirectoryName}\" }}\n");
-            File.WriteAllText(Path.Combine(gameDirectory, "fsgame.ltx"), "$app_data_root$ = true| false| $fs_root$| _appdata_\\\n");
+            var resourceDirectory = Path.Combine(gameDirectory, "resources");
+            Directory.CreateDirectory(resourceDirectory);
+            var archiveAliases = game == CompanionGame.ShadowOfChernobyl
+                ? "$arch_dir$ = false| false| $fs_root$|\n"
+                : "$arch_dir_resources$ = false| false| $fs_root$| resources\\\n";
+            if (game != CompanionGame.ShadowOfChernobyl)
+            {
+                Directory.CreateDirectory(Path.Combine(gameDirectory, "patches"));
+                var patchAlias = game == CompanionGame.CallOfPripyat ? "$game_arch_mp$" : "$arch_dir_patches$";
+                archiveAliases += $"{patchAlias} = false| true| $fs_root$| patches\\\n";
+            }
+            File.WriteAllText(
+                Path.Combine(gameDirectory, "fsgame.ltx"),
+                "$app_data_root$ = true| false| $fs_root$| _appdata_\\\n" + archiveAliases);
 
             using var fixtureManifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(FixtureDirectory, "manifest.json")));
             var gameKey = game switch
@@ -318,7 +410,27 @@ public sealed class CompanionInstallerTests
             };
             var archiveName = fixtureManifest.RootElement.GetProperty("games").GetProperty(gameKey)
                 .GetProperty("archive").GetString()!;
-            File.Copy(Path.Combine(FixtureDirectory, archiveName), Path.Combine(gameDirectory, "db", archiveName));
+            var archiveDestination = game switch
+            {
+                CompanionGame.ShadowOfChernobyl => Path.Combine(gameDirectory, "gamedata.db0"),
+                CompanionGame.ClearSky => Path.Combine(resourceDirectory, "cs.db"),
+                CompanionGame.CallOfPripyat => Path.Combine(resourceDirectory, "configs.db"),
+                _ => throw new ArgumentOutOfRangeException(nameof(game)),
+            };
+            File.Copy(Path.Combine(FixtureDirectory, archiveName), archiveDestination);
+            if (game == CompanionGame.CallOfPripyat)
+            {
+                var patchArchiveName = fixtureManifest.RootElement.GetProperty("games").GetProperty("cop")
+                    .GetProperty("patchArchive02").GetString()!;
+                var lowerPatchArchiveName = fixtureManifest.RootElement.GetProperty("games").GetProperty("cop")
+                    .GetProperty("patchArchive01").GetString()!;
+                File.Copy(
+                    Path.Combine(FixtureDirectory, lowerPatchArchiveName),
+                    Path.Combine(gameDirectory, "patches", "xpatch_01.db"));
+                File.Copy(
+                    Path.Combine(FixtureDirectory, patchArchiveName),
+                    Path.Combine(gameDirectory, "patches", "xpatch_02.db"));
+            }
             return new SyntheticGame(root, gameDirectory, steamRoot, appData);
         }
 

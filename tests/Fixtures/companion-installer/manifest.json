@@ -59,6 +59,22 @@
           "size": 73,
           "sha256": "d538374969b73ba5965ac6c5faf5f453268aaa858d0e6ad1813b2280e78668c8"
         }
+      ],
+      "patchArchive01": "cop-patch-01.db",
+      "patchEntries01": [
+        {
+          "name": "gamedata/scripts/ui_main_menu.script",
+          "size": 239,
+          "sha256": "34db8b81289461ee20c0eccfd27e8dd425cfd911e9448af8b676a1b28491d300"
+        }
+      ],
+      "patchArchive02": "cop-patch-02.db",
+      "patchEntries02": [
+        {
+          "name": "gamedata/scripts/ui_main_menu.script",
+          "size": 239,
+          "sha256": "17c93e7b1e70dfbac358b89b89bbed86b169aaba279c1a1608cd9c6a8d59239c"
+        }
       ]
     }
   }

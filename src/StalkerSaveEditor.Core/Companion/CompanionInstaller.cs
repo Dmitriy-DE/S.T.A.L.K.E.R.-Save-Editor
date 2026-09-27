@@ -79,10 +79,18 @@ public sealed class CompanionInstaller
             }
         }
 
-        if (_fileSystem.DirectoryExists(_modSourceRoot) && TryCreateManualManifest(gameDirectory, definition, out _, out _))
+        try
         {
-            issues.Add("Recognized a manual companion installation; it can be adopted safely.");
-            return new CompanionInstallStatus(game, true, gameDirectory, true, ModVersion, issues.AsReadOnly());
+            if (_fileSystem.DirectoryExists(_modSourceRoot) &&
+                TryCreateManualManifest(gameDirectory, definition, out _, out _))
+            {
+                issues.Add("Recognized a manual companion installation; it can be adopted safely.");
+                return new CompanionInstallStatus(game, true, gameDirectory, true, ModVersion, issues.AsReadOnly());
+            }
+        }
+        catch (CompanionInstallerException exception)
+        {
+            issues.Add(exception.Message);
         }
 
         var marker = Path.Combine(gameDirectory, "gamedata", "scripts", "save_editor_companion.script");
@@ -91,7 +99,15 @@ public sealed class CompanionInstaller
             issues.Add("Companion files are present without a verifiable install manifest.");
         }
 
-        return new CompanionInstallStatus(game, true, gameDirectory, false, null, issues.AsReadOnly());
+        issues.AddRange(GetArchiveStatusIssues(gameDirectory, definition));
+
+        return new CompanionInstallStatus(
+            game,
+            true,
+            gameDirectory,
+            false,
+            null,
+            issues.Distinct(StringComparer.Ordinal).ToArray());
     }
 
     public CompanionInstallerResult Install(
@@ -245,7 +261,7 @@ public sealed class CompanionInstaller
             {
                 original = targetExisted
                     ? _fileSystem.ReadAllBytes(target)
-                    : ReadFromArchives(gameDirectory, relative);
+                    : ReadFromArchives(gameDirectory, relative, definition);
                 wasPresentBeforeInstall = targetExisted;
             }
 
@@ -594,7 +610,7 @@ public sealed class CompanionInstaller
                 return false;
             }
 
-            var archived = ReadFromArchives(gameDirectory, relative);
+            var archived = ReadFromArchives(gameDirectory, relative, definition);
             if (!original.AsSpan().SequenceEqual(archived))
             {
                 return false;
@@ -691,10 +707,56 @@ public sealed class CompanionInstaller
         return payloads;
     }
 
-    private byte[] ReadFromArchives(string gameDirectory, string relativePath)
+    private IReadOnlyList<string> GetArchiveStatusIssues(
+        string gameDirectory,
+        CompanionGameDefinition definition)
     {
-        var matches = new List<(string ArchivePath, byte[] Bytes)>();
-        foreach (var archivePath in GetArchivePaths(gameDirectory))
+        var search = CompanionArchiveLocator.Discover(_fileSystem, gameDirectory, definition.FsgameFileNames);
+        var issues = new List<string>(search.Issues);
+        if (search.Issues.Count > 0 || search.ArchivePaths.Count == 0)
+        {
+            return issues;
+        }
+
+        var gameDataDirectory = Path.Combine(gameDirectory, "gamedata");
+        foreach (var relativePath in HookFiles)
+        {
+            if (_fileSystem.FileExists(Path.Combine(gameDataDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar))))
+            {
+                continue;
+            }
+
+            try
+            {
+                _ = ReadFromArchives(gameDirectory, relativePath, definition, search);
+            }
+            catch (CompanionInstallerException exception)
+            {
+                issues.Add(exception.Message);
+            }
+        }
+
+        return issues.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private byte[] ReadFromArchives(
+        string gameDirectory,
+        string relativePath,
+        CompanionGameDefinition definition,
+        CompanionArchiveSearchResult? archiveSearch = null)
+    {
+        var search = archiveSearch ?? CompanionArchiveLocator.Discover(
+            _fileSystem,
+            gameDirectory,
+            definition.FsgameFileNames);
+        if (search.Issues.Count > 0)
+        {
+            throw new CompanionInstallerException(
+                $"Could not resolve X-Ray archive paths from {Path.GetFileName(search.FsgamePath ?? "fsgame.ltx")}: {string.Join(" ", search.Issues)}",
+                search.FsgamePath);
+        }
+
+        foreach (var archivePath in search.ArchivePaths.Reverse())
         {
             try
             {
@@ -712,7 +774,7 @@ public sealed class CompanionInstaller
 
                 if (entries.Length == 1)
                 {
-                    matches.Add((archivePath, archive.ReadFile(entries[0].Name)));
+                    return archive.ReadFile(entries[0].Name);
                 }
             }
             catch (CompanionInstallerException)
@@ -721,53 +783,19 @@ public sealed class CompanionInstaller
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or XRayFormatException)
             {
-                // Archives that cannot be read are skipped; the missing-file error reports the searched directory.
+                throw new CompanionInstallerException(
+                    $"Could not read configured X-Ray archive {archivePath}: {exception.Message}",
+                    archivePath,
+                    exception);
             }
         }
 
-        if (matches.Count == 0)
-        {
-            throw new CompanionInstallerException(
-                $"Could not find vanilla {relativePath} in gamedata or a .db/.xdb/.xrp archive under {gameDirectory}.",
-                relativePath);
-        }
-
-        var expected = matches[0].Bytes;
-        if (matches.Any(match => !match.Bytes.AsSpan().SequenceEqual(expected)))
-        {
-            throw new CompanionInstallerException(
-                $"Multiple archives contain different versions of {relativePath}; install is ambiguous.",
-                relativePath);
-        }
-
-        return expected;
-    }
-
-    private IEnumerable<string> GetArchivePaths(string gameDirectory)
-    {
-        var candidates = new List<string>();
-        foreach (var directory in new[] { Path.Combine(gameDirectory, "db"), gameDirectory })
-        {
-            if (!_fileSystem.DirectoryExists(directory))
-            {
-                continue;
-            }
-
-            candidates.AddRange(_fileSystem.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                .Where(IsXRayArchive));
-        }
-
-        return candidates.Distinct(PathComparer).OrderBy(path => path, StringComparer.Ordinal);
-    }
-
-    private static bool IsXRayArchive(string path)
-    {
-        var name = Path.GetFileName(path);
-        var extension = Path.GetExtension(name);
-        return extension.Equals(".db", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".xdb", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".xrp", StringComparison.OrdinalIgnoreCase) ||
-            System.Text.RegularExpressions.Regex.IsMatch(name, @"\.db\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        var details = search.ArchivePaths.Count == 0
+            ? "No archives were found in the configured fsgame paths."
+            : "No configured archive contains the requested file.";
+        throw new CompanionInstallerException(
+            $"Could not find vanilla {relativePath}: {details} Check {Path.GetFileName(search.FsgamePath ?? "fsgame.ltx")}.",
+            relativePath);
     }
 
     private static bool EntryMatches(string entryName, string relativePath)

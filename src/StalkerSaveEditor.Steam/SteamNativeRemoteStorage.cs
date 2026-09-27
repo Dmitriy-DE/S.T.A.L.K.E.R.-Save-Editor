@@ -70,6 +70,12 @@ internal sealed class SteamNativeRemoteStorage : ISteamRemoteStorage
         return files.OrderByDescending(file => file.Timestamp).ToArray();
     }
 
+    public void RunCallbacks()
+    {
+        EnsureConnected();
+        SteamNativeApi.RunCallbacks();
+    }
+
     public byte[] ReadFile(string fileName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
@@ -104,6 +110,36 @@ internal sealed class SteamNativeRemoteStorage : ISteamRemoteStorage
         return bytes;
     }
 
+    public void WriteFile(string fileName, byte[] data)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentNullException.ThrowIfNull(data);
+        EnsureConnected();
+        if (data.Length is 0 or > MaximumFileBytes)
+        {
+            throw new InvalidDataException("Steam RemoteStorage write size is outside the supported range.");
+        }
+
+        var pin = GCHandle.Alloc(data, GCHandleType.Pinned);
+        try
+        {
+            if (!SteamNativeApi.WriteFile(
+                _remoteStorage,
+                fileName,
+                pin.AddrOfPinnedObject(),
+                data.Length))
+            {
+                throw new IOException($"Steam RemoteStorage rejected the write for {fileName}.");
+            }
+        }
+        finally
+        {
+            pin.Free();
+        }
+
+        SteamNativeApi.RunCallbacks();
+    }
+
     private void EnsureConnected()
     {
         if (!_initialized || _remoteStorage == IntPtr.Zero)
@@ -135,6 +171,7 @@ internal static class SteamNativeApi
     private static readonly FilePersistedDelegate FilePersistedFunction;
     private static readonly GetFileSizeDelegate GetFileSizeFunction;
     private static readonly FileReadDelegate FileReadFunction;
+    private static readonly FileWriteDelegate FileWriteFunction;
 
     static SteamNativeApi()
     {
@@ -162,6 +199,7 @@ internal static class SteamNativeApi
         FilePersistedFunction = Bind<FilePersistedDelegate>("SteamAPI_ISteamRemoteStorage_FilePersisted");
         GetFileSizeFunction = Bind<GetFileSizeDelegate>("SteamAPI_ISteamRemoteStorage_GetFileSize");
         FileReadFunction = Bind<FileReadDelegate>("SteamAPI_ISteamRemoteStorage_FileRead");
+        FileWriteFunction = Bind<FileWriteDelegate>("SteamAPI_ISteamRemoteStorage_FileWrite");
     }
 
     [DllImport(NativeLibraryName, EntryPoint = "SteamAPI_Init", CallingConvention = CallingConvention.Cdecl)]
@@ -191,6 +229,11 @@ internal static class SteamNativeApi
 
     internal static int ReadFile(IntPtr remote, string name, IntPtr buffer, int size) =>
         FileReadFunction(remote, name, buffer, size);
+
+    internal static bool WriteFile(IntPtr remote, string name, IntPtr buffer, int size) =>
+        FileWriteFunction(remote, name, buffer, size);
+
+    internal static IntPtr GetLibraryHandle() => LibraryHandle;
 
     private static IntPtr ResolveLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
     {
@@ -227,6 +270,14 @@ internal static class SteamNativeApi
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int FileReadDelegate(
+        IntPtr remote,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        IntPtr buffer,
+        int size);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    private delegate bool FileWriteDelegate(
         IntPtr remote,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
         IntPtr buffer,

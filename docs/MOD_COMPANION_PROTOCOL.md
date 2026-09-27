@@ -1,8 +1,9 @@
 # Companion protocol v1
 
 The in-game companion (`mods/companion`) lets the editor act on a running
-game: give items, money, heal, repair, teleport. One script serves Shadow of
-Chernobyl, Clear Sky, Call of Pripyat and their Enhanced Editions.
+game, including inventory actions, healing, repair, teleport and saved-point
+navigation. One script serves Shadow of Chernobyl, Clear Sky, Call of Pripyat
+and their Enhanced Editions.
 
 ## Files
 
@@ -16,6 +17,8 @@ holds `savedgames/`).
 
 The mod polls every 2 s while the actor exists (not in the main menu or
 during loading), deletes the command file after reading it, and replies once.
+After `hotkeys on`, it polls every 250 ms; `hotkeys off` restores the 2 s
+interval.
 
 ## Lines
 
@@ -39,6 +42,10 @@ reply:   v1 <id> <status> <text>
 | `teleport` | `<x> <y> <z>` | `at <x> <y> <z>` — current level only |
 | `list_inventory` | — | `<section>:<id>,...` |
 | `weather` | `[<section>] [now]` | `weather=<name>` (gets or sets active weather cycle) |
+| `mark` | — | name of the saved point |
+| `jump_last` | — | `at <name>` or `jumping to <name>@<level>` |
+| `quicksave` | `[<name>]` | save name; defaults to `se_quick` |
+| `hotkeys` | `on` or `off` | `hotkeys=on` or `hotkeys=off`; selects 250 ms or 2 s polling |
 
 Teleport points are the player's own: `info` returns the current position,
 the editor stores it as a named bookmark and replays it with `teleport`.

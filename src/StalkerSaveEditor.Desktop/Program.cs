@@ -61,12 +61,32 @@ internal static class Program
 
         if (args.Length > 0 && args[0] == "--screenshot")
         {
-            if (args.Length != 4 || args[2] != "--fixture")
+            string? outputPath = null;
+            string? fixturePath = null;
+            string tab = "overview";
+
+            for (var i = 1; i < args.Length; i++)
             {
-                throw new ArgumentException("Usage: --screenshot <png-path> --fixture <synthetic-save-path>");
+                if (args[i] == "--fixture" && i + 1 < args.Length)
+                {
+                    fixturePath = args[++i];
+                }
+                else if (args[i] == "--tab" && i + 1 < args.Length)
+                {
+                    tab = args[++i];
+                }
+                else if (outputPath is null && !args[i].StartsWith("--", StringComparison.Ordinal))
+                {
+                    outputPath = args[i];
+                }
             }
 
-            RenderScreenshot(args[1], args[3]);
+            if (outputPath is null || fixturePath is null)
+            {
+                throw new ArgumentException("Usage: --screenshot <png-path> --fixture <synthetic-save-path> [--tab <tab-name>]");
+            }
+
+            RenderScreenshot(outputPath, fixturePath, tab);
             return;
         }
 
@@ -75,7 +95,7 @@ internal static class Program
             .StartWithClassicDesktopLifetime(args);
     }
 
-    private static void RenderScreenshot(string outputPath, string fixturePath)
+    private static void RenderScreenshot(string outputPath, string fixturePath, string tab = "overview")
     {
         AppBuilder.Configure<App>()
             .UseSkia()
@@ -87,6 +107,8 @@ internal static class Program
         {
             throw new InvalidDataException("The synthetic screenshot fixture was not recognized.");
         }
+
+        viewModel.SelectedTab = tab;
 
         var window = new MainWindow(viewModel);
         window.Show();

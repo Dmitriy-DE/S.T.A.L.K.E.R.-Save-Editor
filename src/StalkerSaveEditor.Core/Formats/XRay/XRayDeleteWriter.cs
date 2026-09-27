@@ -20,9 +20,10 @@ public static class XRayDeleteWriter
             throw Error("EditPlan must include at least one object to remove.");
         }
 
-        if (plan.Money is not null || plan.StackCounts.Count != 0)
+        if (plan.Money is not null || plan.StackCounts.Count != 0 || plan.Adds.Count > 0 ||
+            plan.StashTakes.Count > 0 || plan.StashPuts.Count > 0)
         {
-            throw Error("Delete-only writer does not accept money or stack edits.");
+            throw Error("Delete-only writer does not accept money, stack, add, or stash-transfer edits.");
         }
 
         var sourceBytes = source.ToArray();

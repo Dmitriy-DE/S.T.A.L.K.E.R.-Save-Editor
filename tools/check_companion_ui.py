@@ -13,7 +13,11 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "mods/companion"
-PAIRS = [("cop/gamedata/scripts/save_editor_companion_ui.script", "cop/gamedata/configs/ui/ui_save_editor_companion.xml")]
+PAIRS = [
+    ("cop/gamedata/scripts/save_editor_companion_ui.script", "cop/gamedata/configs/ui/ui_save_editor_companion.xml"),
+    ("cs/gamedata/scripts/save_editor_companion_ui.script", "cs/gamedata/configs/ui/ui_save_editor_companion.xml"),
+    ("soc/gamedata/scripts/save_editor_companion_ui.script", "soc/gamedata/configs/ui/ui_save_editor_companion.xml"),
+]
 
 
 def has(root: ET.Element, path: str) -> bool:

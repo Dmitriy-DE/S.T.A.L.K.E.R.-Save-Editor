@@ -18,6 +18,30 @@ internal static class Program
             return;
         }
 
+        if (args.Length > 0 && args[0] == "--test-i18n")
+        {
+            var result = Services.I18nCompletenessChecker.Validate();
+            Console.WriteLine($"i18n Validation: {(result.Success ? "PASSED" : "FAILED")}");
+            Console.WriteLine($"Master messages count: {result.TotalMessages}");
+            Console.WriteLine($"Checked locales: {result.CheckedLocales}");
+            foreach (var (lang, count) in result.TranslatedCounts)
+            {
+                Console.WriteLine($"  {lang}: {count}/{result.TotalMessages} translated");
+            }
+            if (!result.Success)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Errors ({result.Errors.Count}):");
+                foreach (var err in result.Errors.Take(20))
+                {
+                    Console.WriteLine($"  - {err}");
+                }
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
+            Environment.Exit(0);
+        }
+
         if (args.Length > 0 && args[0] == "--test-audio")
         {
             var result = Services.GameAudioValidator.Validate();

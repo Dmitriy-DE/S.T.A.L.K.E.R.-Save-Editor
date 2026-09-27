@@ -17,7 +17,8 @@ public sealed record EditPlan
         IReadOnlyCollection<StashPutRequest>? stashPuts = null,
         IReadOnlyDictionary<ushort, IReadOnlyList<string>>? upgrades = null,
         string? playerFaction = null,
-        IReadOnlyDictionary<string, int>? factionRelations = null)
+        IReadOnlyDictionary<string, int>? factionRelations = null,
+        uint? stalker2StashTakeHandle = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -124,6 +125,22 @@ public sealed record EditPlan
         }
 
         FactionRelations = new ReadOnlyDictionary<string, int>(relationValues);
+        if (stalker2StashTakeHandle is 0 or uint.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(stalker2StashTakeHandle),
+                "S2 stash item handles must be neither zero nor the tombstone value.");
+        }
+
+        if (stalker2StashTakeHandle is not null &&
+            (stashTakeHandles.Length > 0 || stashPutRequests.Length > 0 || handles.Length > 0))
+        {
+            throw new ArgumentException(
+                "An S2 stash transfer cannot be combined with X-Ray stash or removal operations.",
+                nameof(stalker2StashTakeHandle));
+        }
+
+        Stalker2StashTakeHandle = stalker2StashTakeHandle;
         EditKinds = DetermineEditKinds();
     }
 
@@ -146,6 +163,8 @@ public sealed record EditPlan
     public string? PlayerFaction { get; }
 
     public IReadOnlyDictionary<string, int> FactionRelations { get; }
+
+    public uint? Stalker2StashTakeHandle { get; }
 
     public EditKind EditKinds { get; }
 
@@ -185,6 +204,11 @@ public sealed record EditPlan
         if (PlayerFaction is not null || FactionRelations.Count > 0)
         {
             kinds |= EditKind.Faction;
+        }
+
+        if (Stalker2StashTakeHandle is not null)
+        {
+            kinds |= EditKind.Stalker2StashTransfer;
         }
 
         return kinds;

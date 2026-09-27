@@ -20,8 +20,7 @@ public static class Stalker2StackWriter
             throw Error("EditPlan must include at least one stack count.");
         }
 
-        if (plan.Money is not null || plan.DetachHandles.Count > 0 || plan.Adds.Count > 0 ||
-            plan.StashTakes.Count > 0 || plan.StashPuts.Count > 0)
+        if (plan.EditKinds != EditKind.StackCounts)
         {
             throw Error("Stack-only writer does not accept money, delete, add or stash-transfer edits.");
         }

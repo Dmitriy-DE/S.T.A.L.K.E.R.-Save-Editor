@@ -48,7 +48,8 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Unsupported,
-                    CapabilityMaturity.Unsupported),
+                    CapabilityMaturity.Unsupported,
+                    includeMoveItems: true),
             });
 
     public static CapabilitySupport Get(string releaseId, string capability)
@@ -75,15 +76,23 @@ public static class CapabilityRegistry
         CapabilityMaturity addItems,
         CapabilityMaturity removeItems,
         CapabilityMaturity relations = CapabilityMaturity.Unsupported,
-        CapabilityMaturity playerFaction = CapabilityMaturity.Unsupported) =>
-        new ReadOnlyDictionary<string, CapabilitySupport>(
-            new Dictionary<string, CapabilitySupport>(StringComparer.Ordinal)
-            {
-                ["edit_money"] = new(money),
-                ["edit_stacks"] = new(stacks),
-                ["add_items"] = new(addItems),
-                ["remove_items"] = new(removeItems),
-                ["edit_relations"] = new(relations),
-                ["edit_player_faction"] = new(playerFaction),
-            });
+        CapabilityMaturity playerFaction = CapabilityMaturity.Unsupported,
+        bool includeMoveItems = false)
+    {
+        var capabilities = new Dictionary<string, CapabilitySupport>(StringComparer.Ordinal)
+        {
+            ["edit_money"] = new(money),
+            ["edit_stacks"] = new(stacks),
+            ["add_items"] = new(addItems),
+            ["remove_items"] = new(removeItems),
+            ["edit_relations"] = new(relations),
+            ["edit_player_faction"] = new(playerFaction),
+        };
+        if (includeMoveItems)
+        {
+            capabilities["move_items"] = new(CapabilityMaturity.Unsupported);
+        }
+
+        return new ReadOnlyDictionary<string, CapabilitySupport>(capabilities);
+    }
 }

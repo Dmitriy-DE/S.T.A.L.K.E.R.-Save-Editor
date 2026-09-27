@@ -111,9 +111,14 @@ public sealed class Stalker2MoneyWriterTests
             moneySha,
             money: 1234,
             stashPuts: [new StashPutRequest(1, 2)]);
+        var s2StashMoneyPlan = new EditPlan(
+            moneySha,
+            money: 1234,
+            stalker2StashTakeHandle: 0x3000_0010);
 
         Assert.Throws<Stalker2FormatException>(() => Stalker2MoneyWriter.Prepare(moneySource, moneyPlan));
         Assert.Throws<Stalker2FormatException>(() => Stalker2MoneyWriter.Prepare(moneySource, moneyPutPlan));
+        Assert.Throws<Stalker2FormatException>(() => Stalker2MoneyWriter.Prepare(moneySource, s2StashMoneyPlan));
 
         var stackSource = File.ReadAllBytes(Path.Combine(
             AppContext.BaseDirectory,
@@ -126,9 +131,14 @@ public sealed class Stalker2MoneyWriterTests
             Sha256(stackSource),
             stackCounts: stackCounts,
             stashPuts: [new StashPutRequest(1, 2)]);
+        var s2StashStackPlan = new EditPlan(
+            Sha256(stackSource),
+            stackCounts: stackCounts,
+            stalker2StashTakeHandle: 0x3000_0010);
 
         Assert.Throws<Stalker2FormatException>(() => Stalker2StackWriter.Prepare(stackSource, stackPlan));
         Assert.Throws<Stalker2FormatException>(() => Stalker2StackWriter.Prepare(stackSource, stackPutPlan));
+        Assert.Throws<Stalker2FormatException>(() => Stalker2StackWriter.Prepare(stackSource, s2StashStackPlan));
     }
 
     [Fact]

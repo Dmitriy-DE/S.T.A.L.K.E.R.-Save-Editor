@@ -14,21 +14,24 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Experimental,
-                    CapabilityMaturity.Experimental),
+                    CapabilityMaturity.Experimental,
+                    durability: CapabilityMaturity.Experimental),
                 ["stalker-cs"] = Create(
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Experimental,
-                    CapabilityMaturity.Experimental),
+                    CapabilityMaturity.Experimental,
+                    durability: CapabilityMaturity.Experimental),
                 ["stalker-cop"] = Create(
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Experimental,
-                    CapabilityMaturity.Experimental),
+                    CapabilityMaturity.Experimental,
+                    durability: CapabilityMaturity.Experimental),
                 ["stalker-soc-ee"] = Create(
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Experimental,
@@ -49,6 +52,7 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Unsupported,
                     CapabilityMaturity.Unsupported,
+                    durability: CapabilityMaturity.Experimental,
                     includeMoveItems: true),
             });
 
@@ -77,12 +81,14 @@ public static class CapabilityRegistry
         CapabilityMaturity removeItems,
         CapabilityMaturity relations = CapabilityMaturity.Unsupported,
         CapabilityMaturity playerFaction = CapabilityMaturity.Unsupported,
+        CapabilityMaturity durability = CapabilityMaturity.Unsupported,
         bool includeMoveItems = false)
     {
         var capabilities = new Dictionary<string, CapabilitySupport>(StringComparer.Ordinal)
         {
             ["edit_money"] = new(money),
             ["edit_stacks"] = new(stacks),
+            ["edit_durability"] = new(durability),
             ["add_items"] = new(addItems),
             ["remove_items"] = new(removeItems),
             ["edit_relations"] = new(relations),

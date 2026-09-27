@@ -75,6 +75,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public RelayCommand RemoveSelectedItemCommand { get; }
     public RelayCommand<string> RestoreConditionCommand { get; }
 
+    public CapabilitiesViewModel Capabilities { get; } = new();
+
     public string SelectedTab
     {
         get => _selectedTab;
@@ -89,6 +91,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsTransitionsTab));
                 OnPropertyChanged(nameof(IsBackupsTab));
                 OnPropertyChanged(nameof(IsSettingsTab));
+                OnPropertyChanged(nameof(IsCapabilitiesTab));
+                OnPropertyChanged(nameof(ShowOverviewScreen));
+                OnPropertyChanged(nameof(ShowInventoryScreen));
+                OnPropertyChanged(nameof(ShowFactionsScreen));
+                OnPropertyChanged(nameof(ShowStashesScreen));
+                OnPropertyChanged(nameof(ShowTransitionsScreen));
+                OnPropertyChanged(nameof(ShowBackupsScreen));
+                OnPropertyChanged(nameof(ShowSettingsScreen));
+                OnPropertyChanged(nameof(ShowCapabilitiesScreen));
+                OnPropertyChanged(nameof(ShouldShowEmptyState));
             }
         }
     }
@@ -100,6 +112,17 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsTransitionsTab => SelectedTab == "transitions";
     public bool IsBackupsTab => SelectedTab == "backups";
     public bool IsSettingsTab => SelectedTab == "settings";
+    public bool IsCapabilitiesTab => SelectedTab == "capabilities";
+
+    public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
+    public bool ShowInventoryScreen => HasSelection && IsInventoryTab;
+    public bool ShowFactionsScreen => HasSelection && IsFactionsTab;
+    public bool ShowStashesScreen => HasSelection && IsStashesTab;
+    public bool ShowTransitionsScreen => HasSelection && IsTransitionsTab;
+    public bool ShowBackupsScreen => HasSelection && IsBackupsTab;
+    public bool ShowSettingsScreen => IsSettingsTab;
+    public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab;
 
     public SaveFileSummary? SelectedSave
     {
@@ -113,6 +136,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 foreach (var item in previous.Inventory) item.PropertyChanged -= OnInventoryItemPropertyChanged;
             }
+
+            Capabilities.SelectedFormatId = value?.ReleaseId;
 
             if (value is not null)
             {
@@ -137,10 +162,20 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             OnPropertyChanged(nameof(MoneyInput));
             OnPropertyChanged(nameof(CanEditMoney));
             OnPropertyChanged(nameof(CanSave));
+            OnPropertyChanged(nameof(SaveDisabledReason));
             OnPropertyChanged(nameof(CanUndo));
             OnPropertyChanged(nameof(CanRedo));
             OnPropertyChanged(nameof(HasDraftChanges));
             OnPropertyChanged(nameof(DraftStatusText));
+            OnPropertyChanged(nameof(ShowOverviewScreen));
+            OnPropertyChanged(nameof(ShowInventoryScreen));
+            OnPropertyChanged(nameof(ShowFactionsScreen));
+            OnPropertyChanged(nameof(ShowStashesScreen));
+            OnPropertyChanged(nameof(ShowTransitionsScreen));
+            OnPropertyChanged(nameof(ShowBackupsScreen));
+            OnPropertyChanged(nameof(ShowSettingsScreen));
+            OnPropertyChanged(nameof(ShowCapabilitiesScreen));
+            OnPropertyChanged(nameof(ShouldShowEmptyState));
 
             SaveCommand.NotifyCanExecuteChanged();
             UndoCommand.NotifyCanExecuteChanged();
@@ -163,6 +198,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 RecordDraftChange();
                 OnPropertyChanged(nameof(CanSave));
+                OnPropertyChanged(nameof(SaveDisabledReason));
                 SaveCommand.NotifyCanExecuteChanged();
             }
         }
@@ -177,6 +213,22 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool CanEditMoney => SelectedSave?.CanEditMoney == true;
 
     public bool CanSave => !_isSaving && SelectedSave is not null && EditService.CanEdit(SelectedSave.ReleaseId) && HasDraftChanges && InputsAreValid(SelectedSave);
+
+    public string SaveDisabledReason
+    {
+        get
+        {
+            if (SelectedSave is null)
+                return "Выберите сохранение для редактирования.";
+            if (!EditService.CanEdit(SelectedSave.ReleaseId))
+                return $"Запись для формата {SelectedSave.ReleaseName} отключена в UI в целях безопасности.";
+            if (!HasDraftChanges)
+                return "Нет несохранённых изменений.";
+            if (!InputsAreValid(SelectedSave))
+                return "Введены некорректные значения (проверьте введённые числа).";
+            return "Сохранить изменения в файл сейва (с созданием резервной копии).";
+        }
+    }
 
     public bool CanUndo => _currentJournal?.CanUndo == true;
     public bool CanRedo => _currentJournal?.CanRedo == true;
@@ -665,6 +717,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
         OnPropertyChanged(nameof(CanSave));
+        OnPropertyChanged(nameof(SaveDisabledReason));
         OnPropertyChanged(nameof(HasDraftChanges));
         OnPropertyChanged(nameof(DraftStatusText));
 
@@ -773,17 +826,30 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    private static bool HasCapability(string releaseId, string capability)
+    private static (bool Writable, string? Reason) CheckCapability(string releaseId, string capability)
     {
+        if (!EditService.CanEdit(releaseId))
+        {
+            var isS2 = string.Equals(releaseId, "stalker2", StringComparison.OrdinalIgnoreCase);
+            var reason = isS2
+                ? "Запись S.T.A.L.K.E.R. 2 выключена в UI до верификации мутаций в живой игре."
+                : $"Запись для формата {releaseId} выключена в UI в целях безопасности.";
+            return (false, reason);
+        }
+
         try
         {
-            return CapabilityRegistry.Get(releaseId, capability).Writable;
+            var support = CapabilityRegistry.Get(releaseId, capability);
+            return (support.Writable, support.Writable ? null : (support.Reason ?? "Операция не поддерживается данным форматом"));
         }
         catch (KeyNotFoundException)
         {
-            return false;
+            return (false, "Операция не поддерживается данным форматом");
         }
     }
+
+    private static bool HasCapability(string releaseId, string capability) =>
+        CheckCapability(releaseId, capability).Writable;
 
     private static SaveFileSummary FromXRay(
         XRayTrilogySave save,
@@ -793,15 +859,20 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         DateTime lastModified)
     {
         var formatId = save.FormatId;
-        var canEditMoney = HasCapability(formatId, "edit_money");
-        var canEditStacks = HasCapability(formatId, "edit_stacks");
-        var canEditDurability = HasCapability(formatId, "edit_durability");
-        var canEditPlacement = HasCapability(formatId, "edit_placement");
-        var canEditUpgrades = formatId is "stalker-cs" or "stalker-cs-ee" or "stalker-cop" or "stalker-cop-ee";
-        var canEditFactions = HasCapability(formatId, "edit_relations") || HasCapability(formatId, "edit_player_faction");
-        var canEditStashes = save.Stashes.Count > 0;
-        var canAddItems = HasCapability(formatId, "add_items");
-        var canRemoveItems = HasCapability(formatId, "remove_items");
+        var (canEditMoney, moneyReason) = CheckCapability(formatId, "edit_money");
+        var (canEditStacks, stacksReason) = CheckCapability(formatId, "edit_stacks");
+        var (canEditDurability, durabilityReason) = CheckCapability(formatId, "edit_durability");
+        var (canEditPlacement, placementReason) = CheckCapability(formatId, "edit_placement");
+        var (canEditUpgrades, upgradesReason) = CheckCapability(formatId, "edit_upgrades");
+        var (canEditRelations, relationsReason) = CheckCapability(formatId, "edit_relations");
+        var (canEditPlayerFaction, playerFactionReason) = CheckCapability(formatId, "edit_player_faction");
+        var canEditFactions = canEditRelations || canEditPlayerFaction;
+        var factionReason = canEditFactions ? null : (relationsReason ?? playerFactionReason);
+        var (canMoveItems, moveReason) = CheckCapability(formatId, "move_items");
+        var canEditStashes = canMoveItems && save.Stashes.Count > 0;
+        var stashesReason = !canMoveItems ? moveReason : (save.Stashes.Count == 0 ? "В сохранении нет тайников" : null);
+        var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
+        var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
         var catalog = Catalogs.TryGetValue(formatId, out var bundle) ? bundle : null;
         var upgradeCatalog = catalog?.Upgrades;
@@ -824,7 +895,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 canEditPlacement && item.PlacementEditable,
                 item.Upgrades,
                 canEditUpgrades,
-                availableUpgrades);
+                availableUpgrades,
+                countDisabledReason: stacksReason,
+                conditionDisabledReason: durabilityReason,
+                placementDisabledReason: placementReason,
+                upgradesDisabledReason: upgradesReason);
         });
 
         var stashes = save.Stashes.Select(s => new StashViewModel(
@@ -835,7 +910,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 i.Handle,
                 i.TypeKey,
                 OfficialNames.Resolve(formatId, "items", i.TypeKey, CultureInfo.CurrentUICulture.Name) ?? i.TypeKey,
-                i.Count ?? 1))));
+                i.Count ?? 1,
+                canEdit: canEditStashes,
+                disabledReason: stashesReason))));
 
         var factionRelations = new List<FactionRelationViewModel>();
         var factionCatalog = catalog?.Factions;
@@ -848,7 +925,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, CultureInfo.CurrentUICulture.Name)
                     ?? factionDef?.DisplayName
                     ?? commKey;
-                factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions));
+                factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions, factionReason));
             }
         }
 
@@ -896,7 +973,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             crcOk: true,
             stashes: stashes,
             transitions: transitions,
-            factionRelations: factionRelations);
+            factionRelations: factionRelations,
+            moneyDisabledReason: moneyReason,
+            factionDisabledReason: factionReason,
+            upgradesDisabledReason: upgradesReason,
+            durabilityDisabledReason: durabilityReason,
+            placementDisabledReason: placementReason,
+            stashesDisabledReason: stashesReason,
+            addItemsDisabledReason: addReason,
+            removeItemsDisabledReason: removeReason);
     }
 
     private static SaveFileSummary FromStalker2(
@@ -906,32 +991,66 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         long fileSize,
         DateTime lastModified)
     {
-        var catalog = Catalogs.TryGetValue("stalker2", out var bundle) ? bundle.Items : null;
+        const string formatId = "stalker2";
+        var (canEditMoney, moneyReason) = CheckCapability(formatId, "edit_money");
+        var (canEditStacks, stacksReason) = CheckCapability(formatId, "edit_stacks");
+        var (canEditDurability, durabilityReason) = CheckCapability(formatId, "edit_durability");
+        var (canEditPlacement, placementReason) = CheckCapability(formatId, "edit_placement");
+        var (canEditUpgrades, upgradesReason) = CheckCapability(formatId, "edit_upgrades");
+        var (canEditRelations, relationsReason) = CheckCapability(formatId, "edit_relations");
+        var (canEditPlayerFaction, playerFactionReason) = CheckCapability(formatId, "edit_player_faction");
+        var canEditFaction = canEditRelations || canEditPlayerFaction;
+        var factionReason = canEditFaction ? null : (relationsReason ?? playerFactionReason);
+        var (canEditStashes, stashesReason) = CheckCapability(formatId, "move_items");
+        var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
+        var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
+
+        var catalog = Catalogs.TryGetValue(formatId, out var bundle) ? bundle.Items : null;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
             item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
             item.TypeKey,
             item.Handle,
             item.Category,
             item.Count,
-            canEditCount: false,
+            canEditCount: canEditStacks,
             item.Condition,
-            canEditCondition: false,
+            canEditCondition: canEditDurability,
             item.Storage,
-            canEditPlacement: false,
+            canEditPlacement: canEditPlacement,
             upgrades: item.Upgrades,
-            canEditUpgrades: false));
+            canEditUpgrades: canEditUpgrades,
+            availableUpgrades: null,
+            countDisabledReason: stacksReason,
+            conditionDisabledReason: durabilityReason,
+            placementDisabledReason: placementReason,
+            upgradesDisabledReason: upgradesReason));
 
         return new SaveFileSummary(
             path,
-            "S.T.A.L.K.E.R. 2",
-            "stalker2",
+            ReleaseName(formatId),
+            formatId,
             sourceSha256,
             save.Money,
-            canEditMoney: false,
+            canEditMoney,
             inventory: inventory,
             fileSizeBytes: fileSize,
             lastModified: lastModified,
-            crcOk: save.StoredCrc32 == save.ComputedCrc32);
+            canEditFaction: canEditFaction,
+            canEditUpgrades: canEditUpgrades,
+            canEditDurability: canEditDurability,
+            canEditPlacement: canEditPlacement,
+            canEditStashes: canEditStashes,
+            canAddItems: canAddItems,
+            canRemoveItems: canRemoveItems,
+            crcOk: save.StoredCrc32 == save.ComputedCrc32,
+            moneyDisabledReason: moneyReason,
+            factionDisabledReason: factionReason,
+            upgradesDisabledReason: upgradesReason,
+            durabilityDisabledReason: durabilityReason,
+            placementDisabledReason: placementReason,
+            stashesDisabledReason: stashesReason,
+            addItemsDisabledReason: addReason,
+            removeItemsDisabledReason: removeReason);
     }
 
 

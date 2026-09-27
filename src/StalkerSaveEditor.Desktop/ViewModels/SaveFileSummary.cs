@@ -33,7 +33,15 @@ public sealed class SaveFileSummary
         bool crcOk = true,
         IEnumerable<StashViewModel>? stashes = null,
         IEnumerable<TransitionViewModel>? transitions = null,
-        IEnumerable<FactionRelationViewModel>? factionRelations = null)
+        IEnumerable<FactionRelationViewModel>? factionRelations = null,
+        string? moneyDisabledReason = null,
+        string? factionDisabledReason = null,
+        string? upgradesDisabledReason = null,
+        string? durabilityDisabledReason = null,
+        string? placementDisabledReason = null,
+        string? stashesDisabledReason = null,
+        string? addItemsDisabledReason = null,
+        string? removeItemsDisabledReason = null)
     {
         FilePath = Path.GetFullPath(filePath);
         DisplayName = Path.GetFileName(filePath);
@@ -42,6 +50,9 @@ public sealed class SaveFileSummary
         SourceSha256 = sourceSha256;
         Money = money;
         CanEditMoney = canEditMoney;
+        MoneyDisabledReason = canEditMoney
+            ? "Изменить баланс сталкера"
+            : moneyDisabledReason ?? "Редактирование денег не поддерживается данным форматом";
         FileSizeBytes = fileSizeBytes;
         LastModified = lastModified;
 
@@ -55,12 +66,40 @@ public sealed class SaveFileSummary
         PlayerFaction = playerFaction;
 
         CanEditFaction = canEditFaction;
+        FactionDisabledReason = canEditFaction
+            ? "Редактировать отношения с группировками"
+            : factionDisabledReason ?? "Редактирование отношений фракций не поддерживается данным форматом";
+
         CanEditUpgrades = canEditUpgrades;
+        UpgradesDisabledReason = canEditUpgrades
+            ? "Редактировать апгрейды"
+            : upgradesDisabledReason ?? "Модификации оружия и брони не поддерживаются форматом";
+
         CanEditDurability = canEditDurability;
+        DurabilityDisabledReason = canEditDurability
+            ? "Редактировать состояние предметов"
+            : durabilityDisabledReason ?? "Редактирование прочности не поддерживается форматом";
+
         CanEditPlacement = canEditPlacement;
+        PlacementDisabledReason = canEditPlacement
+            ? "Перемещать предметы"
+            : placementDisabledReason ?? "Перемещение предметов не поддерживается данным форматом";
+
         CanEditStashes = canEditStashes;
+        StashesDisabledReason = canEditStashes
+            ? "Переместить хабар из тайников"
+            : stashesDisabledReason ?? "В сохранении нет тайников с предметами или операция не поддерживается";
+
         CanAddItems = canAddItems;
+        AddItemsDisabledReason = canAddItems
+            ? "Добавить предмет из каталога в инвентарь"
+            : addItemsDisabledReason ?? "Добавление предметов не поддерживается данным форматом";
+
         CanRemoveItems = canRemoveItems;
+        RemoveItemsDisabledReason = canRemoveItems
+            ? "Удалить выбранный предмет из инвентаря"
+            : removeItemsDisabledReason ?? "Удаление предметов не поддерживается данным форматом";
+
         CrcOk = crcOk;
 
         Inventory = new ObservableCollection<InventoryLineViewModel>(inventory);
@@ -76,6 +115,7 @@ public sealed class SaveFileSummary
     public string SourceSha256 { get; }
     public uint Money { get; }
     public bool CanEditMoney { get; }
+    public string MoneyDisabledReason { get; }
     public long FileSizeBytes { get; }
     public DateTime? LastModified { get; }
 
@@ -89,12 +129,19 @@ public sealed class SaveFileSummary
     public string? PlayerFaction { get; }
 
     public bool CanEditFaction { get; }
+    public string FactionDisabledReason { get; }
     public bool CanEditUpgrades { get; }
+    public string UpgradesDisabledReason { get; }
     public bool CanEditDurability { get; }
+    public string DurabilityDisabledReason { get; }
     public bool CanEditPlacement { get; }
+    public string PlacementDisabledReason { get; }
     public bool CanEditStashes { get; }
+    public string StashesDisabledReason { get; }
     public bool CanAddItems { get; }
+    public string AddItemsDisabledReason { get; }
     public bool CanRemoveItems { get; }
+    public string RemoveItemsDisabledReason { get; }
     public bool CrcOk { get; }
 
     public ObservableCollection<InventoryLineViewModel> Inventory { get; }

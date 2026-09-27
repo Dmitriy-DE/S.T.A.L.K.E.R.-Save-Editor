@@ -6,13 +6,15 @@ public sealed class StashItemViewModel : ObservableViewModel
 {
     private bool _isTaken;
 
-    public StashItemViewModel(ushort handle, string typeKey, string displayName, uint count)
+    public StashItemViewModel(ushort handle, string typeKey, string displayName, uint count, bool canEdit = true, string? disabledReason = null)
     {
         Handle = handle;
         TypeKey = typeKey;
         DisplayName = displayName;
         Count = count;
         CountDisplay = count > 1 ? $"× {count}" : string.Empty;
+        CanEdit = canEdit;
+        DisabledReason = disabledReason ?? (canEdit ? "Переместить предмет в инвентарь персонажа" : "Перемещение из тайников не поддерживается");
     }
 
     public ushort Handle { get; }
@@ -20,6 +22,8 @@ public sealed class StashItemViewModel : ObservableViewModel
     public string DisplayName { get; }
     public uint Count { get; }
     public string CountDisplay { get; }
+    public bool CanEdit { get; }
+    public string DisabledReason { get; }
 
     public bool IsTaken
     {

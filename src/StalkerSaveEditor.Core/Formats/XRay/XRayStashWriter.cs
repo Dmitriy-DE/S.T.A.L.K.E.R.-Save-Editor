@@ -18,7 +18,7 @@ public static class XRayStashWriter
             throw Error("EditPlan must include at least one stash transfer.");
         }
 
-        if (plan.Money is not null || plan.StackCounts.Count > 0 ||
+        if (plan.Money is not null || plan.StackCounts.Count > 0 || plan.Upgrades.Count > 0 ||
             plan.DetachHandles.Count > 0 || plan.Adds.Count > 0)
         {
             throw Error("Stash-only writer does not accept money, stack, delete, or add requests.");

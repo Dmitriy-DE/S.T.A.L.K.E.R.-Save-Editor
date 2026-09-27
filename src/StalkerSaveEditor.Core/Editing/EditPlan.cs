@@ -14,7 +14,8 @@ public sealed record EditPlan
         IReadOnlyCollection<ushort>? detachHandles = null,
         IReadOnlyCollection<ItemAddRequest>? adds = null,
         IReadOnlyCollection<ushort>? stashTakes = null,
-        IReadOnlyCollection<StashPutRequest>? stashPuts = null)
+        IReadOnlyCollection<StashPutRequest>? stashPuts = null,
+        IReadOnlyDictionary<ushort, IReadOnlyList<string>>? upgrades = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -79,6 +80,33 @@ public sealed record EditPlan
         }
 
         StashPuts = Array.AsReadOnly(stashPutRequests);
+
+        var upgradeEdits = new Dictionary<ushort, IReadOnlyList<string>>();
+        if (upgrades is not null)
+        {
+            foreach (var (handle, requestedKeys) in upgrades)
+            {
+                if (requestedKeys is null)
+                {
+                    throw new ArgumentException("Upgrade vectors must not be null.", nameof(upgrades));
+                }
+
+                var keys = requestedKeys.ToArray();
+                if (keys.Any(key => string.IsNullOrEmpty(key) || key.Contains('\0')))
+                {
+                    throw new ArgumentException("Upgrade keys must be non-empty and must not contain NUL.", nameof(upgrades));
+                }
+
+                if (keys.Distinct(StringComparer.Ordinal).Count() != keys.Length)
+                {
+                    throw new ArgumentException("Upgrade keys must be unique per item.", nameof(upgrades));
+                }
+
+                upgradeEdits.Add(handle, Array.AsReadOnly(keys));
+            }
+        }
+
+        Upgrades = new ReadOnlyDictionary<ushort, IReadOnlyList<string>>(upgradeEdits);
     }
 
     public string SourceSha256 { get; }
@@ -94,4 +122,6 @@ public sealed record EditPlan
     public IReadOnlyList<ushort> StashTakes { get; }
 
     public IReadOnlyList<StashPutRequest> StashPuts { get; }
+
+    public IReadOnlyDictionary<ushort, IReadOnlyList<string>> Upgrades { get; }
 }

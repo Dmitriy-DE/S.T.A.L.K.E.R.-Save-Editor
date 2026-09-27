@@ -39,7 +39,7 @@ public static class XRayAddWriter
             throw Error("EditPlan must include at least one item to add.");
         }
 
-        if (plan.Money is not null || plan.StackCounts.Count > 0 || plan.DetachHandles.Count > 0 ||
+        if (plan.Money is not null || plan.StackCounts.Count > 0 || plan.DetachHandles.Count > 0 || plan.Upgrades.Count > 0 ||
             plan.StashTakes.Count > 0 || plan.StashPuts.Count > 0)
         {
             throw Error("Add-only writer does not accept money, stack, delete, or stash-transfer edits.");

@@ -16,7 +16,7 @@ public static class XRayEditWriter
         if ((editKinds & (EditKind.Delete | EditKind.Add)) != EditKind.None)
         {
             throw new XRayFormatException(
-                "X-Ray edit: EditPlan cannot mix add/delete operations with money, stacks, durability, or stash transfers.");
+                "X-Ray edit: EditPlan cannot mix add/delete operations with money, stacks, durability, placement, or stash transfers.");
         }
 
         const EditKind supportedKinds =
@@ -25,7 +25,8 @@ public static class XRayEditWriter
             EditKind.XRayStashTransfer |
             EditKind.Upgrades |
             EditKind.Faction |
-            EditKind.Durability;
+            EditKind.Durability |
+            EditKind.Placement;
         if ((editKinds & ~supportedKinds) != EditKind.None)
         {
             throw new XRayFormatException("X-Ray edit: EditPlan contains an unsupported X-Ray edit kind.");
@@ -55,6 +56,11 @@ public static class XRayEditWriter
         if (editKinds == EditKind.Durability)
         {
             return XRayDurabilityWriter.Prepare(source, plan);
+        }
+
+        if (editKinds == EditKind.Placement)
+        {
+            return XRayPlacementWriter.Prepare(source, plan);
         }
 
         if (editKinds == EditKind.Money)
@@ -106,6 +112,14 @@ public static class XRayEditWriter
             working = XRayDurabilityWriter.Prepare(
                 working,
                 new EditPlan(currentSha256, durability: plan.Durability)).Data.ToArray();
+            currentSha256 = Sha256(working);
+        }
+
+        if ((editKinds & EditKind.Placement) != EditKind.None)
+        {
+            working = XRayPlacementWriter.Prepare(
+                working,
+                new EditPlan(currentSha256, placements: plan.Placements)).Data.ToArray();
             currentSha256 = Sha256(working);
         }
 

@@ -191,6 +191,82 @@ def generate(python_repo: Path, output_dir: Path) -> int:
             }
         )
 
+    # Exercise every public placement destination with original-release
+    # serializers. EE vectors remain reader fixtures because their registry
+    # marks placement writes unsupported.
+    equipped_place = 1 | (2 << 4) | (3 << 10)
+    for release_id, spec, opts in cases[:3]:
+        for variant, item_name, destination in (
+            ("belt", "af_medusa", ("belt", None)),
+            ("ruck", "wpn_test", ("ruck", None)),
+        ):
+            source = condition_fixture(
+                version=opts["version"],
+                outer=opts["outer"],
+                name=item_name,
+                condition=0.75,
+                client_place=equipped_place,
+            )
+            sha256 = hashlib.sha256(source).hexdigest()
+            prepared = prepare_xray(
+                source,
+                EditPlan(
+                    source=SourceRef(kind="local", locator="synthetic-placement", sha256=sha256),
+                    placements=((HANDLE, *destination),),
+                ),
+                spec,
+            )
+            expected = bytes(prepared.data)
+            source_raw = XRayContainer.from_bytes(source).raw
+            expected_raw = XRayContainer.from_bytes(expected).raw
+            parsed = parse_xray(expected, spec)
+            item = parsed.inventory[0]
+            expected_type = destination[0]
+            if item.placement_type != expected_type:
+                raise SystemExit(f"Python oracle failed {variant} placement round-trip for {release_id}")
+
+            slug = release_id.removeprefix("stalker-")
+            names = {
+                "source": f"xray-placement-{slug}-{variant}-source.sav",
+                "expected": f"xray-placement-{slug}-{variant}-expected.sav",
+                "expectedRaw": f"xray-placement-{slug}-{variant}-expected.raw",
+            }
+            (output_dir / names["source"]).write_bytes(source)
+            (output_dir / names["expected"]).write_bytes(expected)
+            (output_dir / names["expectedRaw"]).write_bytes(expected_raw)
+            vectors.append(
+                {
+                    "releaseId": release_id,
+                    "variant": variant,
+                    **names,
+                    "sourceSha256": sha256,
+                    "expectedSha256": hashlib.sha256(expected).hexdigest(),
+                    "expectedRawSha256": hashlib.sha256(expected_raw).hexdigest(),
+                    "handle": HANDLE,
+                    "sourcePlacement": {
+                        "type": "slot",
+                        "slot": 2,
+                        "baseSlot": 3,
+                        "storage": "equipped",
+                    },
+                    "targetPlacement": {
+                        "type": expected_type,
+                        "slot": 2,
+                        "baseSlot": 3,
+                        "storage": "inventory",
+                    },
+                    "changedRawOffsets": [
+                        index
+                        for index, (before, after) in enumerate(zip(source_raw, expected_raw))
+                        if before != after
+                    ],
+                    "capabilities": {
+                        name: by_id(release_id).capabilities.support(name).maturity
+                        for name in CAPABILITIES
+                    },
+                }
+            )
+
     # Negative case 1: weapon into helmet slot (slot 12)
     cop_source = vectors[2]["source"]
     cop_bytes = (output_dir / cop_source).read_bytes()

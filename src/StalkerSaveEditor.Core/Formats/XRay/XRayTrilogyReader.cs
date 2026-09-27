@@ -297,6 +297,8 @@ public static class XRayTrilogyReader
             clientConditionOffset = parsedClientConditionOffset;
         }
 
+        var placement = actorOwned ? TryReadPlacement(raw, record) : null;
+
         return new XRayInventoryItem(
             record.ObjectId,
             record.ParentId,
@@ -311,7 +313,27 @@ public static class XRayTrilogyReader
             condition,
             conditionStateOffset,
             conditionUpdateOffset,
-            clientConditionOffset);
+            clientConditionOffset,
+            placement);
+    }
+
+    private static XRayPlacementAnchor? TryReadPlacement(ReadOnlySpan<byte> raw, ObjectRecord record)
+    {
+        if (record.ClientDataOffset is not { } clientDataOffset ||
+            record.ClientDataLength < 1 + sizeof(ushort))
+        {
+            return null;
+        }
+
+        var offset = checked(clientDataOffset + 1);
+        if (offset < clientDataOffset || offset > raw.Length - sizeof(ushort) ||
+            offset > clientDataOffset + record.ClientDataLength - sizeof(ushort) ||
+            !XRayAddWriter.TryReadPlacement(raw[offset..], out var value))
+        {
+            return null;
+        }
+
+        return new XRayPlacementAnchor(value, offset);
     }
 
     private static bool HasConditionFamily(string name)

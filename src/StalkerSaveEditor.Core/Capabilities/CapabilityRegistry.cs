@@ -15,7 +15,8 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Experimental,
-                    durability: CapabilityMaturity.Experimental),
+                    durability: CapabilityMaturity.Experimental,
+                    placement: CapabilityMaturity.Experimental),
                 ["stalker-cs"] = Create(
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
@@ -23,7 +24,8 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Experimental,
-                    durability: CapabilityMaturity.Experimental),
+                    durability: CapabilityMaturity.Experimental,
+                    placement: CapabilityMaturity.Experimental),
                 ["stalker-cop"] = Create(
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Verified,
@@ -31,7 +33,8 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Verified,
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Experimental,
-                    durability: CapabilityMaturity.Experimental),
+                    durability: CapabilityMaturity.Experimental,
+                    placement: CapabilityMaturity.Experimental),
                 ["stalker-soc-ee"] = Create(
                     CapabilityMaturity.Experimental,
                     CapabilityMaturity.Experimental,
@@ -53,6 +56,7 @@ public static class CapabilityRegistry
                     CapabilityMaturity.Unsupported,
                     CapabilityMaturity.Unsupported,
                     durability: CapabilityMaturity.Experimental,
+                    placement: CapabilityMaturity.Unsupported,
                     includeMoveItems: true),
             });
 
@@ -82,6 +86,7 @@ public static class CapabilityRegistry
         CapabilityMaturity relations = CapabilityMaturity.Unsupported,
         CapabilityMaturity playerFaction = CapabilityMaturity.Unsupported,
         CapabilityMaturity durability = CapabilityMaturity.Unsupported,
+        CapabilityMaturity placement = CapabilityMaturity.Unsupported,
         bool includeMoveItems = false)
     {
         var capabilities = new Dictionary<string, CapabilitySupport>(StringComparer.Ordinal)
@@ -89,6 +94,7 @@ public static class CapabilityRegistry
             ["edit_money"] = new(money),
             ["edit_stacks"] = new(stacks),
             ["edit_durability"] = new(durability),
+            ["edit_placement"] = new(placement),
             ["add_items"] = new(addItems),
             ["remove_items"] = new(removeItems),
             ["edit_relations"] = new(relations),

@@ -111,6 +111,8 @@ internal sealed record XRayRegistryObject(
     int? ClientDataOffset,
     int ClientDataLength);
 
+internal readonly record struct XRayPlacementAnchor(ushort Value, int Offset);
+
 public sealed class XRayStash
 {
     internal XRayStash(
@@ -136,6 +138,9 @@ public sealed class XRayStash
 
 public sealed class XRayInventoryItem
 {
+    private readonly ushort _placementValue;
+    private readonly int _placementOffset;
+
     internal XRayInventoryItem(
         ushort handle,
         ushort parentId,
@@ -150,7 +155,8 @@ public sealed class XRayInventoryItem
         float? condition,
         int? conditionStateOffset,
         int? conditionUpdateOffset,
-        int? clientConditionOffset)
+        int? clientConditionOffset,
+        XRayPlacementAnchor? placement)
     {
         Handle = handle;
         ParentId = parentId;
@@ -166,6 +172,8 @@ public sealed class XRayInventoryItem
         ConditionStateOffset = conditionStateOffset;
         ConditionUpdateOffset = conditionUpdateOffset;
         ClientConditionOffset = clientConditionOffset;
+        _placementValue = placement?.Value ?? 0;
+        _placementOffset = placement?.Offset ?? -1;
     }
 
     public ushort Handle { get; }
@@ -188,6 +196,26 @@ public sealed class XRayInventoryItem
 
     public IReadOnlyList<string>? Upgrades { get; }
 
+    public string? PlacementType => _placementOffset < 0
+        ? null
+        : (_placementValue & 0x0F) switch
+        {
+            1 => "slot",
+            2 => "belt",
+            3 => "ruck",
+            _ => null,
+        };
+
+    public int? PlacementSlot => _placementOffset < 0 ? null : (_placementValue >> 4) & 0x3F;
+
+    public int? PlacementBaseSlot => _placementOffset < 0 ? null : (_placementValue >> 10) & 0x3F;
+
+    public string? PlacementStorage => _placementOffset < 0
+        ? null
+        : (_placementValue & 0x0F) == 1 ? "equipped" : "inventory";
+
+    public bool PlacementEditable => _placementOffset >= 0;
+
     internal int? StackStateCountOffset { get; }
 
     internal int? StackUpdateCountOffset { get; }
@@ -197,4 +225,6 @@ public sealed class XRayInventoryItem
     internal int? ConditionUpdateOffset { get; }
 
     internal int? ClientConditionOffset { get; }
+
+    internal int? PlacementOffset => _placementOffset >= 0 ? _placementOffset : null;
 }

@@ -19,7 +19,8 @@ public sealed record EditPlan
         string? playerFaction = null,
         IReadOnlyDictionary<string, int>? factionRelations = null,
         uint? stalker2StashTakeHandle = null,
-        IReadOnlyDictionary<uint, double>? durability = null)
+        IReadOnlyDictionary<uint, double>? durability = null,
+        IReadOnlyCollection<XRayPlacementChange>? placements = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceSha256);
         if (!Sha256Pattern.IsMatch(sourceSha256))
@@ -134,7 +135,8 @@ public sealed record EditPlan
         }
 
         if (stalker2StashTakeHandle is not null &&
-            (stashTakeHandles.Length > 0 || stashPutRequests.Length > 0 || handles.Length > 0))
+            (stashTakeHandles.Length > 0 || stashPutRequests.Length > 0 || handles.Length > 0 ||
+             placements?.Count > 0))
         {
             throw new ArgumentException(
                 "An S2 stash transfer cannot be combined with X-Ray stash or removal operations.",
@@ -142,6 +144,25 @@ public sealed record EditPlan
         }
 
         Stalker2StashTakeHandle = stalker2StashTakeHandle;
+
+        var placementChanges = placements?.ToArray() ?? [];
+        if (placementChanges.Any(change => change is null))
+        {
+            throw new ArgumentException("Placement changes must not contain null values.", nameof(placements));
+        }
+
+        if (placementChanges.Select(change => change.Handle).Distinct().Count() != placementChanges.Length)
+        {
+            throw new ArgumentException("Placement handles must be unique.", nameof(placements));
+        }
+
+        if (placementChanges.Any(change => stashTakeHandles.Contains((ushort)change.Handle) ||
+                stashPutRequests.Any(request => request.ObjectId == change.Handle)))
+        {
+            throw new ArgumentException("An item cannot be moved to a stash and repositioned in one edit plan.");
+        }
+
+        Placements = Array.AsReadOnly(placementChanges);
 
         var durabilityValues = new Dictionary<uint, double>();
         if (durability is not null)
@@ -186,6 +207,8 @@ public sealed record EditPlan
     public uint? Stalker2StashTakeHandle { get; }
 
     public IReadOnlyDictionary<uint, double> Durability { get; }
+
+    public IReadOnlyList<XRayPlacementChange> Placements { get; }
 
     public EditKind EditKinds { get; }
 
@@ -235,6 +258,11 @@ public sealed record EditPlan
         if (Durability.Count > 0)
         {
             kinds |= EditKind.Durability;
+        }
+
+        if (Placements.Count > 0)
+        {
+            kinds |= EditKind.Placement;
         }
 
         return kinds;

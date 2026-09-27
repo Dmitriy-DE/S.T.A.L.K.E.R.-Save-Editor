@@ -402,16 +402,15 @@ local function apply_toggles()
 end
 
 -- Spawn a whole squad a few metres in front of the actor (Call of Pripyat).
--- Same steps as the vanilla sim_board:create_squad and
--- sim_squad_scripted:create_npc (configs.db scripts/sim_board.script and
--- sim_squad_scripted.script), but members are placed at the actor instead of
--- a smart terrain's spawn point; the squad is still assigned to the nearest
--- smart terrain on this level so the simulation keeps managing it.
--- single = true spawns one member of the squad instead of the whole squad.
-function spawn_squad(squad_id, single)
-	if sim_board == nil or sim_board.get_sim_board == nil then
-		return "unsupported", "squads need Call of Pripyat"
-	end
+local function is_cs()
+	return sim_board ~= nil and sim_board.squad_ltx ~= nil
+end
+
+local function is_cop()
+	return sim_board ~= nil and sim_board.squad_ltx == nil
+end
+
+local function spawn_squad_cop(squad_id, single)
 	local ini = system_ini()
 	if not ini:section_exist(squad_id) then
 		return "error", "unknown squad " .. squad_id
@@ -436,8 +435,6 @@ function spawn_squad(squad_id, single)
 	local fixed = utils.parse_names(utils.cfg_get_string(ini, squad_id, "npc", squad, false, "", ""))
 	local random_pool = utils.cfg_get_string(ini, squad_id, "npc_random", squad, false, "", nil)
 	if single then
-		-- one stalker = the squad's commander: the first fixed member when the
-		-- squad lists one, otherwise a member drawn like the game does
 		local pool = #fixed > 0 and fixed or utils.parse_names(random_pool or "")
 		local index = #fixed > 0 and 1 or math.random(1, #pool)
 		squad:add_squad_member(pool[index], pos, lvid, gvid, index)
@@ -463,6 +460,163 @@ function spawn_squad(squad_id, single)
 		board:setup_squad_and_group(member.object)
 	end
 	return "ok", "spawned " .. squad_id
+end
+
+local function spawn_squad_cs(squad_id, single)
+	local actor = db.actor
+	local pos = vector():set(actor:position()):mad(actor:direction(), 4)
+	local lvid, gvid = actor:level_vertex_id(), actor:game_vertex_id()
+	local ltx = sim_board.squad_ltx
+	local board = sim_board.get_sim_board()
+
+	-- Direct NPC spawn section (e.g. story character from spawn_sections_*.ltx)
+	if not ltx:section_exist(squad_id) then
+		if system_ini():section_exist(squad_id) then
+			local obj = alife():create(squad_id, pos, lvid, gvid)
+			board:setup_squad_and_group(obj)
+			return "ok", "spawned " .. squad_id
+		end
+		return "error", "unknown squad " .. squad_id
+	end
+
+	local player_name = utils.cfg_get_string(ltx, squad_id, "faction", nil, false, "", "")
+	local player = board.players[player_name]
+	if player == nil then
+		return "error", "unknown faction " .. tostring(player_name)
+	end
+
+	local nearest, best = nil, nil
+	for _, smart in ipairs(all_smarts()) do
+		if smart.level == level.name() then
+			local d = smart.obj.position:distance_to(actor:position())
+			if best == nil or d < best then
+				nearest, best = smart.obj, d
+			end
+		end
+	end
+	if nearest == nil then
+		return "error", "no smart terrain on this level"
+	end
+
+	local auto_id = tostring(board.id_generator:get_id())
+	local squad = sim_squad_scripted.sim_squad_scripted(board, player.player_name, auto_id, squad_id)
+	squad:init_squad(nearest)
+	board.squads[auto_id] = squad
+
+	local spawn_sections = utils.parse_names(utils.cfg_get_string(ltx, squad_id, "npc", squad, false, "", ""))
+	if #spawn_sections == 0 then
+		local pool = utils.cfg_get_string(ltx, squad_id, "npc_random", squad, false, "", "")
+		spawn_sections = utils.parse_names(pool)
+	end
+
+	if single and #spawn_sections > 0 then
+		spawn_sections = { spawn_sections[1] }
+	end
+
+	for _, sec in pairs(spawn_sections) do
+		local p = vector():set(pos)
+		p.x = p.x + math.random(-2, 2)
+		p.z = p.z + math.random(-2, 2)
+		local obj = alife():create(sec, p, lvid, gvid)
+		obj.squad_id = squad.squad_id
+		squad.squad_npc[obj.id] = obj.id
+		squad.sound_manager:register_npc(obj.id)
+		if squad.commander_id == nil then
+			squad.commander_id = obj.id
+		end
+		squad.npc_count = squad.npc_count + 1
+		squad.squad_power = squad.squad_power + 5 * obj:rank() / 1000
+	end
+
+	squad.smart_id = nearest.id
+	squad:refresh()
+	squad:set_squad_sympathy()
+	squad:set_squad_relation()
+	board:assign_squad_to_smart(squad, nearest.id)
+	for k, _ in pairs(squad.squad_npc) do
+		local obj = alife():object(k)
+		board:setup_squad_and_group(obj)
+	end
+	player:register_squad(squad)
+	player:faction_brain_update()
+	squad:update()
+	return "ok", "spawned " .. squad_id
+end
+
+local function spawn_squad_soc(squad_id, single)
+	local actor = db.actor
+	local pos = vector():set(actor:position()):mad(actor:direction(), 4)
+	local lvid, gvid = actor:level_vertex_id(), actor:game_vertex_id()
+
+	-- Case A: section exists in system_ini (spawn_sections.ltx, creatures/monsters.ltx, etc.)
+	if system_ini():section_exist(squad_id) then
+		local count = 1
+		if not single and not string.find(squad_id, "gigant") and not string.find(squad_id, "controller") and not string.find(squad_id, "boss") then
+			count = 3
+		end
+		for i = 1, count do
+			local p = vector():set(pos)
+			if i > 1 then
+				p.x = p.x + math.random(-2, 2)
+				p.z = p.z + math.random(-2, 2)
+			end
+			alife():create(squad_id, p, lvid, gvid)
+		end
+		return "ok", "spawned " .. squad_id
+	end
+
+	-- Case B: specific_character profile (character_desc_*.xml)
+	local obj = alife():create("stalker", pos, lvid, gvid)
+	if obj == nil then
+		return "error", "failed to create stalker for " .. squad_id
+	end
+
+	local packet = net_packet()
+	packet:w_begin(0)
+	obj:STATE_Write(packet)
+	packet:r_seek(2)
+	local money = packet:r_u32()
+	packet:r_stringZ()
+	local trader_flags = packet:r_u32()
+	packet:r_stringZ()
+	local community_index = packet:r_s32()
+	local rank = packet:r_s32()
+	local reputation = packet:r_s32()
+	local char_name = packet:r_stringZ()
+	local deadbody_can_take = packet:r_u8()
+	local deadbody_closed = packet:r_u8()
+
+	local new_packet = net_packet()
+	new_packet:w_begin(0)
+	new_packet:w_u32(money)
+	new_packet:w_stringZ(squad_id)
+	new_packet:w_u32(trader_flags)
+	new_packet:w_stringZ(squad_id)
+	new_packet:w_s32(community_index)
+	new_packet:w_s32(rank)
+	new_packet:w_s32(reputation)
+	new_packet:w_stringZ(char_name)
+	new_packet:w_u8(deadbody_can_take)
+	new_packet:w_u8(deadbody_closed)
+
+	while not packet:r_eof() do
+		new_packet:w_u8(packet:r_u8())
+	end
+
+	new_packet:r_seek(2)
+	obj:STATE_Read(new_packet, new_packet:w_tell() - new_packet:r_tell())
+	return "ok", "spawned " .. squad_id
+end
+
+-- Spawn a squad or creature/NPC in front of the actor (CoP, CS, SoC).
+function spawn_squad(squad_id, single)
+	if is_cop() then
+		return spawn_squad_cop(squad_id, single)
+	elseif is_cs() then
+		return spawn_squad_cs(squad_id, single)
+	else
+		return spawn_squad_soc(squad_id, single)
+	end
 end
 
 function handlers.squad(args)

@@ -14,5 +14,6 @@
     <ProjectReference Include="../../src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" />
     <None Include="../Fixtures/**/*" Link="Fixtures/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../golden/**/*" Link="golden/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../docs/PARITY.csv" Link="golden/PARITY.csv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -195,7 +195,9 @@ public sealed class Stalker2DurabilityWriterTests
         Assert.Equal(
             GetString(vector, "capability"),
             CapabilityRegistry.Get("stalker2", "edit_durability").Maturity.ToString().ToLowerInvariant());
-        Assert.Throws<KeyNotFoundException>(() => CapabilityRegistry.Get("stalker2", "edit_upgrades"));
+        Assert.Equal(
+            CapabilityMaturity.Unsupported,
+            CapabilityRegistry.Get("stalker2", "edit_upgrades").Maturity);
     }
 
     private static JsonDocument ReadManifest() => JsonDocument.Parse(

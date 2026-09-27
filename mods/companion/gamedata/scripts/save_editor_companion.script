@@ -407,7 +407,8 @@ end
 -- sim_squad_scripted.script), but members are placed at the actor instead of
 -- a smart terrain's spawn point; the squad is still assigned to the nearest
 -- smart terrain on this level so the simulation keeps managing it.
-function spawn_squad(squad_id)
+-- single = true spawns one member of the squad instead of the whole squad.
+function spawn_squad(squad_id, single)
 	if sim_board == nil or sim_board.get_sim_board == nil then
 		return "unsupported", "squads need Call of Pripyat"
 	end
@@ -433,10 +434,19 @@ function spawn_squad(squad_id)
 	local board = sim_board.get_sim_board()
 	local squad = alife():create(squad_id, pos, lvid, gvid)
 	local fixed = utils.parse_names(utils.cfg_get_string(ini, squad_id, "npc", squad, false, "", ""))
+	local random_pool = utils.cfg_get_string(ini, squad_id, "npc_random", squad, false, "", nil)
+	if single then
+		-- one stalker = the squad's commander: the first fixed member when the
+		-- squad lists one, otherwise a member drawn like the game does
+		local pool = #fixed > 0 and fixed or utils.parse_names(random_pool or "")
+		local index = #fixed > 0 and 1 or math.random(1, #pool)
+		squad:add_squad_member(pool[index], pos, lvid, gvid, index)
+		random_pool = nil
+		fixed = {}
+	end
 	for k, section in pairs(fixed) do
 		squad:add_squad_member(section, pos, lvid, gvid, k)
 	end
-	local random_pool = utils.cfg_get_string(ini, squad_id, "npc_random", squad, false, "", nil)
 	if random_pool ~= nil then
 		random_pool = utils.parse_names(random_pool)
 		local low, high = utils.r_2nums(ini, squad_id, "npc_in_squad", 1, 2)
@@ -460,6 +470,48 @@ function handlers.squad(args)
 		return "error", "usage: squad <squad section>"
 	end
 	return spawn_squad(args[1])
+end
+
+-- The companion PDA item (configs\misc\save_editor_companion.ltx, CoP).
+-- Using it opens the menu over the running game; the used copy is replaced
+-- at once. If it is missing (lost, or taken by a scripted scene) it comes
+-- back only while the actor still carries a normal inventory, so scenes that
+-- strip the player are not undone; Esc then F1 always works regardless.
+PDA_SECTION = "se_companion_pda"
+local PDA_CHECK_MS = 5000
+local MIN_ITEMS_FOR_RETURN = 5
+local next_pda_check = 0
+local pending_menu = false
+
+local function pda_available()
+	return system_ini():section_exist(PDA_SECTION)
+end
+
+local function give_pda()
+	local actor = db.actor
+	alife():create(PDA_SECTION, actor:position(), actor:level_vertex_id(), actor:game_vertex_id(), actor:id())
+end
+
+local function keep_pda()
+	if not pda_available() then
+		return
+	end
+	if db.actor:object(PDA_SECTION) ~= nil then
+		return
+	end
+	local count = 0
+	db.actor:inventory_for_each(function() count = count + 1 end)
+	if count >= MIN_ITEMS_FOR_RETURN then
+		give_pda()
+	end
+end
+
+-- Called from actor_binder:use_inventory_item (one line in bind_stalker.script).
+function on_use(obj)
+	if obj ~= nil and obj:section() == PDA_SECTION then
+		give_pda()
+		pending_menu = true -- open on the next update, outside the use callback
+	end
 end
 
 local function execute(line)
@@ -493,6 +545,16 @@ function update()
 		if lc ~= nil then
 			alife():release(lc, true)
 		end
+	end
+	if db.actor ~= nil and pending_menu then
+		pending_menu = false
+		if save_editor_companion_ui ~= nil and save_editor_companion_ui.open_overlay ~= nil then
+			save_editor_companion_ui.open_overlay()
+		end
+	end
+	if db.actor ~= nil and time_global() >= next_pda_check then
+		next_pda_check = time_global() + PDA_CHECK_MS
+		keep_pda()
 	end
 	if db.actor ~= nil and time_global() >= next_toggle_tick then
 		next_toggle_tick = time_global() + TOGGLE_TICK_MS

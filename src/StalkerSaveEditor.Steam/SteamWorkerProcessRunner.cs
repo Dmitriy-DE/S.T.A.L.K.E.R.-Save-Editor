@@ -18,6 +18,16 @@ internal interface ISteamWorkerProcessRunner
         CancellationToken cancellationToken);
 }
 
+internal interface ISteamGameSessionRunner
+{
+    Task<ISteamGameSession> StartSessionAsync(
+        int appId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken);
+}
+
+internal interface ISteamGameSession : IAsyncDisposable;
+
 internal interface ISteamWorkerProcessFactory
 {
     ISteamWorkerChildProcess Start(ProcessStartInfo startInfo);
@@ -38,7 +48,7 @@ internal interface ISteamWorkerChildProcess : IDisposable
     void KillTree();
 }
 
-internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner
+internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISteamGameSessionRunner
 {
     private const int MaximumHeaderBytes = 1024 * 1024;
     private readonly ISteamWorkerProcessFactory _factory;
@@ -78,6 +88,67 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner
         }
 
         return response.Data;
+    }
+
+    public async Task<ISteamGameSession> StartSessionAsync(
+        int appId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        if (appId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(appId), "Steam app id must be positive.");
+        }
+
+        if (timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), "Steam session startup timeout must be positive.");
+        }
+
+        var startInfo = CreateStartInfo(appId, gameSession: true);
+        var process = _factory.Start(startInfo);
+        try
+        {
+            process.Start();
+        }
+        catch
+        {
+            process.Dispose();
+            throw;
+        }
+
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(timeout);
+        var stderrTask = DrainErrorAsync(process.StandardError);
+        try
+        {
+            var headerBytes = await ReadHeaderAsync(process.StandardOutput, timeoutSource.Token).ConfigureAwait(false);
+            using var header = JsonDocument.Parse(headerBytes);
+            var type = header.RootElement.TryGetProperty("type", out var typeElement)
+                ? typeElement.GetString()
+                : null;
+            if (!string.Equals(type, "ready", StringComparison.Ordinal))
+            {
+                var message = header.RootElement.TryGetProperty("message", out var messageElement)
+                    ? messageElement.GetString()
+                    : null;
+                throw new InvalidOperationException(message ?? "Steam game session did not report ready.");
+            }
+
+            return new SteamWorkerGameSession(process, stderrTask, TimeSpan.FromSeconds(30));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            await KillAndWaitAsync(process).ConfigureAwait(false);
+            process.Dispose();
+            throw new TimeoutException($"Steam game session startup exceeded the {timeout.TotalSeconds:0.###} second timeout.");
+        }
+        catch
+        {
+            await KillAndWaitAsync(process).ConfigureAwait(false);
+            process.Dispose();
+            throw;
+        }
     }
 
     private async Task<WorkerResponse> RunAsync(
@@ -149,7 +220,7 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner
         }
     }
 
-    private static ProcessStartInfo CreateStartInfo(int appId)
+    private static ProcessStartInfo CreateStartInfo(int appId, bool gameSession = false)
     {
         var executable = Environment.ProcessPath
             ?? throw new InvalidOperationException("Cannot determine the current executable for the Steam worker.");
@@ -173,13 +244,24 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner
             startInfo.ArgumentList.Add(entryAssembly);
         }
 
-        startInfo.ArgumentList.Add("--steam-native-worker");
+        if (gameSession)
+        {
+            startInfo.ArgumentList.Add("--steam-native-op");
+            startInfo.ArgumentList.Add("session");
+            startInfo.ArgumentList.Add("--app-id");
+            startInfo.ArgumentList.Add(appId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            startInfo.ArgumentList.Add("--steam-native-worker");
+        }
+
         startInfo.Environment["SteamAppId"] = appId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         startInfo.Environment["SteamGameId"] = appId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return startInfo;
     }
 
-    private static async Task<byte[]> ReadHeaderAsync(Stream stream, CancellationToken cancellationToken)
+    internal static async Task<byte[]> ReadHeaderAsync(Stream stream, CancellationToken cancellationToken)
     {
         using var buffer = new MemoryStream();
         var oneByte = new byte[1];
@@ -202,6 +284,19 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner
         throw new InvalidDataException("Steam worker response header exceeded the size limit.");
     }
 
+    internal static async Task KillAndWaitAsync(ISteamWorkerChildProcess process)
+    {
+        try
+        {
+            process.KillTree();
+            _ = await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // The child may have exited between the timeout and kill requests.
+        }
+    }
+
     private static async Task<string> DrainErrorAsync(Stream stream)
     {
         using var reader = new StreamReader(stream, Encoding.UTF8);
@@ -213,6 +308,63 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner
     private sealed record WorkerRequest(string Operation, int AppId, string? FileName);
 
     private sealed record WorkerResponse(JsonElement Header, byte[] Data);
+}
+
+internal sealed class SteamWorkerGameSession(
+    ISteamWorkerChildProcess process,
+    Task<string> stderrTask,
+    TimeSpan closeTimeout) : ISteamGameSession
+{
+    private int _closed;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _closed, 1) != 0)
+        {
+            return;
+        }
+
+        using var timeoutSource = new CancellationTokenSource(closeTimeout);
+        try
+        {
+            await process.StandardInput.DisposeAsync().ConfigureAwait(false);
+            var finalHeader = await SteamWorkerProcessRunner.ReadHeaderAsync(
+                process.StandardOutput,
+                timeoutSource.Token).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(finalHeader);
+            if (document.RootElement.GetProperty("type").GetString() != "ok")
+            {
+                var message = document.RootElement.TryGetProperty("message", out var messageElement)
+                    ? messageElement.GetString()
+                    : null;
+                throw new InvalidOperationException(message ?? "Steam game session returned an unexpected close response.");
+            }
+
+            var exitCode = await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+            var stderr = await stderrTask.ConfigureAwait(false);
+            if (exitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    string.IsNullOrWhiteSpace(stderr)
+                        ? $"Steam game session exited with code {exitCode}."
+                        : $"Steam game session exited with code {exitCode}: {stderr.Trim()}");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            await SteamWorkerProcessRunner.KillAndWaitAsync(process).ConfigureAwait(false);
+            throw new TimeoutException($"Steam game session did not stop within {closeTimeout.TotalSeconds:0.###} seconds.");
+        }
+        catch
+        {
+            await SteamWorkerProcessRunner.KillAndWaitAsync(process).ConfigureAwait(false);
+            throw;
+        }
+        finally
+        {
+            process.Dispose();
+        }
+    }
 }
 
 internal sealed class SteamWorkerProcessFactory : ISteamWorkerProcessFactory

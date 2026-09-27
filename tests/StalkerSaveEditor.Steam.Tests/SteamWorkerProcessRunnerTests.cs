@@ -57,6 +57,39 @@ public sealed class SteamWorkerProcessRunnerTests
         Assert.True(process.Killed);
     }
 
+    [Fact]
+    public async Task Game_session_uses_the_session_operation_and_closes_stdin_to_end_it()
+    {
+        var output = Encoding.UTF8.GetBytes("{\"type\":\"ready\"}\n{\"type\":\"ok\"}\n");
+        var process = new FakeChildProcess(new MemoryStream(output));
+        var factory = new FakeProcessFactory(process);
+        var runner = new SteamWorkerProcessRunner(factory);
+
+        var session = await runner.StartSessionAsync(1643320, TimeSpan.FromSeconds(2), CancellationToken.None);
+        Assert.Contains("--steam-native-op", factory.StartInfo!.ArgumentList);
+        Assert.Contains("session", factory.StartInfo.ArgumentList);
+        var appIdIndex = factory.StartInfo.ArgumentList.IndexOf("--app-id");
+        Assert.Equal("1643320", factory.StartInfo.ArgumentList[appIdIndex + 1]);
+        Assert.Equal("1643320", factory.StartInfo.Environment["SteamAppId"]);
+
+        await session.DisposeAsync();
+
+        Assert.False(process.Input.CanWrite);
+        Assert.False(process.Killed);
+    }
+
+    [Fact]
+    public async Task Game_session_startup_timeout_kills_the_child_process_tree()
+    {
+        var process = new FakeChildProcess(new BlockingReadStream());
+        var runner = new SteamWorkerProcessRunner(new FakeProcessFactory(process));
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            runner.StartSessionAsync(1643320, TimeSpan.FromMilliseconds(30), CancellationToken.None));
+
+        Assert.True(process.Killed);
+    }
+
     private sealed class FakeProcessFactory(FakeChildProcess process) : ISteamWorkerProcessFactory
     {
         public ProcessStartInfo? StartInfo { get; private set; }

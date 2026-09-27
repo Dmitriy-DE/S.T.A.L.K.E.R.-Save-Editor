@@ -6,6 +6,8 @@ internal static class SteamLibraryLocator
 {
     public static string? FindLibraryPath() => FindLibraryPath(GetDefaultRoots(), OperatingSystem.IsWindows());
 
+    internal static IReadOnlyList<string> GetSteamLibraryRoots() => ExpandSteamLibraries(GetDefaultRoots()).ToArray();
+
     internal static string? FindLibraryPath(IEnumerable<string> roots, bool isWindows)
     {
         var libraryName = isWindows ? "steam_api64.dll" : "libsteam_api.so";

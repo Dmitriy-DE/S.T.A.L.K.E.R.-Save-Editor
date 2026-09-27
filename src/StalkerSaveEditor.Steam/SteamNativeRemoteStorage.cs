@@ -70,6 +70,12 @@ internal sealed class SteamNativeRemoteStorage : ISteamRemoteStorage
         return files.OrderByDescending(file => file.Timestamp).ToArray();
     }
 
+    public void RunCallbacks()
+    {
+        EnsureConnected();
+        SteamNativeApi.RunCallbacks();
+    }
+
     public byte[] ReadFile(string fileName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);

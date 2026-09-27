@@ -263,6 +263,15 @@ public sealed class SteamRemoteStorageCloudWriterTests
                 ? Task.FromException(new IOException("fake native write result is uncertain"))
                 : Task.CompletedTask;
         }
+
+        public Task<JsonElement> RunNativeOperationAsync(
+            int selectedAppId,
+            string operation,
+            string? apiName,
+            bool? achieved,
+            TimeSpan timeout,
+            CancellationToken cancellationToken) =>
+            Task.FromException<JsonElement>(new NotSupportedException());
     }
 
     private sealed class TemporaryDirectory : IDisposable

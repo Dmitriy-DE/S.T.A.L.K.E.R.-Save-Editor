@@ -46,6 +46,32 @@ public sealed class SteamWorkerProcessRunnerTests
     }
 
     [Fact]
+    public async Task Write_sends_one_binary_payload_to_the_worker()
+    {
+        var process = new FakeChildProcess(new MemoryStream(Encoding.UTF8.GetBytes("{\"type\":\"ok\"}\n")));
+        var factory = new FakeProcessFactory(process);
+        var runner = new SteamWorkerProcessRunner(factory);
+        var payload = new byte[] { 0, 1, 255, 4 };
+
+        await runner.WriteAsync(
+            4500,
+            "_appdata_/savedgames/slot.sav",
+            payload,
+            TimeSpan.FromSeconds(2),
+            CancellationToken.None);
+
+        var input = process.Input.ToArray();
+        var newlineIndex = Array.IndexOf(input, (byte)'\n');
+        using var request = JsonDocument.Parse(input.AsMemory(0, newlineIndex));
+        Assert.Equal("write", request.RootElement.GetProperty("operation").GetString());
+        Assert.Equal(4500, request.RootElement.GetProperty("appId").GetInt32());
+        Assert.Equal("_appdata_/savedgames/slot.sav", request.RootElement.GetProperty("fileName").GetString());
+        Assert.Equal(payload.Length, request.RootElement.GetProperty("size").GetInt32());
+        Assert.Equal(payload, input[(newlineIndex + 1)..]);
+        Assert.False(process.Killed);
+    }
+
+    [Fact]
     public async Task Timeout_kills_the_child_process_tree()
     {
         var process = new FakeChildProcess(new BlockingReadStream());

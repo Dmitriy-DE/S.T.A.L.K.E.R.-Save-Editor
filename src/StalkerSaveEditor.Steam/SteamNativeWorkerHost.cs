@@ -11,9 +11,11 @@ internal interface ISteamRemoteStorage : IDisposable
     IReadOnlyList<SteamCloudFile> ListFiles();
 
     byte[] ReadFile(string fileName);
+
+    void WriteFile(string fileName, byte[] data);
 }
 
-/// <summary>One-shot worker protocol. Only list and read operations are accepted.</summary>
+/// <summary>One-shot worker protocol for isolated Steam RemoteStorage operations.</summary>
 public static class SteamNativeWorkerHost
 {
     private const int MaximumRequestBytes = 1024 * 1024;
@@ -135,9 +137,38 @@ public static class SteamNativeWorkerHost
                 throw new ArgumentOutOfRangeException("appId", "Steam app id must be positive.");
             }
 
-            if (operation is not ("list" or "read"))
+            if (operation is not ("list" or "read" or "write"))
             {
-                throw new InvalidOperationException("Only Steam RemoteStorage list and read are supported.");
+                throw new InvalidOperationException("Only Steam RemoteStorage list, read, and save-write are supported.");
+            }
+
+            byte[]? writeData = null;
+            string? writeName = null;
+            if (operation == "write")
+            {
+                if (!SteamCloudSaveProfiles.TryGet(appId, out var profile))
+                {
+                    throw new InvalidOperationException("RemoteStorage writes are limited to official X-Ray trilogy releases.");
+                }
+
+                var fileName = root.GetProperty("fileName").GetString();
+                if (!profile.TryNormalizeSavePath(fileName ?? string.Empty, out writeName))
+                {
+                    throw new InvalidOperationException("RemoteStorage write path is outside the selected release's save allow-list.");
+                }
+
+                var size = root.GetProperty("size").GetInt32();
+                if (size is <= 0 or > SteamNativeRemoteStorage.MaximumFileBytes)
+                {
+                    throw new InvalidDataException("RemoteStorage write size is outside the supported range.");
+                }
+
+                writeData = new byte[size];
+                await input.ReadExactlyAsync(writeData, cancellationToken).ConfigureAwait(false);
+                if (!profile.HasExpectedFormat(writeData))
+                {
+                    throw new InvalidDataException("RemoteStorage write payload is not a save for the selected release.");
+                }
             }
 
             Environment.SetEnvironmentVariable("SteamAppId", appId.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -151,7 +182,7 @@ public static class SteamNativeWorkerHost
                 await WriteJsonLineAsync(output, new WorkerFilesResponse("files", files), cancellationToken)
                     .ConfigureAwait(false);
             }
-            else
+            else if (operation == "read")
             {
                 var fileName = root.GetProperty("fileName").GetString();
                 ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
@@ -160,6 +191,12 @@ public static class SteamNativeWorkerHost
                     .ConfigureAwait(false);
                 await output.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                 await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else if (operation == "write")
+            {
+                storage.WriteFile(writeName!, writeData!);
+                await WriteJsonLineAsync(output, new WorkerStatusResponse("ok"), cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             return 0;
@@ -221,4 +258,6 @@ public static class SteamNativeWorkerHost
     private sealed record WorkerErrorResponse(string Type, string Message);
 
     private sealed record WorkerSessionResponse(string Type);
+
+    private sealed record WorkerStatusResponse(string Type);
 }

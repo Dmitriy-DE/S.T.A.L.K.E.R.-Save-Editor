@@ -178,7 +178,7 @@ public sealed class LocalSaveReplacementTests
         new EditPlan(
             Sha256(source),
             money: 9_876,
-            stackCounts: new Dictionary<ushort, uint> { [0x1234] = 44 }));
+            stackCounts: new Dictionary<uint, uint> { [0x1234] = 44 }));
 
     private static string Sha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();

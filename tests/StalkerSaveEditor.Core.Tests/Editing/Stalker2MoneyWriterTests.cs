@@ -94,7 +94,7 @@ public sealed class Stalker2MoneyWriterTests
         Assert.Throws<Stalker2FormatException>(() =>
             Stalker2MoneyWriter.Prepare(
                 source,
-                new EditPlan(sourceSha, 1234, stackCounts: new Dictionary<ushort, uint> { [1] = 2 })));
+                new EditPlan(sourceSha, 1234, stackCounts: new Dictionary<uint, uint> { [1] = 2 })));
         Assert.Throws<Stalker2FormatException>(() =>
             Stalker2MoneyWriter.Prepare(
                 source,

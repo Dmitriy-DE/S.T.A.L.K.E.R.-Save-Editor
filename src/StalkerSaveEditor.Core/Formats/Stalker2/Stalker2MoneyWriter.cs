@@ -54,7 +54,7 @@ public static class Stalker2MoneyWriter
                 exception);
         }
 
-        var output = BuildContainer(raw, compressed);
+        var output = Stalker2ContainerWriter.Build(raw, compressed);
         var roundTrip = Stalker2SaveReader.FromBytes(output);
         if (roundTrip.Money != money || !roundTrip.CrcOk)
         {
@@ -72,31 +72,6 @@ public static class Stalker2MoneyWriter
         }
 
         return new PreparedEdit(plan, output);
-    }
-
-    private static byte[] BuildContainer(ReadOnlySpan<byte> raw, ReadOnlySpan<byte> stream)
-    {
-        var output = new byte[checked(sizeof(uint) + stream.Length + sizeof(uint))];
-        BinaryPrimitives.WriteUInt32LittleEndian(output, checked((uint)raw.Length));
-        stream.CopyTo(output.AsSpan(sizeof(uint)));
-        var crc = Crc32(output.AsSpan(0, output.Length - sizeof(uint)));
-        BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(output.Length - sizeof(uint)), crc);
-        return output;
-    }
-
-    private static uint Crc32(ReadOnlySpan<byte> bytes)
-    {
-        var crc = uint.MaxValue;
-        foreach (var value in bytes)
-        {
-            crc ^= value;
-            for (var bit = 0; bit < 8; bit++)
-            {
-                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
-            }
-        }
-
-        return ~crc;
     }
 
     private static Stalker2FormatException Error(string message) =>

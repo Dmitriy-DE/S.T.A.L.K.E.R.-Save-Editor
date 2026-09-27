@@ -180,7 +180,7 @@ public sealed class CompanionView : UserControl
             {
                 var rowGrid = new Grid
                 {
-                    ColumnDefinitions = new ColumnDefinitions("140,80,*"),
+                    ColumnDefinitions = new ColumnDefinitions("140,90,*"),
                     Margin = new Thickness(0, 4),
                 };
 
@@ -197,7 +197,7 @@ public sealed class CompanionView : UserControl
                 var keyBox = new TextBox
                 {
                     Text = item.Key,
-                    MaxWidth = 60,
+                    MaxWidth = 85,
                     TextAlignment = TextAlignment.Center,
                     FontWeight = FontWeight.Bold,
                     Foreground = StalkerTheme.BrushAccentAmber,

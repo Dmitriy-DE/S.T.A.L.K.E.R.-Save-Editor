@@ -3,6 +3,7 @@ namespace StalkerSaveEditor.Desktop.Services;
 /// <summary>
 /// Mock/Stub implementation of ICompanionService fulfilling AGENTS.md requirements
 /// until Core ICompanionService API is available (Issue #59).
+/// Does not fabricate fake connections, pings, or user-specific paths.
 /// </summary>
 public sealed class MockCompanionService : ICompanionService
 {
@@ -11,44 +12,31 @@ public sealed class MockCompanionService : ICompanionService
 
     private readonly Dictionary<string, CompanionState> _states = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["stalker-cop"] = CompanionState.Active,
-        ["stalker-cs"] = CompanionState.Installed,
+        ["stalker-cop"] = CompanionState.NotInstalled,
+        ["stalker-cs"] = CompanionState.NotInstalled,
         ["stalker-soc"] = CompanionState.NotInstalled,
     };
 
     private readonly Dictionary<string, List<CompanionHotkey>> _hotkeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["stalker-cop"] =
-        [
-            new("quicksave", "F5", "Быстрое сохранение с меткой времени"),
-            new("mark", "F6", "Поставить телепорт-метку на текущих координатах"),
-            new("jump_last", "F7", "Мгновенный прыжок к последней метке"),
-            new("hotkeys on", "F8", "Переключить оверлей горячих клавиш"),
-        ],
-        ["stalker-cs"] =
-        [
-            new("quicksave", "F5", "Быстрое сохранение с меткой времени"),
-            new("mark", "F6", "Поставить телепорт-метку на текущих координатах"),
-            new("jump_last", "F7", "Мгновенный прыжок к последней метке"),
-            new("hotkeys on", "F8", "Переключить оверлей горячих клавиш"),
-        ],
-        ["stalker-soc"] =
-        [
-            new("quicksave", "F5", "Быстрое сохранение с меткой времени"),
-            new("mark", "F6", "Поставить телепорт-метку на текущих координатах"),
-            new("jump_last", "F7", "Мгновенный прыжок к последней метке"),
-            new("hotkeys on", "F8", "Переключить оверлей горячих клавиш"),
-        ],
+        ["stalker-cop"] = CreateDefaultHotkeys(),
+        ["stalker-cs"] = CreateDefaultHotkeys(),
+        ["stalker-soc"] = CreateDefaultHotkeys(),
     };
 
-    private DateTime _lastPingTime = DateTime.UtcNow.AddSeconds(-2);
+    private static List<CompanionHotkey> CreateDefaultHotkeys() =>
+    [
+        new("heal", "Ctrl+H", "Быстрое лечение и снятие радиации"),
+        new("repair", "Ctrl+R", "Починка экипированного оружия и брони"),
+        new("money", "Ctrl+M", "Пополнение баланса сталкера"),
+        new("jump_last", "Ctrl+J", "Мгновенный прыжок к последней телепорт-метке"),
+        new("quicksave", "Ctrl+S", "Быстрое сохранение с меткой времени"),
+    ];
 
     public Task<CompanionStatus> GetStatusAsync(string gameReleaseId, CancellationToken ct = default)
     {
         var state = _states.TryGetValue(gameReleaseId, out var s) ? s : CompanionState.NotInstalled;
-        var path = $"/home/dmytro/.local/share/Steam/steamapps/common/{GetGameFolder(gameReleaseId)}/gamedata";
-        DateTime? ping = state == CompanionState.Active ? _lastPingTime : null;
-        return Task.FromResult(new CompanionStatus(state, "1.4.0", ping, path));
+        return Task.FromResult(new CompanionStatus(state, state != CompanionState.NotInstalled ? "1.4.0" : "—", null, "—"));
     }
 
     public Task<bool> InstallAsync(string gameReleaseId, CancellationToken ct = default)
@@ -65,12 +53,7 @@ public sealed class MockCompanionService : ICompanionService
 
     public Task<TimeSpan?> PingAsync(string gameReleaseId, CancellationToken ct = default)
     {
-        if (_states.TryGetValue(gameReleaseId, out var s) && s == CompanionState.Active)
-        {
-            _lastPingTime = DateTime.UtcNow;
-            return Task.FromResult<TimeSpan?>(TimeSpan.FromMilliseconds(42));
-        }
-
+        // No fake ping; returns null when not running a live connection
         return Task.FromResult<TimeSpan?>(null);
     }
 
@@ -78,13 +61,7 @@ public sealed class MockCompanionService : ICompanionService
     {
         if (!_hotkeys.TryGetValue(gameReleaseId, out var list))
         {
-            list =
-            [
-                new("quicksave", "F5", "Быстрое сохранение"),
-                new("mark", "F6", "Поставить метку"),
-                new("jump_last", "F7", "Прыжок к метке"),
-                new("hotkeys on", "F8", "Оверлей хоткеев"),
-            ];
+            list = CreateDefaultHotkeys();
         }
 
         return Task.FromResult<IReadOnlyList<CompanionHotkey>>(list);
@@ -106,11 +83,4 @@ public sealed class MockCompanionService : ICompanionService
 
         return Task.FromResult(false);
     }
-
-    private static string GetGameFolder(string releaseId) => releaseId switch
-    {
-        "stalker-soc" => "S.T.A.L.K.E.R. Shadow of Chernobyl",
-        "stalker-cs" => "S.T.A.L.K.E.R. Clear Sky",
-        _ => "S.T.A.L.K.E.R. Call of Pripyat",
-    };
 }

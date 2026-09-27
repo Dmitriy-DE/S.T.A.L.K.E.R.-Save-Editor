@@ -303,9 +303,12 @@ public sealed class CompanionViewModel : ObservableViewModel
             Hotkeys.Clear();
             foreach (var hk in hotkeys)
             {
-                Hotkeys.Add(new CompanionHotkeyItemViewModel(hk, (action, newKey) =>
+                Hotkeys.Add(new CompanionHotkeyItemViewModel(hk, async (action, newKey) =>
                 {
-                    _ = _service.UpdateHotkeyAsync(_selectedGame, action, newKey);
+                    if (!await _service.UpdateHotkeyAsync(_selectedGame, action, newKey))
+                    {
+                        StatusMessage = "Переназначение клавиш пока не сохраняется — действует раскладка по умолчанию.";
+                    }
                 }));
             }
         }

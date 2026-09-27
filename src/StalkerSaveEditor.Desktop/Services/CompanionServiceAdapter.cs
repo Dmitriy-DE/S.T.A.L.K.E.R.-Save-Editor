@@ -122,10 +122,8 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     public Task<bool> UpdateHotkeyAsync(
         string gameReleaseId, string action, string newKey, CancellationToken ct = default)
     {
-        // Hotkey remapping stored in layout; service is stateless for layout —
-        // actual runtime re-registration is done in ToggleHotkeysAsync.
-        // Return true to acknowledge; no persistent storage in this version.
-        return Task.FromResult(true);
+        // Remapping is not persisted yet: report failure instead of pretending the key changed.
+        return Task.FromResult(false);
     }
 
     // ── Extended API (consumed by CompanionViewModel directly) ────────────────

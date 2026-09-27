@@ -156,6 +156,35 @@ function handlers.list_inventory()
 	return "ok", table.concat(items, ",")
 end
 
+function handlers.weather(args)
+	local weather = args and args[1]
+	if weather == nil or weather == "" then
+		local current = level.get_weather and level.get_weather() or "unknown"
+		return "ok", "weather=" .. current
+	end
+	if level.set_weather == nil then
+		return "error", "level.set_weather unavailable"
+	end
+	local now = true
+	if args[2] == "false" or args[2] == "0" then
+		now = false
+	end
+	level.set_weather(weather, now)
+	if level_weathers and level_weathers.get_weather_manager then
+		local mgr = level_weathers.get_weather_manager()
+		if mgr and mgr.state then
+			local sub = string.gsub(weather, "^default_", "")
+			for _, st in pairs(mgr.state) do
+				if st.graph and st.graph[sub] then
+					st.current_state = sub
+					st.next_state = sub
+				end
+			end
+		end
+	end
+	return "ok", "weather=" .. weather
+end
+
 -- Smart terrains are the game's own named places; their positions come from
 -- the running game, so no coordinate tables are needed. Same approach as the
 -- «Повелитель Зоны 5.0» trainer (ui_god_dialog.script, mode "level"):

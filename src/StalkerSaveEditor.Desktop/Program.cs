@@ -40,6 +40,22 @@ internal static class Program
                 Environment.Exit(1);
             }
             Environment.Exit(0);
+        }
+
+        if (args.Length > 0 && args[0] == "--test-audio")
+        {
+            var result = Services.GameAudioValidator.Validate();
+            Console.WriteLine($"Audio Validation: {(result.Success ? "PASSED" : "FAILED")}");
+            Console.WriteLine($"Verified sounds: {result.VerifiedSounds}");
+            if (!result.Success)
+            {
+                foreach (var err in result.Errors)
+                {
+                    Console.WriteLine($"  Error: {err}");
+                }
+                Environment.Exit(1);
+            }
+            Environment.Exit(0);
             return;
         }
 

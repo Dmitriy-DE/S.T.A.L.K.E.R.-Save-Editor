@@ -103,14 +103,21 @@ public sealed class CompanionInstallerTests
         var archived = ReadArchiveFiles(game.GameDirectory, "configs.db")[archiveRelative];
         var local = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(archived) + "\n-- loose local override\n");
         File.WriteAllBytes(loosePath, local);
+        const string menuArchiveRelative = "scripts/ui_main_menu.script";
+        var looseMenuPath = Path.Combine(game.GameDirectory, "gamedata", "scripts", "ui_main_menu.script");
+        var archivedMenu = ReadArchiveFiles(game.GameDirectory, "xpatch_02.db")[menuArchiveRelative];
+        var localMenu = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(archivedMenu) + "\n-- loose menu override\n");
+        File.WriteAllBytes(looseMenuPath, localMenu);
         var installer = new CompanionInstaller(ModSourceRoot);
 
         var result = installer.Install(CompanionGame.CallOfPripyat, selectedGameDirectory: game.GameDirectory);
 
         Assert.True(result.Success);
         Assert.Contains("-- loose local override", File.ReadAllText(loosePath), StringComparison.Ordinal);
+        Assert.Equal(localMenu, CompanionHookPatcher.RemoveMainMenuHook(File.ReadAllBytes(looseMenuPath)));
         Assert.True(installer.Uninstall(CompanionGame.CallOfPripyat, game.GameDirectory).Success);
         Assert.Equal(local, File.ReadAllBytes(loosePath));
+        Assert.Equal(localMenu, File.ReadAllBytes(looseMenuPath));
     }
 
     [Fact]

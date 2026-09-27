@@ -52,3 +52,17 @@ python tools/generate_s2_stack_fixtures.py --python-repo /path/to/S.T.A.L.K.E.R.
 The manifest records the 32-bit object handle, requested count, source/output
 hashes and capability maturity. The expected raw payload confirms that the
 Python writer changes only the stack count and total-weight fields.
+
+X-Ray stash reader and take vectors under `xray-stashes/` use the Python
+`xray_stashes` and `take_from_stash` oracle with synthetic registry objects for
+the original trilogy and Enhanced Edition formats. Regenerate them with:
+
+```bash
+python tools/generate_xray_stash_fixtures.py \
+  --python-repo /path/to/S.T.A.L.K.E.R.-Save_Editor \
+  --output-dir tests/Fixtures/xray-stashes
+```
+
+The fixture set contains no game saves. Backpack-to-stash transfers and direct
+stash additions are C#-only synthetic contracts under decision D14; Python has
+no corresponding writer oracle.

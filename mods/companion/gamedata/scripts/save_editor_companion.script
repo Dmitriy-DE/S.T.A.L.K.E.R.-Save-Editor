@@ -288,6 +288,9 @@ function all_smarts()
 			if title == key then
 				title = ""
 			end
+			if title == "" and save_editor_places ~= nil and save_editor_places.names ~= nil and save_editor_places.names[obj:name()] ~= nil then
+				title = game.translate_string(save_editor_places.names[obj:name()])
+			end
 			table.insert(result, { name = obj:name(), level = level_of(obj), title = title, obj = obj })
 		end
 	end

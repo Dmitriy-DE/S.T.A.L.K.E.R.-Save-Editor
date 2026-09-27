@@ -443,6 +443,9 @@ function companion_dialog:SelectTab(tab)
 	elseif tab == "teleport" then
 		self:SetFilters(TELEPORT_FILTERS)
 		self:ShowList(true)
+	elseif tab == "world" then
+		self:SetFilters(nil)
+		self:ShowList(true)
 	else
 		self:SetFilters(nil)
 		self:ShowList(true)
@@ -540,6 +543,7 @@ function companion_dialog:Fill()
 			{ "Вечер (18:00)", "Перемотать время вперёд.", function() return save_editor_companion.set_hour(18) end },
 			{ "Ночь (00:00)", "Перемотать время вперёд.", function() return save_editor_companion.set_hour(0) end },
 		})
+		self:FillWeather()
 		self:ShowStepper(true)
 	else
 		self:Actions({
@@ -691,6 +695,15 @@ function companion_dialog:FillTeleport()
 	self:Card("Места", "Переход между локациями работает в ЗП.", nil)
 end
 
+function companion_dialog:FillWeather()
+	local weathers = save_editor_weather and save_editor_weather.list or {}
+	for _, w in ipairs(weathers) do
+		self:AddRow(w.title, w.id, { kind = "weather", weather = w })
+	end
+	local cur = level.get_weather and level.get_weather() or "default"
+	self:Card("Погода и время", "Текущая погода: " .. cur .. "\\nСкорость времени: кнопки - и +.\\nВыбери погоду и нажми «Выполнить».", nil)
+end
+
 -- ---------------------------------------------------------------- actions
 
 function companion_dialog:OnSelect()
@@ -740,6 +753,16 @@ function companion_dialog:OnSelect()
 	elseif row.kind == "point" then
 		local p = self.points[row.index]
 		self:Card(p.name, game.translate_string(p.level), nil)
+	elseif row.kind == "weather" then
+		local current = level.get_weather and level.get_weather() or ""
+		local text = "Секция: " .. row.weather.id
+		if row.weather.desc and row.weather.desc ~= "" then
+			text = text .. "\\n" .. row.weather.desc
+		end
+		if current ~= "" then
+			text = text .. "\\nТекущая: " .. current
+		end
+		self:Card(row.weather.title, text, nil)
 	end
 end
 
@@ -764,6 +787,12 @@ end
 function companion_dialog:Action(which)
 	local tab = self.tab
 	local row = self:Selected()
+	if row ~= nil and row.kind == "weather" and which == "a" then
+		local status, text = save_editor_companion.run("weather", { row.weather.id })
+		self:Say(status == "ok" and ("Погода: " .. row.weather.title) or (text or "Ошибка"))
+		self:OnSelect()
+		return
+	end
 	if row ~= nil and row.kind == "action" and which == "a" then
 		local ok, status, text, close = pcall(row.run)
 		if not ok then

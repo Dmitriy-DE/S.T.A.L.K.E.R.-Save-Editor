@@ -38,6 +38,7 @@ reply:   v1 <id> <status> <text>
 | `repair_equipped` | — | `repaired=<n>` (condition 1.0 on slot items) |
 | `teleport` | `<x> <y> <z>` | `at <x> <y> <z>` — current level only |
 | `list_inventory` | — | `<section>:<id>,...` |
+| `weather` | `[<section>] [now]` | `weather=<name>` (gets or sets active weather cycle) |
 
 Teleport points are the player's own: `info` returns the current position,
 the editor stores it as a named bookmark and replays it with `teleport`.

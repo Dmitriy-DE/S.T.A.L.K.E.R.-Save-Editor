@@ -12,7 +12,11 @@ import struct
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "mods/companion/cop/gamedata/textures/ui/se_companion"
+TARGETS = [
+    ROOT / "mods/companion/cop/gamedata/textures/ui/se_companion",
+    ROOT / "mods/companion/cs/gamedata/textures/ui/se_companion",
+    ROOT / "mods/companion/soc/gamedata/textures/ui/se_companion",
+]
 SIZE = 8
 
 COLOURS = {  # name: (r, g, b, a)
@@ -52,10 +56,11 @@ def dds(rgba: tuple[int, int, int, int]) -> bytes:
 
 
 def main() -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
-    for name, colour in COLOURS.items():
-        (OUT / f"{name}.dds").write_bytes(dds(colour))
-    print(f"{len(COLOURS)} textures in {OUT.relative_to(ROOT)}")
+    for target in TARGETS:
+        target.mkdir(parents=True, exist_ok=True)
+        for name, colour in COLOURS.items():
+            (target / f"{name}.dds").write_bytes(dds(colour))
+        print(f"{len(COLOURS)} textures in {target.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

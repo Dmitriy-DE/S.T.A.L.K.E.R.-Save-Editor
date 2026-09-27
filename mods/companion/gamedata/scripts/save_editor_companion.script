@@ -261,16 +261,23 @@ local function spawn_level_changer(dest_level, dest_pos, dest_gv)
 end
 
 -- Jump to a place given by level name, position and game vertex. Same level:
--- move the actor; another level: temporary level changer (CoP only).
+-- move the actor; another level: temporary level changer (via save_editor_level_changer).
 function jump_to(target_level, pos, gv, label)
 	if target_level == level.name() then
 		db.actor:set_actor_position(pos)
 		return "ok", "at " .. label
 	end
-	if not (COP_LEVELS[level.name()] and COP_LEVELS[target_level]) then
-		return "unsupported", "cross-level jump is only proven in Call of Pripyat"
+	local lc
+	if save_editor_level_changer ~= nil and save_editor_level_changer.spawn_level_changer ~= nil then
+		lc = save_editor_level_changer.spawn_level_changer(target_level, pos, gv)
+	elseif spawn_level_changer ~= nil then
+		if not (COP_LEVELS[level.name()] and COP_LEVELS[target_level]) then
+			return "unsupported", "cross-level jump is only proven in Call of Pripyat"
+		end
+		lc = spawn_level_changer(target_level, pos, gv)
+	else
+		return "unsupported", "no level changer module found"
 	end
-	local lc = spawn_level_changer(target_level, pos, gv)
 	pending_release = { id = lc.id, at = time_global() + 300 }
 	return "ok", "jumping to " .. label .. "@" .. target_level
 end

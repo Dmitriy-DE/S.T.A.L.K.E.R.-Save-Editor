@@ -389,6 +389,9 @@ function companion_dialog:SelectTab(tab)
 	elseif tab == "teleport" then
 		self:SetFilters(TELEPORT_FILTERS)
 		self:ShowList(true)
+	elseif tab == "world" then
+		self:SetFilters(nil)
+		self:ShowList(true)
 	else
 		self:SetFilters(nil)
 		self:ShowList(false)
@@ -438,6 +441,12 @@ function companion_dialog:Fill()
 		self:SetButton("btn_b", "Запомнить здесь")
 		self:SetButton("btn_c", self:FilterId() == "points" and "Удалить точку" or nil)
 		self:ShowStepper(false)
+	elseif tab == "world" then
+		self:FillWeather()
+		self:SetButton("btn_a", "Погода")
+		self:SetButton("btn_b", "Выброс")
+		self:SetButton("btn_c", nil)
+		self:ShowStepper(true)
 	else
 		self:Card("Мир", "Скорость времени кнопками - и +.\\nВыброс начнётся сразу после закрытия меню.", nil)
 		self:SetButton("btn_a", "Выброс")
@@ -575,6 +584,15 @@ function companion_dialog:FillTeleport()
 	self:Card("Места", "Переход между локациями работает в ЗП.", nil)
 end
 
+function companion_dialog:FillWeather()
+	local weathers = save_editor_weather and save_editor_weather.list or {}
+	for _, w in ipairs(weathers) do
+		self:AddRow(w.title, w.id, { kind = "weather", weather = w })
+	end
+	local cur = level.get_weather and level.get_weather() or "default"
+	self:Card("Погода и время", "Текущая погода: " .. cur .. "\\nСкорость времени: кнопки - и +.\\nВыбери погоду и нажми «Погода».", nil)
+end
+
 -- ---------------------------------------------------------------- actions
 
 function companion_dialog:OnSelect()
@@ -617,6 +635,16 @@ function companion_dialog:OnSelect()
 	elseif row.kind == "point" then
 		local p = self.points[row.index]
 		self:Card(p.name, game.translate_string(p.level), nil)
+	elseif row.kind == "weather" then
+		local current = level.get_weather and level.get_weather() or ""
+		local text = "Секция: " .. row.weather.id
+		if row.weather.desc and row.weather.desc ~= "" then
+			text = text .. "\\n" .. row.weather.desc
+		end
+		if current ~= "" then
+			text = text .. "\\nТекущая: " .. current
+		end
+		self:Card(row.weather.title, text, nil)
 	end
 end
 
@@ -654,12 +682,27 @@ function companion_dialog:Action(which)
 		end
 		self:Fill()
 	elseif tab == "world" then
-		if surge_manager == nil or surge_manager.start_surge == nil then
-			self:Say("Выброс в этой игре не поддерживается")
-			return
+		if which == "a" then
+			local row = self:Selected()
+			if row == nil or row.kind ~= "weather" then
+				self:Say("Выбери погоду в списке")
+				return
+			end
+			local status, text = save_editor_companion.run("weather", { row.weather.id })
+			if status == "ok" then
+				self:Say("Погода: " .. row.weather.title)
+				self:OnSelect()
+			else
+				self:Say(text or "Ошибка")
+			end
+		elseif which == "b" then
+			if surge_manager == nil or surge_manager.start_surge == nil then
+				self:Say("Выброс в этой игре не поддерживается")
+				return
+			end
+			surge_manager.start_surge()
+			self:Close(true)
 		end
-		surge_manager.start_surge()
-		self:Close(true)
 	elseif tab == "spawn" then
 		local row = self:Selected()
 		if row == nil then

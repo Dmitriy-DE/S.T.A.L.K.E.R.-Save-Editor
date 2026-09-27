@@ -27,8 +27,8 @@ jobs:
 
       - name: Verify luac5.1 availability
         run: |
-          which luac5.1 || which luac
-          (command -v luac5.1 || command -v luac) -v
+          LUA_BIN="$(command -v luac5.1 || command -v luac)"
+          "$LUA_BIN" -v
 
       - name: Run companion mod checks
         run: ./tools/check_companion.sh

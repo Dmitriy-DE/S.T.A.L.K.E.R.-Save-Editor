@@ -24,7 +24,7 @@
 --]]
 
 local PROTOCOL = "v1"
-local POLL_MS = 2000
+local POLL_MS = 250
 local MAX_GIVE = 100
 local SLOT_LIMIT = 13 -- highest slot index is below this in all three games
 
@@ -343,6 +343,43 @@ function handlers.jump(args)
 		return "error", "no smart terrain " .. name
 	end
 	return jump_to(level_of(target), target.position, target.m_game_vertex_id, name)
+end
+
+function handlers.mark(args)
+	return mark_here()
+end
+
+function handlers.jump_last(args)
+	return jump_last()
+end
+
+function handlers.quicksave(args)
+	local name = args and args[1]
+	if name ~= nil and name ~= "" then
+		if get_console ~= nil then
+			get_console():execute("save " .. name)
+			return "ok", name
+		end
+	end
+	return quick_save()
+end
+
+local hotkeys_active = false
+function handlers.hotkeys(args)
+	local mode = args and args[1]
+	if mode == "on" or mode == "1" then
+		hotkeys_active = true
+	elseif mode == "off" or mode == "0" then
+		hotkeys_active = false
+	else
+		hotkeys_active = not hotkeys_active
+	end
+	if news_manager ~= nil and news_manager.send_tip ~= nil and db.actor ~= nil then
+		pcall(function()
+			news_manager.send_tip(db.actor, "ХОТКЕИ: " .. (hotkeys_active and "ВКЛЮЧЕНЫ [F5-F8]" or "ВЫКЛЮЧЕНЫ"), nil, nil, 3000)
+		end)
+	end
+	return "ok", "hotkeys=" .. (hotkeys_active and "on" or "off")
 end
 
 -- Run one protocol command from the in-game menu; returns status, text.
@@ -791,30 +828,62 @@ function quick_load()
 	return "ok", QUICK_SAVE
 end
 
--- Time of day: advance game time to the next given hour (CoP change_game_time).
+local fast_forward_hour = nil
+
+-- Time of day: advance game time to the next given hour (CoP change_game_time or SoC/CS rewind).
 function set_hour(hour)
-	if level.change_game_time == nil then
-		return "unsupported", "Перемотка времени есть только в ЗП"
-	end
 	local now = level.get_time_hours()
 	local delta = (hour - now) % 24
 	if delta == 0 then
 		delta = 24
 	end
-	level.change_game_time(0, delta, 0)
-	return "ok", string.format("%02d:00", hour)
+	if level.change_game_time ~= nil then
+		level.change_game_time(0, delta, 0)
+		return "ok", string.format("%02d:00", hour)
+	else
+		fast_forward_hour = hour
+		level.set_time_factor(5000)
+		return "ok", string.format("%02d:00 (rewinding)", hour)
+	end
+end
+
+function start_surge()
+	if surge_manager ~= nil and surge_manager.get_surge_manager ~= nil then
+		local m = surge_manager.get_surge_manager()
+		if m.start_surge ~= nil then
+			m:start_surge()
+			return "ok", "surge started"
+		end
+	elseif surge_manager ~= nil and surge_manager.start_surge ~= nil then
+		surge_manager.start_surge()
+		return "ok", "surge started"
+	elseif xr_surge_hide ~= nil and xr_surge_hide.activate_surge ~= nil then
+		xr_surge_hide.activate_surge(xr_surge_hide.time_before_surge or 1)
+		return "ok", "surge started"
+	end
+	return "unsupported", "no surge in this game"
 end
 
 function stop_surge()
-	if surge_manager == nil or surge_manager.get_surge_manager == nil then
-		return "unsupported", "no surge in this game"
+	if surge_manager ~= nil and surge_manager.get_surge_manager ~= nil then
+		local m = surge_manager.get_surge_manager()
+		if not m.started then
+			return "error", "no surge running"
+		end
+		m:end_surge(true)
+		return "ok", "surge stopped"
+	elseif xr_surge_hide ~= nil then
+		if not xr_surge_hide.surge_activated and not xr_surge_hide.start_surge then
+			return "error", "no surge running"
+		end
+		xr_surge_hide.phase = 0
+		xr_surge_hide.start_surge = false
+		xr_surge_hide.surge_activated = false
+		xr_surge_hide.surge_finished = true
+		level.stop_weather_fx()
+		return "ok", "surge stopped"
 	end
-	local m = surge_manager.get_surge_manager()
-	if not m.started then
-		return "error", "no surge running"
-	end
-	m:end_surge(true)
-	return "ok", "surge stopped"
+	return "unsupported", "no surge in this game"
 end
 
 -- Online NPCs and monsters around the actor.
@@ -838,10 +907,27 @@ local function is_creature(obj)
 	return IsStalker(obj) or IsMonster(obj)
 end
 
+local function is_story(obj)
+	if get_object_story_id ~= nil then
+		return get_object_story_id(obj:id()) ~= nil
+	end
+	if obj.story_id ~= nil then
+		local ok, sid = pcall(function() return obj:story_id() end)
+		if ok and sid ~= nil and sid ~= 4294967295 and sid ~= -1 then
+			return true
+		end
+	end
+	local se = alife():object(obj:id())
+	if se ~= nil and se.m_story_id ~= nil and se.m_story_id ~= 4294967295 and se.m_story_id ~= -1 then
+		return true
+	end
+	return false
+end
+
 function remove_corpses(radius)
 	local removed = 0
 	for _, obj in ipairs(around(radius, function(o) return is_creature(o) and not o:alive() end)) do
-		if get_object_story_id(obj:id()) == nil then -- never touch quest bodies
+		if not is_story(obj) then -- never touch quest bodies
 			alife():release(alife():object(obj:id()), true)
 			removed = removed + 1
 		end
@@ -853,7 +939,7 @@ function kill_enemies(radius)
 	local actor = db.actor
 	local killed = 0
 	for _, obj in ipairs(around(radius, function(o) return is_creature(o) and o:alive() end)) do
-		if obj:relation(actor) == game_object.enemy and get_object_story_id(obj:id()) == nil then
+		if obj:relation(actor) == game_object.enemy and not is_story(obj) then
 			obj:kill(actor)
 			killed = killed + 1
 		end
@@ -877,8 +963,11 @@ function call_nearest(radius)
 	if npc == nil then
 		return "error", "nobody within " .. radius .. " m"
 	end
-	npc:set_npc_position(vector():set(db.actor:position()):mad(db.actor:direction(), 2))
-	return "ok", npc:character_name()
+	if npc.set_npc_position ~= nil then
+		npc:set_npc_position(vector():set(db.actor:position()):mad(db.actor:direction(), 2))
+		return "ok", npc:character_name()
+	end
+	return "unsupported", "set_npc_position is not supported by engine"
 end
 
 function befriend_nearest_squad(radius)
@@ -886,9 +975,12 @@ function befriend_nearest_squad(radius)
 	if npc == nil then
 		return "error", "nobody within " .. radius .. " m"
 	end
-	local squad = get_object_squad(npc)
+	local squad = nil
+	if get_object_squad ~= nil then
+		squad = get_object_squad(npc)
+	end
 	local count = 0
-	if squad ~= nil then
+	if squad ~= nil and squad.squad_members ~= nil then
 		for member in squad:squad_members() do
 			local obj = level.object_by_id(member.id)
 			if obj ~= nil then
@@ -916,18 +1008,45 @@ end
 
 -- Map: every stash the game knows (treasure_manager), artefacts on this level.
 function mark_stashes()
-	if treasure_manager == nil or treasure_manager.get_treasure_manager == nil then
+	if treasure_manager == nil then
 		return "unsupported", "no treasure manager"
 	end
 	local added = 0
-	for _, id in pairs(treasure_manager.get_treasure_manager().secret_restrs) do
-		if not level.map_has_object_spot(id, "treasure") then
-			level.map_add_object_spot(id, "treasure", "")
-			table.insert(MARKS, { id = id, spot = "treasure" })
-			added = added + 1
+	if treasure_manager.get_treasure_manager ~= nil then
+		local tm = treasure_manager.get_treasure_manager()
+		if tm.secret_restrs ~= nil then
+			for _, id in pairs(tm.secret_restrs) do
+				if not level.map_has_object_spot(id, "treasure") then
+					level.map_add_object_spot(id, "treasure", "")
+					table.insert(MARKS, { id = id, spot = "treasure" })
+					added = added + 1
+				end
+			end
+			return "ok", "stashes=" .. added
+		elseif tm.treasure_info ~= nil then
+			for _, v in pairs(tm.treasure_info) do
+				local obj = alife():story_object(v.target)
+				if obj ~= nil and not level.map_has_object_spot(obj.id, "treasure") then
+					level.map_add_object_spot(obj.id, "treasure", "")
+					table.insert(MARKS, { id = obj.id, spot = "treasure" })
+					added = added + 1
+				end
+			end
+			return "ok", "stashes=" .. added
 		end
 	end
-	return "ok", "stashes=" .. added
+	if treasure_manager.treasures ~= nil then
+		for _, v in pairs(treasure_manager.treasures) do
+			local obj = alife():object(v.target)
+			if obj ~= nil and not level.map_has_object_spot(obj.id, "treasure") then
+				level.map_add_object_spot(obj.id, "treasure", "")
+				table.insert(MARKS, { id = obj.id, spot = "treasure" })
+				added = added + 1
+			end
+		end
+		return "ok", "stashes=" .. added
+	end
+	return "unsupported", "unknown treasure manager layout"
 end
 
 local artefact_sections = nil
@@ -943,15 +1062,23 @@ local function is_artefact_section(section)
 	return artefact_sections[section] == true
 end
 
+local function artefact_spot()
+	if is_cop ~= nil and is_cop() then
+		return "primary_object_spot"
+	end
+	return "green_location"
+end
+
 function mark_artefacts()
 	local sim = alife()
 	local added = 0
+	local spot = artefact_spot()
 	for id = 1, MAX_OBJECT_ID do
 		local se = sim:object(id)
 		if se ~= nil and se.parent_id == 65535 and is_artefact_section(se:section_name()) and level_of(se) == level.name()
-			and not level.map_has_object_spot(id, "primary_object_spot") then
-			level.map_add_object_spot(id, "primary_object_spot", "")
-			table.insert(MARKS, { id = id, spot = "primary_object_spot" })
+			and not level.map_has_object_spot(id, spot) then
+			level.map_add_object_spot(id, spot, "")
+			table.insert(MARKS, { id = id, spot = spot })
 			added = added + 1
 		end
 	end
@@ -1050,6 +1177,12 @@ function update()
 	if db.actor ~= nil and time_global() >= next_toggle_tick then
 		next_toggle_tick = time_global() + TOGGLE_TICK_MS
 		apply_toggles()
+	end
+	if db.actor ~= nil and fast_forward_hour ~= nil then
+		if level.get_time_hours() == fast_forward_hour then
+			fast_forward_hour = nil
+			level.set_time_factor(10)
+		end
 	end
 	if db.actor == nil or time_global() < next_poll then
 		return

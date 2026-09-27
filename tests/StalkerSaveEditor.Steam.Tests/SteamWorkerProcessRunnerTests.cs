@@ -72,6 +72,88 @@ public sealed class SteamWorkerProcessRunnerTests
     }
 
     [Fact]
+    public async Task Achievement_list_runs_as_a_separate_native_operation_with_selected_app_id()
+    {
+        var process = new FakeChildProcess(new MemoryStream(
+            Encoding.UTF8.GetBytes("{\"type\":\"Achievements\",\"items\":[]}\n")));
+        var factory = new FakeProcessFactory(process);
+        var runner = new SteamWorkerProcessRunner(factory);
+
+        var response = await runner.RunNativeOperationAsync(
+            4500,
+            "achievements",
+            null,
+            null,
+            TimeSpan.FromSeconds(30),
+            CancellationToken.None);
+
+        Assert.Equal("Achievements", response.GetProperty("type").GetString());
+        Assert.Contains("--steam-native-op", factory.StartInfo!.ArgumentList);
+        Assert.Contains("achievements", factory.StartInfo.ArgumentList);
+        Assert.Contains("--app-id", factory.StartInfo.ArgumentList);
+        Assert.Equal("4500", factory.StartInfo.Environment["SteamAppId"]);
+    }
+
+    [Theory]
+    [InlineData(true, "1")]
+    [InlineData(false, "0")]
+    public async Task Achievement_change_passes_the_exact_name_and_explicit_state(bool achieved, string state)
+    {
+        var process = new FakeChildProcess(new MemoryStream(
+            Encoding.UTF8.GetBytes("{\"type\":\"Achievement\",\"item\":{}}\n")));
+        var factory = new FakeProcessFactory(process);
+        var runner = new SteamWorkerProcessRunner(factory);
+
+        await runner.RunNativeOperationAsync(
+            4500,
+            "achievement",
+            "ACH_STALKER",
+            achieved,
+            TimeSpan.FromSeconds(30),
+            CancellationToken.None);
+
+        var args = factory.StartInfo!.ArgumentList;
+        Assert.Equal(new[]
+        {
+            "--steam-native-op", "achievement", "--app-id", "4500", "--name", "ACH_STALKER", "--achieved", state,
+        }, args.TakeLast(8));
+    }
+
+    [Fact]
+    public async Task Rejects_unlisted_native_operations_before_starting_a_child()
+    {
+        var factory = new FakeProcessFactory(new FakeChildProcess(Stream.Null));
+        var runner = new SteamWorkerProcessRunner(factory);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => runner.RunNativeOperationAsync(
+            4500,
+            "write",
+            "file-name",
+            true,
+            TimeSpan.FromSeconds(30),
+            CancellationToken.None));
+
+        Assert.Null(factory.StartInfo);
+    }
+
+    [Fact]
+    public async Task Achievement_operation_timeout_kills_the_child_process_tree()
+    {
+        var process = new FakeChildProcess(new BlockingReadStream());
+        var runner = new SteamWorkerProcessRunner(new FakeProcessFactory(process));
+
+        await Assert.ThrowsAsync<TimeoutException>(() => runner.RunNativeOperationAsync(
+            4500,
+            "achievement",
+            "ACH_STALKER",
+            true,
+            TimeSpan.FromMilliseconds(30),
+            CancellationToken.None));
+
+        Assert.True(process.Killed);
+    }
+
+    [Fact]
     public async Task Timeout_kills_the_child_process_tree()
     {
         var process = new FakeChildProcess(new BlockingReadStream());

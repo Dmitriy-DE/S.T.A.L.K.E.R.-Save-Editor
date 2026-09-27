@@ -233,6 +233,8 @@ internal static class SteamNativeApi
     internal static bool WriteFile(IntPtr remote, string name, IntPtr buffer, int size) =>
         FileWriteFunction(remote, name, buffer, size);
 
+    internal static IntPtr GetLibraryHandle() => LibraryHandle;
+
     private static IntPtr ResolveLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
     {
         _ = assembly;

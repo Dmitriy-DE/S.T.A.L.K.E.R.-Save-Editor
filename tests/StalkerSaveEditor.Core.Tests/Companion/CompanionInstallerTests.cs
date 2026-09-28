@@ -411,8 +411,9 @@ public sealed class CompanionInstallerTests
             var commonRoot = Path.GetFullPath(Path.Combine(ModSourceRoot, "gamedata")) + Path.DirectorySeparatorChar;
             var gameRoot = Path.GetFullPath(Path.Combine(ModSourceRoot, sourceFolder, "gamedata")) + Path.DirectorySeparatorChar;
             var relative = Path.GetRelativePath(source.StartsWith(commonRoot, StringComparison.Ordinal) ? commonRoot : gameRoot, source);
-            var targetRelative = sourceFolder == "soc" && relative.StartsWith("configs/", StringComparison.Ordinal)
-                ? Path.Combine("config", relative["configs/".Length..])
+            var sourceConfigPrefix = $"configs{Path.DirectorySeparatorChar}";
+            var targetRelative = sourceFolder == "soc" && relative.StartsWith(sourceConfigPrefix, StringComparison.Ordinal)
+                ? Path.Combine("config", relative[sourceConfigPrefix.Length..])
                 : relative;
             var target = Path.Combine(gameDirectory, "gamedata", targetRelative);
             Assert.True(File.Exists(target), $"Missing installed asset: {relative}");

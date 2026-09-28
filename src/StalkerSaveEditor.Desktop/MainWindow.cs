@@ -42,7 +42,9 @@ public sealed class MainWindow : Window
         root.Children.Add(topBar);
 
         // 2. Update Notification Banner
-        var updateBanner = BuildUpdateBanner(vm);
+        var updateBanner = new StackPanel();
+        updateBanner.Children.Add(BuildCrashBanner(vm));
+        updateBanner.Children.Add(BuildUpdateBanner(vm));
         Grid.SetRow(updateBanner, 1);
         root.Children.Add(updateBanner);
 
@@ -68,6 +70,33 @@ public sealed class MainWindow : Window
         root.Children.Add(statusBar);
 
         return root;
+    }
+
+    private static Control BuildCrashBanner(SaveLibraryViewModel vm)
+    {
+        var banner = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#2B1A18")),
+            BorderBrush = StalkerTheme.BrushDanger,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(18, 6, 18, 6),
+            DataContext = vm.Diagnostics,
+        };
+        banner.Bind(Visual.IsVisibleProperty, new Binding(nameof(DiagnosticsViewModel.HasPendingCrash)));
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        grid.Children.Add(new TextBlock
+        {
+            Text = "Прошлый запуск завершился ошибкой — отчёт в Настройках → Диагностика.",
+            Foreground = StalkerTheme.BrushDanger,
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var open = StalkerTheme.StalkerButton("Открыть", isPrimary: true, minWidth: 100);
+        open.Click += (_, _) => vm.SelectedTab = "settings";
+        Grid.SetColumn(open, 1);
+        grid.Children.Add(open);
+        banner.Child = grid;
+        return banner;
     }
 
     private static Control BuildUpdateBanner(SaveLibraryViewModel vm)
@@ -278,7 +307,13 @@ public sealed class MainWindow : Window
             Background = StalkerTheme.BrushBgPanel,
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(0, 0, 0, 1),
-            Child = navBar,
+            // Tabs scroll instead of widening the whole workspace past the window edge.
+            Child = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                Content = navBar,
+            },
         };
         root.Children.Add(navBorder);
 
@@ -351,7 +386,7 @@ public sealed class MainWindow : Window
         screens.Children.Add(backups);
 
         // 7. Settings
-        var settings = SettingsView.Build(vm.Settings);
+        var settings = SettingsView.Build(vm.Settings, vm.Diagnostics);
         settings.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowSettingsScreen)));
         screens.Children.Add(settings);
 

@@ -150,7 +150,8 @@ public static class SaveSlotDiscovery
     }
 
     /// <summary>Resolves symbolic links component by component (directory junctions and Proton links).</summary>
-    internal static string ResolveLinks(string fullPath, int depth = 0)
+    /// <summary>Canonical path with every symlinked component resolved; used only as an identity key.</summary>
+    public static string ResolveLinks(string fullPath, int depth = 0)
     {
         var root = Path.GetPathRoot(fullPath) ?? string.Empty;
         var current = root;

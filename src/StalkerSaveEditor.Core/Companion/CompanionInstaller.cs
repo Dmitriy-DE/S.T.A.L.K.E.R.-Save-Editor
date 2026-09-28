@@ -1056,7 +1056,14 @@ public sealed partial class CompanionInstaller
             }
         }
 
-        return (null, $"Could not find an installed {definition.Id} game in the supplied Steam libraries.");
+        if (steamRoots is null)
+        {
+            // Default discovery also looks at GOG, the retail installer and Heroic; explicit Steam roots stay exact.
+            var other = GameInstallLocator.FindNonSteam(definition.Game).FirstOrDefault();
+            if (other is not null) return (other.Directory, null);
+        }
+
+        return (null, $"Could not find an installed {definition.Id} game in Steam, GOG or the retail installer; choose its folder.");
     }
 
     private string ResolveRequiredGameDirectory(

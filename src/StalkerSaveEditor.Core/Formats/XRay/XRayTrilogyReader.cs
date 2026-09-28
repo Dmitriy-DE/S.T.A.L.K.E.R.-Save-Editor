@@ -90,27 +90,38 @@ public static class XRayTrilogyReader
             objectChunk.Data.Span,
             enhanced);
         var records = ParseObjects(container.Raw.Span, objectChunk);
-        var actors = records.Where(record => string.Equals(
-            record.Name, "actor", StringComparison.OrdinalIgnoreCase)).ToArray();
-        if (actors.Length != 1)
+        ObjectRecord? actor = null;
+        var actorCount = 0;
+        foreach (var record in records)
         {
-            throw Error($"найдено actor объектов: {actors.Length}, ожидался ровно один");
+            if (!string.Equals(record.Name, "actor", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            actor = record;
+            actorCount++;
         }
 
-        var actor = actors[0];
-        if (!format.ActorVersions.Contains(actor.Version))
+        if (actorCount != 1)
+        {
+            throw Error($"найдено actor объектов: {actorCount}, ожидался ровно один");
+        }
+
+        var selectedActor = actor!;
+        if (!format.ActorVersions.Contains(selectedActor.Version))
         {
             var expected = string.Join(", ", format.ActorVersions.Order());
             throw Error(
-                $"actor spawn version {actor.Version} не подтверждён для {format.Id}; " +
+                $"actor spawn version {selectedActor.Version} не подтверждён для {format.Id}; " +
                 $"ожидалось {expected}");
         }
 
         var raw = container.Raw.Span;
         var actorState = ParseActorState(
-            raw.Slice(actor.StateOffset, actor.StateLength),
-            actor.Version,
-            actor.StateOffset);
+            raw.Slice(selectedActor.StateOffset, selectedActor.StateLength),
+            selectedActor.Version,
+            selectedActor.StateOffset);
         var factionRelations = Array.Empty<XRayFactionRelation>();
         XRayRelationRegistry? relationRegistry = null;
         if (format.Id is "stalker-soc" or "stalker-cs" or "stalker-cop" or
@@ -141,7 +152,7 @@ public static class XRayTrilogyReader
                     infoPortionsHaveTimestamp: format.Id != "stalker-cop",
                     out var candidate))
                 {
-                    var actorRelations = candidate!.ForCharacter(actor.ObjectId);
+                    var actorRelations = candidate!.ForCharacter(selectedActor.ObjectId);
                     if (actorRelations is not null)
                     {
                         relationRegistry = candidate;
@@ -161,7 +172,7 @@ public static class XRayTrilogyReader
         var items = new List<XRayInventoryItem>();
         foreach (var record in records)
         {
-            if (record.ParentId != actor.ObjectId || record.ObjectId == actor.ObjectId)
+            if (record.ParentId != selectedActor.ObjectId || record.ObjectId == selectedActor.ObjectId)
             {
                 continue;
             }
@@ -239,8 +250,8 @@ public static class XRayTrilogyReader
             format.Id,
             container.Version,
             container,
-            actor.Version,
-            actor.ObjectId,
+            selectedActor.Version,
+            selectedActor.ObjectId,
             actorState.Money,
             actorState.MoneyOffset,
             actorState.PlayerFactionIndex,

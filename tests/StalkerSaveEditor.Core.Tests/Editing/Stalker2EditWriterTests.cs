@@ -46,6 +46,24 @@ public sealed class Stalker2EditWriterTests
     }
 
     [Fact]
+    public void Single_money_dispatch_does_not_create_a_duplicate_source_snapshot()
+    {
+        var source = ReadFixture(MoneyFixtureDirectory, "s2-money-source.sav");
+        var sourceSha = Sha256(source);
+        var plan = new EditPlan(sourceSha, money: 777_888);
+
+        _ = Stalker2EditWriter.Prepare(source, plan);
+        _ = Stalker2MoneyWriter.Prepare(source, plan);
+        var directAllocation = MeasureAllocation(() => Stalker2MoneyWriter.Prepare(source, plan));
+        var dispatchAllocation = MeasureAllocation(() => Stalker2EditWriter.Prepare(source, plan));
+
+        Assert.True(
+            dispatchAllocation <= directAllocation + 256,
+            $"Single-writer dispatch added {dispatchAllocation - directAllocation} bytes; " +
+            "it should leave source ownership to the specialized writer.");
+    }
+
+    [Fact]
     public void Dispatches_single_stack_edit_via_fast_path()
     {
         var manifest = ReadManifest(StackFixtureDirectory, "s2-stacks-vectors.json");
@@ -180,4 +198,11 @@ public sealed class Stalker2EditWriterTests
 
     private static string Sha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+    private static long MeasureAllocation(Action action)
+    {
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        action();
+        return GC.GetAllocatedBytesForCurrentThread() - before;
+    }
 }

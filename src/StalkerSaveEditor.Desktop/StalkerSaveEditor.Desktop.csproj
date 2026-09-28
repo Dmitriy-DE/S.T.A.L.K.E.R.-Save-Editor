@@ -10,6 +10,7 @@
     <None Include="Assets/Fonts/*.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets/Icons/**/*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets/PROVENANCE.json" CopyToOutputDirectory="PreserveNewest" />
+    <InternalsVisibleTo Include="StalkerSaveEditor.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.22" />

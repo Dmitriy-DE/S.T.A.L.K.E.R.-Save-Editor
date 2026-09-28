@@ -325,6 +325,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
 
             Capabilities.SelectedFormatId = value?.ReleaseId;
+            if (InteractiveApp && value is not null) GameAudioService.Instance.UseGame(value.ReleaseId);
 
             if (value is not null)
             {

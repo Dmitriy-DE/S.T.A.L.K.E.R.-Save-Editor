@@ -7,7 +7,7 @@ using StalkerSaveEditor.Core.Storage;
 
 namespace StalkerSaveEditor.Core.Companion;
 
-public sealed class CompanionInstaller
+public sealed partial class CompanionInstaller
 {
     private const int ManifestSchemaVersion = 1;
     private const string ManifestDirectoryName = ".save-editor-companion";

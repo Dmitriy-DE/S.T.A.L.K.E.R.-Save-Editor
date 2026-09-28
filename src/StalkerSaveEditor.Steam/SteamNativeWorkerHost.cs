@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace StalkerSaveEditor.Steam;
 
@@ -16,12 +18,11 @@ internal interface ISteamRemoteStorage : IDisposable
 }
 
 /// <summary>One-shot worker protocol for isolated Steam RemoteStorage operations.</summary>
-public static class SteamNativeWorkerHost
+public static partial class SteamNativeWorkerHost
 {
     private const int MaximumRequestBytes = 1024 * 1024;
     private static readonly TimeSpan DefaultSessionLifetime = TimeSpan.FromHours(3);
     private static readonly TimeSpan DefaultCallbackInterval = TimeSpan.FromMilliseconds(500);
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public static async Task<int> RunAsync()
     {
@@ -75,7 +76,7 @@ public static class SteamNativeWorkerHost
             Environment.SetEnvironmentVariable("SteamGameId", appId.ToString(System.Globalization.CultureInfo.InvariantCulture));
             using var storage = storageFactory(appId);
             storage.Initialize(appId);
-            await WriteJsonLineAsync(output, new WorkerSessionResponse("ready"), cancellationToken).ConfigureAwait(false);
+            await WriteJsonLineAsync(output, new WorkerSessionResponse("ready"), SteamNativeWorkerJsonContext.Default.WorkerSessionResponse, cancellationToken).ConfigureAwait(false);
 
             var inputClosed = DrainInputAsync(input, cancellationToken);
             var elapsed = System.Diagnostics.Stopwatch.StartNew();
@@ -89,7 +90,7 @@ public static class SteamNativeWorkerHost
 
             if (!inputClosed.IsCompleted)
             {
-                await WriteJsonLineAsync(output, new WorkerErrorResponse("error", "Steam game session exceeded its lifetime."), cancellationToken)
+                await WriteJsonLineAsync(output, new WorkerErrorResponse("error", "Steam game session exceeded its lifetime."), SteamNativeWorkerJsonContext.Default.WorkerErrorResponse, cancellationToken)
                     .ConfigureAwait(false);
                 return 1;
             }
@@ -104,12 +105,12 @@ public static class SteamNativeWorkerHost
                 }
             }
 
-            await WriteJsonLineAsync(output, new WorkerSessionResponse("ok"), cancellationToken).ConfigureAwait(false);
+            await WriteJsonLineAsync(output, new WorkerSessionResponse("ok"), SteamNativeWorkerJsonContext.Default.WorkerSessionResponse, cancellationToken).ConfigureAwait(false);
             return 0;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await WriteJsonLineAsync(output, new WorkerErrorResponse("error", exception.Message), cancellationToken)
+            await WriteJsonLineAsync(output, new WorkerErrorResponse("error", exception.Message), SteamNativeWorkerJsonContext.Default.WorkerErrorResponse, cancellationToken)
                 .ConfigureAwait(false);
             return 1;
         }
@@ -181,7 +182,7 @@ public static class SteamNativeWorkerHost
             if (operation == "list")
             {
                 var files = storage.ListFiles();
-                await WriteJsonLineAsync(output, new WorkerFilesResponse("files", files), cancellationToken)
+                await WriteJsonLineAsync(output, new WorkerFilesResponse("files", files), SteamNativeWorkerJsonContext.Default.WorkerFilesResponse, cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (operation == "read")
@@ -189,7 +190,7 @@ public static class SteamNativeWorkerHost
                 var fileName = root.GetProperty("fileName").GetString();
                 ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
                 var data = storage.ReadFile(fileName);
-                await WriteJsonLineAsync(output, new WorkerDataResponse("data", data.Length), cancellationToken)
+                await WriteJsonLineAsync(output, new WorkerDataResponse("data", data.Length), SteamNativeWorkerJsonContext.Default.WorkerDataResponse, cancellationToken)
                     .ConfigureAwait(false);
                 await output.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                 await output.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -197,7 +198,7 @@ public static class SteamNativeWorkerHost
             else if (operation == "write")
             {
                 storage.WriteFile(writeName!, writeData!);
-                await WriteJsonLineAsync(output, new WorkerStatusResponse("ok"), cancellationToken)
+                await WriteJsonLineAsync(output, new WorkerStatusResponse("ok"), SteamNativeWorkerJsonContext.Default.WorkerStatusResponse, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -205,7 +206,7 @@ public static class SteamNativeWorkerHost
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await WriteJsonLineAsync(output, new WorkerErrorResponse("error", exception.Message), cancellationToken)
+            await WriteJsonLineAsync(output, new WorkerErrorResponse("error", exception.Message), SteamNativeWorkerJsonContext.Default.WorkerErrorResponse, cancellationToken)
                 .ConfigureAwait(false);
             return 1;
         }
@@ -237,9 +238,10 @@ public static class SteamNativeWorkerHost
     private static async Task WriteJsonLineAsync<T>(
         Stream output,
         T response,
+        JsonTypeInfo<T> jsonTypeInfo,
         CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.SerializeToUtf8Bytes(response, JsonOptions);
+        var json = JsonSerializer.SerializeToUtf8Bytes(response, jsonTypeInfo);
         await output.WriteAsync(json, cancellationToken).ConfigureAwait(false);
         await output.WriteAsync("\n"u8.ToArray(), cancellationToken).ConfigureAwait(false);
         await output.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -262,4 +264,17 @@ public static class SteamNativeWorkerHost
     private sealed record WorkerSessionResponse(string Type);
 
     private sealed record WorkerStatusResponse(string Type);
+
+    [JsonSourceGenerationOptions(
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString)]
+    [JsonSerializable(typeof(WorkerFilesResponse))]
+    [JsonSerializable(typeof(WorkerDataResponse))]
+    [JsonSerializable(typeof(WorkerErrorResponse))]
+    [JsonSerializable(typeof(WorkerSessionResponse))]
+    [JsonSerializable(typeof(WorkerStatusResponse))]
+    private partial class SteamNativeWorkerJsonContext : JsonSerializerContext
+    {
+    }
 }

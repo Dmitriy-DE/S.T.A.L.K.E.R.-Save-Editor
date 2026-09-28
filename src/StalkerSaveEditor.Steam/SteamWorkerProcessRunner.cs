@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace StalkerSaveEditor.Steam;
 
@@ -63,7 +64,7 @@ internal interface ISteamWorkerChildProcess : IDisposable
     void KillTree();
 }
 
-internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISteamGameSessionRunner
+internal sealed partial class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISteamGameSessionRunner
 {
     private const int MaximumHeaderBytes = 1024 * 1024;
     private readonly ISteamWorkerProcessFactory _factory;
@@ -85,7 +86,7 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
             throw new InvalidDataException("Steam worker returned an unexpected list response.");
         }
 
-        return response.Header.GetProperty("files").Deserialize<SteamCloudFile[]>(JsonOptions)
+        return response.Header.GetProperty("files").Deserialize(SteamWorkerJsonContext.Default.SteamCloudFiles)
             ?? throw new InvalidDataException("Steam worker returned an invalid file list.");
     }
 
@@ -270,7 +271,7 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
         try
         {
             var stderrTask = DrainErrorAsync(process.StandardError);
-            var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, JsonOptions);
+            var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, SteamWorkerJsonContext.Default.WorkerRequest);
             await process.StandardInput.WriteAsync(requestBytes, timeoutSource.Token).ConfigureAwait(false);
             await process.StandardInput.WriteAsync("\n"u8.ToArray(), timeoutSource.Token).ConfigureAwait(false);
             if (!payload.IsEmpty)
@@ -380,13 +381,13 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
 
         if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
         {
-            var entryAssembly = System.Reflection.Assembly.GetEntryAssembly()?.Location;
-            if (string.IsNullOrWhiteSpace(entryAssembly))
+            var entryAssemblyName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+            if (string.IsNullOrWhiteSpace(entryAssemblyName))
             {
                 throw new InvalidOperationException("Cannot determine the application assembly for the Steam worker.");
             }
 
-            startInfo.ArgumentList.Add(entryAssembly);
+            startInfo.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, $"{entryAssemblyName}.dll"));
         }
 
         if (gameSession)
@@ -462,11 +463,19 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
         return await reader.ReadToEndAsync().ConfigureAwait(false);
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     private sealed record WorkerRequest(string Operation, int AppId, string? FileName, int? Size = null);
 
     private sealed record WorkerResponse(JsonElement Header, byte[] Data);
+
+    [JsonSourceGenerationOptions(
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString)]
+    [JsonSerializable(typeof(WorkerRequest))]
+    [JsonSerializable(typeof(SteamCloudFile[]), TypeInfoPropertyName = "SteamCloudFiles")]
+    private partial class SteamWorkerJsonContext : JsonSerializerContext
+    {
+    }
 }
 
 internal sealed class SteamWorkerGameSession(

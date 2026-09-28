@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using StalkerSaveEditor.Core.Editing;
 
 namespace StalkerSaveEditor.Core.Backups;
@@ -39,12 +38,6 @@ public sealed record LocalSaveRestoreReceipt(
 
 public static class LocalSaveStorage
 {
-    private static readonly JsonSerializerOptions JournalOptions = new()
-    {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-    };
-
     public static LocalSaveExportReceipt ExportLocal(
         string sourcePath,
         string outputPath,
@@ -536,7 +529,7 @@ public static class LocalSaveStorage
     };
 
     private static byte[] SerializeJournal(Dictionary<string, object?> journal) =>
-        JsonSerializer.SerializeToUtf8Bytes(journal, JournalOptions);
+        JsonSerializer.SerializeToUtf8Bytes(journal, BackupJournalJsonContext.Default.Journal);
 
     private static (string BackupPath, string JournalPath) CreateArtifactPaths(string sourcePath, string backupDirectory)
     {

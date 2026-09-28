@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace StalkerSaveEditor.Steam;
 
@@ -69,7 +70,7 @@ public sealed class SteamAchievementsClient
         EnsureAvailable(appId);
         var response = await RunAsync(appId, "achievements", null, null, cancellationToken).ConfigureAwait(false);
         EnsureResponseType(response, "Achievements");
-        var items = response.GetProperty("items").Deserialize<SteamAchievement[]>(JsonOptions);
+        var items = response.GetProperty("items").Deserialize(SteamAchievementJsonContext.Default.SteamAchievementArray);
         return items ?? throw new SteamAchievementsException("Steam worker returned an invalid achievement list.");
     }
 
@@ -89,7 +90,7 @@ public sealed class SteamAchievementsClient
         EnsureAvailable(appId);
         var response = await RunAsync(appId, "achievement", apiName, achieved, cancellationToken).ConfigureAwait(false);
         EnsureResponseType(response, "Achievement");
-        return response.GetProperty("item").Deserialize<SteamAchievement>(JsonOptions)
+        return response.GetProperty("item").Deserialize(SteamAchievementJsonContext.Default.SteamAchievement)
             ?? throw new SteamAchievementsException("Steam worker returned an invalid achievement result.");
     }
 
@@ -146,5 +147,14 @@ public sealed class SteamAchievementsClient
         }
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+}
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    PropertyNameCaseInsensitive = true,
+    NumberHandling = JsonNumberHandling.AllowReadingFromString)]
+[JsonSerializable(typeof(SteamAchievement[]))]
+[JsonSerializable(typeof(SteamAchievement))]
+internal partial class SteamAchievementJsonContext : JsonSerializerContext
+{
 }

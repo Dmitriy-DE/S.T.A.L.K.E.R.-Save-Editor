@@ -2,12 +2,13 @@ using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using StalkerSaveEditor.Core.Formats.XRay;
 using StalkerSaveEditor.Core.Storage;
 
 namespace StalkerSaveEditor.Core.Companion;
 
-public sealed class CompanionInstaller
+public sealed partial class CompanionInstaller
 {
     private const int ManifestSchemaVersion = 1;
     private const string ManifestDirectoryName = ".save-editor-companion";
@@ -24,12 +25,6 @@ public sealed class CompanionInstaller
         HookFileKind Kind,
         string GameRelativePath,
         string ArchiveRelativePath);
-    private static readonly JsonSerializerOptions ManifestJsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true,
-    };
-
     private readonly string _modSourceRoot;
     private readonly ICompanionInstallFileSystem _fileSystem;
 
@@ -413,7 +408,7 @@ public sealed class CompanionInstaller
                 _fileSystem.DeleteFile(target);
             }
 
-            var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestJsonOptions);
+            var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest, CompanionManifestJsonContext.Default.InstallManifest);
             AtomicWrite(manifestPath, manifestBytes, overwrite: _fileSystem.FileExists(manifestPath));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
@@ -674,7 +669,7 @@ public sealed class CompanionInstaller
                 AtomicWrite(ResolveStatePath(gameDirectory, relative), bytes, overwrite: false);
             }
 
-            AtomicWrite(manifestPath, JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestJsonOptions), overwrite);
+            AtomicWrite(manifestPath, JsonSerializer.SerializeToUtf8Bytes(manifest, CompanionManifestJsonContext.Default.InstallManifest), overwrite);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
@@ -942,7 +937,7 @@ public sealed class CompanionInstaller
     {
         try
         {
-            var manifest = JsonSerializer.Deserialize<InstallManifest>(_fileSystem.ReadAllBytes(manifestPath), ManifestJsonOptions)
+            var manifest = JsonSerializer.Deserialize(_fileSystem.ReadAllBytes(manifestPath), CompanionManifestJsonContext.Default.InstallManifest)
                 ?? throw new JsonException("Manifest is empty.");
             if (manifest.SchemaVersion != ManifestSchemaVersion ||
                 !string.Equals(manifest.Game, definition.Id, StringComparison.Ordinal) ||
@@ -1233,6 +1228,14 @@ public sealed class CompanionInstaller
         string AfterSha256,
         string? BackupPath,
         bool WasPresentBeforeInstall);
+
+    [JsonSourceGenerationOptions(
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+        WriteIndented = true)]
+    [JsonSerializable(typeof(InstallManifest), TypeInfoPropertyName = "InstallManifest")]
+    private partial class CompanionManifestJsonContext : JsonSerializerContext
+    {
+    }
 
     private sealed record PlannedInstallFile(
         string RelativePath,

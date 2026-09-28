@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace StalkerSaveEditor.Steam;
 
@@ -12,12 +14,10 @@ internal interface ISteamUserStats : IDisposable
 }
 
 /// <summary>One-shot child operations for listing or explicitly changing S.T.A.L.K.E.R. achievements.</summary>
-public static class SteamAchievementsWorkerHost
+public static partial class SteamAchievementsWorkerHost
 {
     private static readonly HashSet<int> SupportedAppIds =
     [1643320, 4500, 20510, 41700, 2427410, 2427420, 2427430];
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public static Task<int> RunAchievementsAsync(int appId) => RunConsoleAsync(
         appId,
@@ -81,13 +81,21 @@ public static class SteamAchievementsWorkerHost
 
             if (operation == "achievements")
             {
-                await WriteJsonLineAsync(output, new WorkerAchievementsResponse("Achievements", stats.List()), cancellationToken)
+                await WriteJsonLineAsync(
+                    output,
+                    new WorkerAchievementsResponse("Achievements", stats.List()),
+                    SteamAchievementsWorkerJsonContext.Default.WorkerAchievementsResponse,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
             else
             {
                 var item = stats.Set(apiName!, achieved!.Value);
-                await WriteJsonLineAsync(output, new WorkerAchievementResponse("Achievement", item), cancellationToken)
+                await WriteJsonLineAsync(
+                    output,
+                    new WorkerAchievementResponse("Achievement", item),
+                    SteamAchievementsWorkerJsonContext.Default.WorkerAchievementResponse,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -95,7 +103,11 @@ public static class SteamAchievementsWorkerHost
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await WriteJsonLineAsync(output, new WorkerErrorResponse("Error", exception.Message), cancellationToken)
+            await WriteJsonLineAsync(
+                output,
+                new WorkerErrorResponse("Error", exception.Message),
+                SteamAchievementsWorkerJsonContext.Default.WorkerErrorResponse,
+                cancellationToken)
                 .ConfigureAwait(false);
             return 1;
         }
@@ -116,9 +128,10 @@ public static class SteamAchievementsWorkerHost
     private static async Task WriteJsonLineAsync<T>(
         Stream output,
         T response,
+        JsonTypeInfo<T> jsonTypeInfo,
         CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.SerializeToUtf8Bytes(response, JsonOptions);
+        var json = JsonSerializer.SerializeToUtf8Bytes(response, jsonTypeInfo);
         await output.WriteAsync(json, cancellationToken).ConfigureAwait(false);
         await output.WriteAsync("\n"u8.ToArray(), cancellationToken).ConfigureAwait(false);
         await output.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -129,4 +142,15 @@ public static class SteamAchievementsWorkerHost
     private sealed record WorkerAchievementResponse(string Type, SteamAchievement Item);
 
     private sealed record WorkerErrorResponse(string Type, string Message);
+
+    [JsonSourceGenerationOptions(
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString)]
+    [JsonSerializable(typeof(WorkerAchievementsResponse))]
+    [JsonSerializable(typeof(WorkerAchievementResponse))]
+    [JsonSerializable(typeof(WorkerErrorResponse))]
+    private partial class SteamAchievementsWorkerJsonContext : JsonSerializerContext
+    {
+    }
 }

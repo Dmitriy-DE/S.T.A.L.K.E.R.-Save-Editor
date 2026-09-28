@@ -276,32 +276,9 @@ public static class GameDoctor
         }
     }
 
-    private static string ResolveDirectoryIdentity(string directory)
-    {
-        var fullPath = Path.GetFullPath(directory);
-        var root = Path.GetPathRoot(fullPath);
-        if (string.IsNullOrEmpty(root)) return fullPath;
-
-        var segments = fullPath[root.Length..].Split(
-            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-            StringSplitOptions.RemoveEmptyEntries);
-        var current = root;
-        foreach (var segment in segments)
-        {
-            current = Path.Combine(current, segment);
-            try
-            {
-                var target = new DirectoryInfo(current).ResolveLinkTarget(returnFinalTarget: true);
-                if (target is not null) current = target.FullName;
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException or NotSupportedException)
-            {
-                // If a component cannot be resolved, retain the normalized path and keep detection read-only.
-            }
-        }
-
-        return Path.GetFullPath(current);
-    }
+    /// <summary>The install folder with every linked component resolved (macOS /var, Steam root links), used to spot duplicates.</summary>
+    private static string ResolveDirectoryIdentity(string directory) =>
+        Storage.SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(directory));
 
     private static GameDoctorFileAudit[] AuditManagedFiles(
         GameTarget target,

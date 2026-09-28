@@ -77,7 +77,7 @@ public sealed class CliCommandTests
             Assert.Contains("\"target\": \"ClearSky\"", result.Output, StringComparison.Ordinal);
             Assert.Contains("\"source\": \"Steam\"", result.Output, StringComparison.Ordinal);
             Assert.Contains("\"buildId\": \"11450472\"", result.Output, StringComparison.Ordinal);
-            Assert.Contains(game, result.Output, StringComparison.Ordinal);
+            Assert.Contains(System.Text.Json.JsonEncodedText.Encode(StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(game))).ToString(), result.Output, StringComparison.Ordinal);
         }
         finally
         {

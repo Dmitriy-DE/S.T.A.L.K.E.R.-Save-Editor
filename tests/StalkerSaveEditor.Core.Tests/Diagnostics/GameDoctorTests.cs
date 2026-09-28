@@ -147,7 +147,7 @@ public sealed class GameDoctorTests
         var installations = GameDoctor.DiscoverInstallations([steamRoot]);
 
         Assert.Equal(2, installations.Count);
-        Assert.All(installations, item => Assert.Equal(Path.Combine(steamRoot, "steamapps", "common", "Shared"), item.Directory));
+        Assert.All(installations, item => Assert.Equal(StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(Path.Combine(steamRoot, "steamapps", "common", "Shared")), item.Directory));
         Assert.Contains(installations, item => item.Target == GameTarget.ClearSky && item.BuildId == "11450472");
         Assert.Contains(installations, item => item.Target == GameTarget.ShadowOfChernobylEnhancedEdition && item.BuildId == "22000000");
     }

@@ -37,6 +37,19 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private string _selectedCategory = "all";
     private InventoryLineViewModel? _selectedItem;
 
+    /// <summary>Set while a draft is applied to the rows, so the rows' change events do not record it again.</summary>
+    private bool _applyingPlan;
+
+    /// <summary>Row properties that are edits; the rest (displays, colours) only follow them.</summary>
+    private static readonly HashSet<string> EditableItemProperties =
+    [
+        nameof(InventoryLineViewModel.CountInput),
+        nameof(InventoryLineViewModel.ConditionPercent),
+        nameof(InventoryLineViewModel.Placement),
+        nameof(InventoryLineViewModel.IsDeleted),
+        nameof(InventoryLineViewModel.UpgradeItems),
+    ];
+
     public SaveLibraryViewModel(
         bool discoverLocalSaves = true,
         Func<IReadOnlyList<string>>? saveDirectoriesProvider = null,
@@ -548,24 +561,20 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public void Undo()
     {
-        if (_currentJournal is { CanUndo: true })
-        {
-            _currentJournal = _currentJournal.Undo();
-            _draftStore.Save(_currentJournal);
-            ApplyPlanToUI(_currentJournal.Current);
-            UpdateDraftState();
-        }
+        if (_currentJournal is { CanUndo: true } journal) MoveInJournal(journal.Undo());
     }
 
     public void Redo()
     {
-        if (_currentJournal is { CanRedo: true })
-        {
-            _currentJournal = _currentJournal.Redo();
-            _draftStore.Save(_currentJournal);
-            ApplyPlanToUI(_currentJournal.Current);
-            UpdateDraftState();
-        }
+        if (_currentJournal is { CanRedo: true } journal) MoveInJournal(journal.Redo());
+    }
+
+    private void MoveInJournal(DraftJournal journal)
+    {
+        _currentJournal = journal;
+        _draftStore.Save(journal);
+        ApplyPlanToUI(journal.Current);
+        UpdateDraftState();
     }
 
     public void DiscardDraft()
@@ -573,27 +582,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         if (SelectedSave is null) return;
         _draftStore.Remove(SelectedSave.SourceSha256);
         _currentJournal = new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0);
-
-        _moneyInput = SelectedSave.Money.ToString(CultureInfo.InvariantCulture);
-        foreach (var item in SelectedSave.Inventory)
-        {
-            item.CountInput = item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? "1";
-            item.ConditionPercent = item.OriginalCondition.HasValue ? (int)Math.Round(item.OriginalCondition.Value * 100f) : 100;
-            item.Placement = item.OriginalPlacement;
-            item.IsDeleted = false;
-            foreach (var up in item.UpgradeItems) up.IsInstalled = up.OriginalInstalled;
-        }
-
-        foreach (var relation in SelectedSave.FactionRelations)
-        {
-            relation.Goodwill = relation.OriginalGoodwill;
-        }
-
-        foreach (var stash in SelectedSave.Stashes)
-        {
-            foreach (var stashItem in stash.Items) stashItem.IsTaken = false;
-        }
-
+        ApplyPlanToUI(_currentJournal.Current);
         UpdateDraftState();
         StatusMessage = L.T("Черновик сброшен.");
     }
@@ -876,7 +865,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void RecordPlan(EditPlan plan)
     {
         if (SelectedSave is null) return;
-        _currentJournal = (_currentJournal ?? new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0)).Record(plan);
+        var journal = _currentJournal ?? new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0);
+        if (journal.Current.HasSameEdits(plan)) return;
+        _currentJournal = journal.Record(plan);
         _draftStore.Save(_currentJournal);
         UpdateDraftState();
     }
@@ -884,79 +875,49 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void ApplyPlanToUI(EditPlan plan)
     {
         if (SelectedSave is null) return;
+        _applyingPlan = true;
+        try
+        {
+            ApplyPlanToRows(SelectedSave, plan);
+        }
+        finally
+        {
+            _applyingPlan = false;
+        }
 
-        _moneyInput = plan.Money.HasValue
-            ? plan.Money.Value.ToString(CultureInfo.InvariantCulture)
-            : SelectedSave.Money.ToString(CultureInfo.InvariantCulture);
+        // Undoing a removal brings the row back into the list.
+        var selected = SelectedItem;
+        ApplyInventoryFilter();
+        SelectedItem = selected is not null && FilteredInventory.Contains(selected) ? selected : FilteredInventory.FirstOrDefault();
+    }
+
+    private void ApplyPlanToRows(SaveFileSummary save, EditPlan plan)
+    {
+        _moneyInput = (plan.Money ?? save.Money).ToString(CultureInfo.InvariantCulture);
         OnPropertyChanged(nameof(MoneyInput));
 
-        foreach (var item in SelectedSave.Inventory)
+        foreach (var item in save.Inventory)
         {
-            if (plan.StackCounts.TryGetValue(item.Handle, out var count))
-            {
-                item.CountInput = count.ToString(CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                item.CountInput = item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
-            }
-
-            if (plan.Durability.TryGetValue(item.Handle, out var cond))
-            {
-                item.ConditionPercent = (int)Math.Round(cond * 100);
-            }
-            else
-            {
-                item.ConditionPercent = item.OriginalCondition.HasValue
-                    ? (int)Math.Round(item.OriginalCondition.Value * 100)
-                    : 100;
-            }
-
+            item.CountInput = plan.StackCounts.TryGetValue(item.Handle, out var count)
+                ? count.ToString(CultureInfo.InvariantCulture)
+                : item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? "1";
+            item.ConditionPercent = plan.Durability.TryGetValue(item.Handle, out var condition)
+                ? (int)Math.Round(condition * 100)
+                : item.OriginalCondition is { } original ? (int)Math.Round(original * 100) : 100;
             item.IsDeleted = plan.DetachHandles.Contains((ushort)item.Handle);
-
-            if (plan.Placements.FirstOrDefault(p => p.Handle == item.Handle) is { } plc)
-            {
-                item.Placement = plc.Type;
-            }
-            else
-            {
-                item.Placement = item.OriginalPlacement ?? "backpack";
-            }
-
-            if (plan.Upgrades.TryGetValue((ushort)item.Handle, out var ups))
-            {
-                foreach (var up in item.UpgradeItems)
-                {
-                    up.IsInstalled = ups.Contains(up.Key, StringComparer.Ordinal);
-                }
-            }
-            else
-            {
-                foreach (var up in item.UpgradeItems)
-                {
-                    up.IsInstalled = item.OriginalUpgrades.Contains(up.Key, StringComparer.Ordinal);
-                }
-            }
+            item.Placement = plan.Placements.FirstOrDefault(change => change.Handle == item.Handle)?.Type ?? item.OriginalPlacement;
+            var installed = plan.Upgrades.TryGetValue((ushort)item.Handle, out var upgrades) ? upgrades : item.OriginalUpgrades;
+            foreach (var upgrade in item.UpgradeItems) upgrade.IsInstalled = installed.Contains(upgrade.Key, StringComparer.Ordinal);
         }
 
-        foreach (var stash in SelectedSave.Stashes)
+        foreach (var stashItem in save.Stashes.SelectMany(stash => stash.Items))
         {
-            foreach (var stashItem in stash.Items)
-            {
-                stashItem.IsTaken = plan.StashTakes.Contains(stashItem.Handle);
-            }
+            stashItem.IsTaken = plan.StashTakes.Contains(stashItem.Handle);
         }
 
-        foreach (var rel in SelectedSave.FactionRelations)
+        foreach (var relation in save.FactionRelations)
         {
-            if (plan.FactionRelations.TryGetValue(rel.Community, out var val))
-            {
-                rel.Goodwill = val;
-            }
-            else
-            {
-                rel.Goodwill = rel.OriginalGoodwill;
-            }
+            relation.Goodwill = plan.FactionRelations.TryGetValue(relation.Community, out var goodwill) ? goodwill : relation.OriginalGoodwill;
         }
     }
 
@@ -1003,6 +964,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private void OnInventoryItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (_applyingPlan || e.PropertyName is null || !EditableItemProperties.Contains(e.PropertyName)) return;
         RecordDraftChange();
     }
 

@@ -23,6 +23,14 @@ internal interface ISteamWorkerProcessRunner
         ReadOnlyMemory<byte> data,
         TimeSpan timeout,
         CancellationToken cancellationToken);
+
+    Task<JsonElement> RunNativeOperationAsync(
+        int appId,
+        string operation,
+        string? apiName,
+        bool? achieved,
+        TimeSpan timeout,
+        CancellationToken cancellationToken);
 }
 
 internal interface ISteamGameSessionRunner
@@ -192,6 +200,61 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
         }
     }
 
+    public async Task<JsonElement> RunNativeOperationAsync(
+        int appId,
+        string operation,
+        string? apiName,
+        bool? achieved,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ValidateNativeOperation(appId, operation, apiName, achieved, timeout);
+        var startInfo = CreateStartInfo(
+            appId,
+            nativeOperation: operation,
+            apiName: apiName,
+            achieved: achieved);
+        using var process = _factory.Start(startInfo);
+        process.Start();
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(timeout);
+
+        try
+        {
+            var stderrTask = DrainErrorAsync(process.StandardError);
+            process.StandardInput.Dispose();
+            var responseBytes = await ReadHeaderAsync(process.StandardOutput, timeoutSource.Token)
+                .ConfigureAwait(false);
+            using var response = JsonDocument.Parse(responseBytes);
+            var exitCode = await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+            var stderr = await stderrTask.ConfigureAwait(false);
+            if (exitCode != 0)
+            {
+                var message = response.RootElement.TryGetProperty("message", out var messageElement)
+                    ? messageElement.GetString()
+                    : null;
+                throw new InvalidOperationException(
+                    string.IsNullOrWhiteSpace(message)
+                        ? string.IsNullOrWhiteSpace(stderr)
+                            ? $"Steam worker exited with code {exitCode}."
+                            : $"Steam worker exited with code {exitCode}: {stderr.Trim()}"
+                        : message);
+            }
+
+            return response.RootElement.Clone();
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            process.KillTree();
+            throw new TimeoutException($"Steam worker exceeded the {timeout.TotalSeconds:0.###} second timeout.");
+        }
+        catch
+        {
+            process.KillTree();
+            throw;
+        }
+    }
+
     private async Task<WorkerResponse> RunAsync(
         WorkerRequest request,
         TimeSpan timeout,
@@ -267,7 +330,42 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
         }
     }
 
-    private static ProcessStartInfo CreateStartInfo(int appId, bool gameSession = false)
+    private static void ValidateNativeOperation(
+        int appId,
+        string operation,
+        string? apiName,
+        bool? achieved,
+        TimeSpan timeout)
+    {
+        if (appId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(appId), "Steam app id must be positive.");
+        }
+
+        if (timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), "Worker timeout must be positive.");
+        }
+
+        if (operation == "achievements" && apiName is null && achieved is null)
+        {
+            return;
+        }
+
+        if (operation == "achievement" && !string.IsNullOrWhiteSpace(apiName) && !apiName.Any(char.IsControl) && achieved is not null)
+        {
+            return;
+        }
+
+        throw new ArgumentException("Only a valid achievements list or explicit achievement change operation is supported.");
+    }
+
+    private static ProcessStartInfo CreateStartInfo(
+        int appId,
+        bool gameSession = false,
+        string? nativeOperation = null,
+        string? apiName = null,
+        bool? achieved = null)
     {
         var executable = Environment.ProcessPath
             ?? throw new InvalidOperationException("Cannot determine the current executable for the Steam worker.");
@@ -298,9 +396,23 @@ internal sealed class SteamWorkerProcessRunner : ISteamWorkerProcessRunner, ISte
             startInfo.ArgumentList.Add("--app-id");
             startInfo.ArgumentList.Add(appId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
-        else
+        else if (nativeOperation is null)
         {
             startInfo.ArgumentList.Add("--steam-native-worker");
+        }
+        else
+        {
+            startInfo.ArgumentList.Add("--steam-native-op");
+            startInfo.ArgumentList.Add(nativeOperation);
+            startInfo.ArgumentList.Add("--app-id");
+            startInfo.ArgumentList.Add(appId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (apiName is not null)
+            {
+                startInfo.ArgumentList.Add("--name");
+                startInfo.ArgumentList.Add(apiName);
+                startInfo.ArgumentList.Add("--achieved");
+                startInfo.ArgumentList.Add(achieved!.Value ? "1" : "0");
+            }
         }
 
         startInfo.Environment["SteamAppId"] = appId.ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -1,4 +1,5 @@
 using StalkerSaveEditor.Steam;
+using System.Text.Json;
 using Xunit;
 
 namespace StalkerSaveEditor.Steam.Tests;
@@ -91,5 +92,14 @@ public sealed class SteamReadOnlyClientTests
             TimeSpan timeout,
             CancellationToken cancellationToken) =>
             Task.CompletedTask;
+
+        public Task<JsonElement> RunNativeOperationAsync(
+            int appId,
+            string operation,
+            string? apiName,
+            bool? achieved,
+            TimeSpan timeout,
+            CancellationToken cancellationToken) =>
+            Task.FromException<JsonElement>(new NotSupportedException());
     }
 }

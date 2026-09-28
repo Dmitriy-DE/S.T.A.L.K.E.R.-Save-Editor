@@ -221,6 +221,7 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, "ПЕРЕХОДЫ", "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
         navBar.Children.Add(MakeNavTab(vm, "БЭКАПЫ", "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
         navBar.Children.Add(MakeNavTab(vm, "ВОЗМОЖНОСТИ", "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
+        navBar.Children.Add(MakeNavTab(vm, "КОМПАНЬОН", "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
         navBar.Children.Add(MakeNavTab(vm, "НАСТРОЙКИ", "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
 
         var navBorder = new Border
@@ -304,6 +305,11 @@ public sealed class MainWindow : Window
         var capabilities = CapabilitiesView.Build(vm.Capabilities);
         capabilities.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCapabilitiesScreen)));
         screens.Children.Add(capabilities);
+
+        // 9. Companion
+        var companion = new CompanionView { DataContext = vm.Companion };
+        companion.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCompanionScreen)));
+        screens.Children.Add(companion);
 
         contentGrid.Children.Add(screens);
 

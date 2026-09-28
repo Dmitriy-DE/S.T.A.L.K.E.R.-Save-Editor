@@ -171,11 +171,22 @@ public static class XRayTrilogyReader
 
         items.Sort(static (left, right) => left.Handle.CompareTo(right.Handle));
         var registryObjects = new XRayRegistryObject[records.Count];
+        List<XRayLevelChanger>? levelChangers = null;
         List<ObjectRecord>? stashBoxes = null;
         for (var index = 0; index < records.Count; index++)
         {
             var record = records[index];
             registryObjects[index] = ToRegistryObject(record);
+            if (string.Equals(record.Name, "level_changer", StringComparison.OrdinalIgnoreCase))
+            {
+                (levelChangers ??= []).Add(new XRayLevelChanger(
+                    record.ObjectId,
+                    record.ParentId,
+                    record.Version,
+                    record.Name,
+                    record.NameReplace));
+            }
+
             if (string.Equals(record.Name, "inventory_box", StringComparison.Ordinal))
             {
                 (stashBoxes ??= []).Add(record);
@@ -241,6 +252,7 @@ public static class XRayTrilogyReader
             actorState.Reputation,
             actorState.Name,
             Array.AsReadOnly(registryObjects),
+            levelChangers is null ? Array.Empty<XRayLevelChanger>() : Array.AsReadOnly(levelChangers.ToArray()),
             gameTime,
             timeFactor,
             normalTimeFactor,

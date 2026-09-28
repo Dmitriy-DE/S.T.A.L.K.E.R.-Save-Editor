@@ -1,7 +1,9 @@
 using StalkerSaveEditor.Core.Diagnostics;
+using System.Text.Json.Serialization;
 
 namespace StalkerSaveEditor.Core.Patching;
 
+[JsonConverter(typeof(JsonStringEnumConverter<GameFixPreset>))]
 public enum GameFixPreset
 {
     EssentialOnly,
@@ -64,17 +66,20 @@ public static class GameFixCatalog
     public static IReadOnlyList<GameFixDefinition> ForPreset(GameTarget game, GameFixPreset preset)
     {
         if (preset == GameFixPreset.Custom) return [];
-        return Definitions.Where(definition => definition.Game == game &&
-            definition.Maturity == GameFixMaturity.Validated &&
-            definition.Category != GameFixCategory.Experimental &&
-            preset switch
-            {
-                GameFixPreset.EssentialOnly => definition.Category == GameFixCategory.Essential,
-                GameFixPreset.Recommended => definition.Category is GameFixCategory.Essential or GameFixCategory.Recommended,
-                GameFixPreset.AllSafeFixes => definition.Category is GameFixCategory.Essential or GameFixCategory.Recommended or GameFixCategory.Optional or GameFixCategory.Community,
-                _ => false,
-            }).ToArray();
+        return Definitions.Where(definition => definition.Game == game && IsIncludedInPreset(definition, preset)).ToArray();
     }
+
+    internal static bool IsIncludedInPreset(GameFixDefinition definition, GameFixPreset preset) =>
+        preset != GameFixPreset.Custom &&
+        definition.Maturity == GameFixMaturity.Validated &&
+        definition.Category != GameFixCategory.Experimental &&
+        preset switch
+        {
+            GameFixPreset.EssentialOnly => definition.Category == GameFixCategory.Essential,
+            GameFixPreset.Recommended => definition.Category is GameFixCategory.Essential or GameFixCategory.Recommended,
+            GameFixPreset.AllSafeFixes => definition.Category is GameFixCategory.Essential or GameFixCategory.Recommended or GameFixCategory.Optional or GameFixCategory.Community,
+            _ => false,
+        };
 
     public static bool TryGet(string id, out GameFixDefinition? definition)
     {

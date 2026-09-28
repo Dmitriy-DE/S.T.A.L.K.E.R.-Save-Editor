@@ -152,6 +152,29 @@ public sealed partial class CompanionInstaller
             issues.Distinct(StringComparer.Ordinal).ToArray());
     }
 
+    /// <summary>Returns only files owned by a valid toolkit manifest, with their current hash state.</summary>
+    public IReadOnlyList<CompanionManagedFileStatus> GetManagedFileStatus(
+        CompanionGame game,
+        string? selectedGameDirectory = null,
+        IReadOnlyList<string>? steamRoots = null)
+    {
+        var definition = CompanionGameDefinition.For(game);
+        var gameDirectory = ResolveRequiredGameDirectory(definition, selectedGameDirectory, steamRoots);
+        var manifestPath = GetManifestPath(gameDirectory);
+        if (!_fileSystem.FileExists(manifestPath)) return [];
+
+        var manifest = ReadManifest(manifestPath, definition);
+        return manifest.Files
+            .Select(entry =>
+            {
+                var path = ResolveGamePath(gameDirectory, entry.Path);
+                var exists = _fileSystem.FileExists(path);
+                return new CompanionManagedFileStatus(entry.Path, exists,
+                    exists && FileMatches(gameDirectory, entry.Path, entry.AfterSha256));
+            })
+            .ToArray();
+    }
+
     public CompanionInstallerResult Install(
         CompanionGame game,
         string? selectedGameDirectory = null,

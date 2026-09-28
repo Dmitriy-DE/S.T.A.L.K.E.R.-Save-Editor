@@ -216,6 +216,18 @@ public sealed class GameFixesView : UserControl
         AddDetail(details, L.T("ЗАТРАГИВАЕМЫЕ ФАЙЛЫ"), nameof(GameFixesViewModel.SelectedFiles), viewModel);
         AddDetail(details, L.T("ИСТОЧНИК"), nameof(GameFixesViewModel.SelectedSource), viewModel);
 
+        var presetActions = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+        var recommendedPreset = StalkerTheme.StalkerButton(L.T("ПРИМЕНИТЬ: РЕКОМЕНДУЕМЫЕ"), isPrimary: true, minWidth: 190);
+        recommendedPreset.Bind(Button.CommandProperty, new Binding(nameof(GameFixesViewModel.ApplyRecommendedPresetCommand)) { Source = viewModel });
+        presetActions.Children.Add(recommendedPreset);
+        var essentialPreset = StalkerTheme.StalkerButton(L.T("ПРИМЕНИТЬ: ОБЯЗАТЕЛЬНЫЕ"), isPrimary: false, minWidth: 190);
+        essentialPreset.Bind(Button.CommandProperty, new Binding(nameof(GameFixesViewModel.ApplyEssentialPresetCommand)) { Source = viewModel });
+        presetActions.Children.Add(essentialPreset);
+        var allSafePreset = StalkerTheme.StalkerButton(L.T("ПРИМЕНИТЬ: ВСЕ БЕЗОПАСНЫЕ"), isPrimary: false, minWidth: 190);
+        allSafePreset.Bind(Button.CommandProperty, new Binding(nameof(GameFixesViewModel.ApplyAllSafePresetCommand)) { Source = viewModel });
+        presetActions.Children.Add(allSafePreset);
+        details.Children.Add(presetActions);
+
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
         var install = StalkerTheme.StalkerButton(L.T("УСТАНОВИТЬ ВЫБРАННОЕ"), isPrimary: true, minWidth: 190);
         install.Bind(Button.CommandProperty, new Binding(nameof(GameFixesViewModel.InstallCommand)) { Source = viewModel });

@@ -10,6 +10,100 @@ namespace StalkerSaveEditor.Core.Tests.Patching;
 public sealed class GameFixEngineTests
 {
     [Fact]
+    public void Recommended_preset_excludes_the_experimental_catalogue_fix_without_creating_state()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "11450472");
+
+        var result = new GameFixEngine().ApplyPreset(GameTarget.ClearSky, GameFixPreset.Recommended, fixture.GameDirectory);
+
+        Assert.Equal(0, result.SelectedFixCount);
+        Assert.Empty(result.InstalledFixIds);
+        Assert.Empty(result.AlreadyInstalledFixIds);
+        Assert.False(result.Changed);
+        Assert.False(Directory.Exists(Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes")));
+    }
+
+    [Fact]
+    public void Preset_batch_rolls_back_only_its_new_fixes_when_a_later_fix_fails()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var first = fixture.Fix("cs.test.preset-first", "first = 1", "first = 2") with
+        {
+            TextPatches = [new TextPatchOperation("gamedata/scripts/first.script", "first = 1", "first = 2")],
+        };
+        var second = fixture.Fix("cs.test.preset-second", "missing = 1", "missing = 2") with
+        {
+            TextPatches = [new TextPatchOperation("gamedata/scripts/second.script", "missing = 1", "missing = 2")],
+        };
+        var engine = TestEngine();
+
+        Assert.Throws<IOException>(() => engine.ApplyFixes(GameTarget.ClearSky, GameFixPreset.Recommended, [first, second], fixture.GameDirectory));
+
+        Assert.Equal("first = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/first.script")));
+        Assert.Equal("second = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/second.script")));
+        Assert.Empty(engine.ListInstalled(fixture.GameDirectory));
+    }
+
+    [Fact]
+    public void Preset_refuses_to_report_an_installed_fix_current_after_the_game_build_changes()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/task.script", "task = before\n");
+        var definition = fixture.Fix("cs.test.preset-build", "task = before", "task = after");
+        var engine = TestEngine();
+        engine.ApplyFixes(GameTarget.ClearSky, GameFixPreset.Recommended, [definition], fixture.GameDirectory);
+
+        fixture.SetBuildId("19000001");
+
+        Assert.Throws<NotSupportedException>(() => engine.ApplyFixes(
+            GameTarget.ClearSky,
+            GameFixPreset.Recommended,
+            [definition],
+            fixture.GameDirectory));
+    }
+
+    [Fact]
+    public void Production_preset_refuses_to_count_a_preexisting_synthetic_test_fix_as_current()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/task.script", "task = before\n");
+        var definition = fixture.Fix("cs.test.preset-synthetic", "task = before", "task = after");
+        TestEngine().Install(definition, fixture.GameDirectory);
+
+        Assert.Throws<NotSupportedException>(() => new GameFixEngine().ApplyFixes(
+            GameTarget.ClearSky,
+            GameFixPreset.Recommended,
+            [definition],
+            fixture.GameDirectory));
+    }
+
+    [Fact]
+    public void Game_doctor_audits_owned_fix_files_and_keeps_unowned_loose_files_unclassified()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/task.script", "task = before\n");
+        fixture.Write("gamedata/scripts/user.script", "user = true\n");
+        var definition = fixture.Fix("cs.test.audit", "task = before", "task = after");
+        TestEngine().Install(definition, fixture.GameDirectory);
+
+        var cleanReport = GameDoctor.Analyze(GameTarget.ClearSky, fixture.GameDirectory);
+
+        var managed = Assert.Single(cleanReport.FileAudit, file => file.RelativePath == "gamedata/scripts/task.script");
+        Assert.Equal("Game Fix: cs.test.audit", managed.Owner);
+        Assert.Equal(GameDoctorStatus.Ok, managed.Status);
+        var unclassified = Assert.Single(cleanReport.FileAudit, file => file.RelativePath == "gamedata/scripts/user.script");
+        Assert.Equal("Unclassified", unclassified.Owner);
+        Assert.Equal(GameDoctorStatus.Unknown, unclassified.Status);
+
+        fixture.Write("gamedata/scripts/task.script", "external = true\n");
+        var drifted = Assert.Single(GameDoctor.Analyze(GameTarget.ClearSky, fixture.GameDirectory).FileAudit,
+            file => file.RelativePath == "gamedata/scripts/task.script");
+        Assert.Equal(GameDoctorStatus.Warning, drifted.Status);
+    }
+
+    [Fact]
     public void Install_is_idempotent_and_uninstall_restores_the_exact_original_bytes()
     {
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
@@ -270,6 +364,7 @@ public sealed class GameFixEngineTests
     private sealed class SteamGameFixture : IDisposable
     {
         private readonly string _root;
+        private readonly string _manifestPath;
 
         public SteamGameFixture(GameTarget target, string buildId)
         {
@@ -280,7 +375,8 @@ public sealed class GameFixEngineTests
             GameDirectory = Path.Combine(library, "steamapps", "common", descriptor.Title);
             Directory.CreateDirectory(GameDirectory);
             File.WriteAllText(Path.Combine(GameDirectory, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
-            File.WriteAllText(Path.Combine(library, "steamapps", $"appmanifest_{descriptor.SteamAppId}.acf"), $$"""
+            _manifestPath = Path.Combine(library, "steamapps", $"appmanifest_{descriptor.SteamAppId}.acf");
+            File.WriteAllText(_manifestPath, $$"""
                 "AppState"
                 {
                     "appid" "{{descriptor.SteamAppId}}"
@@ -299,6 +395,16 @@ public sealed class GameFixEngineTests
             var path = GetFile(relative);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, text);
+        }
+
+        public void SetBuildId(string buildId)
+        {
+            var manifest = File.ReadAllText(_manifestPath);
+            manifest = System.Text.RegularExpressions.Regex.Replace(
+                manifest,
+                "\\\"buildid\\\"\\s+\\\"[^\\\"]+\\\"",
+                $"\\\"buildid\\\" \\\"{buildId}\\\"");
+            File.WriteAllText(_manifestPath, manifest);
         }
 
         public void WriteArchive(string alias, string archiveName, byte[] archiveBytes)

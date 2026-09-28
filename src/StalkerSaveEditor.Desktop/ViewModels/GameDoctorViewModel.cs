@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Diagnostics;
 using StalkerSaveEditor.Desktop.Services;
 
@@ -6,19 +7,31 @@ namespace StalkerSaveEditor.Desktop.ViewModels;
 
 public sealed record GameTargetOption(GameTarget Target, string Id, string Title);
 
+public sealed record GameDoctorInstallationOption(GameTarget Target, string Title, string Directory, GameInstallSource Source, string? BuildId)
+{
+    public string Label => $"{Title} · {Directory}";
+}
+
 public sealed record GameDoctorCheckRow(string Mark, string Name, string Detail, GameDoctorStatus Status);
+
+public sealed record GameDoctorFileAuditRow(string RelativePath, string Owner, string Detail, string Mark, GameDoctorStatus Status);
 
 public sealed class GameDoctorViewModel : ObservableViewModel
 {
     private GameTargetOption _selectedTarget;
     private string _gameDirectory = string.Empty;
     private string _status = string.Empty;
+    private string _discoveryStatus = string.Empty;
     private bool _isAnalyzing;
     private bool _hasReport;
+    private bool _isDiscovering;
     private Stalker2ModState _s2ModState = Stalker2ModState.InstallationMissing;
+    private GameDoctorInstallationOption? _selectedInstallation;
+    private readonly Func<IReadOnlyList<GameDoctorInstallation>> _discoverInstallations;
 
-    public GameDoctorViewModel()
+    public GameDoctorViewModel(Func<IReadOnlyList<GameDoctorInstallation>>? discoverInstallations = null)
     {
+        _discoverInstallations = discoverInstallations ?? (() => GameDoctor.DiscoverInstallations());
         Targets = new ObservableCollection<GameTargetOption>(Enum.GetValues<GameTarget>()
             .Select(target =>
             {
@@ -27,6 +40,7 @@ public sealed class GameDoctorViewModel : ObservableViewModel
             }));
         _selectedTarget = Targets[0];
         AnalyzeCommand = new RelayCommand(async () => await AnalyzeAsync(), CanAnalyze);
+        DiscoverInstallationsCommand = new RelayCommand(async () => await DiscoverInstallationsAsync(), CanDiscoverInstallations);
         DisableS2ModsCommand = new RelayCommand(async () => await ToggleS2ModsAsync(disable: true), CanDisableS2Mods);
         RestoreS2ModsCommand = new RelayCommand(async () => await ToggleS2ModsAsync(disable: false), CanRestoreS2Mods);
     }
@@ -34,7 +48,21 @@ public sealed class GameDoctorViewModel : ObservableViewModel
     public ObservableCollection<GameTargetOption> Targets { get; }
     public ObservableCollection<GameDoctorCheckRow> Checks { get; } = [];
     public ObservableCollection<string> LooseFiles { get; } = [];
+    public ObservableCollection<GameDoctorFileAuditRow> FileAudit { get; } = [];
     public RelayCommand AnalyzeCommand { get; }
+    public ObservableCollection<GameDoctorInstallationOption> Installations { get; } = [];
+    public GameDoctorInstallationOption? SelectedInstallation
+    {
+        get => _selectedInstallation;
+        set
+        {
+            if (!SetProperty(ref _selectedInstallation, value) || value is null) return;
+            SelectedTarget = Targets.Single(target => target.Target == value.Target);
+            GameDirectory = value.Directory;
+        }
+    }
+
+    public RelayCommand DiscoverInstallationsCommand { get; }
     public RelayCommand DisableS2ModsCommand { get; }
     public RelayCommand RestoreS2ModsCommand { get; }
 
@@ -45,6 +73,11 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         {
             if (SetProperty(ref _selectedTarget, value))
             {
+                if (_selectedInstallation is { } installation && installation.Target != value.Target)
+                {
+                    _selectedInstallation = null;
+                    OnPropertyChanged(nameof(SelectedInstallation));
+                }
                 InvalidateReport();
                 AnalyzeCommand.NotifyCanExecuteChanged();
             }
@@ -70,6 +103,12 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         private set => SetProperty(ref _status, value);
     }
 
+    public string DiscoveryStatus
+    {
+        get => _discoveryStatus;
+        private set => SetProperty(ref _discoveryStatus, value);
+    }
+
     public bool IsAnalyzing
     {
         get => _isAnalyzing;
@@ -80,6 +119,15 @@ public sealed class GameDoctorViewModel : ObservableViewModel
                 AnalyzeCommand.NotifyCanExecuteChanged();
                 NotifyModActions();
             }
+        }
+    }
+
+    public bool IsDiscovering
+    {
+        get => _isDiscovering;
+        private set
+        {
+            if (SetProperty(ref _isDiscovering, value)) DiscoverInstallationsCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -100,6 +148,40 @@ public sealed class GameDoctorViewModel : ObservableViewModel
     }
 
     public bool ShowEmptyState => !HasReport;
+
+    public async Task DiscoverInstallationsAsync()
+    {
+        if (IsDiscovering) return;
+        IsDiscovering = true;
+        DiscoveryStatus = string.Empty;
+        try
+        {
+            var found = await Task.Run(_discoverInstallations);
+            Installations.Clear();
+            foreach (var installation in found)
+            {
+                Installations.Add(new GameDoctorInstallationOption(
+                    installation.Target,
+                    GameTargetCatalog.Get(installation.Target).Title,
+                    installation.Directory,
+                    installation.Source,
+                    installation.BuildId));
+            }
+
+            if (Installations.Count == 0)
+                DiscoveryStatus = L.T("●  НЕ НАЙДЕНО");
+            else
+                DiscoveryStatus = L.T("●  НАЙДЕНО") + " " + Installations.Count;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            DiscoveryStatus = L.T("ОШИБКА: {0}", exception.Message);
+        }
+        finally
+        {
+            IsDiscovering = false;
+        }
+    }
 
     public async Task AnalyzeAsync()
     {
@@ -133,6 +215,18 @@ public sealed class GameDoctorViewModel : ObservableViewModel
             }
             LooseFiles.Clear();
             foreach (var path in report.LooseFiles) LooseFiles.Add(path);
+            FileAudit.Clear();
+            foreach (var file in report.FileAudit)
+            {
+                var mark = file.Status switch
+                {
+                    GameDoctorStatus.Ok => "✓",
+                    GameDoctorStatus.Warning => "⚠",
+                    GameDoctorStatus.Error => "×",
+                    _ => "?",
+                };
+                FileAudit.Add(new GameDoctorFileAuditRow(file.RelativePath, file.Owner, file.Detail, mark, file.Status));
+            }
             _s2ModState = report.Target == GameTarget.Stalker2
                 ? Stalker2ModToggle.GetState(report.GameDirectory)
                 : Stalker2ModState.InstallationMissing;
@@ -148,6 +242,7 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         {
             Checks.Clear();
             LooseFiles.Clear();
+            FileAudit.Clear();
             HasReport = false;
             Status = exception.Message;
         }
@@ -199,4 +294,6 @@ public sealed class GameDoctorViewModel : ObservableViewModel
     }
 
     private bool CanAnalyze() => !IsAnalyzing && !string.IsNullOrWhiteSpace(GameDirectory);
+
+    private bool CanDiscoverInstallations() => !IsAnalyzing && !IsDiscovering;
 }

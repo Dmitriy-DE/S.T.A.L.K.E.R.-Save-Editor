@@ -155,6 +155,46 @@ internal static class Program
 
     private static int Doctor(string[] args)
     {
+        if (args.Length >= 2 && args[1] == "discover")
+        {
+            var json = false;
+            var steamRoots = new List<string>();
+            for (var index = 2; index < args.Length; index++)
+            {
+                if (args[index] == "--json")
+                {
+                    json = true;
+                }
+                else if (args[index] == "--steam-root" && index + 1 < args.Length)
+                {
+                    steamRoots.Add(args[++index]);
+                }
+                else
+                {
+                    throw new ArgumentException("Usage: doctor discover [--steam-root PATH]... [--json]");
+                }
+            }
+
+            var installations = GameDoctor.DiscoverInstallations(steamRoots.Count == 0 ? null : steamRoots);
+            if (json)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(installations, CliJsonContext.Default.GameDoctorInstallationArray));
+            }
+            else if (installations.Count == 0)
+            {
+                Console.WriteLine("No structurally valid supported game installations were found.");
+            }
+            else
+            {
+                foreach (var installation in installations)
+                {
+                    Console.WriteLine($"{GameTargetCatalog.Get(installation.Target).Title} [{installation.Source}] " +
+                        $"(build {installation.BuildId ?? "unknown"}): {installation.Directory}");
+                }
+            }
+            return 0;
+        }
+
         if (args.Length >= 2 && args[1] == "save")
         {
             const string saveUsage = "Usage: doctor save SAVE_FILE [--json]";
@@ -208,7 +248,7 @@ internal static class Program
 
     private static int Fixes(string[] args)
     {
-        const string usage = "Usage: fixes list [--game TARGET] [--json] | fixes status TARGET GAME_DIR [--json] | fixes install ID GAME_DIR | fixes update ID GAME_DIR | fixes remove ID GAME_DIR";
+        const string usage = "Usage: fixes list [--game TARGET] [--json] | fixes status TARGET GAME_DIR [--json] | fixes apply-preset <essential|recommended|all-safe> TARGET GAME_DIR [--json] | fixes install ID GAME_DIR | fixes update ID GAME_DIR | fixes remove ID GAME_DIR";
         if (args.Length >= 2 && args[1] == "list")
         {
             GameTarget? selectedTarget = null;
@@ -279,6 +319,40 @@ internal static class Program
                     $"{catalogue.Count} catalogued; {recommended.Count} safe recommendations; " +
                     $"{report.InstalledFixes.Count} installed; " +
                     $"{catalogue.Count(definition => definition.Maturity == GameFixMaturity.Experimental)} experimental.");
+            return 0;
+        }
+
+        if (args.Length >= 2 && args[1] == "apply-preset")
+        {
+            if (args.Length is < 5 or > 6 || !GameTargetCatalog.TryParse(args[3], out var target) ||
+                args.Length == 6 && args[5] != "--json")
+                throw new ArgumentException(usage);
+
+            var preset = args[2].ToLowerInvariant() switch
+            {
+                "essential" or "essential-only" => GameFixPreset.EssentialOnly,
+                "recommended" => GameFixPreset.Recommended,
+                "all-safe" or "all-safe-fixes" => GameFixPreset.AllSafeFixes,
+                _ => throw new ArgumentException("Preset must be essential, recommended, or all-safe. Custom selections use individual fix install/remove commands."),
+            };
+            var result = new GameFixEngine().ApplyPreset(target, preset, args[4]);
+            if (args.Length == 6)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(
+                    new GameFixPresetJsonResult(
+                        GameTargetCatalog.Get(target).Id,
+                        result.Preset,
+                        result.SelectedFixCount,
+                        result.InstalledFixIds.ToArray(),
+                        result.AlreadyInstalledFixIds.ToArray(),
+                        result.Changed),
+                    CliJsonContext.Default.GameFixPresetJsonResult));
+            }
+            else
+            {
+                Console.WriteLine($"{result.Preset}: installed {result.InstalledFixIds.Count} of {result.SelectedFixCount} safe fix(es); " +
+                    $"{result.AlreadyInstalledFixIds.Count} already current.");
+            }
             return 0;
         }
 
@@ -878,14 +952,24 @@ internal sealed record GameFixStatusJsonResult(
     string CatalogueVersion,
     string? CatalogueNote);
 
+internal sealed record GameFixPresetJsonResult(
+    string Game,
+    GameFixPreset Preset,
+    int SelectedFixCount,
+    string[] InstalledFixIds,
+    string[] AlreadyInstalledFixIds,
+    bool Changed);
+
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = true)]
 [JsonSerializable(typeof(CrashLogAnalysis))]
 [JsonSerializable(typeof(SaveDoctorReport))]
 [JsonSerializable(typeof(GameDoctorReport))]
+[JsonSerializable(typeof(GameDoctorInstallation[]), TypeInfoPropertyName = "GameDoctorInstallationArray")]
 [JsonSerializable(typeof(GameFixListJsonEntry[]), TypeInfoPropertyName = "GameFixListJsonEntries")]
 [JsonSerializable(typeof(GameFixStatusJsonResult))]
+[JsonSerializable(typeof(GameFixPresetJsonResult))]
 internal partial class CliJsonContext : JsonSerializerContext
 {
 }

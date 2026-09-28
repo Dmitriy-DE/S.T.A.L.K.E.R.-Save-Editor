@@ -49,6 +49,22 @@ public sealed class GameFixesViewModelTests
     }
 
     [Fact]
+    public async Task Recommended_preset_requires_a_checked_installation_and_reports_the_empty_safe_set()
+    {
+        using var install = new SteamInstallFixture("11450472");
+        var viewModel = CreateClearSkyViewModel(install.GameDirectory);
+
+        Assert.False(viewModel.ApplyRecommendedPresetCommand.CanExecute(null));
+        await viewModel.CheckInstallationAsync();
+
+        Assert.True(viewModel.ApplyRecommendedPresetCommand.CanExecute(null));
+        await viewModel.ApplyRecommendedPresetAsync();
+
+        Assert.Contains("ПРЕСЕТ НЕ СОДЕРЖИТ", viewModel.Status, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(Path.Combine(install.GameDirectory, ".save-editor-game-fixes")));
+    }
+
+    [Fact]
     public void Marks_an_installed_fix_as_outdated_when_catalogue_version_advances()
     {
         var definition = Assert.Single(GameFixCatalog.All, candidate => candidate.Id == "cs.quest.dead-wild-napr");

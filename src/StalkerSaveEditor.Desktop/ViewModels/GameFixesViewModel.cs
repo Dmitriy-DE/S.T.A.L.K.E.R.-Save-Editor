@@ -59,6 +59,9 @@ public sealed class GameFixesViewModel : ObservableViewModel
         Categories = new ObservableCollection<GameFixCategoryRow>();
         Fixes = new ObservableCollection<GameFixEntry>();
         CheckInstallationCommand = new RelayCommand(async () => await CheckInstallationAsync(), CanCheckInstallation);
+        ApplyEssentialPresetCommand = new RelayCommand(async () => await ApplyPresetAsync(GameFixPreset.EssentialOnly), () => CanApplyPreset(GameFixPreset.EssentialOnly));
+        ApplyRecommendedPresetCommand = new RelayCommand(async () => await ApplyPresetAsync(GameFixPreset.Recommended), () => CanApplyPreset(GameFixPreset.Recommended));
+        ApplyAllSafePresetCommand = new RelayCommand(async () => await ApplyPresetAsync(GameFixPreset.AllSafeFixes), () => CanApplyPreset(GameFixPreset.AllSafeFixes));
         InstallCommand = new RelayCommand(async () => await InstallAsync(), CanInstall);
         UpdateCommand = new RelayCommand(async () => await UpdateAsync(), CanUpdate);
         RemoveCommand = new RelayCommand(async () => await RemoveAsync(), CanRemove);
@@ -72,6 +75,9 @@ public sealed class GameFixesViewModel : ObservableViewModel
     public RelayCommand UpdateCommand { get; }
     public RelayCommand RemoveCommand { get; }
     public RelayCommand CheckInstallationCommand { get; }
+    public RelayCommand ApplyEssentialPresetCommand { get; }
+    public RelayCommand ApplyRecommendedPresetCommand { get; }
+    public RelayCommand ApplyAllSafePresetCommand { get; }
 
     public GameTargetOption SelectedTarget
     {
@@ -224,6 +230,31 @@ public sealed class GameFixesViewModel : ObservableViewModel
         }
     }
 
+    public Task ApplyRecommendedPresetAsync() => ApplyPresetAsync(GameFixPreset.Recommended);
+
+    private async Task ApplyPresetAsync(GameFixPreset preset)
+    {
+        if (!CanApplyPreset(preset)) return;
+        IsBusy = true;
+        Status = string.Empty;
+        try
+        {
+            var result = await Task.Run(() => new GameFixEngine().ApplyPreset(preset: preset, game: SelectedTarget.Target, gameDirectory: GameDirectory));
+            RefreshFixStates();
+            Status = result.SelectedFixCount == 0
+                ? L.T("ПРЕСЕТ НЕ СОДЕРЖИТ ПРОВЕРЕННЫХ ИСПРАВЛЕНИЙ ДЛЯ ЭТОЙ ИГРЫ.")
+                : L.T("ПРЕСЕТ {0}: УСТАНОВЛЕНО {1}; УЖЕ АКТУАЛЬНЫХ {2}.", PresetName(preset), result.InstalledFixIds.Count, result.AlreadyInstalledFixIds.Count);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or InvalidOperationException or NotSupportedException)
+        {
+            Status = L.T("ОШИБКА: {0}", exception.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     public async Task RemoveAsync()
     {
         if (!CanRemove() || SelectedFix is null) return;
@@ -277,6 +308,17 @@ public sealed class GameFixesViewModel : ObservableViewModel
         _checkedDirectory is not null && PathEquals(_checkedDirectory, GameDirectory) &&
         _steamBuildId is not null && SelectedFix.Definition.SupportedSteamBuildIds.Contains(_steamBuildId, StringComparer.Ordinal) &&
         SelectedFix.State is GameFixState.NotInstalled or GameFixState.Removed;
+
+    private bool CanApplyPreset(GameFixPreset preset)
+    {
+        if (IsBusy || !Directory.Exists(GameDirectory) || !_installationMarkerValid ||
+            _checkedTarget != SelectedTarget.Target || _checkedDirectory is null || !PathEquals(_checkedDirectory, GameDirectory))
+            return false;
+        var fixes = GameFixCatalog.ForPreset(SelectedTarget.Target, preset);
+        if (fixes.Count == 0) return true;
+        return _steamBuildId is not null && fixes.All(definition =>
+            definition.SupportedSteamBuildIds.Contains(_steamBuildId, StringComparer.Ordinal));
+    }
 
     private bool CanRemove() => !IsBusy && SelectedFix is not null && Directory.Exists(GameDirectory) &&
         SelectedFix.State is GameFixState.Installed or GameFixState.Modified;
@@ -354,6 +396,9 @@ public sealed class GameFixesViewModel : ObservableViewModel
     private void NotifyCommands()
     {
         CheckInstallationCommand.NotifyCanExecuteChanged();
+        ApplyEssentialPresetCommand.NotifyCanExecuteChanged();
+        ApplyRecommendedPresetCommand.NotifyCanExecuteChanged();
+        ApplyAllSafePresetCommand.NotifyCanExecuteChanged();
         InstallCommand.NotifyCanExecuteChanged();
         UpdateCommand.NotifyCanExecuteChanged();
         RemoveCommand.NotifyCanExecuteChanged();
@@ -396,6 +441,14 @@ public sealed class GameFixesViewModel : ObservableViewModel
         }
         NotifyCommands();
     }
+
+    private static string PresetName(GameFixPreset preset) => preset switch
+    {
+        GameFixPreset.EssentialOnly => L.T("ОБЯЗАТЕЛЬНЫЕ"),
+        GameFixPreset.Recommended => L.T("РЕКОМЕНДУЕМЫЕ"),
+        GameFixPreset.AllSafeFixes => L.T("ВСЕ БЕЗОПАСНЫЕ"),
+        _ => preset.ToString(),
+    };
 
     private static bool PathEquals(string left, string right)
     {

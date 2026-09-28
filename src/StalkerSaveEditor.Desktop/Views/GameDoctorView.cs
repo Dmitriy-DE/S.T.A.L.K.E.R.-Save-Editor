@@ -24,7 +24,7 @@ public sealed class GameDoctorView : UserControl
     {
         var page = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*"),
             Margin = new Thickness(24),
             RowSpacing = 14,
         };
@@ -37,7 +37,7 @@ public sealed class GameDoctorView : UserControl
             Foreground = StalkerTheme.BrushAccentAmber,
         });
 
-        var targetRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12 };
+        var targetRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 12 };
         targetRow.Children.Add(new TextBlock
         {
             Text = L.T("ИГРА"),
@@ -60,8 +60,51 @@ public sealed class GameDoctorView : UserControl
         });
         Grid.SetColumn(target, 1);
         targetRow.Children.Add(target);
+
+        var findInstallations = StalkerTheme.StalkerButton(L.T("НАЙТИ УСТАНОВКИ"), isPrimary: false, minWidth: 160);
+        findInstallations.Bind(Button.CommandProperty, new Binding(nameof(GameDoctorViewModel.DiscoverInstallationsCommand)) { Source = viewModel });
+        Grid.SetColumn(findInstallations, 2);
+        targetRow.Children.Add(findInstallations);
         Grid.SetRow(targetRow, 1);
         page.Children.Add(targetRow);
+
+        var installationRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12 };
+        var installationLabel = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        installationLabel.Children.Add(new TextBlock
+        {
+            Text = L.T("ОБНАРУЖЕННЫЕ УСТАНОВКИ"),
+            Foreground = StalkerTheme.BrushTextSecondary,
+        });
+        var discoveryStatus = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushAccentAmber,
+        };
+        discoveryStatus.Bind(TextBlock.TextProperty, new Binding(nameof(GameDoctorViewModel.DiscoveryStatus)) { Source = viewModel });
+        installationLabel.Children.Add(discoveryStatus);
+        installationRow.Children.Add(installationLabel);
+        var installations = new ComboBox
+        {
+            ItemsSource = viewModel.Installations,
+            ItemTemplate = new FuncDataTemplate<GameDoctorInstallationOption>((option, _) => new TextBlock
+            {
+                Text = option?.Label,
+                TextWrapping = TextWrapping.Wrap,
+            }, true),
+            Background = StalkerTheme.BrushBgInput,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            BorderBrush = StalkerTheme.BrushBorder,
+            MinHeight = 36,
+        };
+        installations.Bind(ComboBox.SelectedItemProperty, new Binding(nameof(GameDoctorViewModel.SelectedInstallation))
+        {
+            Mode = BindingMode.TwoWay,
+            Source = viewModel,
+        });
+        Grid.SetColumn(installations, 1);
+        installationRow.Children.Add(installations);
+        Grid.SetRow(installationRow, 2);
+        page.Children.Add(installationRow);
 
         var pathRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 8 };
         var path = new TextBox
@@ -101,7 +144,7 @@ public sealed class GameDoctorView : UserControl
         analyze.Bind(Button.CommandProperty, new Binding(nameof(GameDoctorViewModel.AnalyzeCommand)) { Source = viewModel });
         Grid.SetColumn(analyze, 2);
         pathRow.Children.Add(analyze);
-        Grid.SetRow(pathRow, 2);
+        Grid.SetRow(pathRow, 3);
         page.Children.Add(pathRow);
 
         var results = new StackPanel { Spacing = 10 };
@@ -142,15 +185,8 @@ public sealed class GameDoctorView : UserControl
         });
         results.Children.Add(new ItemsControl
         {
-            ItemsSource = viewModel.LooseFiles,
-            ItemTemplate = new FuncDataTemplate<string>((file, _) => new TextBlock
-            {
-                Text = file,
-                FontSize = 12,
-                Foreground = StalkerTheme.BrushTextSecondary,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(8, 2),
-            }, true),
+            ItemsSource = viewModel.FileAudit,
+            ItemTemplate = new FuncDataTemplate<GameDoctorFileAuditRow>((file, _) => CreateFileAuditRow(file), true),
         });
 
         var resultBorder = new Border
@@ -167,7 +203,7 @@ public sealed class GameDoctorView : UserControl
             },
         };
         resultBorder.Bind(Visual.IsVisibleProperty, new Binding(nameof(GameDoctorViewModel.HasReport)) { Source = viewModel });
-        Grid.SetRow(resultBorder, 3);
+        Grid.SetRow(resultBorder, 4);
         page.Children.Add(resultBorder);
 
         var empty = new TextBlock
@@ -179,7 +215,7 @@ public sealed class GameDoctorView : UserControl
             TextWrapping = TextWrapping.Wrap,
         };
         empty.Bind(Visual.IsVisibleProperty, new Binding(nameof(GameDoctorViewModel.ShowEmptyState)) { Source = viewModel });
-        Grid.SetRow(empty, 3);
+        Grid.SetRow(empty, 4);
         page.Children.Add(empty);
         return page;
     }
@@ -226,6 +262,50 @@ public sealed class GameDoctorView : UserControl
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(8, 8),
+            Child = grid,
+        };
+    }
+
+    private static Control CreateFileAuditRow(GameDoctorFileAuditRow? row)
+    {
+        if (row is null) return new Border();
+        var color = row.Status switch
+        {
+            GameDoctorStatus.Ok => StalkerTheme.BrushSuccess,
+            GameDoctorStatus.Warning => StalkerTheme.BrushAccentAmber,
+            GameDoctorStatus.Error => StalkerTheme.BrushDanger,
+            _ => StalkerTheme.BrushTextSecondary,
+        };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 8 };
+        grid.Children.Add(new TextBlock
+        {
+            Text = row.Mark,
+            Foreground = color,
+            FontWeight = FontWeight.Bold,
+            VerticalAlignment = VerticalAlignment.Top,
+        });
+        var details = new StackPanel { Spacing = 2 };
+        details.Children.Add(new TextBlock
+        {
+            Text = row.RelativePath,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        details.Children.Add(new TextBlock
+        {
+            Text = row.Owner + " · " + row.Detail,
+            Foreground = StalkerTheme.BrushTextSecondary,
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        Grid.SetColumn(details, 1);
+        grid.Children.Add(details);
+        return new Border
+        {
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(8, 5),
             Child = grid,
         };
     }

@@ -35,6 +35,26 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
+    public void Companion_file_inventory_reports_owned_files_and_hash_drift()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var installer = new CompanionInstaller(ModSourceRoot);
+        installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+
+        var initial = installer.GetManagedFileStatus(CompanionGame.CallOfPripyat, game.GameDirectory);
+        var bind = Assert.Single(initial, file => file.RelativePath == "gamedata/scripts/bind_stalker.script");
+        Assert.True(bind.Exists);
+        Assert.True(bind.MatchesExpectedHash);
+
+        File.AppendAllText(Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script"), "\n-- external edit\n");
+
+        var changed = Assert.Single(installer.GetManagedFileStatus(CompanionGame.CallOfPripyat, game.GameDirectory),
+            file => file.RelativePath == "gamedata/scripts/bind_stalker.script");
+        Assert.True(changed.Exists);
+        Assert.False(changed.MatchesExpectedHash);
+    }
+
+    [Fact]
     public void Companion_refuses_a_path_already_managed_by_game_fix()
     {
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);

@@ -91,6 +91,15 @@ public sealed record GameFixDefinition(
 
 public sealed record GameFixInstallResult(bool Changed, GameFixState State, IReadOnlyList<string> Files);
 
+public sealed record GameFixPresetResult(
+    GameFixPreset Preset,
+    int SelectedFixCount,
+    IReadOnlyList<string> InstalledFixIds,
+    IReadOnlyList<string> AlreadyInstalledFixIds)
+{
+    public bool Changed => InstalledFixIds.Count > 0;
+}
+
 public sealed record GameFixInstalledInfo(
     string Id,
     GameTarget Game,
@@ -100,6 +109,8 @@ public sealed record GameFixInstalledInfo(
     GameFixMaturity Maturity,
     GameFixState State,
     IReadOnlyList<string> Files);
+
+public sealed record GameFixManagedFileStatus(string FixId, string RelativePath, bool Exists, bool MatchesExpectedHash);
 
 /// <summary>
 /// Applies exact, byte-preserving text transformations with build gates, before/after hashes, private backups,
@@ -154,6 +165,23 @@ public sealed partial class GameFixEngine
                     ? GameFixState.Installed
                     : GameFixState.Modified,
                 manifest.Files.Select(file => file.RelativePath).ToArray()))
+            .ToArray();
+    }
+
+    public IReadOnlyList<GameFixManagedFileStatus> GetManagedFileStatus(string gameDirectory)
+    {
+        var root = NormalizeRoot(gameDirectory);
+        return ReadActiveManifests(root)
+            .SelectMany(manifest => manifest.Files.Select(file =>
+            {
+                var path = ResolveGamePath(root, file.RelativePath);
+                var exists = _fileSystem.FileExists(path);
+                return new GameFixManagedFileStatus(
+                    manifest.FixId,
+                    file.RelativePath,
+                    exists,
+                    exists && MatchesHash(path, file.AfterSha256));
+            }))
             .ToArray();
     }
 
@@ -439,6 +467,100 @@ public sealed partial class GameFixEngine
                 ? $"Game Fix update failed; the previous version was restored: {exception.Message}"
                 : $"Game Fix update failed: {exception.Message}; rollback problems: {string.Join("; ", rollbackErrors)}", exception);
         }
+    }
+
+    public GameFixPresetResult ApplyPreset(GameTarget game, GameFixPreset preset, string gameDirectory)
+    {
+        if (!Enum.IsDefined(preset)) throw new ArgumentOutOfRangeException(nameof(preset));
+        if (preset == GameFixPreset.Custom)
+            throw new ArgumentException("Custom selections must be installed explicitly from the Game Fixes screen.", nameof(preset));
+
+        var root = NormalizeRoot(gameDirectory);
+        if (!_fileSystem.DirectoryExists(root)) throw new DirectoryNotFoundException("The selected game directory does not exist.");
+        return ApplyFixes(game, preset, GameFixCatalog.ForPreset(game, preset), root);
+    }
+
+    internal GameFixPresetResult ApplyFixes(
+        GameTarget game,
+        GameFixPreset preset,
+        IReadOnlyList<GameFixDefinition> definitions,
+        string gameDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(definitions);
+        if (!Enum.IsDefined(preset) || preset == GameFixPreset.Custom)
+            throw new ArgumentOutOfRangeException(nameof(preset));
+        var selected = definitions.ToArray();
+        if (selected.Any(definition => definition is null || definition.Game != game || !GameFixCatalog.IsIncludedInPreset(definition, preset)))
+            throw new InvalidOperationException("A preset can contain only safe fixes for the selected game.");
+        if (!_allowSyntheticDefinitions && selected.Any(definition =>
+                definition.VerificationState is GameFixVerificationState.Research or GameFixVerificationState.SyntheticTests))
+            throw new NotSupportedException("Preset application requires fixes validated against the supported retail files.");
+        if (selected.Select(definition => definition.Id).Distinct(StringComparer.Ordinal).Count() != selected.Length)
+            throw new InvalidOperationException("A preset cannot contain the same fix more than once.");
+
+        var root = NormalizeRoot(gameDirectory);
+        var doctor = GameDoctor.Analyze(game, root);
+        if (doctor.Checks.Any(check => check.Id == "installation" && check.Status != GameDoctorStatus.Ok))
+            throw new InvalidOperationException("The selected directory does not pass the structural game check.");
+
+        if (selected.Length > 0 && (doctor.SteamBuildId is null || selected.Any(definition =>
+                !definition.SupportedSteamBuildIds.Contains(doctor.SteamBuildId, StringComparer.Ordinal))))
+            throw new NotSupportedException("The detected Steam build is not supported by every selected Game Fix.");
+
+        var pending = new List<GameFixDefinition>();
+        var alreadyInstalled = new List<string>();
+        foreach (var definition in selected)
+        {
+            var state = GetStatus(definition, root);
+            if (state == GameFixState.Installed)
+            {
+                alreadyInstalled.Add(definition.Id);
+            }
+            else if (state == GameFixState.Modified)
+            {
+                throw new InvalidOperationException("A preset fix has an externally modified managed file; review it before applying the preset: " + definition.Id);
+            }
+            else
+            {
+                pending.Add(definition);
+            }
+        }
+
+        var installed = new List<GameFixDefinition>();
+        try
+        {
+            foreach (var definition in pending)
+            {
+                var result = Install(definition, root);
+                if (result.Changed) installed.Add(definition);
+                else alreadyInstalled.Add(definition.Id);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException or NotSupportedException or ArgumentException or JsonException)
+        {
+            var rollbackErrors = new List<string>();
+            foreach (var definition in installed.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    Uninstall(definition, root);
+                }
+                catch (Exception rollbackException) when (rollbackException is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException or ArgumentException)
+                {
+                    rollbackErrors.Add(definition.Id + ": " + rollbackException.Message);
+                }
+            }
+
+            throw new IOException(rollbackErrors.Count == 0
+                ? $"Preset application failed; newly installed fixes were rolled back: {exception.Message}"
+                : $"Preset application failed: {exception.Message}; rollback problems: {string.Join("; ", rollbackErrors)}", exception);
+        }
+
+        return new GameFixPresetResult(
+            preset,
+            selected.Length,
+            installed.Select(definition => definition.Id).ToArray(),
+            alreadyInstalled.Distinct(StringComparer.Ordinal).ToArray());
     }
 
     public GameFixInstallResult Uninstall(GameFixDefinition definition, string gameDirectory)

@@ -29,15 +29,22 @@ public enum GameDoctorStatus
 
 public sealed record GameDoctorCheck(string Id, GameDoctorStatus Status, string Summary, string Detail = "");
 
+public sealed record GameDoctorFileAudit(string RelativePath, string Owner, GameDoctorStatus Status, string Detail);
+
 public sealed record GameDoctorReport(
     GameTarget Target,
     string GameDirectory,
     string? SteamBuildId,
     IReadOnlyList<GameDoctorCheck> Checks,
     IReadOnlyList<string> LooseFiles,
-    IReadOnlyList<GameFixInstalledInfo> InstalledFixes);
+    IReadOnlyList<GameFixInstalledInfo> InstalledFixes)
+{
+    public IReadOnlyList<GameDoctorFileAudit> FileAudit { get; init; } = [];
+}
 
 public sealed record GameTargetDescriptor(string Id, string Title, int? SteamAppId, bool IsXRay, bool CompanionSupported);
+
+public sealed record GameDoctorInstallation(GameTarget Target, string Directory, GameInstallSource Source, string? BuildId);
 
 public static class GameTargetCatalog
 {
@@ -49,7 +56,7 @@ public static class GameTargetCatalog
         new("soc-ee", "Shadow of Chornobyl Enhanced Edition", 2_427_410, true, false),
         new("cs-ee", "Clear Sky Enhanced Edition", 2_427_420, true, false),
         new("cop-ee", "Call of Prypiat Enhanced Edition", 2_427_430, true, false),
-        new("s2", "S.T.A.L.K.E.R. 2", null, false, false),
+        new("s2", "S.T.A.L.K.E.R. 2", Stalker2CompanionInstaller.SteamAppId, false, false),
     ];
 
     public static GameTargetDescriptor Get(GameTarget target) => Descriptors[(int)target];
@@ -92,9 +99,7 @@ public static class GameDoctor
             return new GameDoctorReport(target, fullPath, null, checks.AsReadOnly(), looseFiles.AsReadOnly(), []);
         }
 
-        var markerFound = descriptor.IsXRay
-            ? File.Exists(Path.Combine(fullPath, "fsgame.ltx")) || File.Exists(Path.Combine(fullPath, "fsgame_soc.ltx"))
-            : Directory.Exists(Path.Combine(fullPath, "Stalker2", "Content", "Paks"));
+        var markerFound = HasExpectedMarker(target, fullPath);
         checks.Add(markerFound
             ? new GameDoctorCheck("installation", GameDoctorStatus.Ok, "Expected game data marker found.", "This is a structural check; it does not verify every retail file.")
             : new GameDoctorCheck("installation", GameDoctorStatus.Error, "Expected game data marker is missing.", descriptor.IsXRay ? "No root fsgame.ltx was found." : "No Stalker2/Content/Paks directory was found."));
@@ -173,7 +178,212 @@ public static class GameDoctor
             checks.Add(new GameDoctorCheck("game-fixes", GameDoctorStatus.Warning, "Game Fix state needs review.", exception.Message));
         }
 
-        return new GameDoctorReport(target, fullPath, buildId, checks.AsReadOnly(), looseFiles.AsReadOnly(), installedFixes);
+        var report = new GameDoctorReport(target, fullPath, buildId, checks.AsReadOnly(), looseFiles.AsReadOnly(), installedFixes);
+        return report with { FileAudit = AuditManagedFiles(target, fullPath, looseFiles, checks) };
+    }
+
+    public static IReadOnlyList<GameDoctorInstallation> DiscoverInstallations(IEnumerable<string>? steamRoots = null)
+    {
+        var includeNonSteam = steamRoots is null;
+        var roots = steamRoots?.ToArray() ?? CompanionInstaller.GetDefaultSteamRoots().ToArray();
+        var libraries = SteamLibraryFolderLocator.GetLibraries(roots);
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var seen = new Dictionary<GameTarget, HashSet<string>>();
+        var installations = new List<GameDoctorInstallation>();
+
+        void Add(GameTarget target, string? directory, GameInstallSource source)
+        {
+            if (string.IsNullOrWhiteSpace(directory)) return;
+            string fullPath;
+            try
+            {
+                fullPath = ResolveDirectoryIdentity(directory);
+            }
+            catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException)
+            {
+                return;
+            }
+
+            if (!HasExpectedMarker(target, fullPath)) return;
+            if (!seen.TryGetValue(target, out var targetPaths))
+                seen.Add(target, targetPaths = new HashSet<string>(comparer));
+            if (!targetPaths.Add(fullPath)) return;
+            installations.Add(new GameDoctorInstallation(
+                target,
+                fullPath,
+                source,
+                TryReadSteamBuildId(fullPath, GameTargetCatalog.Get(target).SteamAppId)));
+        }
+
+        foreach (var target in Enum.GetValues<GameTarget>())
+        {
+            var descriptor = GameTargetCatalog.Get(target);
+            if (descriptor.SteamAppId is not { } appId) continue;
+            foreach (var library in libraries)
+            {
+                var directory = SteamLibraryFolderLocator.GetManifestInstallDirectory(library, appId);
+                if (directory is not null && IsUnderSteamCommon(library, directory))
+                    Add(target, directory, GameInstallSource.Steam);
+            }
+        }
+
+        if (includeNonSteam)
+        {
+            foreach (var game in Enum.GetValues<CompanionGame>())
+            {
+                var target = game switch
+                {
+                    CompanionGame.ShadowOfChernobyl => GameTarget.ShadowOfChernobyl,
+                    CompanionGame.ClearSky => GameTarget.ClearSky,
+                    CompanionGame.CallOfPripyat => GameTarget.CallOfPripyat,
+                    _ => throw new InvalidOperationException("Unsupported Companion game target."),
+                };
+                foreach (var installation in GameInstallLocator.FindNonSteam(game))
+                    Add(target, installation.Directory, installation.Source);
+            }
+        }
+
+        return installations
+            .OrderBy(installation => installation.Target)
+            .ThenBy(installation => installation.Directory, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool HasExpectedMarker(GameTarget target, string gameDirectory)
+    {
+        var descriptor = GameTargetCatalog.Get(target);
+        return descriptor.IsXRay
+            ? File.Exists(Path.Combine(gameDirectory, "fsgame.ltx")) || File.Exists(Path.Combine(gameDirectory, "fsgame_soc.ltx"))
+            : Directory.Exists(Path.Combine(gameDirectory, "Stalker2", "Content", "Paks"));
+    }
+
+    private static bool IsUnderSteamCommon(string library, string gameDirectory)
+    {
+        try
+        {
+            var commonDirectory = ResolveDirectoryIdentity(Path.Combine(library, "steamapps", "common"));
+            var fullGameDirectory = ResolveDirectoryIdentity(gameDirectory);
+            var relative = Path.GetRelativePath(commonDirectory, fullGameDirectory);
+            return relative != "." &&
+                !Path.IsPathRooted(relative) &&
+                !string.Equals(relative, "..", PathComparison) &&
+                !relative.StartsWith(".." + Path.DirectorySeparatorChar, PathComparison) &&
+                !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, PathComparison);
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static string ResolveDirectoryIdentity(string directory)
+    {
+        var fullPath = Path.GetFullPath(directory);
+        var root = Path.GetPathRoot(fullPath);
+        if (string.IsNullOrEmpty(root)) return fullPath;
+
+        var segments = fullPath[root.Length..].Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+        var current = root;
+        foreach (var segment in segments)
+        {
+            current = Path.Combine(current, segment);
+            try
+            {
+                var target = new DirectoryInfo(current).ResolveLinkTarget(returnFinalTarget: true);
+                if (target is not null) current = target.FullName;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException or NotSupportedException)
+            {
+                // If a component cannot be resolved, retain the normalized path and keep detection read-only.
+            }
+        }
+
+        return Path.GetFullPath(current);
+    }
+
+    private static GameDoctorFileAudit[] AuditManagedFiles(
+        GameTarget target,
+        string gameDirectory,
+        IReadOnlyList<string> looseFiles,
+        List<GameDoctorCheck> checks)
+    {
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var managed = new Dictionary<string, List<(string Owner, bool Exists, bool Matches)>>(comparer);
+
+        void Add(string path, string owner, bool exists, bool matches)
+        {
+            var normalized = path.Replace('\\', '/');
+            if (!managed.TryGetValue(normalized, out var owners)) managed.Add(normalized, owners = []);
+            owners.Add((owner, exists, matches));
+        }
+
+        try
+        {
+            foreach (var file in new GameFixEngine().GetManagedFileStatus(gameDirectory))
+                Add(file.RelativePath, "Game Fix: " + file.FixId, file.Exists, file.MatchesExpectedHash);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
+        {
+            checks.Add(new GameDoctorCheck("file-audit-game-fixes", GameDoctorStatus.Warning,
+                "Game Fix file ownership could not be audited.", exception.Message));
+        }
+
+        if (GameTargetCatalog.Get(target).CompanionSupported)
+        {
+            var companionGame = target switch
+            {
+                GameTarget.ShadowOfChernobyl => CompanionGame.ShadowOfChernobyl,
+                GameTarget.ClearSky => CompanionGame.ClearSky,
+                GameTarget.CallOfPripyat => CompanionGame.CallOfPripyat,
+                _ => throw new ArgumentOutOfRangeException(nameof(target)),
+            };
+            try
+            {
+                var installer = new CompanionInstaller(Path.Combine(AppContext.BaseDirectory, "mods", "companion"));
+                foreach (var file in installer.GetManagedFileStatus(companionGame, gameDirectory))
+                    Add(file.RelativePath, "Companion", file.Exists, file.MatchesExpectedHash);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
+            {
+                checks.Add(new GameDoctorCheck("file-audit-companion", GameDoctorStatus.Warning,
+                    "Companion file ownership could not be audited.", exception.Message));
+            }
+        }
+
+        foreach (var path in looseFiles)
+        {
+            var normalized = path.Replace('\\', '/');
+            if (!managed.ContainsKey(normalized)) Add(normalized, "Unclassified", true, false);
+        }
+
+        return managed
+            .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .SelectMany(pair =>
+            {
+                var owners = pair.Value;
+                if (owners.Count > 1)
+                    return owners.Select(owner => new GameDoctorFileAudit(
+                        pair.Key,
+                        owner.Owner,
+                        GameDoctorStatus.Warning,
+                        "Multiple toolkit components claim this path; review the component manifests."));
+
+                var single = owners[0];
+                if (single.Owner == "Unclassified")
+                    return [new GameDoctorFileAudit(pair.Key, single.Owner, GameDoctorStatus.Unknown,
+                        "The file is present, but its source and compatibility are unknown.")];
+                if (!single.Exists)
+                    return [new GameDoctorFileAudit(pair.Key, single.Owner, GameDoctorStatus.Warning,
+                        "The toolkit-managed file is missing.")];
+                if (!single.Matches)
+                    return [new GameDoctorFileAudit(pair.Key, single.Owner, GameDoctorStatus.Warning,
+                        "The toolkit-managed file differs from its recorded installation hash.")];
+                return [new GameDoctorFileAudit(pair.Key, single.Owner, GameDoctorStatus.Ok,
+                    "The toolkit-managed file matches its recorded installation hash.")];
+            })
+            .ToArray();
     }
 
     private static GameDoctorCheck CheckCompanion(string gameDirectory, GameTarget target)

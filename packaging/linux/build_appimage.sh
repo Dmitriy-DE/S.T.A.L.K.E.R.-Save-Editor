@@ -32,6 +32,13 @@ dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.
 mv "${APP_DIR}/usr/bin/StalkerSaveEditor.Desktop" "${APP_DIR}/usr/bin/stalker-save-editor"
 chmod +x "${APP_DIR}/usr/bin/stalker-save-editor"
 
+# Bundle companion mod next to binary so CompanionServiceAdapter.ResolveModSourceRoot() finds it.
+# Path: <AppDir>/usr/bin/mods/companion — AppContext.BaseDirectory in single-file publish
+# resolves to the directory of the extracted binary, which is usr/bin here.
+echo "Bundling companion mod..."
+mkdir -p "${APP_DIR}/usr/bin/mods"
+cp -r "${ROOT}/mods/companion" "${APP_DIR}/usr/bin/mods/companion"
+
 # 3. Setup AppDir metadata
 cp "${ROOT}/packaging/linux/AppRun" "${APP_DIR}/AppRun"
 chmod +x "${APP_DIR}/AppRun"

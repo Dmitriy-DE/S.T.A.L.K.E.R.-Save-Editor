@@ -40,8 +40,8 @@ public static class LocalSaveReplacement
         Action<ReadOnlyMemory<byte>> verifyReadback)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
-        var plan = new EditPlan(Sha256(File.ReadAllBytes(sourcePath)));
-        return ReplaceLocal(sourcePath, new PreparedEdit(plan, replacement), backupDirectory, verifyReadback);
+        var prepared = PreparedEdit.Replacing(Sha256(File.ReadAllBytes(sourcePath)), replacement);
+        return ReplaceLocal(sourcePath, prepared, backupDirectory, verifyReadback);
     }
 
     public static LocalSaveReplacementReceipt ReplaceLocal(

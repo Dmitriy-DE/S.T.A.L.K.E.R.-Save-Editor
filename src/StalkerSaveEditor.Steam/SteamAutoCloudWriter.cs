@@ -6,6 +6,13 @@ namespace StalkerSaveEditor.Steam;
 
 public interface ISteamCloudWebReader
 {
+    /// <summary>Lists web-readable Steam Cloud files for applications that use Auto-Cloud.</summary>
+    Task<IReadOnlyList<SteamCloudFile>> ListCloudFilesAsync(
+        int appId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromException<IReadOnlyList<SteamCloudFile>>(
+            new NotSupportedException("This Steam web reader does not provide cloud file listing."));
+
     /// <summary>Reads the current bytes from Steam Cloud, refreshing its file list and signed URL first.</summary>
     Task<byte[]> ReadFreshFileAsync(string remotePath, CancellationToken cancellationToken = default);
 }

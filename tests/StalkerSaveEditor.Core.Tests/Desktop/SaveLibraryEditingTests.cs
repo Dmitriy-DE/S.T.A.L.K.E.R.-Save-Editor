@@ -42,18 +42,33 @@ public sealed class SaveLibraryEditingTests
     }
 
     [Fact]
-    public void Keeps_s2_money_and_stack_fields_read_only_until_its_writer_is_available()
+    public void Saves_s2_money_through_backup_and_readback()
     {
         using var directory = new TemporaryDirectory();
-        var path = Path.Combine(directory.Path, "synthetic-s2.sav");
+        var saveDirectory = Path.Combine(directory.Path, "saves");
+        var backupDirectory = Path.Combine(directory.Path, "backups");
+        Directory.CreateDirectory(saveDirectory);
+        var path = Path.Combine(saveDirectory, "synthetic-s2.sav");
         File.WriteAllBytes(path, ReadFixture("synthetic-s2.sav"));
-        var viewModel = new SaveLibraryViewModel(discoverLocalSaves: false);
+        var viewModel = new SaveLibraryViewModel(
+            discoverLocalSaves: false,
+            backupDirectoryProvider: () => backupDirectory);
 
         Assert.True(viewModel.AddPreviewSave(path));
-        Assert.False(viewModel.CanEditMoney);
-        Assert.All(viewModel.SelectedInventory, item => Assert.False(item.CanEditCount));
+        Assert.True(viewModel.CanEditMoney);
         Assert.False(viewModel.CanSave);
-        Assert.Equal(100u, Stalker2SaveReader.FromBytes(File.ReadAllBytes(path)).Money);
+        viewModel.MoneyInput = "200";
+        Assert.True(viewModel.CanSave);
+
+        viewModel.SaveCommand.Execute(null);
+
+        var saved = Stalker2SaveReader.FromBytes(File.ReadAllBytes(path));
+        Assert.True(saved.CrcOk);
+        Assert.Equal(200u, saved.Money);
+        Assert.False(viewModel.CanSave);
+        Assert.Contains("Backup:", viewModel.StatusMessage, StringComparison.Ordinal);
+        Assert.Equal([path], Directory.GetFiles(saveDirectory));
+        Assert.NotEmpty(Directory.GetFiles(backupDirectory));
     }
 
     [Fact]

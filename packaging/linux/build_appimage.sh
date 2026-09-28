@@ -43,8 +43,16 @@ else
     APPIMAGETOOL_CMD="appimagetool"
 fi
 
+# The runtime is pinned too: appimagetool's own "continuous" download link breaks from time to time.
+RUNTIME_VERSION="20251108"
+curl -fsSL -o "${BUILD_DIR}/runtime-x86_64" \
+    "https://github.com/AppImage/type2-runtime/releases/download/${RUNTIME_VERSION}/runtime-x86_64" || {
+    echo "Error: Failed to download the AppImage runtime ${RUNTIME_VERSION}" >&2
+    exit 1
+}
+
 echo "Generating AppImage..."
-ARCH=x86_64 ${APPIMAGETOOL_CMD} "${APP_DIR}" "${APPIMAGE_BIN}"
+ARCH=x86_64 ${APPIMAGETOOL_CMD} --runtime-file "${BUILD_DIR}/runtime-x86_64" "${APP_DIR}" "${APPIMAGE_BIN}"
 
 if [ ! -f "${APPIMAGE_BIN}" ]; then
     echo "Error: AppImage packaging failed; target file ${APPIMAGE_BIN} was not generated." >&2

@@ -36,6 +36,7 @@ dotnet publish "$ROOT/src/StalkerSaveEditor.App/StalkerSaveEditor.App.csproj" \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:NoWarn=IL3000 \
   -p:Version="$VERSION" -o "$OUT"
 
+mkdir -p "${TMPDIR:-$ROOT/build}"
 cli_out="$(mktemp -d "${TMPDIR:-$ROOT/build}/cli.XXXXXX")"
 dotnet publish "$ROOT/src/StalkerSaveEditor.Cli/StalkerSaveEditor.Cli.csproj" \
   -c Release -r "$RID" -p:PublishAot=true -p:Version="$VERSION" -o "$cli_out"

@@ -54,7 +54,7 @@ public sealed class GameContentServiceTests
     [InlineData("wpn_pm", "WP_PM", "weapon", "weapon_magazined")]
     [InlineData("ammo_9x18_fmj", "AMMO", "ammo", "ammo")]
     [InlineData("device_torch", "TORCH_S", "device", "torch")]
-    [InlineData("stalker_outfit", "E_STLK", "item", "outfit")]
+    [InlineData("stalker_outfit", "E_STLK", "outfit", "outfit")] // the oracle filed suits under "item"; the engine class says outfit
     [InlineData("medkit", "II_MEDKI", "consumable", "base")]
     public void Maps_categories_and_serializer_families_like_the_oracle(string name, string className, string category, string family)
     {

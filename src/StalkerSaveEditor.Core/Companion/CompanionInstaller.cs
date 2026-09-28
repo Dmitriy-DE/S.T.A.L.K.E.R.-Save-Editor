@@ -160,7 +160,7 @@ public sealed partial class CompanionInstaller
                 stateDirectory);
         }
 
-        var payloads = ReadModPayloads(definition);
+        var payloads = ReadModPayloads(definition, gameDirectory);
         var oldFiles = priorManifest?.Files.ToDictionary(file => NormalizeRelative(file.Path), StringComparer.Ordinal)
             ?? new Dictionary<string, InstallFileManifest>(StringComparer.Ordinal);
         VerifyManagedFiles(gameDirectory, priorManifest);
@@ -590,7 +590,7 @@ public sealed partial class CompanionInstaller
             archiveSearch = DiscoverArchives(gameDirectory, definition);
             hookTargets = GetHookTargets(gameDirectory, archiveSearch);
             configRelativePath = GetConfigRelativePath(archiveSearch);
-            payloads = ReadModPayloads(definition);
+            payloads = ReadModPayloads(definition, gameDirectory);
         }
         catch (CompanionInstallerException)
         {
@@ -699,7 +699,34 @@ public sealed partial class CompanionInstaller
         }
     }
 
-    private Dictionary<string, byte[]> ReadModPayloads(CompanionGameDefinition definition)
+    private Dictionary<string, byte[]> ReadModPayloads(CompanionGameDefinition definition, string gameDirectory)
+    {
+        var payloads = ReadShippedPayloads(definition);
+        if (GameCatalogScript(definition.Game, gameDirectory) is { } catalog)
+        {
+            payloads[CompanionCatalogScript.RelativePath] = catalog;
+        }
+
+        return payloads;
+    }
+
+    /// <summary>The spawn list from the game's own configs (cp1251), or null to keep the shipped one.</summary>
+    private static byte[]? GameCatalogScript(CompanionGame game, string gameDirectory)
+    {
+        try
+        {
+            var content = Content.GameContentService.Load(game, gameDirectory, Diagnostics.AppPaths.ContentCache);
+            if (content is null || content.Bundle.Items.Items.Count(CompanionCatalogScript.IsSpawnable) < 20) return null;
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            return Encoding.GetEncoding(1251).GetBytes(CompanionCatalogScript.Render(content.Bundle.Items));
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private Dictionary<string, byte[]> ReadShippedPayloads(CompanionGameDefinition definition)
     {
         if (!_fileSystem.DirectoryExists(_modSourceRoot))
         {

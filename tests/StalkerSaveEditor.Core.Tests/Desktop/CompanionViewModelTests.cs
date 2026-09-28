@@ -149,14 +149,35 @@ public sealed class CompanionViewModelTests
     }
 
     [Fact]
-    public async Task CanUninstall_TrueWhenInstalled()
+    public async Task CanUninstall_TrueWhenInstalled_and_install_updates_the_mod()
     {
         var fake = new FakeCompanionService { StateToReturn = CompanionState.Installed };
         var vm = new CompanionViewModel(fake);
         await vm.RefreshStatusAsync();
 
-        Assert.False(vm.CanInstall);
+        Assert.True(vm.CanInstall);
         Assert.True(vm.CanUninstall);
+
+        fake.StateToReturn = CompanionState.Active;
+        await vm.RefreshStatusAsync();
+        Assert.False(vm.CanInstall);
+    }
+
+    [Fact]
+    public async Task Installs_into_every_checked_game_that_was_found()
+    {
+        var fake = new FakeCompanionService { StateToReturn = CompanionState.NotInstalled };
+        var vm = new CompanionViewModel(fake);
+        await vm.RefreshGamesAsync();
+        Assert.Equal(3, vm.Games.Count);
+        Assert.All(vm.Games, row => Assert.True(row.IsChecked));
+        vm.Games[1].IsChecked = false;
+        var before = fake.InstallCallCount;
+
+        await vm.InstallCheckedAsync();
+
+        Assert.Equal(before + 2, fake.InstallCallCount);
+        Assert.Contains("готово", vm.StatusMessage, StringComparison.Ordinal);
     }
 
     [Fact]

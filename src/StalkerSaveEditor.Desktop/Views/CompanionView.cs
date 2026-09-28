@@ -170,7 +170,7 @@ public sealed class CompanionView : UserControl
             Margin = new Thickness(0, 6, 0, 0),
         };
 
-        var btnInstall = StalkerTheme.StalkerButton("УСТАНОВИТЬ МОД", isPrimary: true, minWidth: 150);
+        var btnInstall = StalkerTheme.StalkerButton("УСТАНОВИТЬ / ОБНОВИТЬ", isPrimary: true, minWidth: 150);
         btnInstall.Bind(Button.CommandProperty, new Binding("InstallCommand"));
         btnRow.Children.Add(btnInstall);
 
@@ -188,6 +188,50 @@ public sealed class CompanionView : UserControl
 
         statusStack.Children.Add(btnRow);
         mainStack.Children.Add(StalkerTheme.Card(statusStack));
+
+        // 2b. All games
+        var gamesStack = new StackPanel { Spacing = 8 };
+        gamesStack.Children.Add(new TextBlock
+        {
+            Text = "ВСЕ ИГРЫ",
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushAccentAmber,
+            LetterSpacing = 0.8,
+        });
+        var gamesList = new ItemsControl
+        {
+            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<CompanionGameRow>((row, _) =>
+            {
+                var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,220,*"), Margin = new Thickness(0, 2) };
+                if (row is null) return grid;
+                var check = new CheckBox { IsEnabled = row.GameFound, VerticalAlignment = VerticalAlignment.Center };
+                check.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(CompanionGameRow.IsChecked)) { Mode = BindingMode.TwoWay });
+                grid.Children.Add(check);
+                var title = new TextBlock { Text = row.Title, Foreground = StalkerTheme.BrushTextPrimary, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(title, 1);
+                grid.Children.Add(title);
+                var detail = new TextBlock
+                {
+                    Text = row.Status + (row.GameFound ? " · " + row.Path : string.Empty),
+                    Foreground = row.GameFound ? StalkerTheme.BrushTextSecondary : StalkerTheme.BrushTextMuted,
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                };
+                ToolTip.SetTip(detail, row.Path);
+                Grid.SetColumn(detail, 2);
+                grid.Children.Add(detail);
+                return grid;
+            }),
+        };
+        gamesList.Bind(ItemsControl.ItemsSourceProperty, new Binding("Games"));
+        gamesStack.Children.Add(gamesList);
+        var btnInstallChecked = StalkerTheme.StalkerButton("УСТАНОВИТЬ / ОБНОВИТЬ ВО ВСЕ ОТМЕЧЕННЫЕ", isPrimary: true, minWidth: 300);
+        btnInstallChecked.Bind(Button.CommandProperty, new Binding("InstallCheckedCommand"));
+        btnInstallChecked.HorizontalAlignment = HorizontalAlignment.Left;
+        gamesStack.Children.Add(btnInstallChecked);
+        mainStack.Children.Add(StalkerTheme.Card(gamesStack));
 
         // 3. Manual Game Directory Card
         var gameDirStack = new StackPanel { Spacing = 10 };

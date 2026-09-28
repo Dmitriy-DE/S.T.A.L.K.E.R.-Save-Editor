@@ -4,6 +4,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
 
@@ -20,7 +21,7 @@ public static class SettingsView
         var dirsStack = new StackPanel { Spacing = 8 };
         dirsStack.Children.Add(new TextBlock
         {
-            Text = "Папки автоматического поиска сохранений:",
+            Text = "Папки автоматического поиска сохранений (ТЧ, ЧН, ЗП, S2):",
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
         });
@@ -64,7 +65,7 @@ public static class SettingsView
 
         var addRow = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
             Margin = new Thickness(0, 8, 0, 0),
         };
         var addInput = new TextBox
@@ -72,7 +73,7 @@ public static class SettingsView
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
-            Watermark = "Путь к папке с сейвами…",
+            Watermark = "Путь к папке с сейвами (savedgames или SaveGames)…",
         };
         addInput.Bind(TextBox.TextProperty, new Binding(nameof(SettingsViewModel.NewSaveDirectory))
         {
@@ -81,12 +82,38 @@ public static class SettingsView
         });
         addRow.Children.Add(addInput);
 
+        var browseBtn = StalkerTheme.StalkerButton("Обзор…", isPrimary: false, minWidth: 80);
+        browseBtn.Margin = new Thickness(8, 0, 0, 0);
+        browseBtn.Click += async (_, _) =>
+        {
+            var topLevel = TopLevel.GetTopLevel(browseBtn);
+            if (topLevel?.StorageProvider is { } storageProvider && storageProvider.CanPickFolder)
+            {
+                var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Выберите папку с сохранениями S.T.A.L.K.E.R.",
+                    AllowMultiple = false,
+                });
+                if (folders.Count > 0 && folders[0].Path.LocalPath is { } path)
+                {
+                    settings.NewSaveDirectory = path;
+                }
+            }
+        };
+        Grid.SetColumn(browseBtn, 1);
+        addRow.Children.Add(browseBtn);
+
         var addBtn = StalkerTheme.StalkerButton("Добавить папку", isPrimary: false, minWidth: 120);
         addBtn.Bind(Button.CommandProperty, new Binding(nameof(SettingsViewModel.AddSaveDirectoryCommand)) { Source = settings });
         addBtn.Margin = new Thickness(8, 0, 0, 0);
-        Grid.SetColumn(addBtn, 1);
+        Grid.SetColumn(addBtn, 2);
         addRow.Children.Add(addBtn);
         dirsStack.Children.Add(addRow);
+
+        var autoDetectBtn = StalkerTheme.StalkerButton("Автопоиск папок на диске", isPrimary: false, minWidth: 200);
+        autoDetectBtn.Bind(Button.CommandProperty, new Binding(nameof(SettingsViewModel.AutoDetectSaveDirectoriesCommand)) { Source = settings });
+        autoDetectBtn.Margin = new Thickness(0, 6, 0, 0);
+        dirsStack.Children.Add(autoDetectBtn);
 
         stack.Children.Add(StalkerTheme.Card(dirsStack, "Каталоги сохранений"));
 
@@ -112,11 +139,11 @@ public static class SettingsView
         backupStack.Children.Add(backupInput);
         stack.Children.Add(StalkerTheme.Card(backupStack, "Резервное копирование"));
 
-        // 3. Language & Audio Card
+        // 3. Interface & Audio Card
         var prefStack = new StackPanel { Spacing = 10 };
 
         // Language
-        var langRow = new Grid { ColumnDefinitions = new ColumnDefinitions("160,200") };
+        var langRow = new Grid { ColumnDefinitions = new ColumnDefinitions("160,220") };
         langRow.Children.Add(new TextBlock
         {
             Text = "Язык интерфейса:",
@@ -127,7 +154,7 @@ public static class SettingsView
         var langCombo = new ComboBox
         {
             ItemsSource = settings.Languages,
-            Width = 200,
+            Width = 220,
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
@@ -140,6 +167,32 @@ public static class SettingsView
         Grid.SetColumn(langCombo, 1);
         langRow.Children.Add(langCombo);
         prefStack.Children.Add(langRow);
+
+        // Theme
+        var themeRow = new Grid { ColumnDefinitions = new ColumnDefinitions("160,220") };
+        themeRow.Children.Add(new TextBlock
+        {
+            Text = "Тема оформления:",
+            Foreground = StalkerTheme.BrushTextPrimary,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var themeCombo = new ComboBox
+        {
+            ItemsSource = settings.Themes,
+            Width = 220,
+            Background = StalkerTheme.BrushBgInput,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            BorderBrush = StalkerTheme.BrushBorder,
+        };
+        themeCombo.Bind(ComboBox.SelectedItemProperty, new Binding(nameof(SettingsViewModel.SelectedTheme))
+        {
+            Source = settings,
+            Mode = BindingMode.TwoWay,
+        });
+        Grid.SetColumn(themeCombo, 1);
+        themeRow.Children.Add(themeCombo);
+        prefStack.Children.Add(themeRow);
 
         // Audio
         var soundChk = new CheckBox

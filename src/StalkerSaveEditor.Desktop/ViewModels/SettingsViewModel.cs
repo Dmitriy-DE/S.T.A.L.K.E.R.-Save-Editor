@@ -9,11 +9,19 @@ public sealed class LanguageOption(string code, string name)
     public override string ToString() => Name;
 }
 
+public sealed class ThemeOption(string id, string name)
+{
+    public string Id { get; } = id;
+    public string Name { get; } = name;
+    public override string ToString() => Name;
+}
+
 public sealed class SettingsViewModel : ObservableViewModel
 {
     private string _backupDirectory;
     private string _newSaveDirectory = string.Empty;
     private LanguageOption _selectedLanguage;
+    private ThemeOption _selectedTheme;
     private bool _soundEnabled = true;
     private int _soundVolume = 80;
     private string _settingsStatus = string.Empty;
@@ -21,7 +29,8 @@ public sealed class SettingsViewModel : ObservableViewModel
     public SettingsViewModel(
         IEnumerable<string> saveDirectories,
         string backupDirectory,
-        string currentLanguageCode = "ru")
+        string currentLanguageCode = "ru",
+        string currentThemeId = "game")
     {
         SaveDirectories = new ObservableCollection<string>(saveDirectories);
         _backupDirectory = backupDirectory;
@@ -45,18 +54,29 @@ public sealed class SettingsViewModel : ObservableViewModel
             new LanguageOption("zh_TW", "繁體中文"),
         ];
 
-        _selectedLanguage = Languages.FirstOrDefault(l => l.Code == currentLanguageCode) ?? Languages[0];
+        Themes =
+        [
+            new ThemeOption("game", "Игровая (S.T.A.L.K.E.R.)"),
+            new ThemeOption("dark", "Тёмная"),
+            new ThemeOption("light", "Светлая"),
+        ];
 
-        AddSaveDirectoryCommand = new RelayCommand(AddSaveDirectory, () => !string.IsNullOrWhiteSpace(NewSaveDirectory));
+        _selectedLanguage = Languages.FirstOrDefault(l => l.Code == currentLanguageCode) ?? Languages[0];
+        _selectedTheme = Themes.FirstOrDefault(t => t.Id == currentThemeId) ?? Themes[0];
+
+        AddSaveDirectoryCommand = new RelayCommand(() => AddSaveDirectory(NewSaveDirectory), () => !string.IsNullOrWhiteSpace(NewSaveDirectory));
         RemoveSaveDirectoryCommand = new RelayCommand<string>(RemoveSaveDirectory);
+        AutoDetectSaveDirectoriesCommand = new RelayCommand(() => AutoDetectSaveDirectories());
         SaveSettingsCommand = new RelayCommand(SaveSettings);
     }
 
     public ObservableCollection<string> SaveDirectories { get; }
     public IReadOnlyList<LanguageOption> Languages { get; }
+    public IReadOnlyList<ThemeOption> Themes { get; }
 
     public RelayCommand AddSaveDirectoryCommand { get; }
     public RelayCommand<string> RemoveSaveDirectoryCommand { get; }
+    public RelayCommand AutoDetectSaveDirectoriesCommand { get; }
     public RelayCommand SaveSettingsCommand { get; }
 
     public string BackupDirectory
@@ -83,6 +103,12 @@ public sealed class SettingsViewModel : ObservableViewModel
         set => SetProperty(ref _selectedLanguage, value);
     }
 
+    public ThemeOption SelectedTheme
+    {
+        get => _selectedTheme;
+        set => SetProperty(ref _selectedTheme, value);
+    }
+
     public bool SoundEnabled
     {
         get => _soundEnabled;
@@ -101,18 +127,20 @@ public sealed class SettingsViewModel : ObservableViewModel
         set => SetProperty(ref _settingsStatus, value);
     }
 
-    private void AddSaveDirectory()
+    public bool AddSaveDirectory(string? directory)
     {
-        var path = _newSaveDirectory.Trim();
+        var path = directory?.Trim();
         if (!string.IsNullOrEmpty(path) && !SaveDirectories.Contains(path, StringComparer.OrdinalIgnoreCase))
         {
             SaveDirectories.Add(path);
             NewSaveDirectory = string.Empty;
-            SettingsStatus = "Папка добавлена в список поиска.";
+            SettingsStatus = $"Папка добавлена: {path}";
+            return true;
         }
+        return false;
     }
 
-    private void RemoveSaveDirectory(string? directory)
+    public void RemoveSaveDirectory(string? directory)
     {
         if (directory is not null && SaveDirectories.Remove(directory))
         {
@@ -120,7 +148,25 @@ public sealed class SettingsViewModel : ObservableViewModel
         }
     }
 
-    private void SaveSettings()
+    public int AutoDetectSaveDirectories()
+    {
+        var detected = SaveDirectoryDiscovery.GetExistingDirectories();
+        int added = 0;
+        foreach (var dir in detected)
+        {
+            if (!SaveDirectories.Contains(dir, StringComparer.OrdinalIgnoreCase))
+            {
+                SaveDirectories.Add(dir);
+                added++;
+            }
+        }
+        SettingsStatus = added > 0
+            ? $"Автопоиск завершён. Добавлено папок: {added}."
+            : "Автопоиск завершён. Новых папок не найдено.";
+        return added;
+    }
+
+    public void SaveSettings()
     {
         SettingsStatus = "Настройки сохранены.";
     }

@@ -33,7 +33,7 @@ public sealed class MainWindow : Window
     {
         var root = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"),
             Background = StalkerTheme.BrushBgBase,
         };
 
@@ -41,7 +41,12 @@ public sealed class MainWindow : Window
         var topBar = BuildTopBar(vm);
         root.Children.Add(topBar);
 
-        // 2. Middle Area: Left Saves Pane (300) + Right Workspace
+        // 2. Update Notification Banner
+        var updateBanner = BuildUpdateBanner(vm);
+        Grid.SetRow(updateBanner, 1);
+        root.Children.Add(updateBanner);
+
+        // 3. Middle Area: Left Saves Pane (310) + Right Workspace
         var middle = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("310,*"),
@@ -54,15 +59,56 @@ public sealed class MainWindow : Window
         Grid.SetColumn(workspacePane, 1);
         middle.Children.Add(workspacePane);
 
-        Grid.SetRow(middle, 1);
+        Grid.SetRow(middle, 2);
         root.Children.Add(middle);
 
-        // 3. Bottom Status Bar
+        // 4. Bottom Status Bar
         var statusBar = BuildStatusBar();
-        Grid.SetRow(statusBar, 2);
+        Grid.SetRow(statusBar, 3);
         root.Children.Add(statusBar);
 
         return root;
+    }
+
+    private static Control BuildUpdateBanner(SaveLibraryViewModel vm)
+    {
+        var banner = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#1A2B18")),
+            BorderBrush = StalkerTheme.BrushSuccess,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(18, 6, 18, 6),
+            DataContext = vm.Updates,
+        };
+        banner.Bind(Visual.IsVisibleProperty, new Binding(nameof(UpdatesViewModel.ShowNotificationBanner)));
+
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+        };
+
+        var text = new TextBlock
+        {
+            Foreground = StalkerTheme.BrushSuccess,
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        text.Bind(TextBlock.TextProperty, new Binding(nameof(UpdatesViewModel.NotificationBannerText)));
+        grid.Children.Add(text);
+
+        var openBtn = StalkerTheme.StalkerButton("Посмотреть", isPrimary: true, minWidth: 100);
+        openBtn.Click += (_, _) => vm.SelectedTab = "updates";
+        Grid.SetColumn(openBtn, 1);
+        grid.Children.Add(openBtn);
+
+        var dismissBtn = StalkerTheme.StalkerButton("✕", isPrimary: false, minWidth: 32);
+        dismissBtn.Bind(Button.CommandProperty, new Binding(nameof(UpdatesViewModel.DismissBannerCommand)));
+        Grid.SetColumn(dismissBtn, 2);
+        dismissBtn.Margin = new Thickness(8, 0, 0, 0);
+        grid.Children.Add(dismissBtn);
+
+        banner.Child = grid;
+        return banner;
     }
 
     private static Control BuildTopBar(SaveLibraryViewModel vm)
@@ -222,6 +268,9 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, "БЭКАПЫ", "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
         navBar.Children.Add(MakeNavTab(vm, "ВОЗМОЖНОСТИ", "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
         navBar.Children.Add(MakeNavTab(vm, "КОМПАНЬОН", "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
+        navBar.Children.Add(MakeNavTab(vm, "ОБЛАКО", "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
+        navBar.Children.Add(MakeNavTab(vm, "ДОСТИЖЕНИЯ", "achievements", nameof(SaveLibraryViewModel.IsAchievementsTab)));
+        navBar.Children.Add(MakeNavTab(vm, "ОБНОВЛЕНИЯ", "updates", nameof(SaveLibraryViewModel.IsUpdatesTab)));
         navBar.Children.Add(MakeNavTab(vm, "НАСТРОЙКИ", "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
 
         var navBorder = new Border
@@ -262,6 +311,11 @@ public sealed class MainWindow : Window
         };
         emptyState.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShouldShowEmptyState)));
         contentGrid.Children.Add(emptyState);
+
+        // First Run Wizard
+        var wizard = BuildFirstRunWizard(vm);
+        wizard.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.IsFirstRunWizardVisible)));
+        contentGrid.Children.Add(wizard);
 
         // Screens Container
         var screens = new Grid();
@@ -310,6 +364,19 @@ public sealed class MainWindow : Window
         var companion = new CompanionView { DataContext = vm.Companion };
         companion.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCompanionScreen)));
         screens.Children.Add(companion);
+
+        // 10. Cloud
+        var cloud = new CloudView { DataContext = vm.Cloud };
+        cloud.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCloudScreen)));
+        screens.Children.Add(cloud);
+        // 10. Achievements
+        var achievements = new AchievementsView { DataContext = vm.Achievements };
+        achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)));
+        screens.Children.Add(achievements);
+        // 10. Updates
+        var updates = new UpdatesView { DataContext = vm.Updates };
+        updates.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowUpdatesScreen)));
+        screens.Children.Add(updates);
 
         contentGrid.Children.Add(screens);
 
@@ -390,6 +457,126 @@ public sealed class MainWindow : Window
             Child = grid,
         };
         return border;
+    }
+
+    private static Control BuildFirstRunWizard(SaveLibraryViewModel vm)
+    {
+        var card = new Border
+        {
+            Background = StalkerTheme.BrushBgPanel,
+            BorderBrush = StalkerTheme.BrushAccentAmber,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(24),
+            MaxWidth = 680,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var stack = new StackPanel { Spacing = 14 };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = "МАСТЕР ПЕРВОГО ЗАПУСКА",
+            FontSize = 18,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushAccentAmber,
+            LetterSpacing = 1.2,
+        });
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = "Сохранения S.T.A.L.K.E.R. не были найдены в стандартных каталогах.\nУкажите папку с файлами сохранений (savedgames или SaveGames) или запустите автоматический поиск на диске.",
+            Foreground = StalkerTheme.BrushTextSecondary,
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        // Auto-detect Button
+        var autoDetectBtn = StalkerTheme.StalkerButton("АВТОПОИСК ПАПОК НА ДИСКЕ", isPrimary: true, minWidth: 220);
+        autoDetectBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.WizardAutoDetectCommand)));
+        stack.Children.Add(autoDetectBtn);
+
+        var orDivider = new TextBlock
+        {
+            Text = "— ИЛИ УКАЖИТЕ ПУТЬ ВРУЧНУЮ —",
+            FontSize = 10,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushTextMuted,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 4),
+        };
+        stack.Children.Add(orDivider);
+
+        // Manual Input Row
+        var inputRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+        };
+
+        var input = new TextBox
+        {
+            Background = StalkerTheme.BrushBgInput,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            BorderBrush = StalkerTheme.BrushBorder,
+            Watermark = "Путь к папке с сейвами…",
+        };
+        input.Bind(TextBox.TextProperty, new Binding(nameof(SaveLibraryViewModel.WizardDirectoryInput))
+        {
+            Mode = BindingMode.TwoWay,
+        });
+        inputRow.Children.Add(input);
+
+        var browseBtn = StalkerTheme.StalkerButton("Обзор…", isPrimary: false, minWidth: 80);
+        browseBtn.Margin = new Thickness(8, 0, 0, 0);
+        browseBtn.Click += async (_, _) =>
+        {
+            var topLevel = TopLevel.GetTopLevel(browseBtn);
+            if (topLevel?.StorageProvider is { } storageProvider && storageProvider.CanPickFolder)
+            {
+                var folders = await storageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+                {
+                    Title = "Выберите папку с сохранениями",
+                    AllowMultiple = false,
+                });
+                if (folders.Count > 0 && folders[0].Path.LocalPath is { } path)
+                {
+                    vm.WizardDirectoryInput = path;
+                }
+            }
+        };
+        Grid.SetColumn(browseBtn, 1);
+        inputRow.Children.Add(browseBtn);
+
+        var addBtn = StalkerTheme.StalkerButton("Добавить", isPrimary: false, minWidth: 90);
+        addBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.WizardAddDirectoryCommand)));
+        addBtn.Margin = new Thickness(8, 0, 0, 0);
+        Grid.SetColumn(addBtn, 2);
+        inputRow.Children.Add(addBtn);
+
+        stack.Children.Add(inputRow);
+
+        // Bottom Actions
+        var bottomActions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 12,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 10, 0, 0),
+        };
+
+        var settingsBtn = StalkerTheme.StalkerButton("Перейти в настройки", isPrimary: false, minWidth: 140);
+        settingsBtn.Click += (_, _) => vm.SelectedTab = "settings";
+        bottomActions.Children.Add(settingsBtn);
+
+        var dismissBtn = StalkerTheme.StalkerButton("Пропустить", isPrimary: false, minWidth: 100);
+        dismissBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.DismissWizardCommand)));
+        bottomActions.Children.Add(dismissBtn);
+
+        stack.Children.Add(bottomActions);
+
+        card.Child = stack;
+        return card;
     }
 
     private sealed class BoolToBrushConverter(IBrush trueBrush, IBrush falseBrush) : Avalonia.Data.Converters.IValueConverter

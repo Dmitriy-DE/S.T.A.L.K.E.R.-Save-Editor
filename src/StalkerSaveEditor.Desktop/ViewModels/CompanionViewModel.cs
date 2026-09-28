@@ -269,7 +269,7 @@ public sealed class CompanionViewModel : ObservableViewModel
         IsBusy = true;
         try
         {
-            var status = await _service.GetStatusAsync(_selectedGame).ConfigureAwait(false);
+            var status = await _service.GetStatusAsync(_selectedGame);
             State = status.State;
             VersionText = status.Version;
             GamePath = status.GamePath;
@@ -280,7 +280,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             // Show any installer issues (anchor not found, file changed, etc.)
             if (_service is CompanionServiceAdapter adapter)
             {
-                var issues = await adapter.GetInstallIssuesAsync(_selectedGame).ConfigureAwait(false);
+                var issues = await adapter.GetInstallIssuesAsync(_selectedGame);
                 InstallIssues = issues.Count > 0
                     ? string.Join('\n', issues)
                     : string.Empty;
@@ -300,7 +300,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             }
 
             // Populate hotkeys list.
-            var hotkeys = await _service.GetHotkeysAsync(_selectedGame).ConfigureAwait(false);
+            var hotkeys = await _service.GetHotkeysAsync(_selectedGame);
             Hotkeys.Clear();
             foreach (var hk in hotkeys)
             {
@@ -331,11 +331,11 @@ public sealed class CompanionViewModel : ObservableViewModel
         StatusMessage = "Установка компаньона в gamedata…";
         try
         {
-            var ok = await _service.InstallAsync(_selectedGame).ConfigureAwait(false);
+            var ok = await _service.InstallAsync(_selectedGame);
             StatusMessage = ok
                 ? "Компаньон успешно установлен!"
                 : "Не удалось установить компаньон — убедитесь, что папка игры найдена.";
-            await RefreshStatusAsync().ConfigureAwait(false);
+            await RefreshStatusAsync();
         }
         catch (Exception ex)
         {
@@ -353,9 +353,9 @@ public sealed class CompanionViewModel : ObservableViewModel
         StatusMessage = "Удаление компаньона…";
         try
         {
-            var ok = await _service.UninstallAsync(_selectedGame).ConfigureAwait(false);
+            var ok = await _service.UninstallAsync(_selectedGame);
             StatusMessage = ok ? "Компаньон удалён." : "Не удалось удалить компаньон.";
-            await RefreshStatusAsync().ConfigureAwait(false);
+            await RefreshStatusAsync();
         }
         catch (Exception ex)
         {
@@ -375,7 +375,7 @@ public sealed class CompanionViewModel : ObservableViewModel
         StatusMessage = "Проверка связи с модом…";
         try
         {
-            var latency = await _service.PingAsync(_selectedGame).ConfigureAwait(false);
+            var latency = await _service.PingAsync(_selectedGame);
             if (latency.HasValue)
             {
                 PingText = $"{latency.Value.TotalMilliseconds:F0} мс";
@@ -429,7 +429,7 @@ public sealed class CompanionViewModel : ObservableViewModel
         try
         {
             var (success, error) = await adapter.ToggleHotkeysAsync(
-                _selectedGame, enable).ConfigureAwait(false);
+                _selectedGame, enable);
             if (success)
             {
                 HotkeysEnabled = enable;

@@ -60,6 +60,24 @@ public sealed partial class CompanionInstaller
         }
     }
 
+    /// <summary><c>MOD_BUILD</c> of the script installed in the game (the build the game runs after a restart).</summary>
+    private string? InstalledModBuild(string gameDirectory, InstallManifest manifest)
+    {
+        var script = manifest.Files.FirstOrDefault(file => file.Path.Replace('\\', '/').EndsWith("scripts/save_editor_companion.script", StringComparison.OrdinalIgnoreCase));
+        if (script is null) return null;
+        try
+        {
+            var path = ResolveStatePath(gameDirectory, script.Path);
+            if (!_fileSystem.FileExists(path)) return null;
+            var match = ModBuildPattern().Match(_fileSystem.ReadAllText(path));
+            return match.Success ? match.Groups[1].Value : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
     [System.Text.RegularExpressions.GeneratedRegex("local\\s+MOD_BUILD\\s*=\\s*\"([^\"]+)\"", System.Text.RegularExpressions.RegexOptions.CultureInvariant)]
     private static partial System.Text.RegularExpressions.Regex ModBuildPattern();
 
@@ -93,7 +111,7 @@ public sealed partial class CompanionInstaller
                     .Select(entry => entry.Path)
                     .ToArray();
                 issues.AddRange(changed.Select(path => $"Installed file changed or missing: {path}"));
-                return new CompanionInstallStatus(game, true, gameDirectory, true, manifest.Version, issues.AsReadOnly());
+                return new CompanionInstallStatus(game, true, gameDirectory, true, InstalledModBuild(gameDirectory, manifest) ?? manifest.Version, issues.AsReadOnly());
             }
             catch (CompanionInstallerException exception)
             {

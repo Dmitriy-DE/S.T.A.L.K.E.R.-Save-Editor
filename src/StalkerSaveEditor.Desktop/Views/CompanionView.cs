@@ -204,12 +204,22 @@ public sealed class CompanionView : UserControl
         {
             ItemTemplate = StalkerTheme.Template<CompanionGameRow>(row =>
             {
-                var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,220,*"), Margin = new Thickness(0, 2) };
+                var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"), Margin = new Thickness(0, 2) };
                 if (row is null) return grid;
                 var check = new CheckBox { IsEnabled = row.GameFound, VerticalAlignment = VerticalAlignment.Center };
                 check.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(CompanionGameRow.IsChecked)) { Mode = BindingMode.TwoWay });
                 grid.Children.Add(check);
-                var title = new TextBlock { Text = row.Title, Foreground = StalkerTheme.BrushTextPrimary, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+                var title = new TextBlock
+                {
+                    Text = row.Title,
+                    Foreground = StalkerTheme.BrushTextPrimary,
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    MinWidth = 220,
+                    MaxWidth = 320,
+                    Margin = new Thickness(0, 0, 12, 0),
+                };
                 Grid.SetColumn(title, 1);
                 grid.Children.Add(title);
                 var detail = new TextBlock

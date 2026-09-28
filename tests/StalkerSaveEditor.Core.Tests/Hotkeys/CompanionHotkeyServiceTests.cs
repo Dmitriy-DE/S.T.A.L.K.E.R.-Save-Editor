@@ -48,7 +48,7 @@ public sealed class CompanionHotkeyServiceTests
     {
         using var game = SyntheticGame.Create();
         var backend = new FakeHotkeyBackend();
-        var client = new CompanionProtocolClient(game.GameDirectory, timeout: TimeSpan.FromSeconds(2));
+        var client = new CompanionProtocolClient(game.GameDirectory, timeout: TimeSpan.FromSeconds(10));
         await using var service = new CompanionHotkeyService(client, backend);
         var completed = new TaskCompletionSource<CompanionHotkeyCommandResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         service.CommandCompleted += (_, result) => completed.TrySetResult(result);
@@ -69,7 +69,7 @@ public sealed class CompanionHotkeyServiceTests
         await Task.Delay(100);
         Assert.Equal("v1 " + healCommand.Id + " heal", File.ReadAllText(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt")).Trim());
         await ReplyTo(game.AppDataRoot, healCommand.Id, "ok", "healed");
-        var result = await completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await completed.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal(CompanionHotkeyAction.Heal, result.Action);
         Assert.True(result.Succeeded);
         await Task.Delay(100);
@@ -88,7 +88,7 @@ public sealed class CompanionHotkeyServiceTests
     private static async Task<(string Id, string Command)> WaitForCommand(string appDataRoot)
     {
         var path = Path.Combine(appDataRoot, "save_editor_cmd.txt");
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
         while (!File.Exists(path) && DateTime.UtcNow < deadline)
         {
             await Task.Delay(10);

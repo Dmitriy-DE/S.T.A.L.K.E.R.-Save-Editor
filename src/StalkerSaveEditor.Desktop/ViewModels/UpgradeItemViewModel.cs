@@ -18,7 +18,19 @@ public sealed class UpgradeItemViewModel : ObservableViewModel
         DisabledReason = disabledReason ?? (canEdit ? "Установить или снять апгрейд" : "Модификации оружия и брони не поддерживаются форматом");
     }
 
-    public UpgradeDefinition Definition { get; }
+    public UpgradeItemViewModel(string key, string displayName, string category, bool isInstalled, bool canEdit, string? disabledReason = null)
+    {
+        Definition = null;
+        Key = key;
+        DisplayName = displayName;
+        Category = category;
+        _isInstalled = isInstalled;
+        OriginalInstalled = isInstalled;
+        CanEdit = canEdit;
+        DisabledReason = disabledReason ?? (canEdit ? "Установить или снять апгрейд" : "Модификации оружия и брони не поддерживаются форматом");
+    }
+
+    public UpgradeDefinition? Definition { get; }
     public string Key { get; }
     public string DisplayName { get; }
     public string Category { get; }

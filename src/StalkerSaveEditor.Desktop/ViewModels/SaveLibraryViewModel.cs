@@ -76,6 +76,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         if (discoverLocalSaves) Refresh();
 
+        Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
         Diagnostics = new DiagnosticsViewModel(pendingCrash: InteractiveApp ? CrashReporter.Pending() : null);
 
         if (InteractiveApp)
@@ -93,6 +94,27 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public static bool InteractiveApp { get; set; }
 
     public DiagnosticsViewModel Diagnostics { get; }
+
+    public CompareViewModel Compare { get; }
+
+    private void UpdateCompareSubject()
+    {
+        var save = SelectedSave;
+        if (save is null)
+        {
+            Compare.SetSubject(null, string.Empty, []);
+            return;
+        }
+
+        var family = save.ReleaseId.Replace("-ee", string.Empty, StringComparison.Ordinal);
+        var others = Saves
+            .Where(other => other.ReleaseId.Replace("-ee", string.Empty, StringComparison.Ordinal) == family)
+            .Select(other => new CompareCandidate(other.DisplayName, other.FilePath));
+        var backups = Backups
+            .Where(backup => backup.SourcePath == save.FilePath && File.Exists(backup.BackupPath))
+            .Select(backup => new CompareCandidate("Бэкап " + backup.CreatedAt, backup.BackupPath));
+        Compare.SetSubject(save.FilePath, save.ReleaseId, backups.Concat(others).ToArray());
+    }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
     public ObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];
@@ -262,6 +284,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 _currentJournal = null;
             }
+
+            UpdateCompareSubject();
 
             ApplyInventoryFilter();
             SelectedItem = FilteredInventory.FirstOrDefault();
@@ -461,6 +485,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 Backups.Add(new BackupRecordViewModel(r));
             }
         }
+
+        UpdateCompareSubject();
     }
 
     public bool AddPreviewSave(string path)

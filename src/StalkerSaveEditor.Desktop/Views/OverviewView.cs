@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -10,6 +11,44 @@ namespace StalkerSaveEditor.Desktop.Views;
 
 public static class OverviewView
 {
+    private static Control BuildCompare()
+    {
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Bind(StyledElement.DataContextProperty, new Binding(nameof(SaveLibraryViewModel.Compare)));
+        var picker = new ComboBox { MinWidth = 320 };
+        picker.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(CompareViewModel.Candidates)));
+        picker.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(CompareViewModel.Selected)) { Mode = BindingMode.TwoWay });
+        picker.Bind(Visual.IsVisibleProperty, new Binding(nameof(CompareViewModel.HasCandidates)));
+        panel.Children.Add(picker);
+
+        var status = new TextBlock { FontSize = 12, Foreground = StalkerTheme.BrushTextSecondary, TextWrapping = TextWrapping.Wrap };
+        status.Bind(TextBlock.TextProperty, new Binding(nameof(CompareViewModel.Status)));
+        panel.Children.Add(status);
+
+        var rows = new ItemsControl
+        {
+            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<CompareRow>((row, _) =>
+            {
+                var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,120,20,120"), Margin = new Thickness(0, 1) };
+                if (row is null) return grid;
+                grid.Children.Add(new TextBlock { Text = row.Label, Foreground = StalkerTheme.BrushTextPrimary, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis });
+                var before = new TextBlock { Text = row.Before, Foreground = StalkerTheme.BrushTextMuted, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(before, 1);
+                grid.Children.Add(before);
+                var arrow = new TextBlock { Text = "→", Foreground = StalkerTheme.BrushTextMuted, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
+                Grid.SetColumn(arrow, 2);
+                grid.Children.Add(arrow);
+                var after = new TextBlock { Text = row.After, Foreground = StalkerTheme.BrushAccentAmber, FontSize = 12 };
+                Grid.SetColumn(after, 3);
+                grid.Children.Add(after);
+                return grid;
+            }),
+        };
+        rows.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(CompareViewModel.Rows)));
+        panel.Children.Add(rows);
+        return StalkerTheme.Card(panel, "Сравнить с другим сейвом или бэкапом");
+    }
+
     public static Control Build()
     {
         var scroll = new ScrollViewer { Padding = new Thickness(16) };
@@ -73,6 +112,7 @@ public static class OverviewView
         fileDetails.Children.Add(MakeRow("SHA-256:", "SelectedSave.SourceSha256"));
 
         stack.Children.Add(StalkerTheme.Card(fileDetails, "Целостность и метаданные"));
+        stack.Children.Add(BuildCompare());
 
         scroll.Content = stack;
         return scroll;

@@ -17,7 +17,7 @@ used. The Python repo is frozen for new features once this port reaches parity
 
 ```text
 src/
-  StalkerSaveEditor.Core/          no UI, no Steam, no file-system policy
+  StalkerSaveEditor.Core/          no UI or Steam; narrow filesystem boundaries for saves and game files
     Formats/XRay/                  container (LZO), ALIFE chunks, actor, inventory
     Formats/Enhanced/              EE = XRay container + own ALIFE versions
     Formats/Stalker2/              GVAS/Kraken container, name tables, inventory, stash
@@ -27,6 +27,7 @@ src/
     Capabilities/                  CapabilityMaturity, FeatureCapability (+ evidence)
     Backups/                       backup + recovery artifacts, fresh-SHA checks
     Localization/                  tr(), 15 languages, same locale JSON as Python
+    Patching/                      atomic installed-game writes and Game Fix transactions
   StalkerSaveEditor.Steam/         thin P/Invoke to steam_api: RemoteStorage,
                                    UserStats (achievements), Auto-Cloud game session
   StalkerSaveEditor.Updater/       state machine: Checking → Downloading →
@@ -50,6 +51,14 @@ are preserved as opaque JSON and disable applying or extending that snapshot
 until the caller explicitly discards them.
 Draft files are replaced atomically, limited to 2 MiB, and removed when the
 current plan is empty.
+
+Installed-game changes use Core/Patching, separate from save mutation. Companion and Game Fixes share
+the same filesystem boundary and sibling-temp atomic writer while retaining their own plan validators
+and manifests. Each checks the other provider's managed paths before writing. Exact overlapping paths
+are rejected because stacked transformations have no shared provenance or rollback chain yet.
+Game Doctor and Save Doctor stay read-only except for the explicit S2 custom-mod folder move exposed
+as a separate troubleshooting action. Save Doctor delegates to the supported format readers and
+does not create a new writer or capability.
 
 ## Rules carried over from the Python repo
 

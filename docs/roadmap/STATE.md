@@ -26,3 +26,46 @@
 - Веб-версия: собирается в CI, не опубликована вместо Python-веба.
 - S2: добавление предметов, апгрейды, отношения — нужны пары сейвов «до/после».
 - Переназначение горячих клавиш компаньона не сохраняется.
+
+## Game Doctor, Save Doctor, Game Fixes (2026-09-28)
+
+This work is isolated on codex/stalker-toolkit-game-doctor, based on the fetched main at
+57f1537b6dbb3b97c23a0323e5bdb2629e4ce06a. It does not change or merge main.
+
+- **Installed-game patching:** Companion and Game Fixes use the shared Core Patching filesystem
+  boundary and atomic replacement writer. They refuse managed-path overlap in either install order.
+- **Game Fixes:** metadata model, explicit game/build/source gates, archive-to-loose-overlay handling,
+  hash-backed recovery manifests, drift-protected uninstall, dependencies/conflicts, categories and
+  preset filtering and a guarded per-fix version-update transaction exist. One Clear Sky fix
+  (`cs.quest.dead-wild-napr`) is available as Experimental:
+  its retail target bytes and archive round trip were verified, but it is not verified in-game and is
+  excluded from safe presets. Essential-only, Recommended and All-safe preset application now uses a
+  batch transaction that checks the detected build and rolls back only fixes newly installed by a
+  failed batch. Every current safe preset is an explicit no-op because no Validated fix is catalogued.
+  No installer component was added while there is no validated safe fix to apply from setup.
+- **Game Doctor:** discovery by Steam app ID covers all seven targets; the original trilogy also uses
+  existing GOG/Heroic/retail detection. It deduplicates symlinked Steam roots per target, rejects manifest paths
+  outside `steamapps/common`, checks the selected target marker/build, inventories up to 2,000 loose
+  files, audits Companion/Game Fix-owned file hashes and leaves other loose files unclassified. S2
+  custom-mod folder state has a user-triggered reversible directory move.
+- **Save Doctor:** read-only format-reader check and parsed inventory count. Semantic quest/object
+  health stays unknown; no repair is registered.
+- **Crash Analyzer:** user-selected log parser for fatal fields, Lua markers/stack frames, and common
+  engine exception markers. No known signatures or automatic log discovery are registered.
+- **Desktop / CLI:** Game Doctor has a detected-install picker and per-file ownership/integrity list;
+  Save Doctor remains read-only; Game Fixes supports explicit install/update/remove and the three
+  safe-preset actions. `doctor discover [--steam-root PATH]... [--json]` and
+  `fixes apply-preset <essential|recommended|all-safe> TARGET GAME_DIR [--json]` use Core services.
+- **Still not implemented here:** Quest Doctor, evidence-backed save repair, game-wide snapshots,
+  profiles/config activation, an expanded save timeline beyond existing Save Library backup compare
+  and restore, installed-game encyclopaedia expansion, Live Inspector additions, and installer
+  integration. Component-specific rollback exists for Game Fix, Companion, S2 mod-folder moves and
+  existing save backups; it is not a general snapshot service. No game was launched and no live
+  Companion/Steam operation was performed.
+- **Packaging:** Linux app plus NativeAOT CLI package built; packaged CLI discovery, Game Doctor JSON,
+  and empty Recommended preset passed against a temporary synthetic install. Windows installer and
+  in-game/runtime acceptance were not tested.
+
+Verification levels are recorded per feature in docs/GAME_DOCTOR.md, docs/SAVE_DOCTOR.md,
+docs/CRASH_ANALYZER.md, docs/GAME_FIXES.md, docs/GAME_FIX_RESEARCH.md, and
+docs/PATCHING_ARCHITECTURE.md. Synthetic tests do not establish retail or in-game correctness.

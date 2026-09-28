@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Formats.XRay;
+using StalkerSaveEditor.Core.Patching;
 
 namespace StalkerSaveEditor.Core.Content;
 
@@ -59,9 +60,9 @@ internal sealed class GameFileTree
         CompanionGame game,
         string gameDirectory,
         Func<string, bool> wanted,
-        ICompanionInstallFileSystem? fileSystem = null)
+        IGameFileSystem? fileSystem = null)
     {
-        fileSystem ??= new PhysicalCompanionInstallFileSystem();
+        fileSystem ??= new PhysicalGameFileSystem();
         var search = CompanionArchiveLocator.Discover(fileSystem, gameDirectory, ["fsgame.ltx"], game);
         var issues = new List<string>(search.Issues);
         var files = new Dictionary<string, GameFile>(StringComparer.OrdinalIgnoreCase);

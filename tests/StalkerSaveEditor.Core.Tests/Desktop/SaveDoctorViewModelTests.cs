@@ -1,0 +1,24 @@
+using StalkerSaveEditor.Desktop.ViewModels;
+using Xunit;
+
+namespace StalkerSaveEditor.Core.Tests.Desktop;
+
+public sealed class SaveDoctorViewModelTests
+{
+    [Fact]
+    public async Task Analyzes_a_supported_save_read_only_and_shows_unknown_semantic_checks()
+    {
+        var viewModel = new SaveDoctorViewModel
+        {
+            SavePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "writer-s2-money", "s2-money-source.sav"),
+        };
+
+        await viewModel.AnalyzeAsync();
+
+        Assert.True(viewModel.HasReport);
+        Assert.Equal(3, viewModel.Checks.Count);
+        Assert.Contains(viewModel.Checks, check => check.Status.ToString() == "Ok");
+        Assert.Contains(viewModel.Checks, check => check.Status.ToString() == "Unknown");
+        Assert.Contains("stalker2", viewModel.Checks[0].Detail, StringComparison.OrdinalIgnoreCase);
+    }
+}

@@ -16,6 +16,221 @@ public sealed class CliCommandTests
         Assert.False(string.IsNullOrWhiteSpace(result.Output));
     }
 
+    [Fact]
+    public void Crash_analyse_command_reports_parsed_log_fields_as_json()
+    {
+        using var fixture = Fixture.CreateCrashLog();
+
+        var result = Run("crash", "analyse", fixture.SourcePath, "--game", "Clear Sky", "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("\"kind\": \"FatalError\"", result.Output, StringComparison.Ordinal);
+        Assert.Contains("task_manager.script", result.Output, StringComparison.Ordinal);
+        Assert.Contains("\"fileLastWriteTimeUtc\":", result.Output, StringComparison.Ordinal);
+        Assert.Contains("\"knownIssueId\": null", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Doctor_game_command_audits_an_explicit_installation_as_json()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sse-doctor-cli-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "gamedata", "scripts"));
+        File.WriteAllText(Path.Combine(root, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(Path.Combine(root, "gamedata", "scripts", "local.script"), "function local_script() end");
+        try
+        {
+            var result = Run("doctor", "game", "cs", root, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("\"target\": \"ClearSky\"", result.Output, StringComparison.Ordinal);
+            Assert.Contains("loose-files", result.Output, StringComparison.Ordinal);
+            Assert.Contains("unknown because no retail baseline is bundled", result.Output, StringComparison.Ordinal);
+            Assert.Contains("\"fileAudit\": [", result.Output, StringComparison.Ordinal);
+            Assert.Contains("\"owner\": \"Unclassified\"", result.Output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Doctor_discover_command_returns_only_structurally_validated_steam_targets_as_json()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sse-doctor-discover-" + Guid.NewGuid().ToString("N"));
+        var game = Path.Combine(root, "steamapps", "common", "STALKER Clear Sky");
+        Directory.CreateDirectory(game);
+        File.WriteAllText(Path.Combine(game, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(Path.Combine(root, "steamapps", "appmanifest_20510.acf"), """
+            "AppState"
+            {
+                "appid" "20510"
+                "buildid" "11450472"
+                "installdir" "STALKER Clear Sky"
+            }
+            """);
+        try
+        {
+            var result = Run("doctor", "discover", "--steam-root", root, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("\"target\": \"ClearSky\"", result.Output, StringComparison.Ordinal);
+            Assert.Contains("\"source\": \"Steam\"", result.Output, StringComparison.Ordinal);
+            Assert.Contains("\"buildId\": \"11450472\"", result.Output, StringComparison.Ordinal);
+            Assert.Contains(System.Text.Json.JsonEncodedText.Encode(StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(game))).ToString(), result.Output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Doctor_save_command_reports_structural_health_and_unknown_semantics_as_json()
+    {
+        using var fixture = Fixture.CreateS2();
+
+        var result = Run("doctor", "save", fixture.SourcePath, "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("\"status\": \"Ok\"", result.Output, StringComparison.Ordinal);
+        Assert.Contains("semantic-state", result.Output, StringComparison.Ordinal);
+        Assert.Contains("\"repair\"", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Fixes_list_reports_only_researched_catalogue_entries()
+    {
+        var human = Run("fixes", "list");
+        var json = Run("fixes", "list", "--json");
+        var unsupported = Run("fixes", "list", "--game", "soc", "--json");
+
+        Assert.Equal(0, human.ExitCode);
+        Assert.Contains("cs.quest.dead-wild-napr [cs] Essential", human.Output, StringComparison.Ordinal);
+        Assert.Equal(0, json.ExitCode);
+        Assert.Contains("cs.quest.dead-wild-napr", json.Output, StringComparison.Ordinal);
+        Assert.Contains("11450472", json.Output, StringComparison.Ordinal);
+        Assert.Contains("Experimental", json.Output, StringComparison.Ordinal);
+        Assert.Equal(0, unsupported.ExitCode);
+        Assert.Equal("[]" + Environment.NewLine, unsupported.Output);
+    }
+
+    [Fact]
+    public void Fixes_status_reports_catalogue_and_safe_preset_counts()
+    {
+        var library = Path.Combine(Path.GetTempPath(), "sse-fix-status-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(library, "steamapps", "common", "STALKER Clear Sky");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(Path.Combine(library, "steamapps", "appmanifest_20510.acf"), """
+            "AppState"
+            {
+                "appid" "20510"
+                "buildid" "11450472"
+                "installdir" "STALKER Clear Sky"
+            }
+            """);
+        try
+        {
+            var human = Run("fixes", "status", "cs", root);
+            var json = Run("fixes", "status", "cs", root, "--json");
+
+            Assert.Equal(0, human.ExitCode);
+            Assert.Contains("1 catalogued; 0 safe recommendations; 0 installed; 1 experimental", human.Output, StringComparison.Ordinal);
+            Assert.Equal(0, json.ExitCode);
+            Assert.Contains("\"buildId\": \"11450472\"", json.Output, StringComparison.Ordinal);
+            Assert.Contains("\"recommendedFixIds\": []", json.Output, StringComparison.Ordinal);
+            Assert.Contains("experimental or research-only", json.Output, StringComparison.Ordinal);
+            Assert.Contains("cs.quest.dead-wild-napr", json.Output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(library, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fixes_apply_preset_keeps_experimental_entries_out_of_recommended_json_result()
+    {
+        var library = Path.Combine(Path.GetTempPath(), "sse-fix-preset-cli-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(library, "steamapps", "common", "STALKER Clear Sky");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(Path.Combine(library, "steamapps", "appmanifest_20510.acf"), """
+            "AppState"
+            {
+                "appid" "20510"
+                "buildid" "11450472"
+                "installdir" "STALKER Clear Sky"
+            }
+            """);
+        try
+        {
+            var result = Run("fixes", "apply-preset", "recommended", "cs", root, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("\"preset\": \"Recommended\"", result.Output, StringComparison.Ordinal);
+            Assert.Contains("\"selectedFixCount\": 0", result.Output, StringComparison.Ordinal);
+            Assert.Contains("\"installedFixIds\": []", result.Output, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(Path.Combine(root, ".save-editor-game-fixes")));
+        }
+        finally
+        {
+            Directory.Delete(library, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fixes_install_fails_closed_for_unknown_catalogue_id_and_remove_is_idempotent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sse-empty-fix-cli-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        try
+        {
+            var install = Run("fixes", "install", "cs.not-reviewed", root);
+            var update = Run("fixes", "update", "cs.not-reviewed", root);
+            var remove = Run("fixes", "remove", "cs.not-reviewed", root);
+
+            Assert.Equal(2, install.ExitCode);
+            Assert.Contains("not present in the evidence-validated catalogue", install.Error, StringComparison.Ordinal);
+            Assert.Equal(2, update.ExitCode);
+            Assert.Contains("not present in the evidence-validated catalogue", update.Error, StringComparison.Ordinal);
+            Assert.Equal(0, remove.ExitCode);
+            Assert.Contains("NotInstalled", remove.Output, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(Path.Combine(root, ".save-editor-game-fixes")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void S2_mod_commands_disable_and_restore_the_custom_mod_folder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sse-s2-mod-cli-" + Guid.NewGuid().ToString("N"));
+        var paks = Path.Combine(root, "Stalker2", "Content", "Paks");
+        var mod = Path.Combine(paks, "~mods", "custom.pak");
+        Directory.CreateDirectory(Path.GetDirectoryName(mod)!);
+        File.WriteAllText(mod, "mod-bytes");
+        try
+        {
+            var disable = Run("mods", "s2-disable", root);
+            Assert.Equal(0, disable.ExitCode);
+            Assert.False(Directory.Exists(Path.Combine(paks, "~mods")));
+            Assert.True(File.Exists(Path.Combine(root, "Stalker2", "Content", "~mods.disabled", "custom.pak")));
+
+            var restore = Run("mods", "s2-restore", root);
+            Assert.Equal(0, restore.ExitCode);
+            Assert.Equal("mod-bytes", File.ReadAllText(mod));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("info")]
     [InlineData("inventory")]
@@ -231,6 +446,17 @@ public sealed class CliCommandTests
 
         public static Fixture CreateXRay() => new(File.ReadAllBytes(Path.Combine(
             AppContext.BaseDirectory, "Fixtures", "writer-stacks", "xray-stack-cop-source.sav")));
+
+        public static Fixture CreateCrashLog()
+        {
+            var fixture = new Fixture([]);
+            File.WriteAllText(fixture.SourcePath, """
+                [error]Expression : assertion failed
+                [error]File : gamedata\\scripts\\task_manager.script
+                [error]Line : 428
+                """);
+            return fixture;
+        }
 
         public void Dispose()
         {

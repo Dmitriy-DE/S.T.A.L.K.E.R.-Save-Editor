@@ -1,10 +1,12 @@
 using System.Runtime.Versioning;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Win32;
 
 namespace StalkerSaveEditor.Core.Companion;
 
 /// <summary>Where an installation was found: Steam, GOG (Galaxy or Heroic), the retail GSC installer, or a folder the user chose.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<GameInstallSource>))]
 public enum GameInstallSource
 {
     Steam,

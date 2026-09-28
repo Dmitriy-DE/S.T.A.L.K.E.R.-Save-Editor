@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using StalkerSaveEditor.Core.Formats.XRay;
+using StalkerSaveEditor.Core.Patching;
 using StalkerSaveEditor.Core.Storage;
 
 namespace StalkerSaveEditor.Core.Companion;
@@ -26,14 +27,14 @@ public sealed partial class CompanionInstaller
         string GameRelativePath,
         string ArchiveRelativePath);
     private readonly string _modSourceRoot;
-    private readonly ICompanionInstallFileSystem _fileSystem;
+    private readonly IGameFileSystem _fileSystem;
 
     public CompanionInstaller(string modSourceRoot)
-        : this(modSourceRoot, new PhysicalCompanionInstallFileSystem())
+        : this(modSourceRoot, new PhysicalGameFileSystem())
     {
     }
 
-    internal CompanionInstaller(string modSourceRoot, ICompanionInstallFileSystem fileSystem)
+    internal CompanionInstaller(string modSourceRoot, IGameFileSystem fileSystem)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modSourceRoot);
         ArgumentNullException.ThrowIfNull(fileSystem);
@@ -151,6 +152,29 @@ public sealed partial class CompanionInstaller
             issues.Distinct(StringComparer.Ordinal).ToArray());
     }
 
+    /// <summary>Returns only files owned by a valid toolkit manifest, with their current hash state.</summary>
+    public IReadOnlyList<CompanionManagedFileStatus> GetManagedFileStatus(
+        CompanionGame game,
+        string? selectedGameDirectory = null,
+        IReadOnlyList<string>? steamRoots = null)
+    {
+        var definition = CompanionGameDefinition.For(game);
+        var gameDirectory = ResolveRequiredGameDirectory(definition, selectedGameDirectory, steamRoots);
+        var manifestPath = GetManifestPath(gameDirectory);
+        if (!_fileSystem.FileExists(manifestPath)) return [];
+
+        var manifest = ReadManifest(manifestPath, definition);
+        return manifest.Files
+            .Select(entry =>
+            {
+                var path = ResolveGamePath(gameDirectory, entry.Path);
+                var exists = _fileSystem.FileExists(path);
+                return new CompanionManagedFileStatus(entry.Path, exists,
+                    exists && FileMatches(gameDirectory, entry.Path, entry.AfterSha256));
+            })
+            .ToArray();
+    }
+
     public CompanionInstallerResult Install(
         CompanionGame game,
         string? selectedGameDirectory = null,
@@ -183,6 +207,14 @@ public sealed partial class CompanionInstaller
             ?? new Dictionary<string, InstallFileManifest>(StringComparer.Ordinal);
         VerifyManagedFiles(gameDirectory, priorManifest);
         var plan = BuildInstallPlan(gameDirectory, definition, payloads, oldFiles);
+        var managedByFixes = GameFixEngine.GetActiveManagedPaths(gameDirectory);
+        var overlap = plan.FirstOrDefault(file => managedByFixes.Contains(NormalizeRelative(file.RelativePath)));
+        if (overlap is not null)
+        {
+            throw new CompanionInstallerException(
+                $"Cannot install Companion over an active Game Fix-managed file: {overlap.RelativePath}",
+                overlap.RelativePath);
+        }
         var plannedPaths = plan.Select(file => file.RelativePath).ToHashSet(StringComparer.Ordinal);
         var staleFiles = oldFiles.Values
             .Where(file => !plannedPaths.Contains(NormalizeRelative(file.Path)))
@@ -1192,21 +1224,7 @@ public sealed partial class CompanionInstaller
 
     private void AtomicWrite(string path, byte[] bytes, bool overwrite)
     {
-        var directory = Path.GetDirectoryName(path) ?? throw new ArgumentException("Target path has no directory.", nameof(path));
-        _fileSystem.CreateDirectory(directory);
-        var temporary = path + ".tmp-" + Guid.NewGuid().ToString("N");
-        try
-        {
-            _fileSystem.WriteAllBytes(temporary, bytes);
-            _fileSystem.Move(temporary, path, overwrite);
-        }
-        finally
-        {
-            if (_fileSystem.FileExists(temporary))
-            {
-                _fileSystem.DeleteFile(temporary);
-            }
-        }
+        AtomicGameFileWriter.Write(_fileSystem, path, bytes, overwrite);
     }
 
     private void DeleteEmptyDirectoryTree(string path)

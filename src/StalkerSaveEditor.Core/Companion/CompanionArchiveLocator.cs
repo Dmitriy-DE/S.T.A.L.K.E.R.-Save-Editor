@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using StalkerSaveEditor.Core.Patching;
 
 namespace StalkerSaveEditor.Core.Companion;
 
@@ -23,7 +24,7 @@ internal static class CompanionArchiveLocator
         int Order);
 
     public static CompanionArchiveSearchResult Discover(
-        ICompanionInstallFileSystem fileSystem,
+        IGameFileSystem fileSystem,
         string gameDirectory,
         IReadOnlyList<string> fsgameFileNames,
         CompanionGame game)

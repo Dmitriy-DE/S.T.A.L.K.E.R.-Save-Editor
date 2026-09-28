@@ -15,6 +15,8 @@ public sealed record CompanionInstallStatus(
     string? Version,
     IReadOnlyList<string> Issues);
 
+public sealed record CompanionManagedFileStatus(string RelativePath, bool Exists, bool MatchesExpectedHash);
+
 public sealed record CompanionInstallerResult(
     bool Success,
     bool Changed,

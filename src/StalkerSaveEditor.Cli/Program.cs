@@ -1,13 +1,17 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using StalkerSaveEditor.Core;
 using StalkerSaveEditor.Core.Backups;
 using StalkerSaveEditor.Core.Catalogs;
 using StalkerSaveEditor.Core.Companion;
+using StalkerSaveEditor.Core.Diagnostics;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.Enhanced;
 using StalkerSaveEditor.Core.Formats.Stalker2;
 using StalkerSaveEditor.Core.Formats.XRay;
+using StalkerSaveEditor.Core.Patching;
 using StalkerSaveEditor.Steam;
 
 namespace StalkerSaveEditor.Cli;
@@ -15,7 +19,7 @@ namespace StalkerSaveEditor.Cli;
 internal static class Program
 {
     private const string Usage =
-        "Usage: StalkerSaveEditor.Cli <version|companion|info|inventory|orphans|set-money|set-stack|move|detach|attach-orphan|raw|dump-record|diff-record|edit> ...";
+        "Usage: StalkerSaveEditor.Cli <version|companion|doctor|fixes|crash|mods|info|inventory|orphans|set-money|set-stack|move|detach|attach-orphan|raw|dump-record|diff-record|edit> ...";
 
     internal static int Main(string[] args)
     {
@@ -91,6 +95,10 @@ internal static class Program
         return args[0] switch
         {
             "companion" => Companion(args),
+            "crash" => Crash(args),
+            "doctor" => Doctor(args),
+            "fixes" => Fixes(args),
+            "mods" => S2Mods(args),
             "info" => ReadCommand(args, ReadMode.Info),
             "inventory" => ReadCommand(args, ReadMode.Inventory),
             "orphans" => ReadCommand(args, ReadMode.Orphans),
@@ -102,6 +110,286 @@ internal static class Program
             "move" or "detach" or "attach-orphan" or "raw" => UnsupportedWrite(args[0]),
             _ => UnknownCommand(),
         };
+    }
+
+    private static int Crash(string[] args)
+    {
+        const string usage = "Usage: crash analyse LOG [--game NAME] [--json]";
+        if (args.Length < 3 || args[1] != "analyse") throw new ArgumentException(usage);
+        string? game = null;
+        var json = false;
+        for (var index = 3; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--json":
+                    json = true;
+                    break;
+                case "--game" when index + 1 < args.Length:
+                    game = args[++index];
+                    break;
+                default:
+                    throw new ArgumentException(usage);
+            }
+        }
+
+        var fileTime = new DateTimeOffset(File.GetLastWriteTimeUtc(args[2]), TimeSpan.Zero);
+        var analysis = CrashLogAnalyzer.Analyze(File.ReadAllText(args[2]), game, fileTime);
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(analysis, CliJsonContext.Default.CrashLogAnalysis));
+            return 0;
+        }
+
+        Console.WriteLine("Kind: " + analysis.Kind);
+        if (analysis.Game is not null) Console.WriteLine("Game: " + analysis.Game);
+        Console.WriteLine("Summary: " + analysis.Summary);
+        if (analysis.FileLastWriteTimeUtc is { } fileTimeUtc)
+            Console.WriteLine("Log file modified (UTC): " + fileTimeUtc.ToString("O", CultureInfo.InvariantCulture));
+        if (analysis.File is not null) Console.WriteLine("File: " + analysis.File);
+        if (analysis.Line is not null) Console.WriteLine("Line: " + analysis.Line.Value.ToString(CultureInfo.InvariantCulture));
+        if (analysis.Exception is not null) Console.WriteLine("Context: " + analysis.Exception);
+        Console.WriteLine("Known issue: " + (analysis.KnownIssueId ?? "no validated signature match"));
+        return 0;
+    }
+
+    private static int Doctor(string[] args)
+    {
+        if (args.Length >= 2 && args[1] == "discover")
+        {
+            var json = false;
+            var steamRoots = new List<string>();
+            for (var index = 2; index < args.Length; index++)
+            {
+                if (args[index] == "--json")
+                {
+                    json = true;
+                }
+                else if (args[index] == "--steam-root" && index + 1 < args.Length)
+                {
+                    steamRoots.Add(args[++index]);
+                }
+                else
+                {
+                    throw new ArgumentException("Usage: doctor discover [--steam-root PATH]... [--json]");
+                }
+            }
+
+            var installations = GameDoctor.DiscoverInstallations(steamRoots.Count == 0 ? null : steamRoots);
+            if (json)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(installations, CliJsonContext.Default.GameDoctorInstallationArray));
+            }
+            else if (installations.Count == 0)
+            {
+                Console.WriteLine("No structurally valid supported game installations were found.");
+            }
+            else
+            {
+                foreach (var installation in installations)
+                {
+                    Console.WriteLine($"{GameTargetCatalog.Get(installation.Target).Title} [{installation.Source}] " +
+                        $"(build {installation.BuildId ?? "unknown"}): {installation.Directory}");
+                }
+            }
+            return 0;
+        }
+
+        if (args.Length >= 2 && args[1] == "save")
+        {
+            const string saveUsage = "Usage: doctor save SAVE_FILE [--json]";
+            if (args.Length is < 3 or > 4 || args.Length == 4 && args[3] != "--json")
+                throw new ArgumentException(saveUsage);
+            var saveReport = SaveDoctor.Analyze(File.ReadAllBytes(args[2]));
+            if (args.Length == 4)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(saveReport, CliJsonContext.Default.SaveDoctorReport));
+            }
+            else
+            {
+                Console.WriteLine("Save Doctor: " + saveReport.Status);
+                if (saveReport.Overview is { } overview)
+                    Console.WriteLine($"Format: {overview.FormatId}; parsed inventory records: {overview.ItemCount}");
+                foreach (var check in saveReport.Checks)
+                    Console.WriteLine($"[{check.Status}] {check.Id}: {check.Summary}" +
+                        (check.Detail.Length == 0 ? string.Empty : " — " + check.Detail));
+            }
+            return saveReport.Status == SaveDoctorStatus.Error ? 1 : 0;
+        }
+
+        const string usage = "Usage: doctor game <soc|cs|cop|soc-ee|cs-ee|cop-ee|s2> GAME_DIR [--json]";
+        if (args.Length is < 4 or > 5 || args[1] != "game" ||
+            !GameTargetCatalog.TryParse(args[2], out var target) ||
+            args.Length == 5 && args[4] != "--json")
+        {
+            throw new ArgumentException(usage);
+        }
+
+        var report = GameDoctor.Analyze(target, args[3]);
+        if (args.Length == 5)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(report, CliJsonContext.Default.GameDoctorReport));
+        }
+        else
+        {
+            Console.WriteLine("Game Doctor: " + GameTargetCatalog.Get(target).Title);
+            Console.WriteLine("Directory: " + report.GameDirectory);
+            Console.WriteLine("Steam build: " + (report.SteamBuildId ?? "unknown"));
+            foreach (var check in report.Checks)
+            {
+                Console.WriteLine($"[{check.Status}] {check.Id}: {check.Summary}" +
+                    (check.Detail.Length == 0 ? string.Empty : " — " + check.Detail));
+            }
+            foreach (var path in report.LooseFiles) Console.WriteLine("Loose file: " + path);
+        }
+
+        return report.Checks.Any(check => check.Status == GameDoctorStatus.Error) ? 1 : 0;
+    }
+
+    private static int Fixes(string[] args)
+    {
+        const string usage = "Usage: fixes list [--game TARGET] [--json] | fixes status TARGET GAME_DIR [--json] | fixes apply-preset <essential|recommended|all-safe> TARGET GAME_DIR [--json] | fixes install ID GAME_DIR | fixes update ID GAME_DIR | fixes remove ID GAME_DIR";
+        if (args.Length >= 2 && args[1] == "list")
+        {
+            GameTarget? selectedTarget = null;
+            var json = false;
+            for (var index = 2; index < args.Length; index++)
+            {
+                if (args[index] == "--json") json = true;
+                else if (args[index] == "--game" && index + 1 < args.Length && GameTargetCatalog.TryParse(args[++index], out var parsed))
+                    selectedTarget = parsed;
+                else
+                    throw new ArgumentException(usage);
+            }
+
+            var entries = GameFixCatalog.All
+                .Where(definition => selectedTarget is null || definition.Game == selectedTarget)
+                .Select(definition => new GameFixListJsonEntry(
+                    definition.Id,
+                    GameTargetCatalog.Get(definition.Game).Id,
+                    definition.Version,
+                    definition.Title,
+                    definition.Category,
+                    definition.Maturity,
+                    definition.SupportedSteamBuildIds.ToArray(),
+                    definition.DependsOn.ToArray(),
+                    definition.ConflictsWith.ToArray(),
+                    definition.TextPatches.Select(patch => patch.RelativePath).ToArray()))
+                .ToArray();
+            if (json)
+                Console.WriteLine(JsonSerializer.Serialize(entries, CliJsonContext.Default.GameFixListJsonEntries));
+            else if (entries.Length == 0)
+                Console.WriteLine("No evidence-validated game-file fixes are currently catalogued.");
+            else
+                foreach (var entry in entries) Console.WriteLine($"{entry.Id} [{entry.Game}] {entry.Category}: {entry.Title}");
+            return 0;
+        }
+
+        if (args.Length >= 2 && args[1] == "status")
+        {
+            if (args.Length is < 4 or > 5 || !GameTargetCatalog.TryParse(args[2], out var target) ||
+                args.Length == 5 && args[4] != "--json")
+                throw new ArgumentException(usage);
+            var report = GameDoctor.Analyze(target, args[3]);
+            var catalogue = GameFixCatalog.ForGame(target);
+            var recommended = GameFixCatalog.ForPreset(target, GameFixPreset.Recommended);
+            var result = new GameFixStatusJsonResult(
+                GameTargetCatalog.Get(target).Id,
+                report.SteamBuildId,
+                report.InstalledFixes.ToArray(),
+                catalogue.Select(definition => new GameFixAvailableJsonEntry(
+                    definition.Id,
+                    definition.Title,
+                    definition.Category,
+                    definition.Maturity,
+                    definition.SupportedSteamBuildIds,
+                    report.InstalledFixes.FirstOrDefault(fix => fix.Id == definition.Id)?.State ?? GameFixState.NotInstalled))
+                    .ToArray(),
+                recommended.Select(definition => definition.Id).ToArray(),
+                GameFixCatalog.DatasetVersion,
+                catalogue.Count == 0
+                    ? "No evidence-validated game-file fixes are currently catalogued."
+                    : recommended.Count == 0
+                        ? "Catalogued fixes are experimental or research-only and are not included in safe presets."
+                        : null);
+            if (args.Length == 5)
+                Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Default.GameFixStatusJsonResult));
+            else
+                Console.WriteLine($"{GameTargetCatalog.Get(target).Title}; Steam build {report.SteamBuildId ?? "unknown"}; " +
+                    $"{catalogue.Count} catalogued; {recommended.Count} safe recommendations; " +
+                    $"{report.InstalledFixes.Count} installed; " +
+                    $"{catalogue.Count(definition => definition.Maturity == GameFixMaturity.Experimental)} experimental.");
+            return 0;
+        }
+
+        if (args.Length >= 2 && args[1] == "apply-preset")
+        {
+            if (args.Length is < 5 or > 6 || !GameTargetCatalog.TryParse(args[3], out var target) ||
+                args.Length == 6 && args[5] != "--json")
+                throw new ArgumentException(usage);
+
+            var preset = args[2].ToLowerInvariant() switch
+            {
+                "essential" or "essential-only" => GameFixPreset.EssentialOnly,
+                "recommended" => GameFixPreset.Recommended,
+                "all-safe" or "all-safe-fixes" => GameFixPreset.AllSafeFixes,
+                _ => throw new ArgumentException("Preset must be essential, recommended, or all-safe. Custom selections use individual fix install/remove commands."),
+            };
+            var result = new GameFixEngine().ApplyPreset(target, preset, args[4]);
+            if (args.Length == 6)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(
+                    new GameFixPresetJsonResult(
+                        GameTargetCatalog.Get(target).Id,
+                        result.Preset,
+                        result.SelectedFixCount,
+                        result.InstalledFixIds.ToArray(),
+                        result.AlreadyInstalledFixIds.ToArray(),
+                        result.Changed),
+                    CliJsonContext.Default.GameFixPresetJsonResult));
+            }
+            else
+            {
+                Console.WriteLine($"{result.Preset}: installed {result.InstalledFixIds.Count} of {result.SelectedFixCount} safe fix(es); " +
+                    $"{result.AlreadyInstalledFixIds.Count} already current.");
+            }
+            return 0;
+        }
+
+        if (args.Length == 4 && args[1] is ("install" or "update" or "remove"))
+        {
+            var engine = new StalkerSaveEditor.Core.Patching.GameFixEngine();
+            if (args[1] is "install" or "update")
+            {
+                if (!GameFixCatalog.TryGet(args[2], out var definition) || definition is null)
+                    throw new KeyNotFoundException("Fix is not present in the evidence-validated catalogue: " + args[2]);
+                var result = args[1] == "install"
+                    ? engine.Install(definition, args[3])
+                    : engine.Update(definition, args[3]);
+                Console.WriteLine($"{result.State}: {definition.Id}" + (result.Changed
+                    ? args[1] == "update" ? " (updated)" : " (changed)"
+                    : " (already current)"));
+            }
+            else
+            {
+                var result = engine.Uninstall(args[2], args[3]);
+                Console.WriteLine($"{result.State}: {args[2]}" + (result.Changed ? " (restored)" : " (unchanged)"));
+            }
+            return 0;
+        }
+
+        throw new ArgumentException(usage);
+    }
+
+    private static int S2Mods(string[] args)
+    {
+        const string usage = "Usage: mods <s2-disable|s2-restore> GAME_DIR";
+        if (args.Length != 3 || args[1] is not ("s2-disable" or "s2-restore")) throw new ArgumentException(usage);
+        var result = args[1] == "s2-disable"
+            ? Stalker2ModToggle.Disable(args[2])
+            : Stalker2ModToggle.Restore(args[2]);
+        Console.WriteLine((result.Changed ? "Changed" : "Unchanged") + ": " + result.Message);
+        return 0;
     }
 
     private const string CompanionUsage =
@@ -633,4 +921,55 @@ internal static class Program
         public List<XRayPlacementChange> Placements { get; } = [];
         public List<string> Unsupported { get; } = [];
     }
+}
+
+internal sealed record GameFixListJsonEntry(
+    string Id,
+    string Game,
+    string Version,
+    string Title,
+    GameFixCategory Category,
+    GameFixMaturity Maturity,
+    string[] SupportedSteamBuildIds,
+    string[] DependsOn,
+    string[] ConflictsWith,
+    string[] Files);
+
+internal sealed record GameFixAvailableJsonEntry(
+    string Id,
+    string Title,
+    GameFixCategory Category,
+    GameFixMaturity Maturity,
+    IReadOnlyList<string> SupportedSteamBuildIds,
+    GameFixState Installed);
+
+internal sealed record GameFixStatusJsonResult(
+    string Game,
+    string? BuildId,
+    GameFixInstalledInfo[] InstalledFixes,
+    GameFixAvailableJsonEntry[] AvailableFixes,
+    string[] RecommendedFixIds,
+    string CatalogueVersion,
+    string? CatalogueNote);
+
+internal sealed record GameFixPresetJsonResult(
+    string Game,
+    GameFixPreset Preset,
+    int SelectedFixCount,
+    string[] InstalledFixIds,
+    string[] AlreadyInstalledFixIds,
+    bool Changed);
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    WriteIndented = true)]
+[JsonSerializable(typeof(CrashLogAnalysis))]
+[JsonSerializable(typeof(SaveDoctorReport))]
+[JsonSerializable(typeof(GameDoctorReport))]
+[JsonSerializable(typeof(GameDoctorInstallation[]), TypeInfoPropertyName = "GameDoctorInstallationArray")]
+[JsonSerializable(typeof(GameFixListJsonEntry[]), TypeInfoPropertyName = "GameFixListJsonEntries")]
+[JsonSerializable(typeof(GameFixStatusJsonResult))]
+[JsonSerializable(typeof(GameFixPresetJsonResult))]
+internal partial class CliJsonContext : JsonSerializerContext
+{
 }

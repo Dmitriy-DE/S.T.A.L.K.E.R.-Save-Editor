@@ -831,7 +831,7 @@ public sealed class CompanionInstaller
             definition.FsgameFileNames,
             definition.Game);
 
-    private static IReadOnlyList<HookFileTarget> GetHookTargets(
+    private static ReadOnlyCollection<HookFileTarget> GetHookTargets(
         string gameDirectory,
         CompanionArchiveSearchResult search)
     {

@@ -4,7 +4,9 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="i18n/*.json" />
-    <EmbeddedResource Include="Assets/Sounds/*" />
+    <None Include="Assets/Sounds/**/*" CopyToOutputDirectory="PreserveNewest" />
+    <AvaloniaResource Include="Assets/Fonts/*.ttf" />
+    <None Include="Assets/Fonts/*.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets/Icons/**/*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets/PROVENANCE.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
@@ -12,6 +14,7 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageReference Include="NVorbis" Version="0.10.5" />
     <ProjectReference Include="../StalkerSaveEditor.Core/StalkerSaveEditor.Core.csproj" />
     <ProjectReference Include="../StalkerSaveEditor.Steam/StalkerSaveEditor.Steam.csproj" />
     <ProjectReference Include="../StalkerSaveEditor.Updater/StalkerSaveEditor.Updater.csproj" />

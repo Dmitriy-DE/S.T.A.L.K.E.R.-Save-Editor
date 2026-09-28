@@ -1,62 +1,56 @@
 namespace StalkerSaveEditor.Desktop.Services;
 
-/// <summary>
-/// Verifies the presence and integrity of all UI sound assets and validates player operations.
-/// </summary>
+/// <summary><c>--test-audio</c>: every game family has all menu sounds and its music, and each file decodes.</summary>
 public static class GameAudioValidator
 {
-    public sealed record ValidationResult(
-        bool Success,
-        int VerifiedSounds,
-        IReadOnlyList<string> Errors);
+    public sealed record ValidationResult(bool Success, int VerifiedSounds, IReadOnlyList<string> Errors);
 
-    public static ValidationResult Validate(GameAudioService? service = null)
+    public static ValidationResult Validate(string? soundRoot = null, string? cacheDirectory = null)
     {
-        service ??= GameAudioService.Instance;
+        var cache = cacheDirectory ?? Path.Combine(Path.GetTempPath(), "se-audio-check-" + Environment.ProcessId);
+        var service = new GameAudioService(soundRoot, cache);
         var errors = new List<string>();
         var verified = 0;
-
-        var events = new[]
+        try
         {
-            SoundEvent.Click,
-            SoundEvent.Tab,
-            SoundEvent.Hover,
-            SoundEvent.Error,
-            SoundEvent.Open,
-            SoundEvent.Save
-        };
-
-        foreach (var ev in events)
-        {
-            try
+            foreach (var family in GameAudioService.Families)
             {
-                // Trigger play to test resolution
-                service.Play(ev);
-                verified++;
+                foreach (var (sound, file) in GameAudioService.EventFiles)
+                {
+                    Check(family, [file], $"{family}-{sound}");
+                }
+
+                Check(family, GameAudioService.MusicFiles[family], $"{family}-music");
             }
-            catch (Exception ex)
+        }
+        finally
+        {
+            if (cacheDirectory is null)
             {
-                errors.Add($"Error testing sound {ev}: {ex.Message}");
+                try
+                {
+                    Directory.Delete(cache, recursive: true);
+                }
+                catch (IOException)
+                {
+                }
             }
         }
 
-        // Test volume bounds and toggling
-        var origEnabled = service.IsEnabled;
-        var origVolume = service.Volume;
-
-        service.IsEnabled = false;
-        service.Volume = 150;
-        if (service.Volume != 100)
-            errors.Add($"Volume clamping max failed: expected 100, got {service.Volume}");
-
-        service.Volume = -20;
-        if (service.Volume != 0)
-            errors.Add($"Volume clamping min failed: expected 0, got {service.Volume}");
-
-        // Restore
-        service.IsEnabled = origEnabled;
-        service.Volume = origVolume;
-
         return new ValidationResult(errors.Count == 0, verified, errors);
+
+        void Check(string family, string[] files, string name)
+        {
+            try
+            {
+                var wav = service.Prepare(family, files, name);
+                if (wav is null || new FileInfo(wav).Length <= 44) errors.Add($"{family}: {string.Join('+', files)} missing or empty");
+                else verified++;
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or ArgumentException or InvalidOperationException)
+            {
+                errors.Add($"{family}: {string.Join('+', files)}: {exception.Message}");
+            }
+        }
     }
 }

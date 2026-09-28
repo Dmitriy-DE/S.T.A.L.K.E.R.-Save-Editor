@@ -1,0 +1,47 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using StalkerSaveEditor.Core.Diagnostics;
+
+namespace StalkerSaveEditor.Desktop.Services;
+
+/// <summary>User preferences kept in <c>settings.json</c> in the data folder. Null folders mean "detect automatically".</summary>
+public sealed record AppSettings
+{
+    public List<string>? SaveDirectories { get; init; }
+    public string? BackupDirectory { get; init; }
+    public string Language { get; init; } = "ru";
+    public string Theme { get; init; } = "game";
+    public bool SoundEnabled { get; init; } = true;
+    public int SoundVolume { get; init; } = 80;
+    public bool MusicEnabled { get; init; }
+
+    public static string DefaultPath => Path.Combine(AppPaths.DataDirectory, "settings.json");
+
+    /// <summary>Reads the file; a missing or damaged file gives defaults (a damaged one is logged, never overwritten silently).</summary>
+    public static AppSettings Load(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return new AppSettings();
+            return JsonSerializer.Deserialize(File.ReadAllText(path), AppSettingsJson.Default.AppSettings) ?? new AppSettings();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            AppLog.Warn("settings not read, defaults used", exception);
+            return new AppSettings();
+        }
+    }
+
+    /// <summary>Atomic write (temp file + move).</summary>
+    public void Save(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        var temp = path + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(this, AppSettingsJson.Default.AppSettings));
+        File.Move(temp, path, overwrite: true);
+    }
+}
+
+[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+[JsonSerializable(typeof(AppSettings))]
+internal sealed partial class AppSettingsJson : JsonSerializerContext;

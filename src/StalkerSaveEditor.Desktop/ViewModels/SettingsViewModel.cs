@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using System.Collections.ObjectModel;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -25,13 +26,36 @@ public sealed class SettingsViewModel : ObservableViewModel
     private bool _soundEnabled = true;
     private int _soundVolume = 80;
     private string _settingsStatus = string.Empty;
+    private bool _musicEnabled;
+    private readonly string? _settingsPath;
+
+    /// <summary>Raised after the user saved; the window applies sound settings.</summary>
+    public event EventHandler? Saved;
+
+    public bool MusicEnabled
+    {
+        get => _musicEnabled;
+        set => SetProperty(ref _musicEnabled, value);
+    }
 
     public SettingsViewModel(
         IEnumerable<string> saveDirectories,
         string backupDirectory,
         string currentLanguageCode = "ru",
-        string currentThemeId = "game")
+        string currentThemeId = "game",
+        string? settingsPath = null,
+        AppSettings? stored = null)
     {
+        _settingsPath = settingsPath;
+        if (stored is not null)
+        {
+            currentLanguageCode = stored.Language;
+            currentThemeId = stored.Theme;
+            _soundEnabled = stored.SoundEnabled;
+            _soundVolume = Math.Clamp(stored.SoundVolume, 0, 100);
+            _musicEnabled = stored.MusicEnabled;
+        }
+
         SaveDirectories = new ObservableCollection<string>(saveDirectories);
         _backupDirectory = backupDirectory;
 
@@ -135,6 +159,7 @@ public sealed class SettingsViewModel : ObservableViewModel
             SaveDirectories.Add(path);
             NewSaveDirectory = string.Empty;
             SettingsStatus = $"Папка добавлена: {path}";
+            TryPersist();
             return true;
         }
         return false;
@@ -145,6 +170,7 @@ public sealed class SettingsViewModel : ObservableViewModel
         if (directory is not null && SaveDirectories.Remove(directory))
         {
             SettingsStatus = "Папка удалена из списка.";
+            TryPersist();
         }
     }
 
@@ -160,6 +186,7 @@ public sealed class SettingsViewModel : ObservableViewModel
                 added++;
             }
         }
+        if (added > 0) TryPersist();
         SettingsStatus = added > 0
             ? $"Автопоиск завершён. Добавлено папок: {added}."
             : "Автопоиск завершён. Новых папок не найдено.";
@@ -168,6 +195,44 @@ public sealed class SettingsViewModel : ObservableViewModel
 
     public void SaveSettings()
     {
-        SettingsStatus = "Настройки сохранены.";
+        try
+        {
+            Persist();
+            SettingsStatus = _settingsPath is null ? "Настройки применены." : "Настройки сохранены.";
+            Saved?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            SettingsStatus = "Не удалось сохранить настройки: " + exception.Message;
+        }
+    }
+
+    private void TryPersist()
+    {
+        try
+        {
+            Persist();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            SettingsStatus = "Не удалось сохранить настройки: " + exception.Message;
+        }
+    }
+
+    public AppSettings ToSettings() => new()
+    {
+        SaveDirectories = [.. SaveDirectories],
+        BackupDirectory = BackupDirectory,
+        Language = SelectedLanguage.Code,
+        Theme = SelectedTheme.Id,
+        SoundEnabled = SoundEnabled,
+        SoundVolume = SoundVolume,
+        MusicEnabled = MusicEnabled,
+    };
+
+    /// <summary>Writes settings.json (only in the interactive app; tests and screenshots have no path).</summary>
+    private void Persist()
+    {
+        if (_settingsPath is not null) ToSettings().Save(_settingsPath);
     }
 }

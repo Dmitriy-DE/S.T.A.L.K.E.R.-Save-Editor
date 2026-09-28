@@ -212,6 +212,19 @@ public static class SettingsView
         });
         prefStack.Children.Add(soundChk);
 
+        var musicChk = new CheckBox
+        {
+            Content = "Музыка главного меню игры открытого сейва",
+            Foreground = StalkerTheme.BrushTextPrimary,
+            FontSize = 12,
+        };
+        musicChk.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(SettingsViewModel.MusicEnabled))
+        {
+            Source = settings,
+            Mode = BindingMode.TwoWay,
+        });
+        prefStack.Children.Add(musicChk);
+
         var volRow = new Grid { ColumnDefinitions = new ColumnDefinitions("160,200,50") };
         volRow.Children.Add(new TextBlock
         {

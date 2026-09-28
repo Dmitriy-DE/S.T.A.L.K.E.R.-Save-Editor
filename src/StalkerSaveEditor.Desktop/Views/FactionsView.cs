@@ -44,7 +44,7 @@ public static class FactionsView
         // Faction Relations Table Card
         var relationsList = new ItemsControl
         {
-            ItemTemplate = new FuncDataTemplate<FactionRelationViewModel>((rel, _) => MakeRelationRow(vm, rel)),
+            ItemTemplate = StalkerTheme.Template<FactionRelationViewModel>(rel => MakeRelationRow(vm, rel)),
         };
         relationsList.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedSave.FactionRelations"));
 

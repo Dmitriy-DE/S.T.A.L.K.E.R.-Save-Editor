@@ -31,7 +31,7 @@ public static class StashesView
 
         var stashesList = new ItemsControl
         {
-            ItemTemplate = new FuncDataTemplate<StashViewModel>((stash, _) => MakeStashCard(vm, stash)),
+            ItemTemplate = StalkerTheme.Template<StashViewModel>(stash => MakeStashCard(vm, stash)),
         };
         stashesList.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedSave.Stashes"));
 
@@ -53,7 +53,7 @@ public static class StashesView
         var itemsControl = new ItemsControl
         {
             ItemsSource = stash.Items,
-            ItemTemplate = new FuncDataTemplate<StashItemViewModel>((item, _) =>
+            ItemTemplate = StalkerTheme.Template<StashItemViewModel>(item =>
             {
                 var row = new Grid
                 {

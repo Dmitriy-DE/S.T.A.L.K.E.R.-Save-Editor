@@ -29,7 +29,7 @@ public static class SettingsView
         var dirsList = new ItemsControl
         {
             ItemsSource = settings.SaveDirectories,
-            ItemTemplate = new FuncDataTemplate<string>((dir, _) =>
+            ItemTemplate = StalkerTheme.Template<string>(dir =>
             {
                 var row = new Grid
                 {
@@ -331,7 +331,7 @@ public static class SettingsView
         panel.Children.Add(new ItemsControl
         {
             ItemsSource = diagnostics.Checks,
-            ItemTemplate = new FuncDataTemplate<EnvironmentCheckRow>((row, _) =>
+            ItemTemplate = StalkerTheme.Template<EnvironmentCheckRow>(row =>
             {
                 var line = new Grid { ColumnDefinitions = new ColumnDefinitions("32,*"), Margin = new Thickness(0, 2) };
                 if (row is null) return line;

@@ -27,7 +27,7 @@ public static class OverviewView
 
         var rows = new ItemsControl
         {
-            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<CompareRow>((row, _) =>
+            ItemTemplate = StalkerTheme.Template<CompareRow>(row =>
             {
                 var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,120,20,120"), Margin = new Thickness(0, 1) };
                 if (row is null) return grid;

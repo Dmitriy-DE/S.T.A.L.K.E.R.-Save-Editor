@@ -21,6 +21,7 @@ public sealed class SettingsViewModel : ObservableViewModel
     private bool _musicEnabled;
     private readonly string? _settingsPath;
     private AppSettings _stored;
+    private readonly Lock _persistGate = new();
     private bool _sendReports;
 
     public bool SendReports
@@ -38,15 +39,26 @@ public sealed class SettingsViewModel : ObservableViewModel
     public void AnswerReportsNotice(bool send)
     {
         SendReports = send;
-        _stored = ToSettings() with { ReportsNoticeShown = true };
+        _stored = _stored with { ReportsNoticeShown = true };
         TryPersist();
         OnPropertyChanged(nameof(ReportsNoticeVisible));
     }
 
+    /// <summary>Called from the report task: stores only the time, never the screen's unsaved edits.</summary>
     public void MarkReportSent(DateTime utc)
     {
-        _stored = ToSettings() with { LastReportUtc = utc };
-        TryPersist();
+        lock (_persistGate)
+        {
+            _stored = _stored with { LastReportUtc = utc };
+            try
+            {
+                if (_settingsPath is not null) _stored.Save(_settingsPath);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                Core.Diagnostics.AppLog.Warn("report time not stored", exception);
+            }
+        }
     }
 
     /// <summary>Raised after the user saved; the window applies sound settings.</summary>
@@ -238,6 +250,10 @@ public sealed class SettingsViewModel : ObservableViewModel
     /// <summary>Writes settings.json (only in the interactive app; tests and screenshots have no path).</summary>
     private void Persist()
     {
-        if (_settingsPath is not null) ToSettings().Save(_settingsPath);
+        lock (_persistGate)
+        {
+            _stored = ToSettings();
+            if (_settingsPath is not null) _stored.Save(_settingsPath);
+        }
     }
 }

@@ -104,7 +104,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         Diagnostics = new DiagnosticsViewModel(
             pendingCrash: InteractiveApp ? CrashReporter.Pending() : null,
             upload: InteractiveApp ? bundle => DiagnosticsUploader.SendAsync(bundle) : null,
-            onSent: Settings.MarkReportSent);
+            onSent: Settings.MarkReportSent,
+            lastSent: () => Settings.LastReportUtc);
         AcknowledgeReportsCommand = new RelayCommand(() => AnswerReportsNotice(true));
         DisableReportsCommand = new RelayCommand(() => AnswerReportsNotice(false));
         SendReportIfDue();
@@ -139,7 +140,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void SendReportIfDue()
     {
         if (!InteractiveApp || !Settings.SendReports || Settings.ReportsNoticeVisible) return;
-        if (!DiagnosticsUploader.IsDue(Settings.LastReportUtc, DateTime.UtcNow, CrashReporter.Pending() is not null)) return;
+        var last = Settings.LastReportUtc;
+        var unreportedCrash = CrashReporter.PendingSinceUtc() is { } crashed && (last is null || crashed > last);
+        if (!DiagnosticsUploader.IsDue(last, DateTime.UtcNow, unreportedCrash)) return;
         _ = Task.Run(() => Diagnostics.SendAsync(automatic: true));
     }
 
@@ -1030,8 +1033,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 return null;
             }
         }
-        catch (Exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            // Not a save the readers know (a damaged file, a foreign format): logged, listed nowhere.
+            AppLog.Warn($"skipped {Path.GetFileName(path)}: {exception.GetType().Name}: {exception.Message}");
             return null;
         }
     }
@@ -1275,26 +1280,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
 
-    private bool HasPendingChanges(SaveFileSummary save)
-    {
-        if (!string.Equals(save.Money.ToString(CultureInfo.InvariantCulture), MoneyInput, StringComparison.Ordinal))
-            return true;
-
-        if (save.Inventory.Any(i => i.IsDeleted ||
-            (i.CanEditCount && !string.Equals(i.OriginalCount?.ToString(CultureInfo.InvariantCulture), i.CountInput, StringComparison.Ordinal)) ||
-            (i.CanEditCondition && i.OriginalCondition.HasValue && Math.Abs(i.ConditionFraction - i.OriginalCondition.Value) > 0.005f) ||
-            (i.CanEditPlacement && !string.Equals(i.Placement, i.OriginalPlacement, StringComparison.Ordinal)) ||
-            i.UpgradesChanged))
-            return true;
-
-        if (save.Stashes.Any(s => s.Items.Any(i => i.IsTaken)))
-            return true;
-
-        if (save.FactionRelations.Any(r => r.Goodwill != r.OriginalGoodwill))
-            return true;
-
-        return false;
-    }
+    /// <summary>The rows differ from the save (an unparsable input counts as a change the user has to fix).</summary>
+    private bool HasPendingChanges(SaveFileSummary save) =>
+        BuildCurrentEditPlan(save).EditKinds != EditKind.None || !InputsAreValid(save);
 
     private bool InputsAreValid(SaveFileSummary save)
     {

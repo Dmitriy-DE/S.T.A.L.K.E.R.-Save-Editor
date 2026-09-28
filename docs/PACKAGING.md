@@ -10,8 +10,8 @@ This document details the packaging and distribution pipeline for the S.T.A.L.K.
 |---|---|---|---|
 | **Linux (Debian / Ubuntu)** | Debian Package | `stalker-save-editor_<version>_amd64.deb` | `dpkg-deb` / `packaging/linux/build_deb.sh` |
 | **Linux (Universal)** | Portable AppImage | `StalkerSaveEditor-<version>-x86_64.AppImage` | `appimagetool` / `packaging/linux/build_appimage.sh` |
-| **Windows** | Portable Executable | `StalkerSaveEditor.exe` | `dotnet publish` (`PublishSingleFile=true`) |
-| **Windows** | Standard Installer | `StalkerSaveEditor-<version>-Setup.exe` | Inno Setup 6 (`packaging/windows/installer.iss`) |
+| **Windows** | Portable ZIP | `StalkerSaveEditor-v<version>-windows-x64.zip` | `packaging/windows/build_windows.ps1` |
+| **Windows** | Standard Installer | `StalkerSaveEditor-Setup-<version>-x64.exe` | Inno Setup 6 (`packaging/windows/installer.iss`) |
 | **macOS** | Application Bundle | `StalkerSaveEditor.app` | `packaging/macos/build_macos.sh` |
 | **macOS** | Disk Image | `StalkerSaveEditor-<version>.dmg` | `hdiutil` / `genisoimage` |
 
@@ -21,6 +21,7 @@ This document details the packaging and distribution pipeline for the S.T.A.L.K.
 
 ```
 packaging/
+├── publish_app.sh                    # Shared app + CLI + native library + assets + Companion publisher
 ├── linux/
 │   ├── AppRun                         # AppImage startup launcher
 │   ├── build_appimage.sh              # Universal AppImage generator
@@ -28,8 +29,7 @@ packaging/
 │   ├── stalker-save-editor.desktop    # XDG Desktop Entry
 │   └── stalker-save-editor.png        # Application 256x256 icon
 ├── windows/
-│   ├── build_windows.ps1              # Native PowerShell build script
-│   ├── build_windows.sh               # Bash/WSL cross-publish script
+│   ├── build_windows.ps1              # Publishes app folder, portable ZIP and installer
 │   └── installer.iss                  # Inno Setup 6 compilation script
 └── macos/
     ├── build_macos.sh                 # macOS bundle and DMG generator
@@ -39,6 +39,11 @@ packaging/
 ---
 
 ## 3. Building Locally
+
+`packaging/publish_app.sh <rid> <output-directory> <version>` publishes the desktop app, NativeAOT
+CLI, Kraken library, assets, Companion files and `BUILD_MANIFEST.json`. Supported runtime IDs are
+`win-x64`, `linux-x64`, `osx-arm64` and `osx-x64`. It replaces the chosen output directory and may
+build the vendored Kraken native library under `artifacts/native/` if that library is absent.
 
 ### Linux (.deb and AppImage)
 
@@ -52,24 +57,32 @@ Prerequisites: `.NET 10 SDK`, `dpkg-deb`, `appimagetool` (for AppImage).
 ./packaging/linux/build_appimage.sh 1.4.0
 ```
 
-The resulting packages will be placed in `artifacts/packages/`.
+Packages are written under `dist/`. The AppImage build also creates the portable Linux tarball used
+by the updater.
 
 ### Windows (.exe and Inno Setup Installer)
 
-Prerequisites: `.NET 10 SDK`, Inno Setup 6 (`ISCC.exe`).
+Prerequisites: `.NET 10 SDK`, Bash (Git for Windows), Python 3, the native Kraken build toolchain if
+the binary is absent, and Inno Setup 6 (`ISCC.exe`).
 
 On Windows (PowerShell):
 ```powershell
 .\packaging\windows\build_windows.ps1 -Version "1.4.0"
 ```
 
-On Linux (Cross-publish single-file .exe):
+The publisher can also be called directly for a Windows application folder; the build script below
+adds the ZIP and Inno Setup installer.
+
 ```bash
-./packaging/windows/build_windows.sh 1.4.0
+./packaging/publish_app.sh win-x64 /tmp/stalker-save-editor-win 1.4.0
 ```
 
 > [!NOTE]
-> Single-file publishing uses `-p:TreatWarningsAsErrors=false` because the Steam worker runner (`SteamWorkerProcessRunner.cs`) uses `Assembly.Location` which raises warning `IL3000` during single-file bundling.
+> The shared publisher suppresses warning `IL3000` for the desktop single-file publish because the Steam worker runner (`SteamWorkerProcessRunner.cs`) uses `Assembly.Location`. NativeAOT warnings from the CLI remain errors.
+
+The installer components are the app (required), CLI and Companion mod. Game Fixes are not an
+installer component; fixes are installed, updated or removed explicitly through the app or CLI after
+the user selects a game folder.
 
 ### macOS (.app and .dmg)
 
@@ -83,16 +96,16 @@ Prerequisites: `.NET 10 SDK`, macOS with `hdiutil` (or Linux with `genisoimage`)
 
 ## 4. Automated CI/CD Release Pipeline
 
-The GitHub Actions workflow at [`.github/workflows/release-packages.yml`](../.github/workflows/release-packages.yml) automatically builds and publishes all distribution artifacts:
+The GitHub Actions workflow at [`.github/workflows/release-packages.yml`](../.github/workflows/release-packages.yml) builds the distribution artifacts:
 
 - **Triggers**:
   - Push on version tags: `git tag v1.4.0 && git push origin v1.4.0`
   - Manual execution via `workflow_dispatch`
-- **Matrix**:
-  - `ubuntu-24.04`: Builds `.deb` and `.AppImage`
-  - `windows-latest`: Builds portable `StalkerSaveEditor.exe` and compiles Inno Setup installer
-  - `macos-14`: Builds `StalkerSaveEditor.app` and `StalkerSaveEditor-<version>.dmg`
-- **Output**: Automatically attaches compiled packages to the GitHub Release.
+- **Runners**:
+  - `ubuntu-latest`: Builds `.deb` and `.AppImage`
+  - `windows-latest`: Builds the portable ZIP and Inno Setup installer
+  - `macos-latest`: Builds arm64 and x64 macOS archives/disk images
+- **Output**: Tag builds create a GitHub Release after packaging. Manual runs upload build artifacts; they publish a release only when run against a version tag and `dry_run` is false.
 
 ## Release publication (tag `vX.Y.Z`)
 

@@ -191,6 +191,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public CapabilitiesViewModel Capabilities { get; } = new();
     public CloudViewModel Cloud { get; }
     public AchievementsViewModel Achievements { get; } = new();
+    public GameDoctorViewModel GameDoctor { get; } = new();
+    public SaveDoctorViewModel SaveDoctor { get; } = new();
+    public GameFixesViewModel GameFixes { get; } = new();
     public UpdatesViewModel Updates { get; } = new();
 
     /// <summary>
@@ -208,6 +211,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             if (SetProperty(ref _selectedTab, value))
             {
                 if (InteractiveApp) GameAudioService.Instance.Play(SoundEvent.Tab);
+                if (value == "save-doctor" && SelectedSave is { } selectedSave)
+                    SaveDoctor.SavePath = selectedSave.FilePath;
                 OnPropertyChanged(nameof(IsOverviewTab));
                 OnPropertyChanged(nameof(IsInventoryTab));
                 OnPropertyChanged(nameof(IsFactionsTab));
@@ -219,6 +224,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsCompanionTab));
                 OnPropertyChanged(nameof(IsCloudTab));
                 OnPropertyChanged(nameof(IsAchievementsTab));
+                OnPropertyChanged(nameof(IsGameDoctorTab));
+                OnPropertyChanged(nameof(IsSaveDoctorTab));
+                OnPropertyChanged(nameof(IsGameFixesTab));
                 OnPropertyChanged(nameof(IsUpdatesTab));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
@@ -231,6 +239,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowCompanionScreen));
                 OnPropertyChanged(nameof(ShowCloudScreen));
                 OnPropertyChanged(nameof(ShowAchievementsScreen));
+                OnPropertyChanged(nameof(ShowGameDoctorScreen));
+                OnPropertyChanged(nameof(ShowSaveDoctorScreen));
+                OnPropertyChanged(nameof(ShowGameFixesScreen));
                 OnPropertyChanged(nameof(ShowUpdatesScreen));
                 OnPropertyChanged(nameof(IsFirstRunWizardVisible));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
@@ -253,7 +264,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -292,6 +303,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsCompanionTab => SelectedTab == "companion";
     public bool IsCloudTab => SelectedTab == "cloud";
     public bool IsAchievementsTab => SelectedTab == "achievements";
+    public bool IsGameDoctorTab => SelectedTab == "game-doctor";
+    public bool IsSaveDoctorTab => SelectedTab == "save-doctor";
+    public bool IsGameFixesTab => SelectedTab == "game-fixes";
     public bool IsUpdatesTab => SelectedTab == "updates";
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
@@ -304,8 +318,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
     public bool ShowCloudScreen => IsCloudTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab && !IsFirstRunWizardVisible;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsFirstRunWizardVisible;
     public bool ShowAchievementsScreen => IsAchievementsTab;
+    public bool ShowGameDoctorScreen => IsGameDoctorTab;
+    public bool ShowSaveDoctorScreen => IsSaveDoctorTab;
+    public bool ShowGameFixesScreen => IsGameFixesTab;
     public bool ShowUpdatesScreen => IsUpdatesTab;
 
 
@@ -324,6 +341,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
             Capabilities.SelectedFormatId = value?.ReleaseId;
             if (InteractiveApp && value is not null) GameAudioService.Instance.UseGame(value.ReleaseId);
+            SaveDoctor.SavePath = value?.FilePath ?? string.Empty;
 
             if (value is not null)
             {

@@ -400,6 +400,9 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, L.T("ТАЙНИКИ"), "stashes", nameof(SaveLibraryViewModel.IsStashesTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("ПЕРЕХОДЫ"), "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("БЭКАПЫ"), "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР СОХРАНЕНИЯ"), "save-doctor", nameof(SaveLibraryViewModel.IsSaveDoctorTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ИСПРАВЛЕНИЯ ИГРЫ"), "game-fixes", nameof(SaveLibraryViewModel.IsGameFixesTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР ИГРЫ"), "game-doctor", nameof(SaveLibraryViewModel.IsGameDoctorTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("ВОЗМОЖНОСТИ"), "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("КОМПАНЬОН"), "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ОБЛАКО"), "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
@@ -516,6 +519,21 @@ public sealed class MainWindow : Window
         // DataContext is the screen's own view model; visibility belongs to the window view model.
         achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)) { Source = vm });
         screens.Children.Add(achievements);
+        // Game Doctor operates on an explicitly selected local installation.
+        if (!HostPlatform.IsBrowser)
+        {
+            var gameFixes = new GameFixesView(vm.GameFixes);
+            gameFixes.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGameFixesScreen)) { Source = vm });
+            screens.Children.Add(gameFixes);
+
+            var saveDoctor = new SaveDoctorView(vm.SaveDoctor);
+            saveDoctor.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowSaveDoctorScreen)) { Source = vm });
+            screens.Children.Add(saveDoctor);
+
+            var gameDoctor = new GameDoctorView(vm.GameDoctor);
+            gameDoctor.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGameDoctorScreen)) { Source = vm });
+            screens.Children.Add(gameDoctor);
+        }
         // 10. Updates
         var updates = new UpdatesView { DataContext = vm.Updates };
         // DataContext is the screen's own view model; visibility belongs to the window view model.

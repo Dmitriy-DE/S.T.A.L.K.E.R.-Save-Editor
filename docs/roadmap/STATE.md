@@ -26,3 +26,34 @@
 - Веб-версия: собирается в CI, не опубликована вместо Python-веба.
 - S2: добавление предметов, апгрейды, отношения — нужны пары сейвов «до/после».
 - Переназначение горячих клавиш компаньона не сохраняется.
+
+## Game Doctor, Save Doctor, Game Fixes (2026-09-28)
+
+This work is isolated on codex/stalker-toolkit-game-doctor, based on the fetched main at
+57f1537b6dbb3b97c23a0323e5bdb2629e4ce06a. It does not change or merge main.
+
+- **Installed-game patching:** Companion and Game Fixes use the shared Core Patching filesystem
+  boundary and atomic replacement writer. They refuse managed-path overlap in either install order.
+- **Game Fixes:** metadata model, explicit game/build/source gates, archive-to-loose-overlay handling,
+  hash-backed recovery manifests, drift-protected uninstall, dependencies/conflicts, categories and
+  preset filtering and a guarded per-fix version-update transaction exist. One Clear Sky fix
+  (`cs.quest.dead-wild-napr`) is available as Experimental:
+  its retail target bytes and archive round trip were verified, but it is not verified in-game and is
+  excluded from safe presets. No installer component was added.
+- **Game Doctor:** explicit target and path; structural marker; matching Steam build ID; capped,
+  unclassified loose files; Companion state; Game Fix manifests/hash drift; S2 custom-mod folder state
+  with a user-triggered reversible directory move.
+- **Save Doctor:** read-only format-reader check and parsed inventory count. Semantic quest/object
+  health stays unknown; no repair is registered.
+- **Crash Analyzer:** user-selected log parser for fatal fields, Lua markers/stack frames, and common
+  engine exception markers. No known signatures or automatic log discovery are registered.
+- **Desktop / CLI:** explicit Game Doctor and Save Doctor screens, a Game Fix catalogue with guarded
+  install/update/remove actions, and matching CLI commands use the same Core services. Fix status separates
+  catalogue entries, safe recommendations, experimental entries and installed manifests.
+- **Not implemented in this branch:** Quest Doctor, save repair, game snapshots, profiles, config
+  editor, save timeline, installed-game encyclopaedia expansion, Live Inspector additions, and
+  installer integration. No existing Companion or Steam behavior was live-tested.
+
+Verification levels are recorded per feature in docs/GAME_DOCTOR.md, docs/SAVE_DOCTOR.md,
+docs/CRASH_ANALYZER.md, docs/GAME_FIXES.md, docs/GAME_FIX_RESEARCH.md, and
+docs/PATCHING_ARCHITECTURE.md. Synthetic tests do not establish retail or in-game correctness.

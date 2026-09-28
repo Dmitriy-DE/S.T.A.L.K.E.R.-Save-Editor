@@ -61,7 +61,7 @@ public sealed class Stalker2CompanionInstaller(string modSourceRoot)
         if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
         CopyDirectory(SourceDirectory, staging);
         var build = BundledBuild();
-        File.WriteAllText(Path.Combine(staging, MarkerFileName), JsonSerializer.Serialize(new Dictionary<string, string> { ["build"] = build ?? "unknown" }));
+        File.WriteAllText(Path.Combine(staging, MarkerFileName), JsonSerializer.Serialize(new Dictionary<string, string> { ["build"] = build ?? "unknown" }, Stalker2MarkerJson.Default.DictionaryStringString));
         if (Directory.Exists(target)) Directory.Delete(target, recursive: true); // ours: the marker was checked above
         Directory.Move(staging, target);
         return GetStatus(status.GameDirectory, steamRoots);
@@ -117,7 +117,7 @@ public sealed class Stalker2CompanionInstaller(string modSourceRoot)
     {
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(marker))?.GetValueOrDefault("build");
+            return JsonSerializer.Deserialize(File.ReadAllText(marker), Stalker2MarkerJson.Default.DictionaryStringString)?.GetValueOrDefault("build");
         }
         catch (Exception exception) when (exception is JsonException or IOException)
         {
@@ -136,3 +136,6 @@ public sealed class Stalker2CompanionInstaller(string modSourceRoot)
         }
     }
 }
+
+[System.Text.Json.Serialization.JsonSerializable(typeof(Dictionary<string, string>))]
+internal sealed partial class Stalker2MarkerJson : System.Text.Json.Serialization.JsonSerializerContext;

@@ -241,7 +241,8 @@ public sealed class MainWindow : Window
                 var subRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
                 subRow.Children.Add(new TextBlock
                 {
-                    Text = item.ReleaseName,
+                    Text = item.SlotTitle,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
                     FontSize = 10,
                     Foreground = StalkerTheme.BrushTextSecondary,
                 });
@@ -255,7 +256,15 @@ public sealed class MainWindow : Window
                 subRow.Children.Add(sizeText);
                 stack.Children.Add(subRow);
 
-                return stack;
+                var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+                if (item.Preview is { } preview)
+                {
+                    row.Children.Add(new Image { Source = preview, Width = 72, Height = 54, Stretch = Stretch.UniformToFill, Margin = new Thickness(0, 0, 8, 0) });
+                }
+
+                Grid.SetColumn(stack, 1);
+                row.Children.Add(stack);
+                return row;
             }),
         };
         saveList.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.Saves)));

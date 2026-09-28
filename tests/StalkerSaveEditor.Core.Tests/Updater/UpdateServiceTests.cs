@@ -283,6 +283,35 @@ public sealed class UpdateServiceTests
         Assert.True(File.Exists(unrelated));
     }
 
+    [Theory]
+    [InlineData("windows", "portable")]
+    [InlineData("windows", "installer")]
+    [InlineData("linux", "portable")]
+    [InlineData("linux", "package")]
+    public async Task Accepts_the_manifest_written_by_the_release_tool(string target, string kind)
+    {
+        // tests/Fixtures/release/latest.json is produced by tools/release/publish_release.py.
+        var manifest = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "release", "latest.json"));
+        using var service = new UpdateService(
+            "0.9.0",
+            "https://save-editor-downloads.save-editor.workers.dev/latest.json",
+            target,
+            "x86_64",
+            kind,
+            new FakeHandler(_ => JsonResponse(manifest)),
+            ["save-editor-downloads.save-editor.workers.dev"],
+            ["https"],
+            Path.Combine(Path.GetTempPath(), $"updater-cache-{Guid.NewGuid():N}"),
+            static _ => null,
+            new FakeUpdateProcessRunner(0));
+
+        var result = await service.CheckAsync();
+
+        Assert.NotNull(result.Artifact);
+        Assert.Equal("1.0.0", result.Manifest!.Version);
+        Assert.Null(result.Error);
+    }
+
     private static UpdateService CreateService(
         FakeHandler handler,
         string currentVersion = "1.0.0",

@@ -39,6 +39,9 @@ echo "Bundling companion mod..."
 mkdir -p "${APP_DIR}/usr/bin/mods"
 cp -r "${ROOT}/mods/companion" "${APP_DIR}/usr/bin/mods/companion"
 
+# Portable archive for the updater (target linux-x86_64): the executable plus the companion mod.
+tar -C "${APP_DIR}/usr/bin" -czf "${OUTPUT_DIR}/StalkerSaveEditor-v${VERSION}-linux-x64.tar.gz" .
+
 # 3. Setup AppDir metadata
 cp "${ROOT}/packaging/linux/AppRun" "${APP_DIR}/AppRun"
 chmod +x "${APP_DIR}/AppRun"

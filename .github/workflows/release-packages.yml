@@ -136,21 +136,61 @@ jobs:
           path: dist/*
 
   release:
-    name: Publish Release Artifacts
+    name: Publish Release
     needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && github.event.inputs.dry_run != 'true'
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+      APT_SIGNING_KEY_ID: ${{ secrets.APT_SIGNING_KEY_ID }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all built packages
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Prepare manifest and checksums
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          python3 tools/release/publish_release.py --artifacts release-artifacts \
+            --version "$VERSION" --commit "$GITHUB_SHA" --output release-output
+
+      - name: Build signed APT repository
+        if: env.APT_SIGNING_KEY != '' && env.APT_SIGNING_KEY_ID != ''
+        run: |
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          printf '%s' "$APT_SIGNING_KEY" | gpg --batch --import
+          python3 tools/release/build_apt_repo.py --package release-output/stalker-save-editor_amd64.deb \
+            --output release-output/apt --gpg-home "$GNUPGHOME" --signing-key "$APT_SIGNING_KEY_ID"
+
+      - name: Publish to R2 and read back
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        run: python3 tools/release/publish_release.py --prepared --output release-output --publish-r2 --verify-r2
+
+      - name: Report skipped publication
+        if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
+        run: |
+          echo "::notice::R2 publication skipped - CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID are not set (the owner sets secrets)."
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release-artifacts/*
+          files: |
+            release-output/*.zip
+            release-output/*.exe
+            release-output/*.tar.gz
+            release-output/*.deb
+            release-output/*.dmg
+            release-output/SHA256SUMS
+            release-output/latest.json
+            release-artifacts/*.AppImage
           draft: false
           prerelease: false
           generate_release_notes: true

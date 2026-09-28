@@ -59,6 +59,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             _backupDirectoryProvider());
 
         if (discoverLocalSaves) Refresh();
+
+        // Silent background update check at startup
+        _ = Task.Run(() => Updates.CheckAsync(silent: true));
     }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
@@ -77,6 +80,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public RelayCommand<string> RestoreConditionCommand { get; }
 
     public CapabilitiesViewModel Capabilities { get; } = new();
+    public UpdatesViewModel Updates { get; } = new();
 
     /// <summary>
     /// Companion screen ViewModel — backed by real Core services in normal runs,
@@ -101,6 +105,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsSettingsTab));
                 OnPropertyChanged(nameof(IsCapabilitiesTab));
                 OnPropertyChanged(nameof(IsCompanionTab));
+                OnPropertyChanged(nameof(IsUpdatesTab));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
                 OnPropertyChanged(nameof(ShowFactionsScreen));
@@ -110,6 +115,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowSettingsScreen));
                 OnPropertyChanged(nameof(ShowCapabilitiesScreen));
                 OnPropertyChanged(nameof(ShowCompanionScreen));
+                OnPropertyChanged(nameof(ShowUpdatesScreen));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
             }
         }
@@ -124,6 +130,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsSettingsTab => SelectedTab == "settings";
     public bool IsCapabilitiesTab => SelectedTab == "capabilities";
     public bool IsCompanionTab => SelectedTab == "companion";
+    public bool IsUpdatesTab => SelectedTab == "updates";
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
     public bool ShowInventoryScreen => HasSelection && IsInventoryTab;
@@ -134,7 +141,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowSettingsScreen => IsSettingsTab;
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab;
+    public bool ShowUpdatesScreen => IsUpdatesTab;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsUpdatesTab;
 
 
     public SaveFileSummary? SelectedSave

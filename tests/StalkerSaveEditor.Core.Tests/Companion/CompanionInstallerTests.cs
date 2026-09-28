@@ -32,7 +32,7 @@ public sealed class CompanionInstallerTests
         Assert.True(installed.Success);
         Assert.True(installed.Changed);
         Assert.Equal("v1", installed.Version);
-        AssertHooked(game.GameDirectory);
+        AssertHooked(game.GameDirectory, CompanionGame.CallOfPripyat);
         AssertModAssetsInstalled(game.GameDirectory, "cop");
         Assert.Empty(Directory.EnumerateFileSystemEntries(game.AppDataDirectory));
 
@@ -77,21 +77,58 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
-    public void Root_archive_alias_without_add_path_uses_game_directory()
+    public void Shadow_of_chernobyl_uses_implicit_root_archives_and_game_config_alias()
     {
-        using var game = SyntheticGame.Create(CompanionGame.ShadowOfChernobyl);
-        var fsgamePath = Path.Combine(game.GameDirectory, "fsgame.ltx");
-        var fsgame = File.ReadAllText(fsgamePath).Replace(
-            "$arch_dir$ = false| false| $fs_root$|",
-            "$arch_dir$ = false| false| $fs_root$",
-            StringComparison.Ordinal);
-        File.WriteAllText(fsgamePath, fsgame);
+        using var game = SyntheticGame.Create(CompanionGame.ShadowOfChernobyl, ".dba");
         var installer = new CompanionInstaller(ModSourceRoot);
 
         var result = installer.Install(CompanionGame.ShadowOfChernobyl, game.GameDirectory);
 
         Assert.True(result.Success);
-        AssertHooked(game.GameDirectory);
+        AssertHooked(game.GameDirectory, CompanionGame.ShadowOfChernobyl);
+        AssertModAssetsInstalled(game.GameDirectory, "soc");
+        Assert.True(File.Exists(Path.Combine(game.GameDirectory, "gamedata", "config", "misc", "quest_items.ltx")));
+        Assert.False(File.Exists(Path.Combine(game.GameDirectory, "gamedata", "configs", "misc", "quest_items.ltx")));
+        Assert.False(installer.Install(CompanionGame.ShadowOfChernobyl, game.GameDirectory).Changed);
+        Assert.True(installer.Uninstall(CompanionGame.ShadowOfChernobyl, game.GameDirectory).Success);
+    }
+
+    [Theory]
+    [InlineData(".db0")]
+    [InlineData(".db9")]
+    [InlineData(".dba")]
+    [InlineData(".dbb")]
+    [InlineData(".dbc")]
+    [InlineData(".dbd")]
+    public void Shadow_of_chernobyl_root_archive_suffixes_match_engine_mounts(string suffix)
+    {
+        using var game = SyntheticGame.Create(CompanionGame.ShadowOfChernobyl, suffix);
+        var installer = new CompanionInstaller(ModSourceRoot);
+
+        var result = installer.Install(CompanionGame.ShadowOfChernobyl, game.GameDirectory);
+
+        Assert.True(result.Success);
+        Assert.True(File.Exists(Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script")));
+    }
+
+    [Fact]
+    public void Archive_alias_without_optional_add_field_uses_its_parent_directory()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var resourcesArchive = Path.Combine(game.GameDirectory, "resources", "configs.db");
+        File.Move(resourcesArchive, Path.Combine(game.GameDirectory, "configs.db"));
+        var fsgamePath = Path.Combine(game.GameDirectory, "fsgame.ltx");
+        var fsgame = File.ReadAllText(fsgamePath).Replace(
+            "$arch_dir_resources$ = false| false| $fs_root$| resources\\",
+            "$arch_dir_resources$ = false| false| $fs_root$",
+            StringComparison.Ordinal);
+        File.WriteAllText(fsgamePath, fsgame);
+        var installer = new CompanionInstaller(ModSourceRoot);
+
+        var result = installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+
+        Assert.True(result.Success);
+        AssertHooked(game.GameDirectory, CompanionGame.CallOfPripyat);
     }
 
     [Fact]
@@ -128,10 +165,10 @@ public sealed class CompanionInstallerTests
             "end\r\n");
         const string useItemHook = "if save_editor_companion then save_editor_companion.on_use(obj) end";
 
-        var installedBind = CompanionHookPatcher.PatchBindStalker(originalBind);
+        var installedBind = CompanionHookPatcher.PatchBindStalker(originalBind, CompanionGame.CallOfPripyat);
         var bindText = codePage.GetString(installedBind);
         Assert.Contains($"function actor_binder:use_inventory_item(obj)\r\n\t{useItemHook}\r\n", bindText, StringComparison.Ordinal);
-        Assert.Equal(originalBind, CompanionHookPatcher.RemoveBindStalkerHooks(installedBind));
+        Assert.Equal(originalBind, CompanionHookPatcher.RemoveBindStalkerHooks(installedBind, CompanionGame.CallOfPripyat));
     }
 
     [Theory]
@@ -147,7 +184,8 @@ public sealed class CompanionInstallerTests
 
         Assert.True(result.Success);
         AssertModAssetsInstalled(game.GameDirectory, sourceFolder);
-        AssertHooked(game.GameDirectory);
+        AssertHooked(game.GameDirectory, gameId);
+        Assert.True(installer.Uninstall(gameId, game.GameDirectory).Success);
     }
 
     [Fact]
@@ -229,13 +267,13 @@ public sealed class CompanionInstallerTests
         AssertModAssetsInstalled(game.GameDirectory, "cop");
         Assert.Equal(
             archived["scripts/bind_stalker.script"],
-            CompanionHookPatcher.RemoveBindStalkerHooks(File.ReadAllBytes(Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script"))));
+            CompanionHookPatcher.RemoveBindStalkerHooks(File.ReadAllBytes(Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script")), CompanionGame.CallOfPripyat));
         Assert.Equal(
             patched["scripts/ui_main_menu.script"],
             CompanionHookPatcher.RemoveMainMenuHook(File.ReadAllBytes(Path.Combine(game.GameDirectory, "gamedata", "scripts", "ui_main_menu.script"))));
         Assert.Equal(
             archived["configs/misc/quest_items.ltx"],
-            CompanionHookPatcher.RemoveQuestInclude(File.ReadAllBytes(Path.Combine(game.GameDirectory, "gamedata", "configs", "misc", "quest_items.ltx"))));
+            CompanionHookPatcher.RemoveQuestInclude(File.ReadAllBytes(Path.Combine(game.GameDirectory, "gamedata", "configs", "misc", "quest_items.ltx")), "configs/misc/quest_items.ltx"));
         Directory.Delete(Path.Combine(game.GameDirectory, ".save-editor-companion"), recursive: true);
 
         var status = installer.GetStatus(CompanionGame.CallOfPripyat, game.GameDirectory);
@@ -291,7 +329,7 @@ public sealed class CompanionInstallerTests
         var result = installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
 
         Assert.True(result.Success);
-        AssertHooked(game.GameDirectory);
+        AssertHooked(game.GameDirectory, CompanionGame.CallOfPripyat);
     }
 
     [Fact]
@@ -308,7 +346,7 @@ public sealed class CompanionInstallerTests
             installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory));
 
         Assert.Contains(status.Issues, issue => issue.Contains("fsgame.ltx", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains("archive", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("fsgame", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(Directory.Exists(Path.Combine(game.GameDirectory, "gamedata")));
     }
 
@@ -342,13 +380,22 @@ public sealed class CompanionInstallerTests
         Assert.False(Directory.Exists(Path.Combine(game.GameDirectory, ".save-editor-companion")));
     }
 
-    private static void AssertHooked(string gameDirectory)
+    private static void AssertHooked(string gameDirectory, CompanionGame game)
     {
         var bind = File.ReadAllText(Path.Combine(gameDirectory, "gamedata", "scripts", "bind_stalker.script"));
         var menu = File.ReadAllText(Path.Combine(gameDirectory, "gamedata", "scripts", "ui_main_menu.script"));
-        var quest = File.ReadAllText(Path.Combine(gameDirectory, "gamedata", "configs", "misc", "quest_items.ltx"));
+        var configDirectory = game == CompanionGame.ShadowOfChernobyl ? "config" : "configs";
+        var quest = File.ReadAllText(Path.Combine(gameDirectory, "gamedata", configDirectory, "misc", "quest_items.ltx"));
         Assert.Equal(1, Count(bind, "if save_editor_companion then save_editor_companion.update() end"));
-        Assert.Equal(1, Count(bind, "if save_editor_companion then save_editor_companion.on_use(obj) end"));
+        if (game == CompanionGame.CallOfPripyat)
+        {
+            Assert.Equal(1, Count(bind, "if save_editor_companion then save_editor_companion.on_use(obj) end"));
+        }
+        else
+        {
+            Assert.Equal(1, Count(bind, "if save_editor_companion then self.object:set_callback(callback.use_object, function(_, obj) save_editor_companion.on_use(obj) end) end"));
+        }
+
         Assert.Equal(1, Count(menu, "if save_editor_companion_ui then save_editor_companion_ui.on_menu_key(dik, self) end"));
         Assert.EndsWith("#include \"save_editor_companion.ltx\"\n", quest, StringComparison.Ordinal);
     }
@@ -364,7 +411,11 @@ public sealed class CompanionInstallerTests
             var commonRoot = Path.GetFullPath(Path.Combine(ModSourceRoot, "gamedata")) + Path.DirectorySeparatorChar;
             var gameRoot = Path.GetFullPath(Path.Combine(ModSourceRoot, sourceFolder, "gamedata")) + Path.DirectorySeparatorChar;
             var relative = Path.GetRelativePath(source.StartsWith(commonRoot, StringComparison.Ordinal) ? commonRoot : gameRoot, source);
-            var target = Path.Combine(gameDirectory, "gamedata", relative);
+            var sourceConfigPrefix = $"configs{Path.DirectorySeparatorChar}";
+            var targetRelative = sourceFolder == "soc" && relative.StartsWith(sourceConfigPrefix, StringComparison.Ordinal)
+                ? Path.Combine("config", relative[sourceConfigPrefix.Length..])
+                : relative;
+            var target = Path.Combine(gameDirectory, "gamedata", targetRelative);
             Assert.True(File.Exists(target), $"Missing installed asset: {relative}");
             var sourceBytes = File.ReadAllBytes(source);
             var installedBytes = File.ReadAllBytes(target);
@@ -423,7 +474,7 @@ public sealed class CompanionInstallerTests
 
         public string AppDataDirectory { get; }
 
-        public static SyntheticGame Create(CompanionGame game)
+        public static SyntheticGame Create(CompanionGame game, string socArchiveSuffix = ".db0")
         {
             var root = Path.Combine(Path.GetTempPath(), $"companion-installer-{Guid.NewGuid():N}");
             var steamRoot = Path.Combine(root, "steam");
@@ -452,8 +503,9 @@ public sealed class CompanionInstallerTests
                 $"\"AppState\" {{ \"appid\" \"{appId}\" \"installdir\" \"{gameDirectoryName}\" }}\n");
             var resourceDirectory = Path.Combine(gameDirectory, "resources");
             Directory.CreateDirectory(resourceDirectory);
+            var gameConfigDirectory = game == CompanionGame.ShadowOfChernobyl ? "config" : "configs";
             var archiveAliases = game == CompanionGame.ShadowOfChernobyl
-                ? "$arch_dir$ = false| false| $fs_root$|\n"
+                ? string.Empty
                 : "$arch_dir_resources$ = false| false| $fs_root$| resources\\\n";
             if (game != CompanionGame.ShadowOfChernobyl)
             {
@@ -463,7 +515,9 @@ public sealed class CompanionInstallerTests
             }
             File.WriteAllText(
                 Path.Combine(gameDirectory, "fsgame.ltx"),
-                "$app_data_root$ = true| false| $fs_root$| _appdata_\\\n" + archiveAliases);
+                "$app_data_root$ = true| false| $fs_root$| _appdata_\\\n" +
+                "$game_data$ = true| true| $fs_root$| gamedata\\\n" +
+                $"$game_config$ = true| false| $game_data$| {gameConfigDirectory}\\\n" + archiveAliases);
 
             using var fixtureManifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(FixtureDirectory, "manifest.json")));
             var gameKey = game switch
@@ -477,7 +531,7 @@ public sealed class CompanionInstallerTests
                 .GetProperty("archive").GetString()!;
             var archiveDestination = game switch
             {
-                CompanionGame.ShadowOfChernobyl => Path.Combine(gameDirectory, "gamedata.db0"),
+                CompanionGame.ShadowOfChernobyl => Path.Combine(gameDirectory, $"gamedata{socArchiveSuffix}"),
                 CompanionGame.ClearSky => Path.Combine(resourceDirectory, "cs.db"),
                 CompanionGame.CallOfPripyat => Path.Combine(resourceDirectory, "configs.db"),
                 _ => throw new ArgumentOutOfRangeException(nameof(game)),

@@ -3,6 +3,6 @@ function actor_binder:update(delta)
 	object_binder.update(self, delta)
 end
 
-function actor_binder:use_inventory_item(obj)
-	self:use_inventory_item(obj)
+function actor_binder:reinit()
+	self.object:set_callback(callback.on_item_drop, self.on_item_drop, self)
 end

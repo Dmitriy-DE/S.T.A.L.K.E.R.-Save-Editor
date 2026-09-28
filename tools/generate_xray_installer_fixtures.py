@@ -12,11 +12,11 @@ import zlib
 
 ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "tests" / "Fixtures" / "companion-installer"
-FILES = (
-    "scripts/bind_stalker.script",
-    "scripts/ui_main_menu.script",
-    "configs/misc/quest_items.ltx",
-)
+SCRIPT_FILES = ("scripts/bind_stalker.script", "scripts/ui_main_menu.script")
+
+
+def config_directory(game: str) -> str:
+    return "config" if game == "soc" else "configs"
 
 
 def chunk(kind: int, body: bytes) -> bytes:
@@ -53,7 +53,9 @@ def archive_for_files(files: list[tuple[str, bytes]]) -> tuple[bytes, list[dict[
 
 def archive_for(game: str) -> tuple[bytes, list[dict[str, object]]]:
     game_root = FIXTURES / "vanilla" / game
-    files = [(f"gamedata/{name}", (game_root / name).read_bytes()) for name in FILES]
+    config_path = f"{config_directory(game)}/misc/quest_items.ltx"
+    names = (*SCRIPT_FILES, config_path)
+    files = [(f"gamedata/{name}", (game_root / name).read_bytes()) for name in names]
     return archive_for_files(files)
 
 
@@ -62,16 +64,33 @@ def write_vanilla_fixtures() -> None:
     for game in ("soc", "cs", "cop"):
         game_root = FIXTURES / "vanilla" / game / "scripts"
         game_root.mkdir(parents=True, exist_ok=True)
+        config_root = FIXTURES / "vanilla" / game / config_directory(game) / "misc"
+        config_root.mkdir(parents=True, exist_ok=True)
+        (config_root / "quest_items.ltx").write_text(
+            f"; synthetic vanilla quest items for {game}\n[quest_items]\ndevice_pda = quest\n",
+            encoding="cp1251",
+            newline="\n",
+        )
         bind = (
             f"-- synthetic {game} actor fixture: фикстура\r\n"
             "function actor_binder:update(delta)\r\n"
             "\tobject_binder.update(self, delta)\r\n"
             "end\r\n"
-            "\r\n"
-            "function actor_binder:use_inventory_item(obj)\r\n"
-            "\tself:use_inventory_item(obj)\r\n"
-            "end\r\n"
         )
+        if game == "cop":
+            bind += (
+                "\r\n"
+                "function actor_binder:use_inventory_item(obj)\r\n"
+                "\tself:use_inventory_item(obj)\r\n"
+                "end\r\n"
+            )
+        else:
+            bind += (
+                "\r\n"
+                "function actor_binder:reinit()\r\n"
+                "\tself.object:set_callback(callback.on_item_drop, self.on_item_drop, self)\r\n"
+                "end\r\n"
+            )
         menu = (
             f"-- synthetic {game} menu fixture: меню\r\n"
             "function main_menu:OnKeyboard(dik, keyboard_action)\r\n"

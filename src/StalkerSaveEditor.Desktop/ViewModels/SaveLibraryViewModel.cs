@@ -58,6 +58,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             _saveDirectoriesProvider(),
             _backupDirectoryProvider());
 
+        DismissWizardCommand = new RelayCommand(DismissFirstRunWizard);
+        WizardAutoDetectCommand = new RelayCommand(WizardAutoDetect);
+        WizardAddDirectoryCommand = new RelayCommand(WizardAddDirectory, () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
+
         if (discoverLocalSaves) Refresh();
     }
 
@@ -110,7 +114,59 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowSettingsScreen));
                 OnPropertyChanged(nameof(ShowCapabilitiesScreen));
                 OnPropertyChanged(nameof(ShowCompanionScreen));
+                OnPropertyChanged(nameof(IsFirstRunWizardVisible));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
+            }
+        }
+    }
+
+    private bool _isFirstRunWizardDismissed;
+    private string _wizardDirectoryInput = string.Empty;
+
+    public string WizardDirectoryInput
+    {
+        get => _wizardDirectoryInput;
+        set
+        {
+            if (SetProperty(ref _wizardDirectoryInput, value))
+            {
+                WizardAddDirectoryCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab;
+
+    public RelayCommand DismissWizardCommand { get; }
+    public RelayCommand WizardAutoDetectCommand { get; }
+    public RelayCommand WizardAddDirectoryCommand { get; }
+
+    public void DismissFirstRunWizard()
+    {
+        _isFirstRunWizardDismissed = true;
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
+    }
+
+    public void WizardAutoDetect()
+    {
+        Settings.AutoDetectSaveDirectories();
+        Refresh();
+        if (Saves.Count > 0)
+        {
+            DismissFirstRunWizard();
+        }
+    }
+
+    public void WizardAddDirectory()
+    {
+        if (Settings.AddSaveDirectory(WizardDirectoryInput))
+        {
+            WizardDirectoryInput = string.Empty;
+            Refresh();
+            if (Saves.Count > 0)
+            {
+                DismissFirstRunWizard();
             }
         }
     }
@@ -134,7 +190,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowSettingsScreen => IsSettingsTab;
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsFirstRunWizardVisible;
 
 
     public SaveFileSummary? SelectedSave
@@ -325,6 +381,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         SelectedSave = Saves.FirstOrDefault();
         RefreshBackups();
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
     }
 
     public void RefreshBackups()
@@ -347,6 +405,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         if (parsed is null) return false;
         Saves.Add(parsed);
         SelectedSave = parsed;
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
         return true;
     }
 

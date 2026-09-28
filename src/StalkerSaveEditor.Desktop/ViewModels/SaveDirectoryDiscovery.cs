@@ -37,6 +37,11 @@ public static class SaveDirectoryDiscovery
         if (!string.IsNullOrWhiteSpace(home)) AddEnhancedDirectories(candidates, home);
         if (!string.IsNullOrWhiteSpace(documents)) AddEnhancedDirectories(candidates, documents);
         if (!string.IsNullOrWhiteSpace(localApplicationData)) AddStalker2Directories(candidates, localApplicationData);
+        if (!string.IsNullOrWhiteSpace(home))
+        {
+            AddSteamInstallDirectories(candidates, home);
+            AddProtonDirectories(candidates, home);
+        }
 
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var seen = new HashSet<string>(comparer);
@@ -91,6 +96,88 @@ public static class SaveDirectoryDiscovery
             var storeRoot = store.Length == 0 ? saved : Path.Combine(saved, store);
             candidates.Add(Path.Combine(storeRoot, "SaveGames"));
             candidates.Add(Path.Combine(storeRoot, "SaveGames", "Data"));
+        }
+    }
+
+    private static void AddSteamInstallDirectories(List<string> candidates, string home)
+    {
+        var steamRoots = new List<string>();
+        if (OperatingSystem.IsWindows())
+        {
+            steamRoots.Add(@"C:\Program Files (x86)\Steam");
+            steamRoots.Add(@"C:\Program Files\Steam");
+        }
+        else
+        {
+            steamRoots.Add(Path.Combine(home, ".steam", "steam"));
+            steamRoots.Add(Path.Combine(home, ".local", "share", "Steam"));
+            steamRoots.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".steam", "steam"));
+        }
+
+        var commonRelative = new[]
+        {
+            Path.Combine("steamapps", "common", "STALKER Shadow of Chernobyl", "_appdata_", "savedgames"),
+            Path.Combine("steamapps", "common", "STALKER Clear Sky", "_appdata_", "savedgames"),
+            Path.Combine("steamapps", "common", "Stalker Call of Pripyat", "_appdata_", "savedgames"),
+        };
+
+        foreach (var root in steamRoots)
+        {
+            foreach (var rel in commonRelative)
+            {
+                candidates.Add(Path.Combine(root, rel));
+            }
+        }
+    }
+
+    private static void AddProtonDirectories(List<string> candidates, string home)
+    {
+        var steamRoots = new[]
+        {
+            Path.Combine(home, ".steam", "steam"),
+            Path.Combine(home, ".local", "share", "Steam"),
+            Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".steam", "steam"),
+        };
+
+        var appProfiles = new (string AppId, string[] Paths)[]
+        {
+            ("4500", [
+                "pfx/drive_c/users/steamuser/Documents/Stalker-SHOC/savedgames",
+                "pfx/drive_c/users/Public/Documents/stalker-shoc/savedgames"
+            ]),
+            ("20510", [
+                "pfx/drive_c/users/steamuser/Documents/Stalker-STCS/savedgames"
+            ]),
+            ("41700", [
+                "pfx/drive_c/users/steamuser/Documents/Stalker-COP/savedgames",
+                "pfx/drive_c/users/Public/Documents/S.T.A.L.K.E.R. - Call of Pripyat/savedgames"
+            ]),
+            ("2427410", [
+                "pfx/drive_c/users/steamuser/Saved Games/STALKER Shadow of Chornobyl - EE/STEAM/savedgames"
+            ]),
+            ("2427420", [
+                "pfx/drive_c/users/steamuser/Saved Games/STALKER Clear Sky - EE/STEAM/savedgames"
+            ]),
+            ("2427430", [
+                "pfx/drive_c/users/steamuser/Saved Games/STALKER Call of Prypiat - EE/STEAM/savedgames"
+            ]),
+            ("1643320", [
+                "pfx/drive_c/users/steamuser/AppData/Local/Stalker2/Saved/SaveGames",
+                "pfx/drive_c/users/steamuser/AppData/Local/Stalker2/Saved/STEAM/SaveGames",
+                "pfx/drive_c/users/steamuser/Local Settings/Application Data/Stalker2/Saved/STEAM/SaveGames/Data"
+            ]),
+        };
+
+        foreach (var steamRoot in steamRoots)
+        {
+            var compat = Path.Combine(steamRoot, "steamapps", "compatdata");
+            foreach (var (appId, relPaths) in appProfiles)
+            {
+                foreach (var relPath in relPaths)
+                {
+                    candidates.Add(Path.Combine(compat, appId, relPath));
+                }
+            }
         }
     }
 }

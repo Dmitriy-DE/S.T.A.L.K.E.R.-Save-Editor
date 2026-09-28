@@ -199,38 +199,35 @@ public static class InventoryView
         Grid.SetColumn(nameStack, 1);
         row.Children.Add(nameStack);
 
-        // Placement Badge
-        if (!string.IsNullOrEmpty(item.PlacementDisplay) && item.Placement != "ruck")
-        {
-            var badge = StalkerTheme.Badge(item.PlacementDisplay, StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentAmber, 10);
-            badge.Margin = new Thickness(8, 0);
-            Grid.SetColumn(badge, 2);
-            row.Children.Add(badge);
-        }
+        // Placement, condition and count follow the edits made in the card on the right.
+        var badge = StalkerTheme.Badge(string.Empty, StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentAmber, 10);
+        badge.Margin = new Thickness(8, 0);
+        badge.Bind(Visual.IsVisibleProperty, new Binding(nameof(InventoryLineViewModel.ShowPlacementBadge)));
+        ((TextBlock)badge.Child!).Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.PlacementDisplay)));
+        Grid.SetColumn(badge, 2);
+        row.Children.Add(badge);
 
-        // Durability
         var condBlock = new TextBlock
         {
-            Text = item.ConditionDisplay,
-            Foreground = new SolidColorBrush(Color.Parse(item.ConditionColor)),
             FontSize = 12,
             FontWeight = FontWeight.Bold,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0),
         };
+        condBlock.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.ConditionDisplay)));
+        condBlock.Bind(TextBlock.ForegroundProperty, new Binding(nameof(InventoryLineViewModel.ConditionColor)) { Converter = StalkerTheme.ColorToBrush });
         Grid.SetColumn(condBlock, 3);
         row.Children.Add(condBlock);
 
-        // Count
         var countBlock = new TextBlock
         {
-            Text = item.CountDisplay,
             Foreground = StalkerTheme.BrushAccentDim,
             FontSize = 13,
             FontWeight = FontWeight.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0),
         };
+        countBlock.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.CountDisplay)));
         Grid.SetColumn(countBlock, 4);
         row.Children.Add(countBlock);
 

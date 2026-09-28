@@ -53,7 +53,7 @@ public static class DiagnosticsUploader
         if (OperatingSystem.IsWindows() && localAppData.Length > 0) saved.Add(Path.Combine(localAppData, "Stalker2", "Saved"));
         try
         {
-            foreach (var library in SteamLibraryFolderLocator.GetLibraries(CompanionInstaller.GetDefaultSteamRoots()))
+            foreach (var library in SteamLibraryFolderLocator.GetLibraries(SaveDirectoryLocator.DefaultSteamRoots()))
             {
                 saved.Add(Path.Combine(library, "steamapps", "compatdata", Stalker2CompanionInstaller.SteamAppId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     "pfx", "drive_c", "users", "steamuser", "AppData", "Local", "Stalker2", "Saved"));

@@ -362,57 +362,39 @@ public sealed class I18nService
         });
     }
 
+    /// <summary>
+    /// A locale file from next to the app, the source tree (development) or the embedded copy. Parsed with
+    /// <see cref="JsonDocument"/>: reflection-based JSON is off in trimmed builds (the web edition).
+    /// </summary>
     private static Dictionary<string, JsonElement> LoadCatalog(string code)
     {
-        // 1. Try file on disk
-        var searchPaths = new[]
+        var fileName = code + ".json";
+        foreach (var path in new[]
+                 {
+                     Path.Combine(AppContext.BaseDirectory, "i18n", fileName),
+                     Path.Combine(Directory.GetCurrentDirectory(), "src", "StalkerSaveEditor.Desktop", "i18n", fileName),
+                 })
         {
-            Path.Combine(AppContext.BaseDirectory, "i18n", $"{code}.json"),
-            Path.Combine(AppContext.BaseDirectory, "i18n", $"{code.Replace('-', '_')}.json"),
-            Path.Combine(Directory.GetCurrentDirectory(), "src", "StalkerSaveEditor.Desktop", "i18n", $"{code}.json"),
-            Path.Combine(Directory.GetCurrentDirectory(), "src", "StalkerSaveEditor.Desktop", "i18n", $"{code.Replace('-', '_')}.json"),
-        };
-
-        foreach (var path in searchPaths)
-        {
-            if (File.Exists(path))
-            {
-                try
-                {
-                    using var stream = File.OpenRead(path);
-                    return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(stream) ?? [];
-                }
-                catch
-                {
-                    // Continue to next option
-                }
-            }
+            if (!File.Exists(path)) continue;
+            using var stream = File.OpenRead(path);
+            if (Parse(stream, path) is { } fromFile) return fromFile;
         }
 
-        // 2. Try Embedded Resource
-        var asm = typeof(I18nService).Assembly;
-        var resourceNames = new[]
-        {
-            $"StalkerSaveEditor.Desktop.i18n.{code}.json",
-            $"StalkerSaveEditor.Desktop.i18n.{code.Replace('-', '_')}.json",
-        };
+        using var embedded = typeof(I18nService).Assembly.GetManifestResourceStream($"StalkerSaveEditor.Desktop.i18n.{fileName}");
+        return embedded is null ? [] : Parse(embedded, fileName) ?? [];
+    }
 
-        foreach (var resName in resourceNames)
+    private static Dictionary<string, JsonElement>? Parse(Stream stream, string source)
+    {
+        try
         {
-            using var stream = asm.GetManifestResourceStream(resName);
-            if (stream is not null)
-            {
-                try
-                {
-                    return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(stream) ?? [];
-                }
-                catch
-                {
-                    // Continue
-                }
-            }
+            using var document = JsonDocument.Parse(stream);
+            return document.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal);
         }
-
-        return [];
+        catch (Exception exception) when (exception is JsonException or IOException or InvalidOperationException)
+        {
+            StalkerSaveEditor.Core.Diagnostics.AppLog.Warn($"translations {source} not read", exception);
+            return null;
+        }
     }
 }

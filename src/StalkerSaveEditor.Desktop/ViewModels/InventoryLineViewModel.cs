@@ -192,17 +192,22 @@ public sealed class InventoryLineViewModel : ObservableViewModel
             if (SetProperty(ref _placement, value))
             {
                 OnPropertyChanged(nameof(PlacementDisplay));
+                OnPropertyChanged(nameof(ShowPlacementBadge));
             }
         }
     }
 
     public string PlacementDisplay => _placement switch
     {
-        "slot" => L.T("Слот"),
+        "slot" or "carried" => L.T("Слот"),
         "belt" => L.T("Пояс"),
-        "ruck" => L.T("Рюкзак"),
+        "ruck" or "inventory" => L.T("Рюкзак"),
+        "equipped" => L.T("Надето"),
         _ => _placement,
     };
+
+    /// <summary>The row shows where the item is only when it is not simply in the backpack.</summary>
+    public bool ShowPlacementBadge => _placement is not ("ruck" or "inventory");
 
     public bool IsDeleted
     {

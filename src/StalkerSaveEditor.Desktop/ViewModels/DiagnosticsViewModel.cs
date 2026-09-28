@@ -25,17 +25,20 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
 
     private readonly Func<byte[], Task<string>>? _upload;
     private readonly Action<DateTime>? _onSent;
+    private readonly Func<DateTime?> _lastSent;
 
     public DiagnosticsViewModel(
         Func<IReadOnlyList<EnvironmentCheck>>? runChecks = null,
         string? pendingCrash = null,
         Func<byte[], Task<string>>? upload = null,
-        Action<DateTime>? onSent = null)
+        Action<DateTime>? onSent = null,
+        Func<DateTime?>? lastSent = null)
     {
         _runChecks = runChecks ?? (() => EnvironmentDoctor.Run());
         _pendingCrash = pendingCrash;
         _upload = upload;
         _onSent = onSent;
+        _lastSent = lastSent ?? (() => null);
         RunChecksCommand = new RelayCommand(async () => await RunChecksAsync(), () => !IsChecking);
         DismissCrashCommand = new RelayCommand(DismissCrash);
         SendNowCommand = new RelayCommand(async () => await SendAsync(automatic: false), () => _upload is not null);
@@ -43,17 +46,18 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
 
     public RelayCommand SendNowCommand { get; }
 
-    private byte[] Bundle() => DiagnosticsBundle.Create(
+    private byte[] Bundle(DateTime? since = null) => DiagnosticsBundle.Create(
         _lastChecks.Count == 0 ? null : EnvironmentDoctor.Format(_lastChecks),
-        DiagnosticsUploader.Stalker2ModLogs());
+        DiagnosticsUploader.Stalker2ModLogs(),
+        since);
 
-    /// <summary>Uploads the redacted bundle; the automatic daily report is silent unless it fails.</summary>
+    /// <summary>Uploads the redacted bundle; the automatic daily report is silent and carries only what the log gained since the last one.</summary>
     public async Task<string?> SendAsync(bool automatic)
     {
         if (_upload is null) return null;
         try
         {
-            var id = await _upload(Bundle());
+            var id = await _upload(Bundle(automatic ? _lastSent() : null));
             _onSent?.Invoke(DateTime.UtcNow);
             AppLog.Info("report sent " + id);
             if (!automatic) Status = L.T("Отчёт отправлен, номер: {0}", id);

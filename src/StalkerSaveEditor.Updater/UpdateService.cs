@@ -83,7 +83,7 @@ public sealed record UpdateManifest(
             ("windows", "installer") => "windows-installer-x86_64",
             ("linux", "portable") => "linux-x86_64",
             ("linux", "package") => "linux-deb-amd64",
-            ("macos", "disk-image") => "macos-arm64",
+            ("macos", "disk-image") => architecture == "arm64" ? "macos-arm64" : "macos-x86_64",
             _ => throw new UpdateManifestException($"No update artifact exists for {target}/{kind}.")
         };
 
@@ -591,7 +591,7 @@ public sealed class UpdateService : IDisposable
                 artifacts.Add(required, artifact);
             }
 
-            var optionalKeys = new HashSet<string>(["windows-installer-x86_64", "macos-arm64"], StringComparer.Ordinal);
+            var optionalKeys = new HashSet<string>(["windows-installer-x86_64", "macos-arm64", "macos-x86_64"], StringComparer.Ordinal);
             if (root.TryGetProperty("optional_artifacts", out var optionalRoot))
             {
                 if (optionalRoot.ValueKind != JsonValueKind.Object)

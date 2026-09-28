@@ -351,6 +351,48 @@ public sealed class SaveLibraryEditingTests
     }
 
     [Fact]
+    public void Undo_of_an_item_edit_keeps_redo_and_restores_the_item()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "items.sav");
+        File.WriteAllBytes(path, ReadXRayFixture());
+        var viewModel = new SaveLibraryViewModel(
+            discoverLocalSaves: false,
+            backupDirectoryProvider: () => Path.Combine(directory.Path, "backups"),
+            draftsDirectory: Path.Combine(directory.Path, "drafts"));
+
+        Assert.True(viewModel.AddPreviewSave(path));
+        var item = Assert.Single(viewModel.SelectedInventory);
+        item.CountInput = "44";
+        viewModel.MoneyInput = "777";
+
+        viewModel.UndoCommand.Execute(null);
+        Assert.Equal("44", item.CountInput);
+        Assert.True(viewModel.CanRedo);
+        viewModel.UndoCommand.Execute(null);
+        Assert.Equal("30", item.CountInput);
+        Assert.False(viewModel.CanUndo);
+        Assert.True(viewModel.CanRedo);
+
+        viewModel.RedoCommand.Execute(null);
+        Assert.Equal("44", item.CountInput);
+        viewModel.RedoCommand.Execute(null);
+        Assert.Equal("777", viewModel.MoneyInput);
+        Assert.False(viewModel.CanRedo);
+
+        viewModel.SelectedItem = item;
+        viewModel.RemoveSelectedItemCommand.Execute(null);
+        Assert.Empty(viewModel.FilteredInventory);
+        viewModel.UndoCommand.Execute(null);
+        Assert.Same(item, Assert.Single(viewModel.FilteredInventory));
+
+        viewModel.DiscardDraftCommand.Execute(null);
+        Assert.Equal("30", item.CountInput);
+        Assert.False(viewModel.CanUndo);
+        Assert.False(viewModel.HasDraftChanges);
+    }
+
+    [Fact]
     public void Guards_unsupported_operations_with_capability_service()
     {
         using var directory = new TemporaryDirectory();

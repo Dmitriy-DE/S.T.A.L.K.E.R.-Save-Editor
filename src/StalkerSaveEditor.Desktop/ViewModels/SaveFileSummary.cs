@@ -22,7 +22,6 @@ public sealed class SaveFileSummary
         int? actorReputation = null,
         ulong? gameTime = null,
         float? timeFactor = null,
-        string? levelName = null,
         string? playerFaction = null,
         bool canEditFaction = false,
         bool canEditUpgrades = false,
@@ -57,13 +56,12 @@ public sealed class SaveFileSummary
         FileSizeBytes = fileSizeBytes;
         LastModified = lastModified;
 
-        ActorName = actorName ?? L.T("Дегтярёв / Сталкер");
+        ActorName = string.IsNullOrWhiteSpace(actorName) ? "—" : actorName;
         ActorHealth = actorHealth;
         ActorRank = actorRank;
         ActorReputation = actorReputation;
         GameTime = gameTime;
         TimeFactor = timeFactor;
-        LevelName = levelName ?? L.T("Зона");
         PlayerFaction = playerFaction;
 
         CanEditFaction = canEditFaction;
@@ -165,7 +163,7 @@ public sealed class SaveFileSummary
             return ReleaseName;
         }
 
-        return string.IsNullOrWhiteSpace(LevelName) ? ReleaseName : $"{ReleaseName} · {LevelName}";
+        return LastModified is { } written ? $"{ReleaseName} · {written.ToString("g", CultureInfo.CurrentCulture)}" : ReleaseName;
     }
     public string DisplayName { get; }
     public string ReleaseName { get; }
@@ -177,13 +175,12 @@ public sealed class SaveFileSummary
     public long FileSizeBytes { get; }
     public DateTime? LastModified { get; }
 
-    public string? ActorName { get; }
+    public string ActorName { get; }
     public float? ActorHealth { get; }
     public int? ActorRank { get; }
     public int? ActorReputation { get; }
     public ulong? GameTime { get; }
     public float? TimeFactor { get; }
-    public string LevelName { get; }
     public string? PlayerFaction { get; }
 
     public bool CanEditFaction { get; }
@@ -246,7 +243,7 @@ public sealed class SaveFileSummary
         >= 600 => L.T("Ветеран"),
         >= 300 => L.T("Опытный"),
         _ => L.T("Новичок"),
-    } : L.T("Опытный");
+    } : "—";
 
     public string ReputationDisplay => ActorReputation.HasValue ? ActorReputation.Value switch
     {
@@ -255,5 +252,5 @@ public sealed class SaveFileSummary
         >= -20 => L.T("Нейтральная"),
         >= -100 => L.T("Плохая"),
         _ => L.T("Очень плохая"),
-    } : L.T("Нейтральная");
+    } : "—";
 }

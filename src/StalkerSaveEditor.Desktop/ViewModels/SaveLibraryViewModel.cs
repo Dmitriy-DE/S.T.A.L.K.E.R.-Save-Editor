@@ -21,6 +21,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private static readonly OfficialNamesCatalog OfficialNames = OfficialNamesCatalog.LoadEmbedded();
 
+    /// <summary>The editor's language as the name catalogs spell it (zh_CN, pt_BR).</summary>
+    private static string NamesLanguage => I18nService.Instance.CurrentLanguage.Replace('-', '_');
+
     private readonly Func<IReadOnlyList<string>> _saveDirectoriesProvider;
     private readonly Func<string> _backupDirectoryProvider;
     private readonly DraftStore _draftStore;
@@ -36,6 +39,19 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private string _inventorySearchText = string.Empty;
     private string _selectedCategory = "all";
     private InventoryLineViewModel? _selectedItem;
+
+    /// <summary>Set while a draft is applied to the rows, so the rows' change events do not record it again.</summary>
+    private bool _applyingPlan;
+
+    /// <summary>Row properties that are edits; the rest (displays, colours) only follow them.</summary>
+    private static readonly HashSet<string> EditableItemProperties =
+    [
+        nameof(InventoryLineViewModel.CountInput),
+        nameof(InventoryLineViewModel.ConditionPercent),
+        nameof(InventoryLineViewModel.Placement),
+        nameof(InventoryLineViewModel.IsDeleted),
+        nameof(InventoryLineViewModel.UpgradeItems),
+    ];
 
     public SaveLibraryViewModel(
         bool discoverLocalSaves = true,
@@ -57,7 +73,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             Directory.CreateDirectory(_draftStore.DirectoryPath);
         }
 
-        RefreshCommand = new RelayCommand(Refresh);
+        RefreshCommand = new RelayCommand(async () => await RefreshAsync());
         SaveCommand = new RelayCommand(SaveSelected, () => CanSave);
         UndoCommand = new RelayCommand(Undo, () => CanUndo);
         RedoCommand = new RelayCommand(Redo, () => CanRedo);
@@ -81,27 +97,31 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             localSaveFilesProvider: () => Saves.Select(s => s.FilePath).ToArray(),
             onSaveDownloaded: path => AddPreviewSave(path));
         DismissWizardCommand = new RelayCommand(DismissFirstRunWizard);
-        WizardAutoDetectCommand = new RelayCommand(WizardAutoDetect);
-        WizardAddDirectoryCommand = new RelayCommand(WizardAddDirectory, () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
+        WizardAutoDetectCommand = new RelayCommand(async () => await WizardAutoDetectAsync());
+        WizardAddDirectoryCommand = new RelayCommand(async () => await WizardAddDirectoryAsync(), () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
 
-        // Refresh selects a save, which updates the comparison: it must exist first.
+        // Loading selects a save, which updates the comparison: it must exist first.
         Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
-        if (discoverLocalSaves) Refresh();
 
         Diagnostics = new DiagnosticsViewModel(
             pendingCrash: InteractiveApp ? CrashReporter.Pending() : null,
             upload: InteractiveApp ? bundle => DiagnosticsUploader.SendAsync(bundle) : null,
-            onSent: Settings.MarkReportSent);
+            onSent: Settings.MarkReportSent,
+            lastSent: () => Settings.LastReportUtc);
         AcknowledgeReportsCommand = new RelayCommand(() => AnswerReportsNotice(true));
         DisableReportsCommand = new RelayCommand(() => AnswerReportsNotice(false));
         SendReportIfDue();
 
-        if (InteractiveApp)
+        if (discoverLocalSaves && InteractiveApp)
         {
-            // Items, names and icons of the installed games (and their mods) arrive in the background.
-            GameContentRegistry.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(ReloadSelectedSave);
+            // Items, names and icons of the installed games (and their mods) first, then the saves read
+            // with them — all off the interface thread.
             var contentLanguage = I18nService.Instance.CurrentLanguage;
-            _ = Task.Run(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
+            _ = RefreshAsync(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
+        }
+        else if (discoverLocalSaves)
+        {
+            Refresh();
         }
 
         // Silent background update check; only the real interactive app goes online (not screenshots or tests).
@@ -126,7 +146,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void SendReportIfDue()
     {
         if (!InteractiveApp || !Settings.SendReports || Settings.ReportsNoticeVisible) return;
-        if (!DiagnosticsUploader.IsDue(Settings.LastReportUtc, DateTime.UtcNow, CrashReporter.Pending() is not null)) return;
+        var last = Settings.LastReportUtc;
+        var unreportedCrash = CrashReporter.PendingSinceUtc() is { } crashed && (last is null || crashed > last);
+        if (!DiagnosticsUploader.IsDue(last, DateTime.UtcNow, unreportedCrash)) return;
         _ = Task.Run(() => Diagnostics.SendAsync(automatic: true));
     }
 
@@ -231,7 +253,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -244,27 +266,19 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         OnPropertyChanged(nameof(ShouldShowEmptyState));
     }
 
-    public void WizardAutoDetect()
+    public async Task WizardAutoDetectAsync()
     {
         Settings.AutoDetectSaveDirectories();
-        Refresh();
-        if (Saves.Count > 0)
-        {
-            DismissFirstRunWizard();
-        }
+        await RefreshAsync();
+        if (Saves.Count > 0) DismissFirstRunWizard();
     }
 
-    public void WizardAddDirectory()
+    public async Task WizardAddDirectoryAsync()
     {
-        if (Settings.AddSaveDirectory(WizardDirectoryInput))
-        {
-            WizardDirectoryInput = string.Empty;
-            Refresh();
-            if (Saves.Count > 0)
-            {
-                DismissFirstRunWizard();
-            }
-        }
+        if (!Settings.AddSaveDirectory(WizardDirectoryInput)) return;
+        WizardDirectoryInput = string.Empty;
+        await RefreshAsync();
+        if (Saves.Count > 0) DismissFirstRunWizard();
     }
 
     public bool IsOverviewTab => SelectedTab == "overview";
@@ -309,6 +323,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
 
             Capabilities.SelectedFormatId = value?.ReleaseId;
+            if (InteractiveApp && value is not null) GameAudioService.Instance.UseGame(value.ReleaseId);
 
             if (value is not null)
             {
@@ -486,24 +501,121 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    /// <summary>Re-reads the library with the new catalogs, keeping the selected save; drafts live on disk and are restored.</summary>
-    private void ReloadSelectedSave()
+    /// <summary>A parsed save (null: not a save), reused while the file keeps its size and modification time.</summary>
+    private sealed record CachedSave(long Length, DateTime LastWriteUtc, SaveFileSummary? Summary);
+
+    private Dictionary<string, CachedSave> _libraryCache = new(StringComparer.Ordinal);
+    private bool _isLoadingLibrary;
+    private int _libraryVersion;
+    private int _appliedLibraryVersion = -1;
+
+    /// <summary>Re-reads the save folders now (tests, restores): only new or changed files are parsed.</summary>
+    public void Refresh() => ApplyLibrary(LoadLibrary(_saveDirectoriesProvider().ToArray(), _libraryCache));
+
+    /// <summary>
+    /// Re-reads the save folders off the interface thread (the app: hundreds of saves take seconds);
+    /// <paramref name="before"/> runs first on the same thread (the installed games' content).
+    /// </summary>
+    public async Task RefreshAsync(Action? before = null)
     {
-        var selectedPath = SelectedSave?.FilePath;
-        Refresh();
-        if (selectedPath is not null && Saves.FirstOrDefault(save => save.FilePath == selectedPath) is { } same) SelectedSave = same;
+        var directories = _saveDirectoriesProvider().ToArray();
+        var cache = _libraryCache;
+        var version = ++_libraryVersion;
+        SetLoadingLibrary(true);
+        try
+        {
+            // A first load shows each finished batch at once (newest saves first); later loads come from the cache.
+            var progressive = Saves.Count == 0;
+            var loaded = await Task.Run(() =>
+            {
+                before?.Invoke();
+                return LoadLibrary(directories, cache, progressive
+                    ? batch => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendBatch(batch, version))
+                    : null);
+            });
+            if (version == _libraryVersion)
+            {
+                _appliedLibraryVersion = version;
+                ApplyLibrary(loaded);
+            }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            AppLog.Error("save library not loaded", exception);
+            StatusMessage = L.T("Не удалось прочитать папки сохранений: {0}", exception.Message);
+        }
+        finally
+        {
+            if (version == _libraryVersion) SetLoadingLibrary(false);
+        }
     }
 
-    public void Refresh()
+    private void SetLoadingLibrary(bool loading)
     {
-        Saves.Clear();
-        foreach (var path in EnumerateSaveFiles(_saveDirectoriesProvider()))
+        _isLoadingLibrary = loading;
+        if (loading) StatusMessage = L.T("Чтение сохранений…");
+        else if (StatusMessage == L.T("Чтение сохранений…")) StatusMessage = string.Empty;
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
+    }
+
+    /// <summary>
+    /// Lists and parses the save files, newest first, in parallel batches; unchanged files (and files
+    /// known not to be saves) come from <paramref name="cache"/>. <paramref name="batchLoaded"/> sees
+    /// the saves of each finished batch, so a first load can show the newest ones at once.
+    /// </summary>
+    private static (List<SaveFileSummary> Saves, Dictionary<string, CachedSave> Cache) LoadLibrary(
+        IReadOnlyList<string> directories,
+        IReadOnlyDictionary<string, CachedSave> cache,
+        Action<IReadOnlyList<SaveFileSummary>>? batchLoaded = null)
+    {
+        var files = EnumerateSaveFiles(directories)
+            .Select(path => new FileInfo(path))
+            .Where(info => info.Exists)
+            .OrderByDescending(info => info.LastWriteTimeUtc)
+            .ToArray();
+        var entries = new CachedSave[files.Length];
+        var parallelism = Math.Clamp(Environment.ProcessorCount - 1, 1, 8);
+        for (var start = 0; start < files.Length; start += parallelism * 2)
         {
-            var parsed = TryReadSave(path);
-            if (parsed is not null) Saves.Add(parsed);
+            var end = Math.Min(files.Length, start + parallelism * 2);
+            Parallel.For(start, end, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, index =>
+            {
+                var info = files[index];
+                entries[index] = cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc
+                    ? hit
+                    : new CachedSave(info.Length, info.LastWriteTimeUtc, TryReadSave(info.FullName));
+            });
+            batchLoaded?.Invoke(entries[start..end].Select(entry => entry.Summary).OfType<SaveFileSummary>().ToArray());
         }
 
-        SelectedSave = Saves.FirstOrDefault();
+        var next = new Dictionary<string, CachedSave>(StringComparer.Ordinal);
+        for (var index = 0; index < files.Length; index++) next[files[index].FullName] = entries[index];
+        return (entries.Select(entry => entry.Summary).OfType<SaveFileSummary>().ToList(), next);
+    }
+
+    private void AppendBatch(IReadOnlyList<SaveFileSummary> batch, int version)
+    {
+        // A batch can arrive after the finished list (the continuation may run first): then it is already shown.
+        if (version != _libraryVersion || version == _appliedLibraryVersion) return;
+        foreach (var save in batch) Saves.Add(save);
+        SelectedSave ??= Saves.FirstOrDefault();
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
+    }
+
+    /// <summary>Shows a loaded library, keeping the selected save when it is still there.</summary>
+    private void ApplyLibrary((List<SaveFileSummary> Saves, Dictionary<string, CachedSave> Cache) library)
+    {
+        var selectedPath = SelectedSave?.FilePath;
+        _libraryCache = library.Cache;
+        if (!Saves.SequenceEqual(library.Saves))
+        {
+            Saves.Clear();
+            foreach (var save in library.Saves) Saves.Add(save);
+        }
+
+        SelectedSave = Saves.FirstOrDefault(save => save.FilePath == selectedPath) ?? Saves.FirstOrDefault();
         RefreshBackups();
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
         OnPropertyChanged(nameof(ShouldShowEmptyState));
@@ -548,24 +660,20 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public void Undo()
     {
-        if (_currentJournal is { CanUndo: true })
-        {
-            _currentJournal = _currentJournal.Undo();
-            _draftStore.Save(_currentJournal);
-            ApplyPlanToUI(_currentJournal.Current);
-            UpdateDraftState();
-        }
+        if (_currentJournal is { CanUndo: true } journal) MoveInJournal(journal.Undo());
     }
 
     public void Redo()
     {
-        if (_currentJournal is { CanRedo: true })
-        {
-            _currentJournal = _currentJournal.Redo();
-            _draftStore.Save(_currentJournal);
-            ApplyPlanToUI(_currentJournal.Current);
-            UpdateDraftState();
-        }
+        if (_currentJournal is { CanRedo: true } journal) MoveInJournal(journal.Redo());
+    }
+
+    private void MoveInJournal(DraftJournal journal)
+    {
+        _currentJournal = journal;
+        _draftStore.Save(journal);
+        ApplyPlanToUI(journal.Current);
+        UpdateDraftState();
     }
 
     public void DiscardDraft()
@@ -573,27 +681,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         if (SelectedSave is null) return;
         _draftStore.Remove(SelectedSave.SourceSha256);
         _currentJournal = new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0);
-
-        _moneyInput = SelectedSave.Money.ToString(CultureInfo.InvariantCulture);
-        foreach (var item in SelectedSave.Inventory)
-        {
-            item.CountInput = item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? "1";
-            item.ConditionPercent = item.OriginalCondition.HasValue ? (int)Math.Round(item.OriginalCondition.Value * 100f) : 100;
-            item.Placement = item.OriginalPlacement;
-            item.IsDeleted = false;
-            foreach (var up in item.UpgradeItems) up.IsInstalled = up.OriginalInstalled;
-        }
-
-        foreach (var relation in SelectedSave.FactionRelations)
-        {
-            relation.Goodwill = relation.OriginalGoodwill;
-        }
-
-        foreach (var stash in SelectedSave.Stashes)
-        {
-            foreach (var stashItem in stash.Items) stashItem.IsTaken = false;
-        }
-
+        ApplyPlanToUI(_currentJournal.Current);
         UpdateDraftState();
         StatusMessage = L.T("Черновик сброшен.");
     }
@@ -637,13 +725,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         RecordDraftChange();
     }
 
-    public void AdjustFactionRelation(FactionRelationViewModel relation, int delta)
+    public void AdjustFactionRelation(FactionRelationViewModel relation, int delta) =>
+        SetFactionRelation(relation, relation.Goodwill + delta);
+
+    /// <summary>Sets a faction's goodwill within the game's range and records it in the draft.</summary>
+    public void SetFactionRelation(FactionRelationViewModel relation, int goodwill)
     {
+        ArgumentNullException.ThrowIfNull(relation);
         var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
         var catalog = TryCatalog(releaseId, out var bundle) ? bundle.Factions : null;
-        var min = catalog?.GoodwillMin ?? -3000;
-        var max = catalog?.GoodwillMax ?? 1000;
-        relation.Goodwill = Math.Clamp(relation.Goodwill + delta, min, max);
+        relation.Goodwill = Math.Clamp(goodwill, catalog?.GoodwillMin ?? -3000, catalog?.GoodwillMax ?? 1000);
         RecordDraftChange();
     }
 
@@ -651,7 +742,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
         var catalog = TryCatalog(releaseId, out var bundle) ? bundle.Items : null;
-        return new AddItemViewModel(catalog, OfficialNames, releaseId);
+        return new AddItemViewModel(catalog, OfficialNames, releaseId, NamesLanguage);
     }
 
     public void StageItemAddition(string sectionKey, uint quantity)
@@ -876,7 +967,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void RecordPlan(EditPlan plan)
     {
         if (SelectedSave is null) return;
-        _currentJournal = (_currentJournal ?? new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0)).Record(plan);
+        var journal = _currentJournal ?? new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0);
+        if (journal.Current.HasSameEdits(plan)) return;
+        _currentJournal = journal.Record(plan);
         _draftStore.Save(_currentJournal);
         UpdateDraftState();
     }
@@ -884,79 +977,49 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void ApplyPlanToUI(EditPlan plan)
     {
         if (SelectedSave is null) return;
+        _applyingPlan = true;
+        try
+        {
+            ApplyPlanToRows(SelectedSave, plan);
+        }
+        finally
+        {
+            _applyingPlan = false;
+        }
 
-        _moneyInput = plan.Money.HasValue
-            ? plan.Money.Value.ToString(CultureInfo.InvariantCulture)
-            : SelectedSave.Money.ToString(CultureInfo.InvariantCulture);
+        // Undoing a removal brings the row back into the list.
+        var selected = SelectedItem;
+        ApplyInventoryFilter();
+        SelectedItem = selected is not null && FilteredInventory.Contains(selected) ? selected : FilteredInventory.FirstOrDefault();
+    }
+
+    private void ApplyPlanToRows(SaveFileSummary save, EditPlan plan)
+    {
+        _moneyInput = (plan.Money ?? save.Money).ToString(CultureInfo.InvariantCulture);
         OnPropertyChanged(nameof(MoneyInput));
 
-        foreach (var item in SelectedSave.Inventory)
+        foreach (var item in save.Inventory)
         {
-            if (plan.StackCounts.TryGetValue(item.Handle, out var count))
-            {
-                item.CountInput = count.ToString(CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                item.CountInput = item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
-            }
-
-            if (plan.Durability.TryGetValue(item.Handle, out var cond))
-            {
-                item.ConditionPercent = (int)Math.Round(cond * 100);
-            }
-            else
-            {
-                item.ConditionPercent = item.OriginalCondition.HasValue
-                    ? (int)Math.Round(item.OriginalCondition.Value * 100)
-                    : 100;
-            }
-
+            item.CountInput = plan.StackCounts.TryGetValue(item.Handle, out var count)
+                ? count.ToString(CultureInfo.InvariantCulture)
+                : item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? "1";
+            item.ConditionPercent = plan.Durability.TryGetValue(item.Handle, out var condition)
+                ? (int)Math.Round(condition * 100)
+                : item.OriginalCondition is { } original ? (int)Math.Round(original * 100) : 100;
             item.IsDeleted = plan.DetachHandles.Contains((ushort)item.Handle);
-
-            if (plan.Placements.FirstOrDefault(p => p.Handle == item.Handle) is { } plc)
-            {
-                item.Placement = plc.Type;
-            }
-            else
-            {
-                item.Placement = item.OriginalPlacement ?? "backpack";
-            }
-
-            if (plan.Upgrades.TryGetValue((ushort)item.Handle, out var ups))
-            {
-                foreach (var up in item.UpgradeItems)
-                {
-                    up.IsInstalled = ups.Contains(up.Key, StringComparer.Ordinal);
-                }
-            }
-            else
-            {
-                foreach (var up in item.UpgradeItems)
-                {
-                    up.IsInstalled = item.OriginalUpgrades.Contains(up.Key, StringComparer.Ordinal);
-                }
-            }
+            item.Placement = plan.Placements.FirstOrDefault(change => change.Handle == item.Handle)?.Type ?? item.OriginalPlacement;
+            var installed = plan.Upgrades.TryGetValue((ushort)item.Handle, out var upgrades) ? upgrades : item.OriginalUpgrades;
+            foreach (var upgrade in item.UpgradeItems) upgrade.IsInstalled = installed.Contains(upgrade.Key, StringComparer.Ordinal);
         }
 
-        foreach (var stash in SelectedSave.Stashes)
+        foreach (var stashItem in save.Stashes.SelectMany(stash => stash.Items))
         {
-            foreach (var stashItem in stash.Items)
-            {
-                stashItem.IsTaken = plan.StashTakes.Contains(stashItem.Handle);
-            }
+            stashItem.IsTaken = plan.StashTakes.Contains(stashItem.Handle);
         }
 
-        foreach (var rel in SelectedSave.FactionRelations)
+        foreach (var relation in save.FactionRelations)
         {
-            if (plan.FactionRelations.TryGetValue(rel.Community, out var val))
-            {
-                rel.Goodwill = val;
-            }
-            else
-            {
-                rel.Goodwill = rel.OriginalGoodwill;
-            }
+            relation.Goodwill = plan.FactionRelations.TryGetValue(relation.Community, out var goodwill) ? goodwill : relation.OriginalGoodwill;
         }
     }
 
@@ -1003,6 +1066,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private void OnInventoryItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (_applyingPlan || e.PropertyName is null || !EditableItemProperties.Contains(e.PropertyName)) return;
         RecordDraftChange();
     }
 
@@ -1068,8 +1132,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 return null;
             }
         }
-        catch (Exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            // Not a save the readers know (a damaged file, a foreign format): logged, listed nowhere.
+            AppLog.Warn($"skipped {Path.GetFileName(path)}: {exception.GetType().Name}: {exception.Message}");
             return null;
         }
     }
@@ -1127,7 +1193,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         var inventory = save.Inventory.Select(item =>
         {
-            var localizedName = OfficialNames.Resolve(formatId, "items", item.TypeKey, CultureInfo.CurrentUICulture.Name)
+            var localizedName = OfficialNames.Resolve(formatId, "items", item.TypeKey, NamesLanguage)
                 ?? item.TypeKey;
             var availableUpgrades = upgradeCatalog?.ForItem(item.TypeKey);
             return new InventoryLineViewModel(
@@ -1159,7 +1225,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             s.Items.Select(i => new StashItemViewModel(
                 i.Handle,
                 i.TypeKey,
-                OfficialNames.Resolve(formatId, "items", i.TypeKey, CultureInfo.CurrentUICulture.Name) ?? i.TypeKey,
+                OfficialNames.Resolve(formatId, "items", i.TypeKey, NamesLanguage) ?? i.TypeKey,
                 i.Count ?? 1,
                 canEdit: canEditStashes,
                 disabledReason: stashesReason))));
@@ -1172,7 +1238,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 var factionDef = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == relation.CommunityIndex);
                 var commKey = factionDef?.Key ?? $"faction_{relation.CommunityIndex}";
-                var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, CultureInfo.CurrentUICulture.Name)
+                var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, NamesLanguage)
                     ?? factionDef?.DisplayName
                     ?? commKey;
                 factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions, factionReason));
@@ -1194,12 +1260,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             lc.ParentId,
             lc.ObjectVersion)).ToList();
 
-        var levelName = save.Stashes.FirstOrDefault(s => !string.IsNullOrEmpty(s.Level))?.Level;
-        if (!string.IsNullOrEmpty(levelName))
-        {
-            levelName = OfficialNames.Resolve(formatId, "levels", levelName, CultureInfo.CurrentUICulture.Name) ?? levelName;
-        }
-
         return new SaveFileSummary(
             path,
             ReleaseName(formatId),
@@ -1216,7 +1276,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             save.ActorReputation,
             save.GameTime,
             save.TimeFactor,
-            levelName,
             playerFaction,
             canEditFactions,
             canEditUpgrades,
@@ -1262,7 +1321,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         var catalog = TryCatalog(formatId, out var bundle) ? bundle.Items : null;
         var s2Items = Stalker2ItemCatalog.LoadEmbedded();
-        var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        var language = NamesLanguage;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
             s2Items.Name(item.DisplayName, language) ?? item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
             item.TypeKey,
@@ -1313,26 +1372,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
 
-    private bool HasPendingChanges(SaveFileSummary save)
-    {
-        if (!string.Equals(save.Money.ToString(CultureInfo.InvariantCulture), MoneyInput, StringComparison.Ordinal))
-            return true;
-
-        if (save.Inventory.Any(i => i.IsDeleted ||
-            (i.CanEditCount && !string.Equals(i.OriginalCount?.ToString(CultureInfo.InvariantCulture), i.CountInput, StringComparison.Ordinal)) ||
-            (i.CanEditCondition && i.OriginalCondition.HasValue && Math.Abs(i.ConditionFraction - i.OriginalCondition.Value) > 0.005f) ||
-            (i.CanEditPlacement && !string.Equals(i.Placement, i.OriginalPlacement, StringComparison.Ordinal)) ||
-            i.UpgradesChanged))
-            return true;
-
-        if (save.Stashes.Any(s => s.Items.Any(i => i.IsTaken)))
-            return true;
-
-        if (save.FactionRelations.Any(r => r.Goodwill != r.OriginalGoodwill))
-            return true;
-
-        return false;
-    }
+    /// <summary>The rows differ from the save (an unparsable input counts as a change the user has to fix).</summary>
+    private bool HasPendingChanges(SaveFileSummary save) =>
+        BuildCurrentEditPlan(save).EditKinds != EditKind.None || !InputsAreValid(save);
 
     private bool InputsAreValid(SaveFileSummary save)
     {

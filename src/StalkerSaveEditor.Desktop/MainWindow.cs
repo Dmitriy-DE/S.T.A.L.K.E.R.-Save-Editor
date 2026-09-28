@@ -227,7 +227,7 @@ public sealed class MainWindow : Window
         });
 
         var releaseBadge = StalkerTheme.Badge("X-Ray / S2", StalkerTheme.BrushBgElevated, StalkerTheme.BrushTextSecondary, 10);
-        releaseBadge.Bind(TextBlock.TextProperty, new Binding("SelectedSave.ReleaseName"));
+        ((TextBlock)releaseBadge.Child!).Bind(TextBlock.TextProperty, new Binding("SelectedSave.ReleaseName") { FallbackValue = "X-Ray / S2", TargetNullValue = "X-Ray / S2" });
         titleStack.Children.Add(releaseBadge);
         grid.Children.Add(titleStack);
 
@@ -576,7 +576,7 @@ public sealed class MainWindow : Window
         grid.Children.Add(status);
 
         var draftBadge = StalkerTheme.Badge(L.T("Сохранено"), StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentDim, 10);
-        draftBadge.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.DraftStatusText)));
+        ((TextBlock)draftBadge.Child!).Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.DraftStatusText)));
         Grid.SetColumn(draftBadge, 1);
         grid.Children.Add(draftBadge);
 

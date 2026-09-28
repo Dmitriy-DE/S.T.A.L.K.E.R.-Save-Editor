@@ -36,6 +36,28 @@ public sealed class DiagnosticsTests : IDisposable
     }
 
     [Fact]
+    public void Redacts_wine_user_folders_and_steam_id64()
+    {
+        var text = AppLog.Redact("/games/pfx/drive_c/users/alice/AppData id=76561198012345678 C:\\x\\drive_c\\users\\bob\\y");
+
+        Assert.DoesNotContain("alice", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("bob", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("76561198012345678", text, StringComparison.Ordinal);
+        Assert.Contains("<steamid>", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Daily_bundle_carries_only_lines_written_after_the_last_report()
+    {
+        const string log = "2026-09-27T10:00:00.000Z INFO old line\nSystem.Exception: old trace\n2026-09-28T10:00:00.000Z INFO new line\n  at new trace\n";
+
+        var tail = DiagnosticsBundle.LinesAfter(log, new DateTime(2026, 9, 28, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal("2026-09-28T10:00:00.000Z INFO new line\n  at new trace\n", tail);
+        Assert.Empty(DiagnosticsBundle.LinesAfter(log, new DateTime(2026, 9, 29, 0, 0, 0, DateTimeKind.Utc)));
+    }
+
+    [Fact]
     public void Crash_is_kept_for_the_next_start_and_can_be_dismissed()
     {
         CrashReporter.Record("test crash", new InvalidOperationException("boom"));

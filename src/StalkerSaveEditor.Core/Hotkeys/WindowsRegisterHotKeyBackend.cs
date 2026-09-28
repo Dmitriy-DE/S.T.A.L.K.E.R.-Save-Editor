@@ -8,6 +8,7 @@ internal sealed class WindowsRegisterHotKeyBackend : IGlobalHotkeyBackend
 {
     private const uint WmHotkey = 0x0312;
     private const uint WmQuit = 0x0012;
+    private const uint WmTimer = 0x0113;
     private const uint PmNoRemove = 0x0000;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
@@ -144,12 +145,36 @@ internal sealed class WindowsRegisterHotKeyBackend : IGlobalHotkeyBackend
             }
 
             _started?.TrySetResult();
+
+            // The keys are registered only while the game is the foreground window (checked every 300 ms),
+            // so Ctrl+S, Ctrl+R… keep working in every other program.
+            var active = true;
+            SyncWithForeground();
+            var timer = NativeMethods.SetTimer(IntPtr.Zero, UIntPtr.Zero, 300, IntPtr.Zero);
             int messageResult;
             while ((messageResult = NativeMethods.GetMessage(out var message, IntPtr.Zero, 0, 0)) > 0)
             {
-                if (message.Message == WmHotkey && _bindings.TryGetValue(unchecked((int)message.WParam.ToUInt64()), out var pressed))
+                if (message.Message == WmTimer)
+                {
+                    SyncWithForeground();
+                }
+                else if (message.Message == WmHotkey && _bindings.TryGetValue(unchecked((int)message.WParam.ToUInt64()), out var pressed))
                 {
                     _onPressed?.Invoke(pressed);
+                }
+            }
+
+            _ = NativeMethods.KillTimer(IntPtr.Zero, timer);
+
+            void SyncWithForeground()
+            {
+                var game = GameIsForeground();
+                if (game == active) return;
+                active = game;
+                foreach (var (hotkeyId, binding) in _bindings)
+                {
+                    if (game) _ = NativeMethods.RegisterHotKey(IntPtr.Zero, hotkeyId, GetNativeModifiers(binding.Gesture.Modifiers), (uint)char.ToUpperInvariant(binding.Gesture.Key));
+                    else _ = NativeMethods.UnregisterHotKey(IntPtr.Zero, hotkeyId);
                 }
             }
 
@@ -177,6 +202,21 @@ internal sealed class WindowsRegisterHotKeyBackend : IGlobalHotkeyBackend
 
             _threadReady?.TrySetResult();
             _stopped?.TrySetResult();
+        }
+    }
+
+    private static bool GameIsForeground()
+    {
+        var window = NativeMethods.GetForegroundWindow();
+        if (window == IntPtr.Zero || NativeMethods.GetWindowThreadProcessId(window, out var processId) == 0) return false;
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById((int)processId);
+            return GameWindowMatcher.IsGame(process.ProcessName);
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or Win32Exception)
+        {
+            return false;
         }
     }
 
@@ -221,6 +261,19 @@ internal sealed class WindowsRegisterHotKeyBackend : IGlobalHotkeyBackend
         [DllImport("user32.dll", EntryPoint = "PostThreadMessageW", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool PostThreadMessage(uint threadId, uint message, UIntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll", EntryPoint = "SetTimer", SetLastError = true)]
+        internal static extern UIntPtr SetTimer(IntPtr window, UIntPtr id, uint elapse, IntPtr timerProc);
+
+        [DllImport("user32.dll", EntryPoint = "KillTimer")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool KillTimer(IntPtr window, UIntPtr id);
+
+        [DllImport("user32.dll", EntryPoint = "GetForegroundWindow")]
+        internal static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
+        internal static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
         [DllImport("kernel32.dll", EntryPoint = "GetCurrentThreadId")]
         internal static extern uint GetCurrentThreadId();

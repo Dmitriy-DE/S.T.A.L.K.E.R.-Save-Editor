@@ -102,7 +102,7 @@ public sealed class Stalker2CompanionInstaller(string modSourceRoot)
 
     private static string? FindGame(IReadOnlyList<string>? steamRoots)
     {
-        foreach (var library in SteamLibraryFolderLocator.GetLibraries(steamRoots ?? CompanionInstaller.GetDefaultSteamRoots()))
+        foreach (var library in SteamLibraryFolderLocator.GetLibraries(steamRoots ?? SaveDirectoryLocator.DefaultSteamRoots()))
         {
             if (SteamLibraryFolderLocator.GetManifestInstallDirectory(library, SteamAppId) is { } directory && Directory.Exists(directory))
             {

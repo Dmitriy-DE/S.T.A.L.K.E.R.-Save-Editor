@@ -492,27 +492,7 @@ public sealed partial class DraftStore
         return false;
     }
 
-    private static string GetDefaultDirectory()
-    {
-        var dataRoot = OperatingSystem.IsWindows()
-            ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
-            : OperatingSystem.IsMacOS()
-                ? Path.Combine(GetHomeDirectory(), "Library", "Application Support")
-                : Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } xdg
-                    ? xdg
-                    : Path.Combine(GetHomeDirectory(), ".local", "share");
-        if (string.IsNullOrWhiteSpace(dataRoot))
-        {
-            throw new InvalidOperationException("Application data directory is unavailable.");
-        }
-
-        return Path.Combine(dataRoot, "StalkerSaveEditor", "drafts");
-    }
-
-    private static string GetHomeDirectory() =>
-        Environment.GetEnvironmentVariable("HOME") is { Length: > 0 } home
-            ? home
-            : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    private static string GetDefaultDirectory() => Diagnostics.AppPaths.Drafts;
 
     private static void DeleteIfExists(string path)
     {

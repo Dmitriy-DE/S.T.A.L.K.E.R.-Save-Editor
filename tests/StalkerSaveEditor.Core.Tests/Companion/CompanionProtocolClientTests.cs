@@ -264,9 +264,20 @@ public sealed class CompanionProtocolClientTests
 
         public void Dispose()
         {
-            if (Directory.Exists(_root))
+            // Windows can hold a just-closed file for a moment; a leftover temporary folder is harmless.
+            for (var attempt = 0; attempt < 10 && Directory.Exists(_root); attempt++)
             {
-                Directory.Delete(_root, recursive: true);
+                try
+                {
+                    Directory.Delete(_root, recursive: true);
+                }
+                catch (IOException) when (attempt < 9)
+                {
+                    Thread.Sleep(50);
+                }
+                catch (IOException)
+                {
+                }
             }
         }
     }

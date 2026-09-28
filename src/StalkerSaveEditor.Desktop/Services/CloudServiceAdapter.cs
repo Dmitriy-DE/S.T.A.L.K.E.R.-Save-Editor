@@ -28,40 +28,31 @@ public sealed class CloudServiceAdapter : ICloudServiceAdapter
         _autoCloudRootFinder = autoCloudRootFinder ?? throw new ArgumentNullException(nameof(autoCloudRootFinder));
     }
 
-    public bool IsSteamAvailable
-    {
-        get
-        {
-            try
-            {
-                var writer = _remoteStorageWriterFactory();
-                var avail = writer.CheckAvailability(41700);
-                return avail.CanWrite;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-    }
+    public bool IsSteamAvailable => Availability().CanWrite;
 
-    public string? SteamStatusMessage
+    public string? SteamStatusMessage => Availability() is { CanWrite: true }
+        ? L.T("Steam доступен.")
+        : Availability().Reason;
+
+    private (bool CanWrite, string? Reason) _availability;
+    private DateTime _availabilityCheckedUtc;
+
+    /// <summary>libsteam_api lookup (file system), cached for a few seconds: the screen asks on every selection.</summary>
+    private (bool CanWrite, string? Reason) Availability()
     {
-        get
+        if (DateTime.UtcNow - _availabilityCheckedUtc < TimeSpan.FromSeconds(10)) return _availability;
+        try
         {
-            try
-            {
-                var writer = _remoteStorageWriterFactory();
-                var avail = writer.CheckAvailability(41700);
-                return avail.CanWrite
-                    ? "Steam подключён и доступен."
-                    : avail.Reason;
-            }
-            catch (Exception ex)
-            {
-                return $"Steam недоступен: {ex.Message}";
-            }
+            var availability = _remoteStorageWriterFactory().CheckAvailability(41700);
+            _availability = (availability.CanWrite, availability.Reason);
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _availability = (false, L.T("Steam недоступен: {0}", exception.Message));
+        }
+
+        _availabilityCheckedUtc = DateTime.UtcNow;
+        return _availability;
     }
 
     public async Task<IReadOnlyList<CloudFileModel>> ListCloudFilesAsync(
@@ -140,9 +131,10 @@ public sealed class CloudServiceAdapter : ICloudServiceAdapter
                     comparison));
             }
         }
-        catch (Exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            // If Steam RemoteStorage listing fails (e.g. Steam offline), return empty collection
+            // Steam offline or the game not owned: an empty list, the reason goes to the log.
+            Core.Diagnostics.AppLog.Warn($"cloud list {appId} failed: {exception.Message}");
         }
 
         return result;
@@ -185,48 +177,40 @@ public sealed class CloudServiceAdapter : ICloudServiceAdapter
                 null,
                 null,
                 null,
-                "Запись S.T.A.L.K.E.R. 2 в облако временно отключена до подтверждения полной мутации в игре.");
+                L.T("Запись S.T.A.L.K.E.R. 2 в облако выключена до проверки в игре."));
         }
 
         try
         {
-            var writer = _remoteStorageWriterFactory();
-            var releaseId = GetReleaseId(appId);
-            var parsed = StalkerSaveEditor.Core.Formats.XRay.XRayTrilogyReader.FromBytes(data);
-            var sha = Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
-            var plan = new EditPlan(sha, money: parsed.Money);
-            var prepared = EditService.PrepareEdit(data, plan, releaseId);
-
-            var result = await writer.WriteAsync(
+            // The local file goes up as it is; the transaction re-reads the cloud copy and refuses to
+            // write when it changed after this read (the hash below).
+            var current = await _readClientFactory(appId).ReadAsync(remotePath, cancellationToken).ConfigureAwait(false);
+            var prepared = PreparedEdit.Replacing(Convert.ToHexString(SHA256.HashData(current)).ToLowerInvariant(), data);
+            var result = await _remoteStorageWriterFactory().WriteAsync(
                 appId,
                 prepared,
                 remotePath,
                 backupDirectory,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            var status = result.Status == SteamRemoteStorageWriteStatus.Verified
-                ? CloudWriteStatus.Verified
-                : CloudWriteStatus.Uncertain;
-
-            var message = status == CloudWriteStatus.Verified
-                ? "Успешно записано в Steam Cloud и подтверждено (Verified)."
-                : $"Запись выполнена, но статус неопределён (Uncertain): {result.Reason}. Согласно правилам безопасности, автоматический повтор запрещён.";
-
+            var verified = result.Status == SteamRemoteStorageWriteStatus.Verified;
             return new CloudWriteResult(
-                status,
+                verified ? CloudWriteStatus.Verified : CloudWriteStatus.Uncertain,
                 result.BackupPath,
                 result.RecoveryPath,
                 result.OutputSha256,
-                message);
+                verified
+                    ? L.T("Записано в Steam Cloud и прочитано обратно.")
+                    : L.T("Steam не подтвердил запись: {0}. Повтор не выполняется, облачный бэкап: {1}", result.Reason, result.BackupPath ?? "—"));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return new CloudWriteResult(
                 CloudWriteStatus.Aborted,
                 null,
                 null,
                 null,
-                $"Ошибка записи в Steam Cloud: {ex.Message}");
+                L.T("Ошибка записи в Steam Cloud: {0}", ex.Message));
         }
     }
 

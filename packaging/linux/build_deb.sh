@@ -26,7 +26,7 @@ Priority: optional
 Architecture: ${ARCH}
 Maintainer: Dmitriy-DE <Dmitriy-DE@users.noreply.github.com>
 Depends: libc6, libgcc-s1, libstdc++6, libfontconfig1, libice6, libsm6, libx11-6
-Homepage: https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next
+Homepage: https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor
 Description: Save editor and game companion for S.T.A.L.K.E.R.
  Save editor for Shadow of Chernobyl, Clear Sky, Call of Pripyat (including the
  Enhanced Editions) and S.T.A.L.K.E.R. 2, with verified backups, Steam Cloud

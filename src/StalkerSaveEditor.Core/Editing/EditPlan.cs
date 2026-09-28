@@ -212,6 +212,30 @@ public sealed record EditPlan
 
     public EditKind EditKinds { get; }
 
+    /// <summary>True when both plans make the same changes to the same save (collections compared by content).</summary>
+    public bool HasSameEdits(EditPlan other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        return SourceSha256 == other.SourceSha256 &&
+            Money == other.Money &&
+            PlayerFaction == other.PlayerFaction &&
+            Stalker2StashTakeHandle == other.Stalker2StashTakeHandle &&
+            SameMap(StackCounts, other.StackCounts) &&
+            DetachHandles.SequenceEqual(other.DetachHandles) &&
+            Adds.SequenceEqual(other.Adds) &&
+            StashTakes.SequenceEqual(other.StashTakes) &&
+            StashPuts.SequenceEqual(other.StashPuts) &&
+            SameMap(FactionRelations, other.FactionRelations) &&
+            SameMap(Durability, other.Durability) &&
+            Placements.SequenceEqual(other.Placements) &&
+            Upgrades.Count == other.Upgrades.Count &&
+            Upgrades.All(pair => other.Upgrades.TryGetValue(pair.Key, out var keys) && keys.SequenceEqual(pair.Value, StringComparer.Ordinal));
+    }
+
+    private static bool SameMap<TKey, TValue>(IReadOnlyDictionary<TKey, TValue> left, IReadOnlyDictionary<TKey, TValue> right) =>
+        left.Count == right.Count &&
+        left.All(pair => right.TryGetValue(pair.Key, out var value) && EqualityComparer<TValue>.Default.Equals(pair.Value, value));
+
     private EditKind DetermineEditKinds()
     {
         var kinds = EditKind.None;

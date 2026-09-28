@@ -1,0 +1,17 @@
+{
+  "rules": [
+    {
+      "id": "diagnostics-retention",
+      "enabled": true,
+      "conditions": {
+        "prefix": "diagnostics/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "maxAge": 2592000,
+          "type": "Age"
+        }
+      }
+    }
+  ]
+}

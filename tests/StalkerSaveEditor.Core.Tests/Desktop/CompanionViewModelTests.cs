@@ -61,10 +61,6 @@ public sealed class CompanionViewModelTests
             ];
             return Task.FromResult(result);
         }
-
-        public Task<bool> UpdateHotkeyAsync(
-            string gameReleaseId, string action, string newKey, CancellationToken ct = default)
-            => Task.FromResult(true);
     }
 
     // ── Constructor ───────────────────────────────────────────────────────────
@@ -177,7 +173,7 @@ public sealed class CompanionViewModelTests
         await vm.InstallCheckedAsync();
 
         Assert.Equal(before + 2, fake.InstallCallCount);
-        Assert.Contains("готово", vm.StatusMessage, StringComparison.Ordinal);
+        Assert.Contains("Готово", vm.StatusMessage, StringComparison.Ordinal);
     }
 
     [Fact]

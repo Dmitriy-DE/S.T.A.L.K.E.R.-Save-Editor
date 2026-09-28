@@ -119,8 +119,16 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
             _rootWindow = NativeMethods.XDefaultRootWindow(_display);
             RegisterBindings(bindings);
             _started?.TrySetResult();
-            while (Volatile.Read(ref _stopRequested) == 0)
+            var grabbed = true;
+            for (var tick = 0; Volatile.Read(ref _stopRequested) == 0; tick++)
             {
+                // The keys are held only while the game has the focus (checked every ~300 ms).
+                if (tick % 10 == 0 && GameHasFocus() is var game && game != grabbed)
+                {
+                    SetGrabbed(game);
+                    grabbed = game;
+                }
+
                 DrainEvents();
                 Thread.Sleep(30);
             }
@@ -210,6 +218,40 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         }
     }
 
+    private void SetGrabbed(bool grab)
+    {
+        foreach (var (keyCode, modifiers) in _grabbedKeys)
+        {
+            if (grab) NativeMethods.XGrabKey(_display, keyCode, modifiers, _rootWindow, ownerEvents: 0, pointerMode: 1, keyboardMode: 1);
+            else NativeMethods.XUngrabKey(_display, keyCode, modifiers, _rootWindow);
+        }
+
+        _ = NativeMethods.XSync(_display, discard: 0);
+    }
+
+    /// <summary>The focused window or one of its parents has an X-Ray game's window class (Wine names it after the exe).</summary>
+    private bool GameHasFocus()
+    {
+        _ = NativeMethods.XGetInputFocus(_display, out var window, out _);
+        for (var depth = 0; depth < 8 && window.ToUInt64() > 1 && window != _rootWindow; depth++)
+        {
+            if (NativeMethods.XGetClassHint(_display, window, out var hint) != 0)
+            {
+                var name = Marshal.PtrToStringUTF8(hint.Name);
+                var windowClass = Marshal.PtrToStringUTF8(hint.Class);
+                if (hint.Name != IntPtr.Zero) _ = NativeMethods.XFree(hint.Name);
+                if (hint.Class != IntPtr.Zero) _ = NativeMethods.XFree(hint.Class);
+                if (GameWindowMatcher.IsGame(name) || GameWindowMatcher.IsGame(windowClass)) return true;
+            }
+
+            if (NativeMethods.XQueryTree(_display, window, out _, out var parent, out var children, out _) == 0) break;
+            if (children != IntPtr.Zero) _ = NativeMethods.XFree(children);
+            window = parent;
+        }
+
+        return false;
+    }
+
     private void DrainEvents()
     {
         while (NativeMethods.XPending(_display) > 0)
@@ -293,6 +335,13 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         return 0;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeClassHint
+    {
+        public IntPtr Name;
+        public IntPtr Class;
+    }
+
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int XErrorHandler(IntPtr display, ref NativeXErrorEvent errorEvent);
 
@@ -374,6 +423,18 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
 
         [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int XCloseDisplay(IntPtr display);
+
+        [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int XGetInputFocus(IntPtr display, out UIntPtr focus, out int revertTo);
+
+        [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int XGetClassHint(IntPtr display, UIntPtr window, out NativeClassHint hint);
+
+        [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int XQueryTree(IntPtr display, UIntPtr window, out UIntPtr root, out UIntPtr parent, out IntPtr children, out uint childCount);
+
+        [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int XFree(IntPtr data);
 
         [DllImport(X11, CallingConvention = CallingConvention.Cdecl, EntryPoint = "XSetErrorHandler")]
         internal static extern IntPtr XSetErrorHandler(XErrorHandler handler);

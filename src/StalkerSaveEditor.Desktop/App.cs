@@ -35,6 +35,7 @@ public sealed class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
+            desktop.Exit += (_, _) => Services.GameAudioService.ShutdownIfStarted();
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
         {

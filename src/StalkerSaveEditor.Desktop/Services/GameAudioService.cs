@@ -102,72 +102,111 @@ public sealed class GameAudioService
         });
     }
 
-    /// <summary>Decodes the given OGG files of a family into one 16-bit WAV at the current volume (cached); null when missing.</summary>
+    /// <summary>
+    /// Decodes the given OGG files of a family into one 16-bit WAV at the current volume (cached, one
+    /// file per sound: other volumes are removed); null when missing. Streams in small blocks, so a
+    /// several-minute theme never sits in memory whole.
+    /// </summary>
     internal string? Prepare(string family, string[] files, string name)
     {
         var target = Path.Combine(_cacheDirectory, $"{name}-v{Volume}.wav");
         if (File.Exists(target)) return target;
         var sources = files.Select(file => Path.Combine(_soundRoot, family, file)).ToArray();
         if (!sources.All(File.Exists)) return null;
-        var channels = sources.Select(Decode).ToArray();
-        var gain = Volume / 100f;
-        short[] pcm;
-        int channelCount, sampleRate = channels[0].SampleRate;
-        if (channels.Length == 2)
-        {
-            // Two mono halves → one stereo stream.
-            var length = Math.Max(channels[0].Samples.Length, channels[1].Samples.Length);
-            pcm = new short[length * 2];
-            for (var index = 0; index < length; index++)
-            {
-                pcm[index * 2] = ToShort(index < channels[0].Samples.Length ? channels[0].Samples[index] : 0f, gain);
-                pcm[index * 2 + 1] = ToShort(index < channels[1].Samples.Length ? channels[1].Samples[index] : 0f, gain);
-            }
-
-            channelCount = 2;
-        }
-        else
-        {
-            pcm = channels[0].Samples.Select(sample => ToShort(sample, gain)).ToArray();
-            channelCount = channels[0].Channels;
-        }
-
         Directory.CreateDirectory(_cacheDirectory);
         var temp = target + ".tmp";
-        WriteWav(temp, pcm, channelCount, sampleRate);
+        var readers = sources.Select(path => new NVorbis.VorbisReader(path)).ToArray();
+        try
+        {
+            WriteWav(temp, readers, Volume / 100f);
+        }
+        finally
+        {
+            foreach (var reader in readers) reader.Dispose();
+        }
+
         File.Move(temp, target, overwrite: true);
+        foreach (var stale in Directory.EnumerateFiles(_cacheDirectory, $"{name}-v*.wav"))
+        {
+            if (stale != target) TryDelete(stale);
+        }
+
         return target;
     }
 
-    private static (float[] Samples, int Channels, int SampleRate) Decode(string path)
+    /// <summary>One reader is written as is; two mono readers (Shadow of Chornobyl's theme) become one stereo stream.</summary>
+    private static void WriteWav(string path, NVorbis.VorbisReader[] readers, float gain)
     {
-        using var reader = new NVorbis.VorbisReader(path);
-        var samples = new List<float>((int)Math.Min(reader.TotalSamples * reader.Channels, 50_000_000));
-        var buffer = new float[reader.Channels * 4096];
-        int read;
-        while ((read = reader.ReadSamples(buffer, 0, buffer.Length)) > 0) samples.AddRange(buffer.AsSpan(0, read));
-        return ([.. samples], reader.Channels, reader.SampleRate);
+        var stereoPair = readers.Length == 2;
+        var channels = stereoPair ? 2 : readers[0].Channels;
+        using var output = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024);
+        output.Write(new byte[44]);
+        var inputs = readers.Select(reader => new float[reader.Channels * 4096]).ToArray();
+        var pcm = new short[stereoPair ? 2 * 4096 : inputs[0].Length];
+        long dataBytes = 0;
+        while (true)
+        {
+            var counts = readers.Select((reader, index) => reader.ReadSamples(inputs[index], 0, inputs[index].Length)).ToArray();
+            int written;
+            if (stereoPair)
+            {
+                written = 2 * Math.Max(counts[0], counts[1]);
+                for (var frame = 0; frame < written / 2; frame++)
+                {
+                    pcm[frame * 2] = ToShort(frame < counts[0] ? inputs[0][frame] : 0f, gain);
+                    pcm[frame * 2 + 1] = ToShort(frame < counts[1] ? inputs[1][frame] : 0f, gain);
+                }
+            }
+            else
+            {
+                written = counts[0];
+                for (var index = 0; index < written; index++) pcm[index] = ToShort(inputs[0][index], gain);
+            }
+
+            if (written == 0) break;
+            output.Write(System.Runtime.InteropServices.MemoryMarshal.AsBytes(pcm.AsSpan(0, written)));
+            dataBytes += written * 2L;
+        }
+
+        output.Position = 0;
+        using var header = new BinaryWriter(output, System.Text.Encoding.ASCII, leaveOpen: true);
+        header.Write("RIFF"u8);
+        header.Write((int)(36 + dataBytes));
+        header.Write("WAVEfmt "u8);
+        header.Write(16);
+        header.Write((short)1);
+        header.Write((short)channels);
+        header.Write(readers[0].SampleRate);
+        header.Write(readers[0].SampleRate * channels * 2);
+        header.Write((short)(channels * 2));
+        header.Write((short)16);
+        header.Write("data"u8);
+        header.Write((int)dataBytes);
     }
 
     private static short ToShort(float sample, float gain) => (short)Math.Clamp(sample * gain * short.MaxValue, short.MinValue, short.MaxValue);
 
-    internal static void WriteWav(string path, short[] pcm, int channels, int sampleRate)
+    private static void TryDelete(string path)
     {
-        using var writer = new BinaryWriter(File.Create(path));
-        var dataBytes = pcm.Length * 2;
-        writer.Write("RIFF"u8);
-        writer.Write(36 + dataBytes);
-        writer.Write("WAVEfmt "u8);
-        writer.Write(16);
-        writer.Write((short)1);
-        writer.Write((short)channels);
-        writer.Write(sampleRate);
-        writer.Write(sampleRate * channels * 2);
-        writer.Write((short)(channels * 2));
-        writer.Write((short)16);
-        writer.Write("data"u8);
-        writer.Write(dataBytes);
-        foreach (var sample in pcm) writer.Write(sample);
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>Stops the music when the application closes (the loop would otherwise outlive it).</summary>
+    public static void ShutdownIfStarted()
+    {
+        if (!LazyInstance.IsValueCreated) return;
+        var service = LazyInstance.Value;
+        lock (service._musicLock)
+        {
+            service._musicFamily = null;
+            service.StopMusicLocked();
+        }
     }
 
     private void UpdateMusic()
@@ -252,11 +291,13 @@ public sealed class GameAudioService
 
         var player = OperatingSystem.IsMacOS() ? "afplay" : LinuxPlayer();
         if (player is null) return null;
+        // The loop ends by itself when the editor is gone (a crash leaves no music behind).
         var info = new ProcessStartInfo("/bin/sh") { UseShellExecute = false, CreateNoWindow = true };
         info.ArgumentList.Add("-c");
-        info.ArgumentList.Add("while :; do \"$0\" \"$1\" || exit; done");
+        info.ArgumentList.Add("while kill -0 \"$2\" 2>/dev/null; do \"$0\" \"$1\" || exit; done");
         info.ArgumentList.Add(player);
         info.ArgumentList.Add(wav);
+        info.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         return Process.Start(info);
     }
 

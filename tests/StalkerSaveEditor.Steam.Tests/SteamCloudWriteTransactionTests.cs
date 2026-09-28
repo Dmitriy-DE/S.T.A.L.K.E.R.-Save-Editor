@@ -55,6 +55,32 @@ public sealed class SteamCloudWriteTransactionTests
     }
 
     [Fact]
+    public async Task A_local_save_goes_up_unchanged_against_the_hash_of_the_current_cloud_copy()
+    {
+        using var directory = new TemporaryDirectory();
+        byte[] cloud = [1, 2, 3, 4];
+        byte[] local = [5, 6, 7, 8, 9];
+        var worker = new FakeCloudTransport(cloud);
+
+        var receipt = await SteamCloudWriteTransaction.UploadAsync(
+            worker,
+            PreparedEdit.Replacing(Convert.ToHexString(SHA256.HashData(cloud)).ToLowerInvariant(), local),
+            "savedgames/slot.sav",
+            directory.Path);
+
+        Assert.Equal(local, Assert.Single(worker.WriteCalls).Data);
+        Assert.Equal(cloud, File.ReadAllBytes(receipt.BackupPath));
+
+        var changed = new FakeCloudTransport([4, 3, 2, 1]);
+        await Assert.ThrowsAsync<CloudTransactionException>(() => SteamCloudWriteTransaction.UploadAsync(
+            changed,
+            PreparedEdit.Replacing(Convert.ToHexString(SHA256.HashData(cloud)).ToLowerInvariant(), local),
+            "savedgames/slot.sav",
+            directory.Path));
+        Assert.Empty(changed.WriteCalls);
+    }
+
+    [Fact]
     public async Task Stale_source_aborts_before_creating_artifacts_or_writing()
     {
         using var golden = ReadGolden();

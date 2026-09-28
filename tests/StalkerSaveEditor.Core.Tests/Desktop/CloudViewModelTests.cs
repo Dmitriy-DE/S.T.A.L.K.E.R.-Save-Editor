@@ -151,7 +151,7 @@ public sealed class CloudViewModelTests
         Assert.Equal(1, mock.WriteCallCount);
         Assert.Equal(CloudWriteStatus.Uncertain, vm.LastWriteStatus);
         Assert.True(vm.IsWriteUncertain);
-        Assert.Contains("Uncertain", vm.StatusMessage);
+        Assert.Contains("не подтверждён", vm.StatusMessage, StringComparison.Ordinal);
         Assert.Equal(Path.Combine(tempDir.Path, "safety.bak"), vm.LastBackupPath);
     }
 
@@ -176,19 +176,20 @@ public sealed class CloudViewModelTests
     public async Task Downloads_cloud_file_to_local_directory_with_safety_backup()
     {
         using var tempDir = new TemporaryDirectory();
-        var localSave = Path.Combine(tempDir.Path, "existing.sav");
-        File.WriteAllBytes(localSave, [1, 1, 1]);
+        var saves = Directory.CreateDirectory(Path.Combine(tempDir.Path, "saves")).FullName;
+        var backups = Path.Combine(tempDir.Path, "backups");
+        var localSave = Path.Combine(saves, "existing.sav");
+        var original = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "xray-call-of-pripyat.sav"));
+        File.WriteAllBytes(localSave, original);
+        var cloudCopy = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "writer-stacks", "xray-stack-cop-source.sav"));
 
-        var mock = new MockCloudService
-        {
-            DataToReturn = [9, 9, 9, 9]
-        };
-        mock.FilesToReturn.Add(new CloudFileModel(41700, "stalker-cop", "_appdata_/savedgames/existing.sav", "existing.sav", 4, DateTime.UtcNow, localSave, CloudComparison.RemoteNewer));
+        var mock = new MockCloudService { DataToReturn = cloudCopy };
+        mock.FilesToReturn.Add(new CloudFileModel(41700, "stalker-cop", "_appdata_/savedgames/existing.sav", "existing.sav", cloudCopy.Length, DateTime.UtcNow, localSave, CloudComparison.RemoteNewer));
 
         string? downloadedPath = null;
         var vm = new CloudViewModel(
             cloudService: mock,
-            backupDirectoryProvider: () => tempDir.Path,
+            backupDirectoryProvider: () => backups,
             onSaveDownloaded: path => downloadedPath = path);
 
         await vm.RefreshAsync();
@@ -198,9 +199,27 @@ public sealed class CloudViewModelTests
         await vm.DownloadSelectedAsync();
 
         Assert.Equal(localSave, downloadedPath);
-        Assert.Equal([9, 9, 9, 9], File.ReadAllBytes(localSave));
-        // Safety backup was created before overwriting
+        Assert.Equal(cloudCopy, File.ReadAllBytes(localSave));
+        // The replaced local save is kept as a journaled backup.
         Assert.NotNull(vm.LastBackupPath);
-        Assert.True(File.Exists(vm.LastBackupPath));
+        Assert.Equal(original, File.ReadAllBytes(vm.LastBackupPath!));
+    }
+
+    [Fact]
+    public async Task A_cloud_file_that_is_not_a_save_never_replaces_the_local_one()
+    {
+        using var tempDir = new TemporaryDirectory();
+        var localSave = Path.Combine(tempDir.Path, "existing.sav");
+        File.WriteAllBytes(localSave, [1, 1, 1]);
+        var mock = new MockCloudService { DataToReturn = [9, 9, 9, 9] };
+        mock.FilesToReturn.Add(new CloudFileModel(41700, "stalker-cop", "_appdata_/savedgames/existing.sav", "existing.sav", 4, DateTime.UtcNow, localSave, CloudComparison.RemoteNewer));
+        var vm = new CloudViewModel(cloudService: mock, backupDirectoryProvider: () => Path.Combine(tempDir.Path, "backups"));
+
+        await vm.RefreshAsync();
+        vm.SelectedCloudSave = vm.CloudSaves.First();
+        await vm.DownloadSelectedAsync();
+
+        Assert.Equal([1, 1, 1], File.ReadAllBytes(localSave));
+        Assert.Contains("не сохранение", vm.StatusMessage, StringComparison.Ordinal);
     }
 }

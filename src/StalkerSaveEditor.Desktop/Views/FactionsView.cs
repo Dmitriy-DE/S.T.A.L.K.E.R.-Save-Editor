@@ -123,9 +123,9 @@ public static class FactionsView
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         actions.Children.Add(MakeActionBtn("+100", () => vm.AdjustFactionRelation(rel, 100), rel));
         actions.Children.Add(MakeActionBtn("-100", () => vm.AdjustFactionRelation(rel, -100), rel));
-        actions.Children.Add(MakeActionBtn(L.T("Друг (+1500)"), () => rel.Goodwill = 1500, rel));
-        actions.Children.Add(MakeActionBtn(L.T("Нейтрал (0)"), () => rel.Goodwill = 0, rel));
-        actions.Children.Add(MakeActionBtn(L.T("Враг (-1500)"), () => rel.Goodwill = -1500, rel));
+        actions.Children.Add(MakeActionBtn(L.T("Друг (+1500)"), () => vm.SetFactionRelation(rel, 1500), rel));
+        actions.Children.Add(MakeActionBtn(L.T("Нейтрал (0)"), () => vm.SetFactionRelation(rel, 0), rel));
+        actions.Children.Add(MakeActionBtn(L.T("Враг (-1500)"), () => vm.SetFactionRelation(rel, -1500), rel));
 
         Grid.SetColumn(actions, 3);
         grid.Children.Add(actions);

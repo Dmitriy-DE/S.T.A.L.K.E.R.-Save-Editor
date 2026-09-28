@@ -6,7 +6,7 @@
   #define MyAppVersion "0.0.0"
 #endif
 #define MyAppPublisher "Dmitriy-DE"
-#define MyAppURL "https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next"
+#define MyAppURL "https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor"
 #define MyAppExeName "StalkerSaveEditor.exe"
 #define MyCliExeName "stalker-save-editor-cli.exe"
 

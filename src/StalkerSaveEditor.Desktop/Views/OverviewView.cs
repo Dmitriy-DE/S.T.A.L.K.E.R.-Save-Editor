@@ -101,7 +101,7 @@ public static class OverviewView
         statsGrid.Children.Add(MakeMetricCell(L.T("ПЕРСОНАЖ"), "SelectedSave.ActorName", 0, 1, StalkerTheme.BrushTextPrimary));
         statsGrid.Children.Add(MakeMetricCell(L.T("ЗДОРОВЬЕ"), "SelectedSave.HealthDisplay", 1, 1, StalkerTheme.BrushSuccess));
         statsGrid.Children.Add(MakeMetricCell(L.T("РАНГ"), "SelectedSave.RankDisplay", 2, 1, StalkerTheme.BrushAccentDim));
-        statsGrid.Children.Add(MakeMetricCell(L.T("ЛОКАЦИЯ"), "SelectedSave.LevelName", 3, 1, StalkerTheme.BrushTextSecondary));
+        statsGrid.Children.Add(MakeMetricCell(L.T("РЕПУТАЦИЯ"), "SelectedSave.ReputationDisplay", 3, 1, StalkerTheme.BrushTextSecondary));
 
         stack.Children.Add(StalkerTheme.Card(statsGrid, L.T("Параметры сталкера")));
 

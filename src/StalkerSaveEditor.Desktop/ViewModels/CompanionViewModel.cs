@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Hotkeys;
 using StalkerSaveEditor.Desktop.Services;
@@ -7,35 +6,13 @@ using ICompanionService = StalkerSaveEditor.Desktop.Services.ICompanionService;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
-public sealed class CompanionHotkeyItemViewModel : ObservableViewModel
+/// <summary>One companion hotkey as shown on the screen (the layout is fixed: <see cref="HotkeyLayout.Default"/>).</summary>
+public sealed record CompanionHotkeyItemViewModel(string Action, string Key, string Description)
 {
-    private string _key;
-
-    public CompanionHotkeyItemViewModel(CompanionHotkey model, Action<string, string> onKeyChanged)
+    public CompanionHotkeyItemViewModel(CompanionHotkey model)
+        : this(model.Action, model.Key, model.Description)
     {
-        Action = model.Action;
-        _key = model.Key;
-        Description = model.Description;
-        ChangeKeyCommand = new RelayCommand<string>(newKey =>
-        {
-            if (!string.IsNullOrWhiteSpace(newKey))
-            {
-                Key = newKey.Trim().ToUpperInvariant();
-                onKeyChanged(Action, Key);
-            }
-        });
     }
-
-    public string Action { get; }
-    public string Description { get; }
-
-    public string Key
-    {
-        get => _key;
-        set => SetProperty(ref _key, value);
-    }
-
-    public ICommand ChangeKeyCommand { get; }
 }
 
 public sealed class CompanionViewModel : ObservableViewModel
@@ -273,21 +250,17 @@ public sealed class CompanionViewModel : ObservableViewModel
             foreach (var row in Games.Where(row => row.IsChecked && row.GameFound).ToArray())
             {
                 StatusMessage = L.T("Установка в «{0}»…", row.Title);
-                bool ok;
                 try
                 {
-                    ok = row.ReleaseId == Stalker2ReleaseId && _service is CompanionServiceAdapter s2Adapter
+                    var ok = row.ReleaseId == Stalker2ReleaseId && _service is CompanionServiceAdapter s2Adapter
                         ? (await Task.Run(s2Adapter.InstallStalker2)).ModInstalled
                         : await _service.InstallAsync(row.ReleaseId);
+                    results.Add($"{row.Title}: {(ok ? L.T("Готово") : L.T("не установлен, причина — в строке игры"))}");
                 }
                 catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
-                    ok = false;
                     results.Add($"{row.Title}: {exception.Message}");
-                    continue;
                 }
-
-                results.Add($"{row.Title}: {(ok ? "готово" : "не удалось")}");
             }
 
             StatusMessage = string.Join("; ", results) + L.T(". Перезапустите игры, которые были открыты.");
@@ -398,13 +371,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             Hotkeys.Clear();
             foreach (var hk in hotkeys)
             {
-                Hotkeys.Add(new CompanionHotkeyItemViewModel(hk, async (action, newKey) =>
-                {
-                    if (!await _service.UpdateHotkeyAsync(_selectedGame, action, newKey))
-                    {
-                        StatusMessage = L.T("Переназначение клавиш пока не сохраняется — действует раскладка по умолчанию.");
-                    }
-                }));
+                Hotkeys.Add(new CompanionHotkeyItemViewModel(hk));
             }
         }
         catch (Exception ex)

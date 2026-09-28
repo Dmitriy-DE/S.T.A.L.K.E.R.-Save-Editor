@@ -98,6 +98,8 @@ public static partial class AppLog
         if (home.Length > 1) text = text.Replace(home, "<home>", StringComparison.OrdinalIgnoreCase);
         text = PosixHome().Replace(text, "<home>");
         text = WindowsHome().Replace(text, "<home>");
+        text = WineUser().Replace(text, "drive_c/users/<user>");
+        text = SteamId64().Replace(text, "<steamid>");
         return SteamUser().Replace(text, "userdata/<id>");
     }
 
@@ -109,6 +111,12 @@ public static partial class AppLog
 
     [GeneratedRegex(@"userdata[/\\]\d+", RegexOptions.CultureInvariant)]
     private static partial Regex SteamUser();
+
+    [GeneratedRegex(@"drive_c[/\\]users[/\\][^/\\\s]+", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex WineUser();
+
+    [GeneratedRegex(@"\b7656119\d{10}\b", RegexOptions.CultureInvariant)]
+    private static partial Regex SteamId64();
 }
 
 /// <summary>Records unhandled errors to the log and to <c>last-crash.txt</c> so the next start can offer a report.</summary>
@@ -160,6 +168,13 @@ public static class CrashReporter
         }
     }
 
+    /// <summary>When the previous run's crash was recorded (UTC), or null.</summary>
+    public static DateTime? PendingSinceUtc()
+    {
+        var path = Path.Combine(AppLog.Directory, CrashFileName);
+        return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null;
+    }
+
     public static void Dismiss()
     {
         try
@@ -177,7 +192,8 @@ public static class DiagnosticsBundle
 {
     private const int MaxBytes = 2 * 1024 * 1024;
 
-    public static byte[] Create(string? environmentReport = null, IEnumerable<string>? extraLogs = null)
+    /// <param name="since">Only log lines written after this time (the daily report sends what is new).</param>
+    public static byte[] Create(string? environmentReport = null, IEnumerable<string>? extraLogs = null, DateTime? since = null)
     {
         var builder = new StringBuilder();
         builder.Append("S.T.A.L.K.E.R. Save Editor ").Append(ApplicationVersion.Current).Append(", ")
@@ -192,7 +208,8 @@ public static class DiagnosticsBundle
             if (builder.Length >= MaxBytes || !File.Exists(path)) continue;
             try
             {
-                var text = AppLog.Redact(File.ReadAllText(path));
+                var text = AppLog.Redact(since is { } after ? LinesAfter(File.ReadAllText(path), after) : File.ReadAllText(path));
+                if (text.Length == 0) continue;
                 var room = MaxBytes - builder.Length;
                 builder.Append("--- ").Append(name).Append(" ---\n").Append(text.Length > room ? text[^room..] : text).Append('\n');
             }
@@ -226,13 +243,25 @@ public static class DiagnosticsBundle
         return output.ToArray();
     }
 
-    /// <summary>Writes the bundle to <paramref name="destination"/> (a .txt.gz the user can attach to an issue).</summary>
-    public static string Export(string destination, string? environmentReport = null)
+    /// <summary>The part of a log whose lines (each starts with its UTC time) are later than <paramref name="after"/>.</summary>
+    internal static string LinesAfter(string log, DateTime after)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(destination);
-        if (System.IO.Directory.Exists(destination)) throw new IOException("The export path is a directory.");
-        System.IO.Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);
-        File.WriteAllBytes(destination, Create(environmentReport));
-        return destination;
+        var start = 0;
+        while (start < log.Length)
+        {
+            if (log.Length - start >= 24 &&
+                DateTime.TryParseExact(log.AsSpan(start, 24), "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var time) &&
+                time > after)
+            {
+                return log[start..];
+            }
+
+            var next = log.IndexOf('\n', start);
+            if (next < 0) break;
+            start = next + 1;
+        }
+
+        return string.Empty;
     }
 }

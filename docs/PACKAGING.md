@@ -93,3 +93,21 @@ The GitHub Actions workflow at [`.github/workflows/release-packages.yml`](../.gi
   - `windows-latest`: Builds portable `StalkerSaveEditor.exe` and compiles Inno Setup installer
   - `macos-14`: Builds `StalkerSaveEditor.app` and `StalkerSaveEditor-<version>.dmg`
 - **Output**: Automatically attaches compiled packages to the GitHub Release.
+
+## Release publication (tag `vX.Y.Z`)
+
+`.github/workflows/release-packages.yml` builds all packages, then the `release` job:
+
+1. `tools/release/publish_release.py` copies the build outputs to stable names, writes `latest.json`
+   (the manifest `StalkerSaveEditor.Updater` reads) and `SHA256SUMS`;
+2. `tools/release/build_apt_repo.py` builds and signs the APT repository with the **existing** key
+   (`APT_SIGNING_KEY`, `APT_SIGNING_KEY_ID`) — skipped when the secrets are absent;
+3. uploads everything to R2 (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) with `latest.json` last,
+   then reads every object back and compares bytes — skipped with a notice when the secrets are absent;
+4. creates the GitHub Release with the same files.
+
+Secrets are set by the owner. Local dry run:
+
+```bash
+python3 tools/release/publish_release.py --artifacts dist --version 1.0.0 --commit "$(git rev-parse HEAD)" --output release-output
+```

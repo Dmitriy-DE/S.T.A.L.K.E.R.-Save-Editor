@@ -42,6 +42,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         _saveDirectoriesProvider = saveDirectoriesProvider ?? SaveDirectoryDiscovery.GetExistingDirectories;
         _backupDirectoryProvider = backupDirectoryProvider ?? GetDefaultBackupDirectory;
         _draftStore = new DraftStore(draftsDirectory);
+        if (!Directory.Exists(_draftStore.DirectoryPath))
+        {
+            Directory.CreateDirectory(_draftStore.DirectoryPath);
+        }
 
         RefreshCommand = new RelayCommand(Refresh);
         SaveCommand = new RelayCommand(SaveSelected, () => CanSave);
@@ -58,8 +62,22 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             _saveDirectoriesProvider(),
             _backupDirectoryProvider());
 
+        Cloud = new CloudViewModel(
+            backupDirectoryProvider: _backupDirectoryProvider,
+            localSaveFilesProvider: () => Saves.Select(s => s.FilePath).ToArray(),
+            onSaveDownloaded: path => AddPreviewSave(path));
+        DismissWizardCommand = new RelayCommand(DismissFirstRunWizard);
+        WizardAutoDetectCommand = new RelayCommand(WizardAutoDetect);
+        WizardAddDirectoryCommand = new RelayCommand(WizardAddDirectory, () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
+
         if (discoverLocalSaves) Refresh();
+
+        // Silent background update check; only the real interactive app goes online (not screenshots or tests).
+        if (CheckUpdatesAtStartup) _ = Task.Run(() => Updates.CheckAsync(silent: true));
     }
+
+    /// <summary>Set by <c>Program</c> for the interactive app only.</summary>
+    public static bool CheckUpdatesAtStartup { get; set; }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
     public ObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];
@@ -77,6 +95,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public RelayCommand<string> RestoreConditionCommand { get; }
 
     public CapabilitiesViewModel Capabilities { get; } = new();
+    public CloudViewModel Cloud { get; }
+    public AchievementsViewModel Achievements { get; } = new();
+    public UpdatesViewModel Updates { get; } = new();
 
     /// <summary>
     /// Companion screen ViewModel — backed by real Core services in normal runs,
@@ -101,6 +122,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsSettingsTab));
                 OnPropertyChanged(nameof(IsCapabilitiesTab));
                 OnPropertyChanged(nameof(IsCompanionTab));
+                OnPropertyChanged(nameof(IsCloudTab));
+                OnPropertyChanged(nameof(IsAchievementsTab));
+                OnPropertyChanged(nameof(IsUpdatesTab));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
                 OnPropertyChanged(nameof(ShowFactionsScreen));
@@ -110,7 +134,62 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowSettingsScreen));
                 OnPropertyChanged(nameof(ShowCapabilitiesScreen));
                 OnPropertyChanged(nameof(ShowCompanionScreen));
+                OnPropertyChanged(nameof(ShowCloudScreen));
+                OnPropertyChanged(nameof(ShowAchievementsScreen));
+                OnPropertyChanged(nameof(ShowUpdatesScreen));
+                OnPropertyChanged(nameof(IsFirstRunWizardVisible));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
+            }
+        }
+    }
+
+    private bool _isFirstRunWizardDismissed;
+    private string _wizardDirectoryInput = string.Empty;
+
+    public string WizardDirectoryInput
+    {
+        get => _wizardDirectoryInput;
+        set
+        {
+            if (SetProperty(ref _wizardDirectoryInput, value))
+            {
+                WizardAddDirectoryCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
+
+    public RelayCommand DismissWizardCommand { get; }
+    public RelayCommand WizardAutoDetectCommand { get; }
+    public RelayCommand WizardAddDirectoryCommand { get; }
+
+    public void DismissFirstRunWizard()
+    {
+        _isFirstRunWizardDismissed = true;
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
+    }
+
+    public void WizardAutoDetect()
+    {
+        Settings.AutoDetectSaveDirectories();
+        Refresh();
+        if (Saves.Count > 0)
+        {
+            DismissFirstRunWizard();
+        }
+    }
+
+    public void WizardAddDirectory()
+    {
+        if (Settings.AddSaveDirectory(WizardDirectoryInput))
+        {
+            WizardDirectoryInput = string.Empty;
+            Refresh();
+            if (Saves.Count > 0)
+            {
+                DismissFirstRunWizard();
             }
         }
     }
@@ -124,6 +203,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsSettingsTab => SelectedTab == "settings";
     public bool IsCapabilitiesTab => SelectedTab == "capabilities";
     public bool IsCompanionTab => SelectedTab == "companion";
+    public bool IsCloudTab => SelectedTab == "cloud";
+    public bool IsAchievementsTab => SelectedTab == "achievements";
+    public bool IsUpdatesTab => SelectedTab == "updates";
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
     public bool ShowInventoryScreen => HasSelection && IsInventoryTab;
@@ -134,7 +216,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowSettingsScreen => IsSettingsTab;
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab;
+    public bool ShowCloudScreen => IsCloudTab;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab && !IsFirstRunWizardVisible;
+    public bool ShowAchievementsScreen => IsAchievementsTab;
+    public bool ShowUpdatesScreen => IsUpdatesTab;
 
 
     public SaveFileSummary? SelectedSave
@@ -225,7 +310,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public bool CanEditMoney => SelectedSave?.CanEditMoney == true;
 
-    public bool CanSave => !_isSaving && SelectedSave is not null && EditService.CanEdit(SelectedSave.ReleaseId) && HasDraftChanges && InputsAreValid(SelectedSave);
+    public bool CanSave
+    {
+        get
+        {
+            if (_isSaving || SelectedSave is null) return false;
+            var plan = BuildCurrentEditPlan(SelectedSave);
+            if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds)) return false;
+            return HasDraftChanges && InputsAreValid(SelectedSave);
+        }
+    }
 
     public string SaveDisabledReason
     {
@@ -233,8 +327,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             if (SelectedSave is null)
                 return "Выберите сохранение для редактирования.";
-            if (!EditService.CanEdit(SelectedSave.ReleaseId))
-                return $"Запись для формата {SelectedSave.ReleaseName} отключена в UI в целях безопасности.";
+            var plan = BuildCurrentEditPlan(SelectedSave);
+            if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds))
+            {
+                return $"Эта правка для формата {SelectedSave.ReleaseName} не поддерживается (см. «Возможности»).";
+            }
             if (!HasDraftChanges)
                 return "Нет несохранённых изменений.";
             if (!InputsAreValid(SelectedSave))
@@ -325,6 +422,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         SelectedSave = Saves.FirstOrDefault();
         RefreshBackups();
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
     }
 
     public void RefreshBackups()
@@ -347,6 +446,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         if (parsed is null) return false;
         Saves.Add(parsed);
         SelectedSave = parsed;
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
         return true;
     }
 
@@ -443,7 +544,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public void AdjustFactionRelation(FactionRelationViewModel relation, int delta)
     {
-        relation.Goodwill = Math.Clamp(relation.Goodwill + delta, -5000, 5000);
+        var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
+        var catalog = Catalogs.TryGetValue(releaseId, out var bundle) ? bundle.Factions : null;
+        var min = catalog?.GoodwillMin ?? -3000;
+        var max = catalog?.GoodwillMax ?? 1000;
+        relation.Goodwill = Math.Clamp(relation.Goodwill + delta, min, max);
         RecordDraftChange();
     }
 
@@ -459,7 +564,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         if (SelectedSave is null) return;
         var plan = BuildCurrentEditPlan(SelectedSave);
         var currentAdds = plan.Adds.ToList();
-        currentAdds.Add(new ItemAddRequest(sectionKey, quantity, "actor_inventory"));
+        currentAdds.Add(new ItemAddRequest(sectionKey, quantity, "inventory"));
         var nextPlan = new EditPlan(
             SelectedSave.SourceSha256,
             plan.Money,
@@ -592,7 +697,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
             if (item.CanEditPlacement && !string.Equals(item.Placement, item.OriginalPlacement, StringComparison.Ordinal))
             {
-                placements.Add(new XRayPlacementChange(item.Handle, item.Placement, item.Placement == "slot" ? 1 : null));
+                placements.Add(new XRayPlacementChange(item.Handle, item.Placement, item.Placement == "slot" ? (item.BaseSlot ?? 1) : null));
             }
 
             if (item.CanEditUpgrades && item.HasUpgrades)
@@ -628,11 +733,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             money: money,
             stackCounts: stackCounts.Count > 0 ? stackCounts : null,
             detachHandles: detaches.Count > 0 ? detaches : null,
-            adds: _currentJournal?.Current.Adds,
+            adds: _currentJournal?.Current.Adds is { Count: > 0 } addsList ? addsList : null,
             stashTakes: stashTakes.Count > 0 ? stashTakes : null,
-            stashPuts: _currentJournal?.Current.StashPuts,
+            stashPuts: _currentJournal?.Current.StashPuts is { Count: > 0 } putsList ? putsList : null,
             upgrades: upgrades.Count > 0 ? upgrades : null,
-            playerFaction: save.PlayerFaction,
+            playerFaction: null,
             factionRelations: factionRelations.Count > 0 ? factionRelations : null,
             durability: durability.Count > 0 ? durability : null,
             placements: placements.Count > 0 ? placements : null);
@@ -672,11 +777,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         if (SelectedSave is null) return;
 
-        if (plan.Money.HasValue)
-        {
-            _moneyInput = plan.Money.Value.ToString(CultureInfo.InvariantCulture);
-            OnPropertyChanged(nameof(MoneyInput));
-        }
+        _moneyInput = plan.Money.HasValue
+            ? plan.Money.Value.ToString(CultureInfo.InvariantCulture)
+            : SelectedSave.Money.ToString(CultureInfo.InvariantCulture);
+        OnPropertyChanged(nameof(MoneyInput));
 
         foreach (var item in SelectedSave.Inventory)
         {
@@ -684,23 +788,45 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 item.CountInput = count.ToString(CultureInfo.InvariantCulture);
             }
+            else
+            {
+                item.CountInput = item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+            }
+
             if (plan.Durability.TryGetValue(item.Handle, out var cond))
             {
                 item.ConditionPercent = (int)Math.Round(cond * 100);
             }
-            if (plan.DetachHandles.Contains((ushort)item.Handle))
+            else
             {
-                item.IsDeleted = true;
+                item.ConditionPercent = item.OriginalCondition.HasValue
+                    ? (int)Math.Round(item.OriginalCondition.Value * 100)
+                    : 100;
             }
+
+            item.IsDeleted = plan.DetachHandles.Contains((ushort)item.Handle);
+
             if (plan.Placements.FirstOrDefault(p => p.Handle == item.Handle) is { } plc)
             {
                 item.Placement = plc.Type;
             }
+            else
+            {
+                item.Placement = item.OriginalPlacement ?? "backpack";
+            }
+
             if (plan.Upgrades.TryGetValue((ushort)item.Handle, out var ups))
             {
                 foreach (var up in item.UpgradeItems)
                 {
                     up.IsInstalled = ups.Contains(up.Key, StringComparer.Ordinal);
+                }
+            }
+            else
+            {
+                foreach (var up in item.UpgradeItems)
+                {
+                    up.IsInstalled = item.OriginalUpgrades.Contains(up.Key, StringComparer.Ordinal);
                 }
             }
         }
@@ -713,14 +839,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
         }
 
-        if (plan.FactionRelations.Count > 0)
+        foreach (var rel in SelectedSave.FactionRelations)
         {
-            foreach (var rel in SelectedSave.FactionRelations)
+            if (plan.FactionRelations.TryGetValue(rel.Community, out var val))
             {
-                if (plan.FactionRelations.TryGetValue(rel.Community, out var val))
-                {
-                    rel.Goodwill = val;
-                }
+                rel.Goodwill = val;
+            }
+            else
+            {
+                rel.Goodwill = rel.OriginalGoodwill;
             }
         }
     }
@@ -912,7 +1039,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 countDisabledReason: stacksReason,
                 conditionDisabledReason: durabilityReason,
                 placementDisabledReason: placementReason,
-                upgradesDisabledReason: upgradesReason);
+                upgradesDisabledReason: upgradesReason,
+                baseSlot: item.PlacementBaseSlot,
+                releaseId: formatId);
         });
 
         var stashes = save.Stashes.Select(s => new StashViewModel(
@@ -949,8 +1078,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             playerFaction = def?.DisplayName ?? def?.Key;
         }
 
-        // Transitions are not fabricated; empty until Core Level Changers API is available
-        var transitions = Array.Empty<TransitionViewModel>();
+        // Real level changers from X-Ray registry (read-only per AGENTS.md)
+        var transitions = save.LevelChangers.Select(lc => new TransitionViewModel(
+            lc.Handle,
+            lc.Name,
+            lc.NameReplace,
+            lc.ParentId,
+            lc.ObjectVersion)).ToList();
 
         var levelName = save.Stashes.FirstOrDefault(s => !string.IsNullOrEmpty(s.Level))?.Level;
         if (!string.IsNullOrEmpty(levelName))
@@ -1019,8 +1153,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
         var catalog = Catalogs.TryGetValue(formatId, out var bundle) ? bundle.Items : null;
+        var s2Items = Stalker2ItemCatalog.LoadEmbedded();
+        var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
-            item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
+            s2Items.Name(item.DisplayName, language) ?? item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
             item.TypeKey,
             item.Handle,
             item.Category,
@@ -1036,7 +1172,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             countDisabledReason: stacksReason,
             conditionDisabledReason: durabilityReason,
             placementDisabledReason: placementReason,
-            upgradesDisabledReason: upgradesReason));
+            upgradesDisabledReason: upgradesReason,
+            releaseId: formatId,
+            iconKey: item.DisplayName ?? item.TypeKey));
 
         return new SaveFileSummary(
             path,

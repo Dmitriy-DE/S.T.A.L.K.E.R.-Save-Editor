@@ -8,6 +8,6 @@ public sealed class ApplicationVersionTests
     [Fact]
     public void Current_is_the_configured_semantic_version()
     {
-        Assert.Equal("0.1.0", ApplicationVersion.Current);
+        Assert.Equal("1.0.0-rc.1", ApplicationVersion.Current);
     }
 }

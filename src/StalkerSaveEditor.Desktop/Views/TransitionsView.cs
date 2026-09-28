@@ -15,27 +15,29 @@ public static class TransitionsView
     {
         var root = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
             Margin = new Thickness(16),
         };
 
+        // 1. Info Card
         var noteStack = new StackPanel { Spacing = 6 };
         noteStack.Children.Add(new TextBlock
         {
-            Text = "Переходы между локациями (Level Changers) требуют подтверждённого Core API для безопасного чтения и записи.",
+            Text = "Объекты переходов между локациями (Level Changers) из реестра X-Ray.",
             Foreground = StalkerTheme.BrushTextPrimary,
             FontSize = 13,
             FontWeight = FontWeight.SemiBold,
         });
         noteStack.Children.Add(new TextBlock
         {
-            Text = "Согласно правилу AGENTS.md («Unknown or ambiguous fields stay read-only»), недокументированные или неподтверждённые структуры остаются закрытыми для показа и редактирования до добавления официальной поддержки в Core (запрос API оформлен в Issue #55).",
+            Text = "Данные прочитаны напрямую из реестра сохранения. Согласно правилу AGENTS.md («Unknown or ambiguous fields stay read-only»), недокументированные внутренние смещения состояний остаются закрытыми для записи до официальной поддержки в Core. Редактирование отключено.",
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
         });
-        root.Children.Add(StalkerTheme.Card(noteStack, "Переходы между локациями"));
+        root.Children.Add(StalkerTheme.Card(noteStack, "Переходы между локациями (Read-Only)"));
 
+        // 2. Empty State
         var emptyPanel = new StackPanel
         {
             Spacing = 12,
@@ -43,27 +45,170 @@ public static class TransitionsView
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 48, 0, 0),
         };
-
         emptyPanel.Children.Add(new TextBlock
         {
-            Text = "ДАННЫЕ О ПЕРЕХОДАХ НЕДОСТУПНЫ",
+            Text = "ТОЧКИ ПЕРЕХОДОВ ОТСУТСТВУЮТ",
             FontSize = 14,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushTextMuted,
             HorizontalAlignment = HorizontalAlignment.Center,
         });
-
         emptyPanel.Children.Add(new TextBlock
         {
-            Text = "В текущем сохранении подтверждённые точки перехода не извлечены.",
+            Text = "В объектах реестра данного сохранения нет записей типа level_changer.",
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextSecondary,
             HorizontalAlignment = HorizontalAlignment.Center,
         });
-
+        emptyPanel.Bind(Visual.IsVisibleProperty, new Binding("SelectedSave.HasNoTransitions"));
         Grid.SetRow(emptyPanel, 1);
         root.Children.Add(emptyPanel);
 
+        // 3. Transitions List Container
+        var listContainer = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            Margin = new Thickness(0, 12, 0, 0),
+        };
+        listContainer.Bind(Visual.IsVisibleProperty, new Binding("SelectedSave.HasTransitions"));
+
+        // Header Row
+        var headerBorder = new Border
+        {
+            Background = StalkerTheme.BrushBgPanel,
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(12, 8),
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        var headerGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("120,*,120,100,80,110"),
+        };
+        headerGrid.Children.Add(MakeColHeader("ID В РЕЕСТРЕ", 0));
+        headerGrid.Children.Add(MakeColHeader("ИДЕНТИФИКАТОР / ТОЧКА", 1));
+        headerGrid.Children.Add(MakeColHeader("ТИП ОБЪЕКТА", 2));
+        headerGrid.Children.Add(MakeColHeader("РОДИТЕЛЬ", 3));
+        headerGrid.Children.Add(MakeColHeader("ВЕРСИЯ", 4));
+        headerGrid.Children.Add(MakeColHeader("СТАТУС", 5));
+        headerBorder.Child = headerGrid;
+        listContainer.Children.Add(headerBorder);
+
+        // Items List
+        var itemsControl = new ItemsControl
+        {
+            ItemTemplate = new FuncDataTemplate<TransitionViewModel>((item, _) => MakeTransitionRow(item)),
+        };
+        itemsControl.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedSave.Transitions"));
+
+        var scroll = new ScrollViewer
+        {
+            Content = itemsControl,
+        };
+        Grid.SetRow(scroll, 1);
+        listContainer.Children.Add(scroll);
+
+        Grid.SetRow(listContainer, 2);
+        root.Children.Add(listContainer);
+
         return root;
+    }
+
+    private static TextBlock MakeColHeader(string title, int col)
+    {
+        var text = new TextBlock
+        {
+            Text = title,
+            FontSize = 10,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushTextMuted,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(text, col);
+        return text;
+    }
+
+    private static Control MakeTransitionRow(TransitionViewModel item)
+    {
+        var border = new Border
+        {
+            Background = StalkerTheme.BrushBgElevated,
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(12, 9),
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("120,*,120,100,80,110"),
+        };
+
+        // 0. Handle
+        var handleText = new TextBlock
+        {
+            Text = item.HandleDisplay,
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = StalkerTheme.BrushAccentAmber,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        grid.Children.Add(handleText);
+
+        // 1. DisplayName
+        var nameText = new TextBlock
+        {
+            Text = item.DisplayName,
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        Grid.SetColumn(nameText, 1);
+        grid.Children.Add(nameText);
+
+        // 2. Type
+        var typeText = new TextBlock
+        {
+            Text = item.TypeDisplay,
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushTextSecondary,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(typeText, 2);
+        grid.Children.Add(typeText);
+
+        // 3. Parent
+        var parentText = new TextBlock
+        {
+            Text = item.ParentDisplay,
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushTextMuted,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(parentText, 3);
+        grid.Children.Add(parentText);
+
+        // 4. Version
+        var verText = new TextBlock
+        {
+            Text = item.VersionDisplay,
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushTextMuted,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(verText, 4);
+        grid.Children.Add(verText);
+
+        // 5. Read-only badge
+        var roBadge = StalkerTheme.Badge("Только чтение", StalkerTheme.BrushBgInput, StalkerTheme.BrushTextSecondary, 10);
+        Grid.SetColumn(roBadge, 5);
+        grid.Children.Add(roBadge);
+
+        border.Child = grid;
+        return border;
     }
 }

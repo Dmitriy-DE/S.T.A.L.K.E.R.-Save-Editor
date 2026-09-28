@@ -16,7 +16,9 @@ public sealed record CompanionServiceStatus(
     CompanionInstallStatus Installation,
     DateTimeOffset? LastPingUtc,
     TimeSpan? PingLatency,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    string? GameModBuild = null,
+    string? BundledModBuild = null);
 
 public interface ICompanionService : IAsyncDisposable
 {
@@ -118,24 +120,35 @@ public sealed class CompanionService : ICompanionService
                 "ping",
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             timer.Stop();
+            var isPong = reply.Status == CompanionReplyStatus.Ok &&
+                (string.Equals(reply.Text, "pong", StringComparison.Ordinal) ||
+                 reply.Text.StartsWith("pong ", StringComparison.Ordinal));
+            var gameBuild = isPong && reply.Text.Length > 5 ? reply.Text[5..].Trim() : null;
+            var bundledBuild = _installer.BundledModBuild;
             var state = reply.Status switch
             {
                 CompanionReplyStatus.Unsupported => CompanionRuntimeState.Outdated,
-                CompanionReplyStatus.Ok when string.Equals(reply.Text, "pong", StringComparison.Ordinal) &&
-                    reply.ReplyFileLastWriteTimeUtc.HasValue => CompanionRuntimeState.Active,
+                CompanionReplyStatus.Ok when isPong && reply.ReplyFileLastWriteTimeUtc.HasValue =>
+                    bundledBuild is not null && !string.Equals(gameBuild, bundledBuild, StringComparison.Ordinal)
+                        ? CompanionRuntimeState.Outdated
+                        : CompanionRuntimeState.Active,
                 _ => CompanionRuntimeState.Installed,
             };
             var error = reply.Status == CompanionReplyStatus.Error
                 ? $"Companion ping failed: {reply.Text}"
-                : state == CompanionRuntimeState.Active || state == CompanionRuntimeState.Outdated
-                    ? null
-                    : "The companion did not return a fresh pong reply.";
+                : state == CompanionRuntimeState.Outdated && reply.Status == CompanionReplyStatus.Ok
+                    ? $"The game runs companion build '{gameBuild ?? "unknown"}', the editor ships '{bundledBuild}': reinstall the mod and restart the game."
+                    : state == CompanionRuntimeState.Active || state == CompanionRuntimeState.Outdated
+                        ? null
+                        : "The companion did not return a fresh pong reply.";
             return new CompanionServiceStatus(
                 state,
                 installation,
                 reply.ReplyFileLastWriteTimeUtc,
                 reply.ReplyFileLastWriteTimeUtc.HasValue ? timer.Elapsed : null,
-                error);
+                error,
+                gameBuild,
+                bundledBuild);
         }
         catch (Exception exception) when (exception is IOException or TimeoutException or UnauthorizedAccessException)
         {

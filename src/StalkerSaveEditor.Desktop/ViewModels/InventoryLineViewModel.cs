@@ -28,8 +28,14 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         string? countDisabledReason = null,
         string? conditionDisabledReason = null,
         string? placementDisabledReason = null,
-        string? upgradesDisabledReason = null)
+        string? upgradesDisabledReason = null,
+        int? baseSlot = null,
+        string releaseId = "",
+        string? iconKey = null)
     {
+        ReleaseId = releaseId;
+        IconKey = iconKey ?? typeKey;
+        BaseSlot = baseSlot;
         Name = name;
         TypeKey = typeKey;
         Handle = handle;
@@ -70,13 +76,29 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         foreach (var def in availableList)
         {
             var isInstalled = OriginalUpgrades.Contains(def.Key, StringComparer.Ordinal);
-            upgradeViewModels.Add(new UpgradeItemViewModel(def, isInstalled, canEditUpgrades, UpgradesDisabledReason));
+            var upgVm = new UpgradeItemViewModel(def, isInstalled, canEditUpgrades, UpgradesDisabledReason);
+            upgVm.PropertyChanged += (_, _) => OnPropertyChanged(nameof(UpgradeItems));
+            upgradeViewModels.Add(upgVm);
+        }
+        foreach (var key in OriginalUpgrades)
+        {
+            if (upgradeViewModels.All(u => u.Key != key))
+            {
+                var upgVm = new UpgradeItemViewModel(key, key, "Установленный апгрейд", isInstalled: true, canEditUpgrades, UpgradesDisabledReason);
+                upgVm.PropertyChanged += (_, _) => OnPropertyChanged(nameof(UpgradeItems));
+                upgradeViewModels.Add(upgVm);
+            }
         }
         UpgradeItems = new ObservableCollection<UpgradeItemViewModel>(upgradeViewModels);
     }
 
     public string Name { get; }
     public string TypeKey { get; }
+    public string ReleaseId { get; }
+
+    /// <summary>Key for the icon lookup: the X-Ray section or the S2 SID.</summary>
+    public string IconKey { get; }
+
     public uint Handle { get; }
     public string Category { get; }
     public uint? OriginalCount { get; }
@@ -88,6 +110,7 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     public string ConditionDisabledReason { get; }
 
     public string OriginalPlacement { get; }
+    public int? BaseSlot { get; }
     public bool CanEditPlacement { get; }
     public string PlacementDisabledReason { get; }
 

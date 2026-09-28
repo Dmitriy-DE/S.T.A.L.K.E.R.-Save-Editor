@@ -5,6 +5,8 @@
   <ItemGroup>
     <EmbeddedResource Include="i18n/*.json" />
     <EmbeddedResource Include="Assets/Sounds/*" />
+    <None Include="Assets/Icons/**/*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets/PROVENANCE.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />

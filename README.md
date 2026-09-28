@@ -3,115 +3,126 @@
 [![Companion Mod Check](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/companion-check.yml/badge.svg)](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/companion-check.yml)
 [![Build and test](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/ci.yml/badge.svg)](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/ci.yml)
 
-High-performance, cross-platform .NET 10 desktop editor and in-game companion for the **S.T.A.L.K.E.R.** series: *Shadow of Chernobyl*, *Clear Sky*, *Call of Pripyat*, their *Enhanced Editions*, and *S.T.A.L.K.E.R. 2: Heart of Chornobyl*.
+High-performance, cross-platform **.NET 10** desktop save editor and live in-game companion for the entire **S.T.A.L.K.E.R.** series:
+- **S.T.A.L.K.E.R.: Shadow of Chernobyl** (1.0004 / 1.0006)
+- **S.T.A.L.K.E.R.: Clear Sky** (1.5.10)
+- **S.T.A.L.K.E.R.: Call of Pripyat** (1.6.02)
+- **Enhanced Editions** (SoC, CS, CoP)
+- **S.T.A.L.K.E.R. 2: Heart of Chornobyl** (UE5)
 
-![S.T.A.L.K.E.R. Save Editor Interface](docs/images/cs6-local-editing-headless.png)
-
----
-
-## Key Features
-
-### 🖥️ B1: Desktop UI Screen Parity & Theme
-- **S.T.A.L.K.E.R. Industrial Theme**: Authentic Zone aesthetic with amber gauges, dark brushed metal panels, high-contrast monospace counters, and custom vector icons.
-- **Full Screen Coverage**: Complete parity with the reference UI — Overview, Inventory, Stashes, Factions, Level Transitions, Backups, Settings, and Companion.
-- **Draft Store & Undo/Redo**: Non-destructive editing buffer with multi-step Undo (`Ctrl+Z`) and Redo (`Ctrl+Y`).
-- **Safety Guards**: Unknown, unverified, or ambiguous fields (and all S.T.A.L.K.E.R. 2 items until a verified writer is available) remain strictly read-only.
-- **Centralized Writer Dispatch**: UI does not duplicate mutation logic or writer selection; all save writing delegates directly to Core (`XRayEditWriter`).
-
-### 🔊 B2: Interactive Game Sound System
-- **Authentic Zone Audio**: Interface sounds for button clicks, tab switching, item hovering, file opening, save confirmation, and error alerts.
-- **Native Cross-Platform Playback**: Zero external runtime audio dependencies — utilizes WinMM `PlaySound` on Windows, `pw-play` / `paplay` / `aplay` on Linux, and `afplay` on macOS.
-- **Preferences**: Volume slider, sound mute toggle, and instant preview in Settings.
-
-### 🛡️ B3: Save Safety & Local Backup Management
-- **Automatic Pre-Save Backups**: Every write creates a timestamped, SHA-256 verified backup copy in the user application data directory.
-- **Visual Draft Journal**: Inspect pending changes before committing them to disk.
-- **One-Click Rollback**: Easily restore any prior backup or recovery copy.
-
-### 📡 B4 & G6: In-Game Companion Mod
-- **Live Communication**: Command and query a running game engine without exiting or reloading saves.
-- **Extended Protocol (v1)**: Instant healing, repair equipped gear, modify money, spawn items, teleport within level, weather manipulation, mark custom locations (`mark`), jump to last position (`jump_last`), and trigger engine saves (`quicksave`).
-- **Universal Engine Support**: Single Lua 5.1 script compatible with SoC (1.0004/1.0006), CS (1.5.10), CoP (1.6.02), and Enhanced Editions.
-- **Polite Engine Polling**: 2000 ms idle polling; accelerates to 250 ms only when in-game hotkeys are actively enabled.
-- **Engine Safety**: Guarded CS weather FX (`level.stop_weather_fx`), time factor preservation across rewinds, story NPC protection in cleanup routines.
-- **Customizable In-Game Hotkeys**: Does not conflict with vanilla game F-keys; defaults to `Ctrl+H` (heal), `Ctrl+R` (repair), `Ctrl+M` (money), `Ctrl+J` (jump), `Ctrl+S` (quicksave).
-
-### ☁️ B5: Steam Cloud Synchronization
-- **Isolated Steam Worker**: Out-of-process Steam RemoteStorage integration with a strict 15-second safety timeout.
-- **Safe Read/List Operations**: Inspect and import cloud saves safely without automatic retries on uncertain writes.
-
-### 🌐 B7: 15-Language Localization Engine
-- **Supported Languages**: English (`en`), Russian (`ru`), Ukrainian (`uk`), Polish (`pl`), German (`de`), French (`fr`), Spanish (`es`), Italian (`it`), Czech (`cs`), Brazilian Portuguese (`pt-BR`), Turkish (`tr`), Japanese (`ja`), Simplified Chinese (`zh-Hans`), Hungarian (`hu`), and Romanian (`ro`).
-- **Robust Fallback Chain**: `target -> ru -> en` guarantees text is never missing.
-- **Completeness Tested**: 1,327 catalog strings per language with automated CI verification checking 100% string coverage and 0 placeholder mismatches.
-
-### 📦 D1–D5: Cross-Platform Packaging & Distribution
-- **Linux**: Debian package (`.deb`) and standalone portable `AppImage` using pinned `appimagetool v1.9.1` with `--appimage-extract-and-run`.
-- **Windows**: Single-file portable `.exe` (with explicit `NoWarn="IL3000"` for SteamWorker runner) and Inno Setup 6 installer.
-- **macOS**: Application bundle (`.app`) and Apple Disk Image (`.dmg`).
-- **Automated Releases**: GitHub Actions pipeline compiles and publishes release packages on git version tags.
+![S.T.A.L.K.E.R. Save Editor Overview](docs/pr-screenshots/task-7-ui/overview-after.png)
 
 ---
 
-## Project Structure
+## What It Can Do
 
-```
-├── src/
-│   ├── StalkerSaveEditor.Core/       # X-Ray & S2 save parsers, serializers, archives
-│   ├── StalkerSaveEditor.Desktop/    # Avalonia UI desktop application (Views, ViewModels, Theme, Audio, i18n)
-│   ├── StalkerSaveEditor.Cli/        # Headless command-line tool & batch inspector
-│   ├── StalkerSaveEditor.Steam/      # Steam RemoteStorage worker client
-│   └── StalkerSaveEditor.Updater/    # Application update checker
-├── mods/
-│   └── companion/                    # In-game Lua companion mod (SoC, CS, CoP, EE, S2)
-├── packaging/
-│   ├── linux/                        # .deb & AppImage packaging scripts
-│   ├── windows/                      # Inno Setup installer & build scripts
-│   └── macos/                        # .app bundle & .dmg packaging scripts
-├── tools/                            # Codecs, companion checkers, fixture generators
-└── docs/                             # Architecture specs, parity docs, format scopes
-```
+### 1. 🗃️ Complete Save Editing & Inspection
+- **Overview Screen**: Inspect player health, radiation, psy-health, stamina, game coordinates (X, Y, Z), game time, and monetary balance.
+- **Inventory Editor**:
+  - View and modify item count, weight, and condition/durability (0–100%).
+  - Inspect weapon and armor upgrade flags.
+  - Inspect equipment placement (belt, backpack, weapon slots).
+  - Add and delete inventory items through the centralized Core `EditService` API.
+  - Non-destructive **Draft Store** with multi-step **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Y`).
+- **Stashes**: Discover and manage hidden stashes across the Zone.
+- **Factions & Relations**: View and tune community goodwill and player reputation.
+- **Level Transitions**: Inspect level changers and map transitions directly from X-Ray saves (`LevelChangers` reader).
+- **Safety First**: Ambiguous fields stay read-only. S2 save modifications remain locked until verified writers land. Writes always create verified SHA-256 pre-save backups outside the save folder.
+
+![Capabilities Matrix](docs/pr-screenshots/task-7-ui/capabilities-after.png)
+
+### 2. 🎮 Authentic Trilogy Industrial Theme & Zone Audio
+- **Zone Aesthetic**: Authentic industrial framing, sharp corners (`CornerRadius = 1`), military bracket headers (`[ ▪ TITLE ]`), and X-Ray button hover/press states (`_e`, `_h`, `_t`).
+- **Interactive Audio**: Authentic sound effects for button clicks, tab transitions, file loading, and save confirmations. Native cross-platform audio engines:
+  - **Linux**: PulseAudio (`paplay`), PipeWire (`pw-play`), ALSA (`aplay`).
+  - **Windows**: WinMM `PlaySound`.
+  - **macOS**: `afplay`.
+
+### 3. ☁️ Steam Cloud & Achievements
+- **Steam RemoteStorage & S2 Auto-Cloud**: View local vs. cloud saves, compare timestamps, and download/synchronize saves.
+- **Strict Write Safety**: Cloud writes require explicit user confirmation. Uncertain writes are marked in red with diagnostic explanations and are never automatically retried.
+- **Achievements Manager**: Inspect unlocked Steam achievements with timestamps, view lock/unlock statuses, and toggle achievements with safeguard confirmations against lockout.
+
+### 4. ⚙️ Settings & First-Launch Auto-Discovery
+- **Smart Path Auto-Discovery**: Automatically searches and detects save directories for all 4 games across Windows and Linux (native Steam, GOG, and Linux Steam Proton wine prefixes: AppIDs 4500, 20510, 41700, 1643320).
+- **First-Launch Wizard**: Automatically guides new users to locate or configure save directories on clean installs.
+- **14-Language Localization**: English, Russian, Ukrainian, Polish, German, French, Spanish, Italian, Czech, Brazilian Portuguese, Turkish, Japanese, Simplified Chinese, and Traditional Chinese. Fully verified with zero missing keys.
+
+### 5. 📡 In-Game Companion Mod
+- **Live In-Game Bridge**: Issue commands to a running X-Ray engine without reloading your save (`ping`, `heal`, `repair_equipped`, `give`, `money`, `teleport`, `mark`, `jump_last`, `quicksave`, `weather`).
+- **Safe Hotkeys**: Global non-conflicting hotkeys (`Ctrl+H`, `Ctrl+R`, `Ctrl+M`, `Ctrl+J`, `Ctrl+S`).
+- **Automated Hook Manager**: Detects, installs, and uninstalls companion hooks in `bind_stalker.script` with automatic backup creation.
+
+![Companion Packaging](docs/pr-screenshots/task-8-packaging/appimage-companion.png)
 
 ---
 
-## Building & Testing
+## How to Install & Run
 
-### Prerequisites
+### Download Pre-Built Releases
 
+Download the latest release package for your operating system from [Releases](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/releases):
+
+| Platform | Package Format | Installation / Run Instructions |
+|---|---|---|
+| **Linux** | Standalone `AppImage` | `chmod +x StalkerSaveEditor-x86_64.AppImage && ./StalkerSaveEditor-x86_64.AppImage` |
+| **Linux** | Debian `.deb` | `sudo dpkg -i stalkersaveeditor_*.deb` |
+| **Windows** | Standalone `.exe` | Extract and run `StalkerSaveEditor.exe` (self-contained, no .NET install needed) |
+| **Windows** | Inno Setup Installer | Run `StalkerSaveEditor-Setup.exe` to install to Program Files with desktop shortcuts |
+| **macOS** | `.dmg` / `.app` | Mount `.dmg` and drag `S.T.A.L.K.E.R. Save Editor.app` to Applications |
+
+> **Note**: Companion mod scripts and textures (`mods/companion/`) are automatically bundled inside every release package, enabling the in-app hook installer to work out of the box.
+
+---
+
+### Building from Source
+
+#### Prerequisites
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/)
-- Python 3.12 (for codec compilation and tools)
-- Lua 5.1 compiler (`luac5.1` or `luac`) for companion verification
+- Python 3.10+ (for helper tools and codecs)
+- Lua 5.1 (`luac5.1` or `luac`) for companion verification
 
-### Build the Solution
-
+#### Build Solution
 ```bash
-dotnet restore StalkerSaveEditor.sln
-dotnet build StalkerSaveEditor.sln --configuration Release
+# Clone repository
+git clone https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next.git
+cd S.T.A.L.K.E.R.-Save-Editor-Next
+
+# Build release configuration
+dotnet build --configuration Release -warnaserror
 ```
 
-### Run Tests
-
+#### Run Tests & Checks
 ```bash
-# Run unit and integration tests
-dotnet test StalkerSaveEditor.sln --configuration Release
+# Execute unit and ViewModel test suite
+dotnet test
 
-# Check companion mod Lua syntax and hooks
+# Validate companion mod Lua scripts and binder patch syntax
 ./tools/check_companion.sh
+
+# Verify i18n coverage across all 14 locales
+dotnet run --project src/StalkerSaveEditor.Desktop -- --test-i18n
+
+# Verify audio sound asset integrity
+dotnet run --project src/StalkerSaveEditor.Desktop -- --test-audio
 ```
 
-### Run the Desktop Editor
-
+#### Launch the Desktop Editor
 ```bash
-dotnet run --project src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj
+dotnet run --project src/StalkerSaveEditor.Desktop
 ```
 
-### Run Headless Screenshot / Selftest
+---
 
-```bash
-dotnet run --project src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj -- \
-  --screenshot artifacts/ui/preview.png \
-  --fixture tests/Fixtures/xray-call-of-pripyat.sav
-```
+## Verification Levels & Reliability (L1–L5)
+
+In accordance with our [Reliability Charter](docs/roadmap/RL-reliability.md), every feature is categorized by its verified confidence level:
+
+- **L1 (Synthetic Round-Trip)**: Bit-level serializer/parser round-trips and checksum verification on synthetic fixtures.
+- **L2 (Synthetic UI Headless & Test Suite)**: ViewModel unit tests, Avalonia headless UI rendering, Lua 5.1 syntax checks, and complete i18n audits.
+- **L3 (Standalone Application & Packaging)**: Validated execution of compiled native bundles (`.AppImage`, `.deb`, `.exe`, `.dmg`) with bundled assets.
+- **L4 (Game-Accepted Output)**: Save mutations loaded and saved without error in retail game engines.
+- **L5 (Steam Cloud & Production Certified)**: End-to-end verified with retail Steam Cloud and retail games.
 
 ---
 
@@ -120,10 +131,8 @@ dotnet run --project src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csp
 - [Project Roadmap & State](docs/roadmap/STATE.md)
 - [Reliability & Verification Levels (L1–L5)](docs/roadmap/RL-reliability.md)
 - [In-Game Companion Mod & Protocol Guide](docs/COMPANION.md)
-- [Cross-Platform Packaging & Distribution](docs/PACKAGING.md)
 - [Companion Protocol Specification (v1)](docs/MOD_COMPANION_PROTOCOL.md)
-- [X-Ray Trilogy Reader Scope](docs/CS4_XRAY_TRILOGY.md)
-- [S.T.A.L.K.E.R. 2 Reader Scope](docs/CS4_STALKER2.md)
+- [Cross-Platform Packaging & Distribution Guide](docs/PACKAGING.md)
 - [Local Save Editing & Recovery Flow](docs/CS6_LOCAL_EDITING.md)
 - [Architecture Guidelines](ARCHITECTURE.md)
-- [Agent Boundaries & Safety Rules](AGENTS.md)
+- [Safety Rules & Agent Guidelines](AGENTS.md)

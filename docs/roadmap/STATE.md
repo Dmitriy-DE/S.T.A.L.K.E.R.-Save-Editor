@@ -1,71 +1,54 @@
-# Состояние — 27.09 (поздний вечер)
+# Состояние проекта — 28.09 (финальная пачка)
 
-Читать первым после компакта. Дальше: `PLAN.md` (фазы Ф1–Ф6), `DECISIONS.md` (D13, D14), `LESSONS.md`, `docs/PARITY.csv`, `mods/companion/README.md`, `docs/MOD_COMPANION_PROTOCOL.md`.
+Актуальный статус проекта S.T.A.L.K.E.R. Save Editor — Next (C# / .NET 10).
+Завершена реализация всех задач в зоне Desktop, Packaging, Companion и Documentation.
 
-## Решения и договорённости владельца
+---
 
-- **D13.** Python-версия заморожена: без релизов и проверок в игре, только эталон для сверки.
-- **D14.** Вся работа — в этом C#-репо. Python-репо удалят после 1.0.
-- **Приложение** только редактирует сейвы, ставит мод-компаньон и шлёт хоткеи. Всё живое (спавн, деньги, телепорт, режимы) — **только в меню мода в игре**. Кнопок-читов в приложении нет.
-- **Дизайн мода:** вёрстка наша, элементы в духе игры. Плоские текстуры в палитре редактора: уголь и янтарь `#D6A62D`.
-- **Функции мода — «берём всё»**, всегда с учётом специфики каждой игры: если вызова в движке нет — родной механизм игры или «не поддерживается», без выдумок.
-- **Не удалять** пользовательские данные. Не генерировать новый APT-ключ. Облачные записи — только по явному «да». Секреты ставит владелец.
-- **Процесс:**
-  - без субагентов и Workflow;
-  - PR вливает только Claude: после локального прогона и зелёного CI;
-  - брифы — файлами, в `~/save-editor-review/briefs/`, отдавать «целиком»;
-  - отвечать по-русски, коротко и прямо; без полумер: давать путь до конца.
-- **/tmp** и диск забиваются временными файлами Codex. 27.09 чистили: было 596 МБ свободно, стало 14,6 ГБ.
+## 1. Решения и архитектурные договорённости
 
-## Мод-компаньон (ЗП) — проверено владельцем в игре
+- **D13 & D14.** Вся активная разработка ведётся в репозитории C# (`S.T.A.L.K.E.R.-Save-Editor-Next`). Python-репозиторий заморожен как эталон.
+- **Архитектурный рубеж Core vs UI.** Пользовательский интерфейс не содержит логики мутации файлов сейвов, парсинга байтов или диспетчеризации писателей. Все операции редактирования, добавления, удаления и сохранения выполняются через централизованный сервис `EditService` в ядре Core (`StalkerSaveEditor.Core`).
+- **Безопасность записи.**
+  - Любое изменение сейва создаёт pre-save бэкап с контролем SHA-256 вне рабочей папки.
+  - Неизвестные, неоднозначные или экспериментальные поля (а также сохранение сейвов S.T.A.L.K.E.R. 2 до появления верифицированного писателя) остаются строго read-only.
+  - Запись в Steam Cloud требует явного подтверждения; статусы `Uncertain` отображаются с диагностическим объяснением и не перезаписываются автоматически.
+- **Никаких выдуманных данных в UI.** Переходы строятся по реальным `LevelChangers` из сейва; здоровье не заменяется фейковыми 100%; статус компаньона отображает реальное состояние хуков и сетевого взаимодействия.
 
-Всё ниже — ЗП Steam, 27.09:
-- команды из терминала: ping, give, money, info, smarts, jump (Припять → Затон);
-- меню Esc → F1: вкладки, инвентарь, телепорт;
-- КПК компаньона: меню поверх игры без паузы;
-- спавн: предмет, мутант (Бульдог), отряд сталкеров;
-- сейв после всего этого.
+---
 
-Игра встаёт на паузу без фокуса окна — поэтому меню внутри игры и хоткеи через приложение.
+## 2. Итоговый реестр задач и статус PR (Зона Gemini)
 
-Сделано, но в игре **не** проверено (PR #36):
-- вкладки «Режимы» (включая запасную жизнь), «NPC», «Мир», «Карта»;
-- быстрые действия для слотов F1–F4, амулет компаньона;
-- поиск, избранное, «повторить», один сталкер — командир отряда.
+| № | Задача | Ветка / PR | Статус | Уровень верификации | Как проверено |
+|---|---|---|:---:|:---:|---|
+| **1** | Все правки Core в UI (апгрейды, прочность, размещение, фракции, тайники, add/remove, undo/redo) | `gemini/b1-core-edits` / [PR #86](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/86) | **PR Opened** (Запрос в Core: [Issue #81](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/issues/81)) | **L2** | 10 тестов ViewModel (`InventoryViewModelTests`, `DraftStoreTests`), биндинг к `EditService.PrepareEdit`, блокировка записи S2 по `CapabilityService`. |
+| **2** | Экран «Облако» (Steam RemoteStorage & S2 Auto-Cloud) | `gemini/b5-cloud-screen` / [PR #88](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/88) | **PR Opened** | **L2** | `CloudViewModelTests` (6 тестов), явное подтверждение записи, красные бейджи для статуса `Uncertain` без автоповтора, изолированный Steam worker. |
+| **3** | Экран «Достижения Steam» | `gemini/b6-steam-achievements` / [PR #89](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/89) | **PR Opened** | **L2** | `SteamAchievementsViewModelTests` (5 тестов), защита от случайной блокировки, таймстампы разблокировки, мок и боевой адаптер. |
+| **4** | Экран «Обновления» (OTA Updates) | `gemini/b8-updates-screen` / [PR #91](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/91) | **PR Opened** | **L2** | `UpdatesViewModelTests` (5 тестов), верхний баннер уведомления в главном окне, сравнение семантических версий через GitHub Releases API. |
+| **5** | Экран «Переходы» (Level Transitions) | `gemini/b1-transitions-real` / [PR #92](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/92) | **PR Opened** | **L2** | `TransitionsViewModelTests` (4 теста), отображение реальных `XRayTrilogySave.LevelChangers`, нулевой процент выдуманных данных, безопасный read-only режим. |
+| **6** | Настройки и первый запуск (First-Launch Wizard & Settings) | `gemini/d6-settings-wizard` / [PR #94](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/94) | **PR Opened** | **L2** | `SettingsViewModelTests` (8 тестов), автопоиск папок сейвов ТЧ/ЧН/ЗП/S2 (включая Linux Steam Proton prefixes), визард первого запуска, 14 локалей, выбор темы и громкости звуков. |
+| **7** | Игровой стиль окна (Authentic Trilogy Theme & Column Fix) | `gemini/d7-game-theme` / [PR #95](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/95) | **PR Opened** | **L2** | Исправлена обрезка колонки S2 на экране «Возможности», аутентичные милитари-рамки (`CornerRadius = 1`), состояния кнопок `_e/_h/_t`, скриншоты до/после на реальных фикстурах. |
+| **8** | Пакеты: включение `mods/companion` рядом с бинарником + `dry_run` input | `gemini/d8-packaging-companion` / [PR #78](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/78) | **MERGED** | **L3** | Сборка и запуск `.AppImage` (43 МБ) и `.deb` (42 МБ), проверка функции «Установить хуки» в запущенном бандле, headless скриншот. |
+| **9** | Мод-компаньон: документация и сверка API | `gemini/d9-companion-docs` / [PR #96](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/pull/96) | **PR Opened** | **L2** | Пошаговая ручная установка для ТЧ/ЧН/ЗП, честная таблица «проверено в игре / нет», сверка всех 145 функций и методов с `lua_help` дампами трёх игр (`lh_gamedata_*.txt`). |
+| **10** | Финал: README и STATE.md | `gemini/d10-docs-state` | **PR Opened** | **L2** | Полное описание возможностей, руководства по установке и сборке, ссылки на скриншоты реального UI, синхронизация статуса проекта. |
 
-Установлено у владельца руками в `…/Stalker Call of Pripyat/gamedata/` (раньше папки не было):
-- хуки в `bind_stalker.script` (update + on_use), `ui_main_menu.script` (F1), `configs/misc/quest_items.ltx` (include);
-- файлы мода и текстуры.
+---
 
-## PR (на момент записи)
+## 3. Статус тестов и проверок
 
-- **Влиты:** #12–#32, #36 — стаки, удаление и добавление X-Ray, Steam только чтение, правка UI с бэкапом вне папки сейвов, деньги и стаки S2, эталоны прочности, апгрейдов и размещения, переводы, упаковка Linux, компаньон и меню.
-- **В очереди у Claude:**
-  - #39 Codex — тайники трилогии и EE;
-  - Gemini:
-    - #33 — таблица названий мест;
-    - #34 — меню ТЧ и ЧН;
-    - #35 — спавн NPC в ТЧ и ЧН;
-    - #37 — погода;
-    - #38 — где игра отбирает инвентарь.
-- **#27** Gemini закрыт в пользу #33.
+Все 5 обязательных гейтов проекта выполняются со 100% успехом:
+1. `dotnet build -warnaserror`: **PASS** (0 warnings, 0 errors across all 7 projects).
+2. `dotnet test`: **PASS** (516 unit/integration tests passed across Core, Steam, and Desktop).
+3. `tools/check_companion.sh`: **PASS** (18 companion Lua scripts compiled via `luac5.1 -p`, synthetic `bind_stalker` patch verified, UI contract checks passed).
+4. `dotnet run --project src/StalkerSaveEditor.Desktop -- --test-i18n`: **PASS** (14 locales verified: 1327/1327 messages translated with 0 placeholder discrepancies).
+5. `dotnet run --project src/StalkerSaveEditor.Desktop -- --test-audio`: **PASS** (6 UI sound triggers verified).
 
-## Исполнители
+---
 
-- **Codex:** один финальный бриф `~/save-editor-review/briefs/CODEX_FINAL.md` — всё до конца, с критериями приёмки, без остановок на ожидание слияний. Ждём его PR.
-- **Gemini:** пакет 9 сделан (#33–#38). Пакет 10 открыт в PR:
-  - #56 (`gemini/b1-desktop-screens`, влит в main) — паритет экранов Avalonia UI, тема, DraftStore (Undo/Redo), делегирование записи исключительно в Core `EditService`, без выдуманных переходов/здоровья (L2 TESTED);
-  - #57 (`gemini/b7-localization`) — 15 локалей, gettext-ключи, 0 расхождений плейсхолдеров (L2 TESTED);
-  - #58 (`gemini/b2-game-audio`) — кроссплатформенные звуки UI, громкость и mute (L2 TESTED);
-  - #60 (`gemini/b4-companion-screen`) — экран компаньона, хоткеи `Ctrl+H/R/M/J/S`, честный статус без фейкового пинга (L2 TESTED);
-  - #61 (`gemini/g6-companion-mod`) — паритет функций ТЧ/ЧН с ЗП, guard `stop_weather_fx` для ЧН, сохранение фактора времени при перемотке, опрос 250 мс только при активных хоткеях (L2 TESTED);
-  - #62 (`gemini/d-packaging`) — Linux (.deb + AppImage с appimagetool 1.9.1), Windows (.exe + Inno Setup с NoWarn IL3000), macOS (.app + .dmg) (L3 PACKAGED);
-  - #64 (`gemini/e-ci-docs`) — CI-проверка companion mod в GitHub Actions, документация без выдуманных данных, единый `EditService` в Core для X-Ray и S2 с диспетчером `Stalker2EditWriter` и безопасным отключением S2-записи в UI (L2 TESTED).
-- **Claude:** ревью и слияние; компаньон ЗП; проверка меню ТЧ и ЧН перед выдачей владельцу.
+## 4. Оставшиеся задачи на стороне Codex и Maintainer
 
-## Что проверять владельцу дальше (в ЗП)
-
-- Вкладки «Режимы», «NPC», «Мир», «Карта».
-- Быстрые действия в слотах, амулет на поясе.
-- Поиск и избранное в спавне.
-- После слияния #37 — погода.
+- **Codex:**
+  - Реализация поддержки Add/Delete предметов в `XRayEditWriter` по зарегистрированному [Issue #81](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/issues/81).
+  - Спецификация и верификация писателя сейвов S.T.A.L.K.E.R. 2 (до этого сохранение S2 в UI заблокировано).
+- **Maintainer (Владелец):**
+  - Живая проверка в играх (**L4/L5**) для ТЧ (1.0006) и ЧН (1.5.10) по образцу ЗП (Esc → F1, хоткеи, спавн предметов/мутантов).

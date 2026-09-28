@@ -33,7 +33,7 @@ reply:   v1 <id> <status> <text>
 
 | Command | Args | ok text |
 |---|---|---|
-| `ping` | — | `pong` |
+| `ping` | — | `pong <build>` (`MOD_BUILD` of the loaded mod; old builds reply plain `pong`) |
 | `info` | — | `level=<name> x=<f> y=<f> z=<f> money=<n>` |
 | `give` | `<section> [1-100]` | `gave <n> <section>` |
 | `money` | `<integer delta>` | `money=<balance>` (refuses to go below 0) |

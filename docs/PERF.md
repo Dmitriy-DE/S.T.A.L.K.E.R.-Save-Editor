@@ -27,3 +27,26 @@ Environment: Linux x64, .NET 10.0.12, Release, one local run.
 | SoC | 3,820,544 B | 3,820,544 B | 0 B | 0 / 100 |
 
 No retained save buffers or repeatable managed-heap growth was observed. This is a focused Core test, not a process RSS or GUI leak measurement.
+
+## NativeAOT Core and CLI publish (E4)
+
+The CLI publish includes Core and the referenced Steam worker code in one self-contained Linux x64 NativeAOT executable. JSON serialization uses generated metadata; the publish below completed with `-warnaserror` and no trimming or AOT warnings.
+
+```sh
+HOME=<temporary-home> TMPDIR=<temporary-dir> NUGET_PACKAGES=<temporary-packages> \
+  dotnet publish src/StalkerSaveEditor.Cli/StalkerSaveEditor.Cli.csproj \
+  -c Release -r linux-x64 --self-contained true \
+  -p:PublishAot=true -p:PublishTrimmed=true -warnaserror -o <temporary-output>
+```
+
+Environment: Linux x64, .NET SDK 10.0.12, local x64 host. `StalkerSaveEditor.Cli version` was launched 11 times from the native publish; elapsed time was measured around each child process with a monotonic high-resolution clock.
+
+| Artifact / measurement | Result |
+| --- | ---: |
+| Native CLI executable | 5,665,864 B |
+| `libstalker_ooz.so` runtime dependency | 420,488 B |
+| Combined runtime artifacts, excluding debug symbols | 6,086,352 B |
+| CLI process start + `version`, median (11 runs) | 4.74 ms |
+| Minimum / maximum | 4.30 ms / 14.29 ms |
+
+This measures the Linux CLI process only. It does not measure Desktop startup, RSS, or publish size on Windows and macOS.

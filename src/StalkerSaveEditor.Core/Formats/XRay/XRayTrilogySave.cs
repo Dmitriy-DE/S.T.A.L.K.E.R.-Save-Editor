@@ -19,6 +19,7 @@ public sealed class XRayTrilogySave
         int? actorReputation,
         string? actorName,
         IReadOnlyList<XRayRegistryObject> registryObjects,
+        IReadOnlyList<XRayLevelChanger> levelChangers,
         ulong gameTime,
         float timeFactor,
         float normalTimeFactor,
@@ -42,6 +43,7 @@ public sealed class XRayTrilogySave
         ActorReputation = actorReputation;
         ActorName = actorName;
         RegistryObjects = registryObjects;
+        LevelChangers = levelChangers;
         GameTime = gameTime;
         TimeFactor = timeFactor;
         NormalTimeFactor = normalTimeFactor;
@@ -83,6 +85,12 @@ public sealed class XRayTrilogySave
 
     internal IReadOnlyList<XRayRegistryObject> RegistryObjects { get; }
 
+    /// <summary>
+    /// Level-changer identities discovered in the X-Ray object registry.
+    /// This collection contains only registry fields; destination state offsets are not inferred.
+    /// </summary>
+    public IReadOnlyList<XRayLevelChanger> LevelChangers { get; }
+
     public ulong GameTime { get; }
 
     public float TimeFactor { get; }
@@ -95,6 +103,14 @@ public sealed class XRayTrilogySave
 }
 
 public sealed record XRayFactionRelation(int CommunityIndex, int Value);
+
+/// <summary>Registry identity for one level-changer object in an X-Ray save.</summary>
+public sealed record XRayLevelChanger(
+    ushort Handle,
+    ushort ParentId,
+    int ObjectVersion,
+    string Name,
+    string NameReplace);
 
 internal sealed record XRayRegistryObject(
     string Name,

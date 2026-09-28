@@ -41,12 +41,17 @@ public sealed class CompanionView : UserControl
         });
         headerPanel.Children.Add(new TextBlock
         {
-            Text = "Меню в игре: Esc → F1 или КПК компаньона. Установка из приложения появится вместе с установщиком (#59).",
+            Text = "Меню в игре: Esc → F1 или КПК компаньона. Установка через приложение ниже.",
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextMuted,
         });
 
-        var gameSelectorRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(0, 10, 0, 0) };
+        var gameSelectorRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 12,
+            Margin = new Thickness(0, 10, 0, 0),
+        };
         gameSelectorRow.Children.Add(new TextBlock
         {
             Text = "Целевая игра:",
@@ -71,10 +76,7 @@ public sealed class CompanionView : UserControl
         // 2. Status Card
         var statusStack = new StackPanel { Spacing = 14 };
 
-        var statusHeaderRow = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-        };
+        var statusHeaderRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var statusTitle = new TextBlock
         {
             Text = "СТАТУС И СВЯЗЬ",
@@ -98,7 +100,8 @@ public sealed class CompanionView : UserControl
                 [!TextBlock.TextProperty] = new Binding("StatusBadgeText"),
                 [!TextBlock.ForegroundProperty] = new Binding("StatusBadgeColor")
                 {
-                    Converter = new FuncValueConverter<string, IBrush>(c => new SolidColorBrush(Color.Parse(c ?? "#FFFFFF"))),
+                    Converter = new FuncValueConverter<string, IBrush>(c =>
+                        new SolidColorBrush(Color.Parse(c ?? "#FFFFFF"))),
                 },
             },
         };
@@ -114,25 +117,58 @@ public sealed class CompanionView : UserControl
 
         void AddDetail(int row, string label, string bindingPath)
         {
-            var lbl = new TextBlock { Text = label, Foreground = StalkerTheme.BrushTextMuted, FontSize = 12, Margin = new Thickness(0, 4) };
+            var lbl = new TextBlock
+            {
+                Text = label,
+                Foreground = StalkerTheme.BrushTextMuted,
+                FontSize = 12,
+                Margin = new Thickness(0, 4),
+            };
             Grid.SetRow(lbl, row);
             Grid.SetColumn(lbl, 0);
             detailsGrid.Children.Add(lbl);
 
-            var val = new TextBlock { Foreground = StalkerTheme.BrushTextPrimary, FontSize = 12, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 4), [!TextBlock.TextProperty] = new Binding(bindingPath) };
+            var val = new TextBlock
+            {
+                Foreground = StalkerTheme.BrushTextPrimary,
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold,
+                Margin = new Thickness(0, 4),
+                TextWrapping = TextWrapping.Wrap,
+                [!TextBlock.TextProperty] = new Binding(bindingPath),
+            };
             Grid.SetRow(val, row);
             Grid.SetColumn(val, 1);
             detailsGrid.Children.Add(val);
         }
 
         AddDetail(0, "Версия мода:", "VersionText");
-        AddDetail(1, "Пинг / Задержка:", "PingText");
+        AddDetail(1, "Связь / Задержка:", "PingText");
         AddDetail(2, "Путь установки:", "GamePath");
 
         statusStack.Children.Add(detailsGrid);
 
+        // Install issues block (hidden when empty)
+        var issuesBlock = new TextBlock
+        {
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.Parse("#E05252")),
+            TextWrapping = TextWrapping.Wrap,
+            [!TextBlock.TextProperty] = new Binding("InstallIssues"),
+            [!IsVisibleProperty] = new Binding("InstallIssues")
+            {
+                Converter = new FuncValueConverter<string, bool>(s => !string.IsNullOrEmpty(s)),
+            },
+        };
+        statusStack.Children.Add(issuesBlock);
+
         // Action Buttons Row
-        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 6, 0, 0) };
+        var btnRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            Margin = new Thickness(0, 6, 0, 0),
+        };
 
         var btnInstall = StalkerTheme.StalkerButton("УСТАНОВИТЬ МОД", isPrimary: true, minWidth: 150);
         btnInstall.Bind(Button.CommandProperty, new Binding("InstallCommand"));
@@ -142,7 +178,7 @@ public sealed class CompanionView : UserControl
         btnUninstall.Bind(Button.CommandProperty, new Binding("UninstallCommand"));
         btnRow.Children.Add(btnUninstall);
 
-        var btnPing = StalkerTheme.StalkerButton("ПРОВЕРИТЬ СВЯЗЬ (PING)", isPrimary: false, minWidth: 180);
+        var btnPing = StalkerTheme.StalkerButton("ПРОВЕРИТЬ СВЯЗЬ", isPrimary: false, minWidth: 160);
         btnPing.Bind(Button.CommandProperty, new Binding("PingCommand"));
         btnRow.Children.Add(btnPing);
 
@@ -151,15 +187,50 @@ public sealed class CompanionView : UserControl
         btnRow.Children.Add(btnRefresh);
 
         statusStack.Children.Add(btnRow);
-        var statusCard = StalkerTheme.Card(statusStack);
-        mainStack.Children.Add(statusCard);
+        mainStack.Children.Add(StalkerTheme.Card(statusStack));
 
-        // 3. Hotkeys Card
+        // 3. Manual Game Directory Card
+        var gameDirStack = new StackPanel { Spacing = 10 };
+        gameDirStack.Children.Add(new TextBlock
+        {
+            Text = "ПАПКА ИГРЫ (РУЧНОЙ ВЫБОР)",
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushAccentAmber,
+            LetterSpacing = 0.8,
+        });
+        gameDirStack.Children.Add(new TextBlock
+        {
+            Text = "Оставьте пустым для автоматического поиска через Steam. Укажите путь вручную, если папка нестандартная.",
+            FontSize = 12,
+            Foreground = StalkerTheme.BrushTextMuted,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        var dirRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var dirBox = new TextBox
+        {
+            Watermark = "/путь/к/папке/игры",
+            MinWidth = 400,
+            MaxWidth = 600,
+            Background = StalkerTheme.BrushBgInput,
+            BorderBrush = StalkerTheme.BrushBorder,
+            [!TextBox.TextProperty] = new Binding("ManualGameDir", BindingMode.TwoWay),
+        };
+        dirRow.Children.Add(dirBox);
+
+        var btnApplyDir = StalkerTheme.StalkerButton("ПРИМЕНИТЬ", isPrimary: false, minWidth: 100);
+        btnApplyDir.Bind(Button.CommandProperty, new Binding("SetManualDirCommand"));
+        dirRow.Children.Add(btnApplyDir);
+
+        gameDirStack.Children.Add(dirRow);
+        mainStack.Children.Add(StalkerTheme.Card(gameDirStack));
+
+        // 4. Hotkeys Card
         var hotkeysStack = new StackPanel { Spacing = 14 };
-
         hotkeysStack.Children.Add(new TextBlock
         {
-            Text = "ПРИВЯЗКА ГОРЯЧИХ КЛАВИШ (HOTKEYS)",
+            Text = "ГОРЯЧИЕ КЛАВИШИ",
             FontSize = 13,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -168,11 +239,64 @@ public sealed class CompanionView : UserControl
 
         hotkeysStack.Children.Add(new TextBlock
         {
-            Text = "Сочетания ловит приложение (игра их скриптам не отдаёт) и передаёт команду моду. Работает, когда включены горячие клавиши.",
+            Text = "Приложение перехватывает сочетание и отправляет команду моду через файл-протокол. " +
+                   "Игра должна быть запущена с установленным модом.",
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextMuted,
+            TextWrapping = TextWrapping.Wrap,
         });
 
+        // Wayland warning (shown only when unsupported)
+        var waylandWarning = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#3E2020")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#E05252")),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(12, 8),
+            [!IsVisibleProperty] = new Binding("HotkeysUnsupportedReason")
+            {
+                Converter = new FuncValueConverter<string?, bool>(r => r is not null),
+            },
+            Child = new TextBlock
+            {
+                Foreground = new SolidColorBrush(Color.Parse("#E05252")),
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                [!TextBlock.TextProperty] = new Binding("HotkeysUnsupportedReason"),
+            },
+        };
+        hotkeysStack.Children.Add(waylandWarning);
+
+        // Toggle row
+        var toggleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, VerticalAlignment = VerticalAlignment.Center };
+
+        var hotkeyToggle = new ToggleButton
+        {
+            Content = "Горячие клавиши",
+            MinWidth = 160,
+            [!ToggleButton.IsCheckedProperty] = new Binding("HotkeysEnabled"),
+            [!IsEnabledProperty] = new Binding("HotkeysSupported"),
+        };
+        hotkeyToggle.Click += (_, _) =>
+        {
+            if (hotkeyToggle.DataContext is CompanionViewModel vm)
+            {
+                vm.ToggleHotkeysCommand.Execute(null);
+            }
+        };
+        toggleRow.Children.Add(hotkeyToggle);
+
+        toggleRow.Children.Add(new TextBlock
+        {
+            Text = "Ctrl+H  Лечить   |   Ctrl+R  Починить   |   Ctrl+M  Метка   |   Ctrl+J  Прыжок   |   Ctrl+S  Сохранить",
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushTextMuted,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        hotkeysStack.Children.Add(toggleRow);
+
+        // Hotkey binding list
         var hotkeysList = new ItemsControl
         {
             [!ItemsControl.ItemsSourceProperty] = new Binding("Hotkeys"),
@@ -180,14 +304,13 @@ public sealed class CompanionView : UserControl
             {
                 var rowGrid = new Grid
                 {
-                    ColumnDefinitions = new ColumnDefinitions("140,90,*"),
+                    ColumnDefinitions = new ColumnDefinitions("160,120,*"),
                     Margin = new Thickness(0, 4),
                 };
 
                 var actionTb = new TextBlock
                 {
-                    Text = item.Action,
-                    FontWeight = FontWeight.Bold,
+                    [!TextBlock.TextProperty] = new Binding("Description") { Source = item },
                     Foreground = StalkerTheme.BrushTextPrimary,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
@@ -196,8 +319,8 @@ public sealed class CompanionView : UserControl
 
                 var keyBox = new TextBox
                 {
-                    Text = item.Key,
-                    MaxWidth = 85,
+                    [!TextBox.TextProperty] = new Binding("Key") { Source = item },
+                    MaxWidth = 115,
                     TextAlignment = TextAlignment.Center,
                     FontWeight = FontWeight.Bold,
                     Foreground = StalkerTheme.BrushAccentAmber,
@@ -212,32 +335,36 @@ public sealed class CompanionView : UserControl
                 Grid.SetColumn(keyBox, 1);
                 rowGrid.Children.Add(keyBox);
 
-                var descTb = new TextBlock
+                var actionIdTb = new TextBlock
                 {
-                    Text = item.Description,
+                    [!TextBlock.TextProperty] = new Binding("Action") { Source = item },
                     Foreground = StalkerTheme.BrushTextMuted,
-                    FontSize = 12,
+                    FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(12, 0, 0, 0),
                 };
-                Grid.SetColumn(descTb, 2);
-                rowGrid.Children.Add(descTb);
+                Grid.SetColumn(actionIdTb, 2);
+                rowGrid.Children.Add(actionIdTb);
 
                 return rowGrid;
             }),
         };
 
         hotkeysStack.Children.Add(hotkeysList);
-        var hotkeysCard = StalkerTheme.Card(hotkeysStack);
-        mainStack.Children.Add(hotkeysCard);
+        mainStack.Children.Add(StalkerTheme.Card(hotkeysStack));
 
-        // 4. Status Message Banner
+        // 5. Status Message Banner
         var statusMsg = new TextBlock
         {
             FontSize = 12,
             Foreground = StalkerTheme.BrushAccentAmber,
             FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
             [!TextBlock.TextProperty] = new Binding("StatusMessage"),
+            [!IsVisibleProperty] = new Binding("StatusMessage")
+            {
+                Converter = new FuncValueConverter<string, bool>(s => !string.IsNullOrEmpty(s)),
+            },
         };
         mainStack.Children.Add(statusMsg);
 

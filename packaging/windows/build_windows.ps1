@@ -32,6 +32,11 @@ Rename-Item -Path "$WinDist\StalkerSaveEditor.Desktop.exe" -NewName "StalkerSave
 Copy-Item "$WinDist\StalkerSaveEditor.exe" -Destination "$Dist\StalkerSaveEditor-v$Version-win-x64.exe"
 Write-Host "Standalone Windows binary created: $Dist\StalkerSaveEditor-v$Version-win-x64.exe" -ForegroundColor Cyan
 
+# Bundle companion mod next to binary
+Write-Host "Bundling companion mod..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Force -Path "$WinDist\mods" | Out-Null
+Copy-Item -Recurse -Force "$Root\mods\companion" -Destination "$WinDist\mods\companion"
+
 # 3. Compile Inno Setup installer if available
 $InnoCompiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 if (Test-Path $InnoCompiler) {

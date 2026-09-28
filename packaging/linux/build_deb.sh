@@ -48,6 +48,11 @@ dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.
 mv "${PKG_ROOT}/usr/bin/StalkerSaveEditor.Desktop" "${PKG_ROOT}/usr/bin/stalker-save-editor"
 chmod 755 "${PKG_ROOT}/usr/bin/stalker-save-editor"
 
+# Bundle companion mod next to binary so CompanionServiceAdapter.ResolveModSourceRoot() finds it.
+echo "Bundling companion mod..."
+mkdir -p "${PKG_ROOT}/usr/bin/mods"
+cp -r "${ROOT}/mods/companion" "${PKG_ROOT}/usr/bin/mods/companion"
+
 # 4. Install desktop entry and icons
 cp "${ROOT}/packaging/linux/stalker-save-editor.desktop" "${PKG_ROOT}/usr/share/applications/"
 cp "${ROOT}/packaging/linux/stalker-save-editor.png" "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps/"

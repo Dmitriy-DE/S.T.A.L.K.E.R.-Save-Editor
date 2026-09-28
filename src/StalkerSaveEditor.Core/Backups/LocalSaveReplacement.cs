@@ -29,8 +29,6 @@ public sealed class LocalSaveReplacementException(
 
 public static class LocalSaveReplacement
 {
-    private static readonly JsonSerializerOptions JournalJsonOptions = new() { WriteIndented = true };
-
     public static LocalSaveReplacementReceipt ReplaceLocal(
         string sourcePath,
         PreparedEdit prepared,
@@ -171,7 +169,7 @@ public static class LocalSaveReplacement
         };
 
     private static byte[] SerializeJournal(Dictionary<string, object?> journal) =>
-        JsonSerializer.SerializeToUtf8Bytes(journal, JournalJsonOptions);
+        JsonSerializer.SerializeToUtf8Bytes(journal, BackupJournalJsonContext.Default.Journal);
 
     private static string Sha256(ReadOnlySpan<byte> data) =>
         Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();

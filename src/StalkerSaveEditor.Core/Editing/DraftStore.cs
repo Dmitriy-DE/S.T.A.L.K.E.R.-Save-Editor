@@ -89,7 +89,7 @@ public sealed class DraftJournal
     }
 }
 
-public sealed class DraftStore
+public sealed partial class DraftStore
 {
     private const int CurrentSchemaVersion = 2;
     private const int LegacyPythonSchemaVersion = 1;
@@ -110,13 +110,6 @@ public sealed class DraftStore
         "raw",
         "stacks",
         "upgrades",
-    };
-
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        WriteIndented = false,
     };
 
     private readonly string _directory;
@@ -241,7 +234,9 @@ public sealed class DraftStore
             return null;
         }
 
-        var planEnvelopes = JsonSerializer.Deserialize<CurrentPlanEnvelope[]>(rawPlans.GetRawText(), SerializerOptions);
+        var planEnvelopes = JsonSerializer.Deserialize(
+            rawPlans.GetRawText(),
+            DraftJsonContext.Default.CurrentPlanEnvelopes);
         if (planEnvelopes is null || planEnvelopes.Any(plan => plan is null || plan.SourceSha256 != expectedSha256))
         {
             return null;
@@ -457,7 +452,7 @@ public sealed class DraftStore
             Schema = CurrentSchemaVersion,
             SourceSha256 = journal.Current.SourceSha256,
         };
-        return JsonSerializer.SerializeToUtf8Bytes(payload, SerializerOptions);
+        return JsonSerializer.SerializeToUtf8Bytes(payload, DraftJsonContext.Default.CurrentDraftEnvelope);
     }
 
     private static bool HasChanges(EditPlan plan) =>
@@ -596,5 +591,14 @@ public sealed class DraftStore
             StashPuts = plan.StashPuts.ToList(),
             UnmappedLegacyPlan = unmappedLegacyPlan,
         };
+    }
+
+    [JsonSourceGenerationOptions(
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
+    [JsonSerializable(typeof(CurrentDraftEnvelope), TypeInfoPropertyName = "CurrentDraftEnvelope")]
+    [JsonSerializable(typeof(CurrentPlanEnvelope[]), TypeInfoPropertyName = "CurrentPlanEnvelopes")]
+    private partial class DraftJsonContext : JsonSerializerContext
+    {
     }
 }

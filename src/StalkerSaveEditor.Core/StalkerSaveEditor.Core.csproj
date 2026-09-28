@@ -4,5 +4,6 @@
     <EmbeddedResource Include="Capabilities/Data/capability-snapshot.json" LogicalName="StalkerSaveEditor.Core.Capabilities.Data.capability-snapshot.json" />
     <EmbeddedResource Include="Catalogs/Data/catalogs.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.catalogs.json" />
     <EmbeddedResource Include="Catalogs/Data/catalog_names.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.catalog_names.json" />
+    <EmbeddedResource Include="Catalogs/Data/s2_items.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.s2_items.json" />
   </ItemGroup>
 </Project>

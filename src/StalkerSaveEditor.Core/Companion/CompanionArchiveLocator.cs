@@ -3,7 +3,9 @@ namespace StalkerSaveEditor.Core.Companion;
 internal sealed record CompanionArchiveSearchResult(
     IReadOnlyList<string> ArchivePaths,
     IReadOnlyList<string> Issues,
-    string? FsgamePath);
+    string? FsgamePath,
+    string? GameDataDirectory = null,
+    string? GameConfigDirectory = null);
 
 /// <summary>
 /// Resolves archive roots from X-Ray's fsgame aliases. The root list is kept in
@@ -21,7 +23,8 @@ internal static class CompanionArchiveLocator
     public static CompanionArchiveSearchResult Discover(
         ICompanionInstallFileSystem fileSystem,
         string gameDirectory,
-        IReadOnlyList<string> fsgameFileNames)
+        IReadOnlyList<string> fsgameFileNames,
+        CompanionGame game)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
@@ -52,17 +55,29 @@ internal static class CompanionArchiveLocator
         }
 
         var definitions = ParseAliases(contents, fsgamePath, out var parseIssues);
+        var gameDataDirectory = ResolveAlias("$game_data$", definitions, gameDirectory, []);
+        var gameConfigDirectory = ResolveAlias("$game_config$", definitions, gameDirectory, []);
         var archiveAliases = definitions
             .Where(alias => alias.Name.Contains("arch", StringComparison.OrdinalIgnoreCase))
             .OrderBy(alias => alias.Order)
             .ToArray();
         var issues = new List<string>(parseIssues);
-        if (archiveAliases.Length == 0)
+        if (gameDataDirectory is null)
+        {
+            issues.Add($"Could not resolve fsgame alias $game_data$ from {Path.GetFileName(fsgamePath)}.");
+        }
+
+        if (gameConfigDirectory is null)
+        {
+            issues.Add($"Could not resolve fsgame alias $game_config$ from {Path.GetFileName(fsgamePath)}.");
+        }
+
+        var archivePaths = new List<string>();
+        if (archiveAliases.Length == 0 && game != CompanionGame.ShadowOfChernobyl)
         {
             issues.Add($"No X-Ray archive aliases were found in {Path.GetFileName(fsgamePath)}.");
         }
 
-        var archivePaths = new List<string>();
         foreach (var alias in archiveAliases)
         {
             var directory = ResolveAlias(alias.Name, definitions, gameDirectory, []);
@@ -93,6 +108,30 @@ internal static class CompanionArchiveLocator
             }
         }
 
+        if (game == CompanionGame.ShadowOfChernobyl)
+        {
+            try
+            {
+                // SoC fsgame relies on LocatorAPI scanning the $fs_root$ entry;
+                // it does not declare a separate $arch_dir$ alias. LocatorAPI's
+                // _initialize/Recurse/ProcessOne path discovers these root DBs.
+                var rootArchives = fileSystem.EnumerateFiles(gameDirectory, "*", SearchOption.TopDirectoryOnly)
+                    .Where(IsShadowOfChernobylRootArchive)
+                    .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(path => Path.GetFileName(path), StringComparer.Ordinal)
+                    .ToArray();
+                archivePaths.AddRange(rootArchives);
+                if (archiveAliases.Length == 0 && rootArchives.Length == 0)
+                {
+                    issues.Add($"No X-Ray archive aliases or gamedata.db0–gamedata.dbd root archives were found in {Path.GetFileName(fsgamePath)}.");
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                issues.Add($"Could not enumerate Shadow of Chernobyl root archives: {exception.Message}");
+            }
+        }
+
         var orderedArchives = archivePaths
             .Distinct(StringComparerForPaths())
             .ToArray();
@@ -101,7 +140,12 @@ internal static class CompanionArchiveLocator
             issues.Add($"No X-Ray archives were found in the paths configured by {Path.GetFileName(fsgamePath)}.");
         }
 
-        return new CompanionArchiveSearchResult(orderedArchives, issues.AsReadOnly(), fsgamePath);
+        return new CompanionArchiveSearchResult(
+            orderedArchives,
+            issues.AsReadOnly(),
+            fsgamePath,
+            gameDataDirectory,
+            gameConfigDirectory);
     }
 
     private static IReadOnlyList<AliasDefinition> ParseAliases(
@@ -233,8 +277,25 @@ internal static class CompanionArchiveLocator
         }
 
         var marker = name.LastIndexOf(".db", StringComparison.OrdinalIgnoreCase);
-        return marker >= 0 && marker + 3 < name.Length &&
-            name.AsSpan(marker + 3).IndexOfAnyExceptInRange('0', '9') < 0;
+        return marker >= 0 && IsArchiveSuffix(name.AsSpan(marker + 3));
+    }
+
+    private static bool IsShadowOfChernobylRootArchive(string path)
+    {
+        const string archivePrefix = "gamedata.db";
+        var name = Path.GetFileName(path);
+        return name.StartsWith(archivePrefix, StringComparison.OrdinalIgnoreCase) &&
+            IsArchiveSuffix(name.AsSpan(archivePrefix.Length));
+    }
+
+    private static bool IsArchiveSuffix(ReadOnlySpan<char> suffix)
+    {
+        if (suffix.Length == 0 || suffix.IndexOfAnyExceptInRange('0', '9') < 0)
+        {
+            return true;
+        }
+
+        return suffix.Length == 1 && char.ToLowerInvariant(suffix[0]) is >= 'a' and <= 'd';
     }
 
     private static string NormalizePathSeparators(string path) =>

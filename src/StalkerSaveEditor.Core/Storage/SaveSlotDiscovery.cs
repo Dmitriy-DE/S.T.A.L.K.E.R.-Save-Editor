@@ -52,7 +52,9 @@ public static class SaveSlotDiscovery
             string directory;
             try
             {
-                directory = Path.GetFullPath(candidate.DirectoryPath);
+                // Proton exposes the same folder as "Local Settings/Application Data" and "AppData/Local";
+                // resolve links so one save is listed once.
+                directory = ResolveLinks(Path.GetFullPath(candidate.DirectoryPath));
             }
             catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException)
             {
@@ -117,7 +119,8 @@ public static class SaveSlotDiscovery
                         file.Length,
                         file.LastWriteTimeUtc,
                         formatId,
-                        FamilyForFormat(formatId)));
+                        FamilyForFormat(formatId),
+                        formatId is null ? "The file is not a save format this version can read." : null));
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
@@ -140,6 +143,35 @@ public static class SaveSlotDiscovery
             return modified != 0 ? modified : pathComparer.Compare(left.Path, right.Path);
         });
         return new SaveDiscoveryResult(slots.AsReadOnly(), searchedPaths.AsReadOnly());
+    }
+
+    /// <summary>Resolves symbolic links component by component (directory junctions and Proton links).</summary>
+    internal static string ResolveLinks(string fullPath)
+    {
+        var root = Path.GetPathRoot(fullPath) ?? string.Empty;
+        var current = root;
+        foreach (var part in fullPath[root.Length..].Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            var next = Path.Combine(current, part);
+            try
+            {
+                var info = new DirectoryInfo(next);
+                if (info.Exists && info.LinkTarget is not null && info.ResolveLinkTarget(returnFinalTarget: true) is { } target)
+                {
+                    next = Path.GetFullPath(target.FullName);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                // Keep the literal component; discovery must not fail on an unreadable link.
+            }
+
+            current = next;
+        }
+
+        return current.Length == 0 ? fullPath : current;
     }
 
     public static SaveDiscoveryResult Discover(SaveDirectoryDiscoveryOptions? options = null) =>

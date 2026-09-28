@@ -85,6 +85,11 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         return result.Success;
     }
 
+    private readonly Dictionary<CompanionGame, string?> _buildWarnings = [];
+
+    /// <summary>Set by the last successful ping when the game runs another mod build than the editor ships.</summary>
+    public string? ModBuildWarning(string gameReleaseId) => _buildWarnings.GetValueOrDefault(ParseGame(gameReleaseId));
+
     public async Task<TimeSpan?> PingAsync(string gameReleaseId, CancellationToken ct = default)
     {
         var game = ParseGame(gameReleaseId);
@@ -96,9 +101,13 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var reply = await client.SendAsync("ping", null, ct).ConfigureAwait(false);
             sw.Stop();
-            if (reply.Status == StalkerSaveEditor.Core.Companion.CompanionReplyStatus.Ok)
-                return sw.Elapsed;
-            return null;
+            if (reply.Status != StalkerSaveEditor.Core.Companion.CompanionReplyStatus.Ok) return null;
+            var gameBuild = reply.Text.StartsWith("pong ", StringComparison.Ordinal) ? reply.Text[5..].Trim() : null;
+            var bundled = CreateInstaller().BundledModBuild;
+            _buildWarnings[game] = bundled is not null && !string.Equals(gameBuild, bundled, StringComparison.Ordinal)
+                ? $"В игре работает мод версии {gameBuild ?? "старее 2026.09.28"}, в редакторе — {bundled}. Нажмите «Установить / обновить» и перезапустите игру."
+                : null;
+            return sw.Elapsed;
         }
         catch
         {

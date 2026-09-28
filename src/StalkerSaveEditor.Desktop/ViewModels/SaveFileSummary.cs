@@ -109,6 +109,63 @@ public sealed class SaveFileSummary
     }
 
     public string FilePath { get; }
+
+    private bool _previewLoaded;
+    private Avalonia.Media.Imaging.Bitmap? _preview;
+    private string? _slotTitle;
+
+    /// <summary>The game's own screenshot of this slot (X-Ray .dds / S2 thumbnail), decoded on first use; null when absent.</summary>
+    public Avalonia.Media.Imaging.Bitmap? Preview
+    {
+        get
+        {
+            if (_previewLoaded) return _preview;
+            _previewLoaded = true;
+            try
+            {
+                if (StalkerSaveEditor.Core.Inspection.SavePreviewReader.Preview(FilePath, IsStalker2) is { } image)
+                {
+                    using var stream = new MemoryStream(image);
+                    _preview = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, 96);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or ArgumentException or InvalidOperationException or NotSupportedException)
+            {
+                _preview = null;
+            }
+
+            return _preview;
+        }
+    }
+
+    public bool HasPreview => Preview is not null;
+
+    /// <summary>Second line in the library: S2 region and play time from the campaign index, else the X-Ray level.</summary>
+    public string SlotTitle => _slotTitle ??= BuildSlotTitle();
+
+    private bool IsStalker2 => ReleaseId.StartsWith("stalker2", StringComparison.Ordinal);
+
+    private string BuildSlotTitle()
+    {
+        if (IsStalker2)
+        {
+            try
+            {
+                if (StalkerSaveEditor.Core.Inspection.SavePreviewReader.Stalker2Slot(FilePath) is { } slot)
+                {
+                    var region = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(slot.RegionSlug.Replace('_', ' '));
+                    return string.Create(CultureInfo.InvariantCulture, $"{region} · {slot.PlayHours:0.#} ч");
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+            }
+
+            return ReleaseName;
+        }
+
+        return string.IsNullOrWhiteSpace(LevelName) ? ReleaseName : $"{ReleaseName} · {LevelName}";
+    }
     public string DisplayName { get; }
     public string ReleaseName { get; }
     public string ReleaseId { get; }
@@ -162,17 +219,21 @@ public sealed class SaveFileSummary
         ? LastModified.Value.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.CurrentCulture)
         : "—";
 
+    public string MoneyDisplay => CanEditMoney || Money > 0 ? Money.ToString("N0", CultureInfo.CurrentCulture) + " RU" : "—";
+
     public string GameTimeDisplay
     {
         get
         {
             if (!GameTime.HasValue) return "—";
-            // X-Ray game time in milliseconds:
-            var totalSeconds = GameTime.Value / 1000.0;
-            var days = (int)(totalSeconds / 86400);
-            var hours = (int)((totalSeconds % 86400) / 3600);
-            var minutes = (int)((totalSeconds % 3600) / 60);
-            return days > 0 ? $"День {days + 1}, {hours:D2}:{minutes:D2}" : $"{hours:D2}:{minutes:D2}";
+            // X-Ray game time: milliseconds since 01.01.0001 (the in-game calendar date).
+            if (GameTime.Value / 1000 / 86400 < 3_650_000)
+            {
+                var moment = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Unspecified).AddMilliseconds(GameTime.Value);
+                if (moment.Year is >= 1990 and <= 2100) return moment.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
+            }
+
+            return "—";
         }
     }
 

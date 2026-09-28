@@ -114,7 +114,7 @@ public sealed class CloudView : UserControl
         var listBox = new ListBox
         {
             Background = Brushes.Transparent,
-            ItemTemplate = new FuncDataTemplate<CloudSaveItemViewModel>((item, _) =>
+            ItemTemplate = StalkerTheme.Template<CloudSaveItemViewModel>(item =>
             {
                 var row = new Grid
                 {

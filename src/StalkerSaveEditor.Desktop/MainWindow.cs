@@ -33,7 +33,7 @@ public sealed class MainWindow : Window
     {
         var root = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"),
             Background = StalkerTheme.BrushBgBase,
         };
 
@@ -41,7 +41,12 @@ public sealed class MainWindow : Window
         var topBar = BuildTopBar(vm);
         root.Children.Add(topBar);
 
-        // 2. Middle Area: Left Saves Pane (300) + Right Workspace
+        // 2. Update Notification Banner
+        var updateBanner = BuildUpdateBanner(vm);
+        Grid.SetRow(updateBanner, 1);
+        root.Children.Add(updateBanner);
+
+        // 3. Middle Area: Left Saves Pane (310) + Right Workspace
         var middle = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("310,*"),
@@ -54,15 +59,56 @@ public sealed class MainWindow : Window
         Grid.SetColumn(workspacePane, 1);
         middle.Children.Add(workspacePane);
 
-        Grid.SetRow(middle, 1);
+        Grid.SetRow(middle, 2);
         root.Children.Add(middle);
 
-        // 3. Bottom Status Bar
+        // 4. Bottom Status Bar
         var statusBar = BuildStatusBar();
-        Grid.SetRow(statusBar, 2);
+        Grid.SetRow(statusBar, 3);
         root.Children.Add(statusBar);
 
         return root;
+    }
+
+    private static Control BuildUpdateBanner(SaveLibraryViewModel vm)
+    {
+        var banner = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#1A2B18")),
+            BorderBrush = StalkerTheme.BrushSuccess,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(18, 6, 18, 6),
+            DataContext = vm.Updates,
+        };
+        banner.Bind(Visual.IsVisibleProperty, new Binding(nameof(UpdatesViewModel.ShowNotificationBanner)));
+
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+        };
+
+        var text = new TextBlock
+        {
+            Foreground = StalkerTheme.BrushSuccess,
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        text.Bind(TextBlock.TextProperty, new Binding(nameof(UpdatesViewModel.NotificationBannerText)));
+        grid.Children.Add(text);
+
+        var openBtn = StalkerTheme.StalkerButton("Посмотреть", isPrimary: true, minWidth: 100);
+        openBtn.Click += (_, _) => vm.SelectedTab = "updates";
+        Grid.SetColumn(openBtn, 1);
+        grid.Children.Add(openBtn);
+
+        var dismissBtn = StalkerTheme.StalkerButton("✕", isPrimary: false, minWidth: 32);
+        dismissBtn.Bind(Button.CommandProperty, new Binding(nameof(UpdatesViewModel.DismissBannerCommand)));
+        Grid.SetColumn(dismissBtn, 2);
+        dismissBtn.Margin = new Thickness(8, 0, 0, 0);
+        grid.Children.Add(dismissBtn);
+
+        banner.Child = grid;
+        return banner;
     }
 
     private static Control BuildTopBar(SaveLibraryViewModel vm)
@@ -224,6 +270,7 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, "КОМПАНЬОН", "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
         navBar.Children.Add(MakeNavTab(vm, "ОБЛАКО", "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
         navBar.Children.Add(MakeNavTab(vm, "ДОСТИЖЕНИЯ", "achievements", nameof(SaveLibraryViewModel.IsAchievementsTab)));
+        navBar.Children.Add(MakeNavTab(vm, "ОБНОВЛЕНИЯ", "updates", nameof(SaveLibraryViewModel.IsUpdatesTab)));
         navBar.Children.Add(MakeNavTab(vm, "НАСТРОЙКИ", "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
 
         var navBorder = new Border
@@ -321,6 +368,10 @@ public sealed class MainWindow : Window
         var achievements = new AchievementsView { DataContext = vm.Achievements };
         achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)));
         screens.Children.Add(achievements);
+        // 10. Updates
+        var updates = new UpdatesView { DataContext = vm.Updates };
+        updates.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowUpdatesScreen)));
+        screens.Children.Add(updates);
 
         contentGrid.Children.Add(screens);
 

@@ -8,8 +8,7 @@ on:
     inputs:
       version:
         description: 'Release version'
-        required: false
-        default: '1.4.0'
+        required: true
       dry_run:
         description: 'Dry run (build artifacts without publishing release)'
         required: false
@@ -31,6 +30,10 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Install packaging dependencies
         run: |
@@ -73,6 +76,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install Inno Setup
         run: |
           choco install innosetup --no-progress
@@ -110,6 +120,10 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Determine Version
         id: ver

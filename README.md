@@ -63,15 +63,24 @@ High-performance, cross-platform **.NET 10** desktop save editor and live in-gam
 
 Download the latest release package for your operating system from [Releases](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/releases):
 
-| Platform | Package Format | Installation / Run Instructions |
+| Platform | Package | How to install |
 |---|---|---|
-| **Linux** | Standalone `AppImage` | `chmod +x StalkerSaveEditor-x86_64.AppImage && ./StalkerSaveEditor-x86_64.AppImage` |
-| **Linux** | Debian `.deb` | `sudo dpkg -i stalkersaveeditor_*.deb` |
-| **Windows** | Standalone `.exe` | Extract and run `StalkerSaveEditor.exe` (self-contained, no .NET install needed) |
-| **Windows** | Inno Setup Installer | Run `StalkerSaveEditor-Setup.exe` to install to Program Files with desktop shortcuts |
-| **macOS** | `.dmg` / `.app` | Mount `.dmg` and drag `S.T.A.L.K.E.R. Save Editor.app` to Applications |
+| **Windows** | `StalkerSaveEditor-Setup-<version>-x64.exe` | Run it. Components: the editor (always), the command-line tool, and the companion mod into every S.T.A.L.K.E.R. game found (Steam, GOG, disc). |
+| **Windows** | `StalkerSaveEditor-v<version>-windows-x64.zip` | Portable: unpack anywhere and run `StalkerSaveEditor.exe`. |
+| **Linux** | `stalker-save-editor_<version>_amd64.deb` | `sudo apt install ./stalker-save-editor_<version>_amd64.deb` — installs to `/usr/lib/stalker-save-editor`, commands `stalker-save-editor` and `stalker-save-editor-cli`. |
+| **Linux** | `StalkerSaveEditor-<version>-x86_64.AppImage` | `chmod +x` and run. |
+| **Linux** | `StalkerSaveEditor-v<version>-linux-x64.tar.gz` | Portable: unpack and run `./StalkerSaveEditor`. |
+| **macOS** | `.dmg` | Open and drag `StalkerSaveEditor.app` to Applications. |
 
-> **Note**: Companion mod scripts and textures (`mods/companion/`) are automatically bundled inside every release package, enabling the in-app hook installer to work out of the box.
+Every package contains the companion mod; the app (Companion → «Все игры»), the Windows installer
+and `stalker-save-editor-cli companion install all` put it into the games. The mod also patches a few
+game scripts, so it is not offered as a plain archive.
+
+#### Windows SmartScreen
+
+The Windows builds are not code-signed, so SmartScreen may say *"Windows protected your PC"* the
+first time. Click **More info → Run anyway**. Check the file first if you like: its SHA-256 is listed
+in `SHA256SUMS` next to the download (`Get-FileHash .\StalkerSaveEditor-Setup-*.exe`).
 
 ---
 

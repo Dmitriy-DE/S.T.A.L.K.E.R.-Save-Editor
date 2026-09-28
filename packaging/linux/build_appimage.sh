@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VERSION="${1:-1.4.0}"
+VERSION="${1:?version}"
 ARCH="x86_64"
 OUTPUT_DIR="${ROOT}/dist"
 BUILD_DIR="${ROOT}/build/appimage"
@@ -10,37 +10,13 @@ APP_DIR="${BUILD_DIR}/StalkerSaveEditor.AppDir"
 
 echo "=== Building S.T.A.L.K.E.R. Save Editor AppImage v${VERSION} (${ARCH}) ==="
 
-# 1. Clean previous build
+# 1. Application folder inside the AppDir
 rm -rf "${BUILD_DIR}"
-mkdir -p "${APP_DIR}/usr/bin"
-mkdir -p "${APP_DIR}/usr/lib"
 mkdir -p "${OUTPUT_DIR}"
+"${ROOT}/packaging/publish_app.sh" linux-x64 "${APP_DIR}/usr/lib/stalker-save-editor" "${VERSION}"
 
-# 2. Publish .NET self-contained single file
-# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
-echo "Publishing .NET project for linux-x64..."
-dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
-    -c Release \
-    -r linux-x64 \
-    --self-contained true \
-    -p:PublishSingleFile=true \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:NoWarn="IL3000" \
-    -o "${APP_DIR}/usr/bin"
-
-# Rename executable to match launcher
-mv "${APP_DIR}/usr/bin/StalkerSaveEditor.Desktop" "${APP_DIR}/usr/bin/stalker-save-editor"
-chmod +x "${APP_DIR}/usr/bin/stalker-save-editor"
-
-# Bundle companion mod next to binary so CompanionServiceAdapter.ResolveModSourceRoot() finds it.
-# Path: <AppDir>/usr/bin/mods/companion — AppContext.BaseDirectory in single-file publish
-# resolves to the directory of the extracted binary, which is usr/bin here.
-echo "Bundling companion mod..."
-mkdir -p "${APP_DIR}/usr/bin/mods"
-cp -r "${ROOT}/mods/companion" "${APP_DIR}/usr/bin/mods/companion"
-
-# Portable archive for the updater (target linux-x86_64): the executable plus the companion mod.
-tar -C "${APP_DIR}/usr/bin" -czf "${OUTPUT_DIR}/StalkerSaveEditor-v${VERSION}-linux-x64.tar.gz" .
+# Portable archive for the updater (target linux-x86_64): the same application folder.
+tar -C "${APP_DIR}/usr/lib/stalker-save-editor" -czf "${OUTPUT_DIR}/StalkerSaveEditor-v${VERSION}-linux-x64.tar.gz" .
 
 # 3. Setup AppDir metadata
 cp "${ROOT}/packaging/linux/AppRun" "${APP_DIR}/AppRun"

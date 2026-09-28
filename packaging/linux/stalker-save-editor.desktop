@@ -7,5 +7,4 @@ Terminal=false
 Type=Application
 Categories=Game;Utility;
 Keywords=stalker;save;editor;xray;cop;soc;cs;stalker2;
-MimeType=application/octet-stream;
 StartupWMClass=StalkerSaveEditor.Desktop

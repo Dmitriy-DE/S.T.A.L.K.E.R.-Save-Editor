@@ -41,6 +41,28 @@ public sealed partial class CompanionInstaller
         _fileSystem = fileSystem;
     }
 
+    /// <summary><c>MOD_BUILD</c> of the mod this editor installs, read from the bundled script; null when absent.</summary>
+    public string? BundledModBuild
+    {
+        get
+        {
+            var script = Path.Combine(_modSourceRoot, "gamedata", "scripts", "save_editor_companion.script");
+            try
+            {
+                if (!_fileSystem.FileExists(script)) return null;
+                var match = ModBuildPattern().Match(_fileSystem.ReadAllText(script));
+                return match.Success ? match.Groups[1].Value : null;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex("local\\s+MOD_BUILD\\s*=\\s*\"([^\"]+)\"", System.Text.RegularExpressions.RegexOptions.CultureInvariant)]
+    private static partial System.Text.RegularExpressions.Regex ModBuildPattern();
+
     public CompanionInstallStatus GetStatus(
         CompanionGame game,
         string? selectedGameDirectory = null,

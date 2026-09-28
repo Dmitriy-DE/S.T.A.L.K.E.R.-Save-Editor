@@ -110,6 +110,10 @@ public static class StalkerTheme
         };
     }
 
+    /// <summary>"#RRGGBB" from a view model → a brush (colours that follow a value, e.g. an item's condition).</summary>
+    public static readonly Avalonia.Data.Converters.IValueConverter ColorToBrush =
+        new Avalonia.Data.Converters.FuncValueConverter<string?, IBrush?>(color => color is null ? null : new SolidColorBrush(Color.Parse(color)));
+
     public static Border Badge(string text, IBrush background, IBrush foreground, double fontSize = 11)
     {
         return new Border

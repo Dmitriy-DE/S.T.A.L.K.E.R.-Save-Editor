@@ -504,6 +504,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private Dictionary<string, CachedSave> _libraryCache = new(StringComparer.Ordinal);
     private bool _isLoadingLibrary;
     private int _libraryVersion;
+    private int _appliedLibraryVersion = -1;
 
     /// <summary>Re-reads the save folders now (tests, restores): only new or changed files are parsed.</summary>
     public void Refresh() => ApplyLibrary(LoadLibrary(_saveDirectoriesProvider().ToArray(), _libraryCache));
@@ -529,7 +530,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                     ? batch => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendBatch(batch, version))
                     : null);
             });
-            if (version == _libraryVersion) ApplyLibrary(loaded);
+            if (version == _libraryVersion)
+            {
+                _appliedLibraryVersion = version;
+                ApplyLibrary(loaded);
+            }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -588,7 +593,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private void AppendBatch(IReadOnlyList<SaveFileSummary> batch, int version)
     {
-        if (version != _libraryVersion) return;
+        // A batch can arrive after the finished list (the continuation may run first): then it is already shown.
+        if (version != _libraryVersion || version == _appliedLibraryVersion) return;
         foreach (var save in batch) Saves.Add(save);
         SelectedSave ??= Saves.FirstOrDefault();
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
@@ -716,13 +722,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         RecordDraftChange();
     }
 
-    public void AdjustFactionRelation(FactionRelationViewModel relation, int delta)
+    public void AdjustFactionRelation(FactionRelationViewModel relation, int delta) =>
+        SetFactionRelation(relation, relation.Goodwill + delta);
+
+    /// <summary>Sets a faction's goodwill within the game's range and records it in the draft.</summary>
+    public void SetFactionRelation(FactionRelationViewModel relation, int goodwill)
     {
+        ArgumentNullException.ThrowIfNull(relation);
         var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
         var catalog = TryCatalog(releaseId, out var bundle) ? bundle.Factions : null;
-        var min = catalog?.GoodwillMin ?? -3000;
-        var max = catalog?.GoodwillMax ?? 1000;
-        relation.Goodwill = Math.Clamp(relation.Goodwill + delta, min, max);
+        relation.Goodwill = Math.Clamp(goodwill, catalog?.GoodwillMin ?? -3000, catalog?.GoodwillMax ?? 1000);
         RecordDraftChange();
     }
 
@@ -1181,7 +1190,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         var inventory = save.Inventory.Select(item =>
         {
-            var localizedName = OfficialNames.Resolve(formatId, "items", item.TypeKey, CultureInfo.CurrentUICulture.Name)
+            var localizedName = OfficialNames.Resolve(formatId, "items", item.TypeKey, I18nService.Instance.CurrentLanguage)
                 ?? item.TypeKey;
             var availableUpgrades = upgradeCatalog?.ForItem(item.TypeKey);
             return new InventoryLineViewModel(
@@ -1213,7 +1222,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             s.Items.Select(i => new StashItemViewModel(
                 i.Handle,
                 i.TypeKey,
-                OfficialNames.Resolve(formatId, "items", i.TypeKey, CultureInfo.CurrentUICulture.Name) ?? i.TypeKey,
+                OfficialNames.Resolve(formatId, "items", i.TypeKey, I18nService.Instance.CurrentLanguage) ?? i.TypeKey,
                 i.Count ?? 1,
                 canEdit: canEditStashes,
                 disabledReason: stashesReason))));
@@ -1226,7 +1235,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 var factionDef = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == relation.CommunityIndex);
                 var commKey = factionDef?.Key ?? $"faction_{relation.CommunityIndex}";
-                var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, CultureInfo.CurrentUICulture.Name)
+                var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, I18nService.Instance.CurrentLanguage)
                     ?? factionDef?.DisplayName
                     ?? commKey;
                 factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions, factionReason));
@@ -1309,7 +1318,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         var catalog = TryCatalog(formatId, out var bundle) ? bundle.Items : null;
         var s2Items = Stalker2ItemCatalog.LoadEmbedded();
-        var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        var language = I18nService.Instance.CurrentLanguage;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
             s2Items.Name(item.DisplayName, language) ?? item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
             item.TypeKey,

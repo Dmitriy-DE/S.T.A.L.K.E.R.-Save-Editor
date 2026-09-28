@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
@@ -46,7 +47,7 @@ public static partial class SaveDirectoryLocator
         new("cop", "stalker-cop-ee", "enhanced", 2_427_430, ["STALKER Call of Prypiat - Enhanced Edition"]),
     ];
 
-    private static readonly IReadOnlyDictionary<string, string[]> XRaySaveFolderNames =
+    private static readonly Dictionary<string, string[]> XRaySaveFolderNames =
         new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["soc"] = ["stalker-shoc", "Stalker-SHOC"],
@@ -54,7 +55,7 @@ public static partial class SaveDirectoryLocator
             ["cop"] = ["S.T.A.L.K.E.R. - Call of Pripyat", "Stalker-COP"],
         };
 
-    private static readonly IReadOnlyDictionary<string, string[]> EnhancedSaveFolderNames =
+    private static readonly Dictionary<string, string[]> EnhancedSaveFolderNames =
         new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["stalker-soc-ee"] = ["STALKER Shadow of Chornobyl - EE"],
@@ -267,7 +268,7 @@ public static partial class SaveDirectoryLocator
         }
     }
 
-    private static IReadOnlyList<string> GetProtonUserDirectories(string driveC)
+    private static List<string> GetProtonUserDirectories(string driveC)
     {
         var usersRoot = Path.Combine(driveC, "users");
         var users = new List<string>();
@@ -417,7 +418,7 @@ public static partial class SaveDirectoryLocator
         }
     }
 
-    private static IReadOnlyList<string> GetDefaultSteamRoots(
+    private static ReadOnlyCollection<string> GetDefaultSteamRoots(
         SaveDiscoveryPlatform platform,
         string home,
         string localAppData,
@@ -457,18 +458,18 @@ public static partial class SaveDirectoryLocator
 
         if (platform == SaveDiscoveryPlatform.MacOS)
         {
-            return [Path.Combine(home, "Library", "Application Support", "Steam")];
+            return Array.AsReadOnly(new[] { Path.Combine(home, "Library", "Application Support", "Steam") });
         }
 
-        return
-        [
+        return Array.AsReadOnly(new[]
+        {
             Path.Combine(home, ".steam", "steam"),
             Path.Combine(home, ".local", "share", "Steam"),
             Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam"),
-        ];
+        });
     }
 
-    private static IReadOnlyList<string> GetKnownRoots(
+    private static ReadOnlyCollection<string> GetKnownRoots(
         IReadOnlyList<string?> parents,
         IReadOnlyList<string> knownNames)
     {
@@ -540,7 +541,7 @@ public static partial class SaveDirectoryLocator
         }
     }
 
-    private static IReadOnlyDictionary<string, string> ReadEnvironment()
+    private static Dictionary<string, string> ReadEnvironment()
     {
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())

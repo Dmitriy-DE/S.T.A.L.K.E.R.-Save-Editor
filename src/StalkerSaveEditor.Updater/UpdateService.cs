@@ -674,7 +674,7 @@ public sealed class UpdateService : IDisposable
         return new UpdateArtifact(target, architecture, kind, file, size, sha256, uri.AbsoluteUri);
     }
 
-    private async Task<byte[]> ReadBoundedAsync(
+    private static async Task<byte[]> ReadBoundedAsync(
         HttpContent content,
         int maximumBytes,
         CancellationToken cancellationToken)
@@ -931,9 +931,9 @@ public sealed class UpdateService : IDisposable
         return new VersionIdentifier(false, BigInteger.Zero, value);
     }
 
-    private static int CompareCore(IReadOnlyList<BigInteger> left, IReadOnlyList<BigInteger> right)
+    private static int CompareCore(BigInteger[] left, BigInteger[] right)
     {
-        for (var index = 0; index < left.Count; index++)
+        for (var index = 0; index < left.Length; index++)
         {
             var comparison = left[index].CompareTo(right[index]);
             if (comparison != 0)

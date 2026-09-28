@@ -588,7 +588,7 @@ public static class LocalSaveStorage
     private static LocalSaveBackupRecord InvalidRecord(string journalPath, string backupPath, string error) =>
         new(journalPath, backupPath, string.Empty, string.Empty, string.Empty, null, null, default, BackupVerificationStatus.Corrupt, Error: error);
 
-    private static IEnumerable<string> SafeEnumerate(string directory, string pattern)
+    private static string[] SafeEnumerate(string directory, string pattern)
     {
         try
         {

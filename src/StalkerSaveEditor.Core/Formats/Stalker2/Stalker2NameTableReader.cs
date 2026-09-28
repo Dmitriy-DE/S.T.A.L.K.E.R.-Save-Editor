@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
 
@@ -7,7 +8,7 @@ namespace StalkerSaveEditor.Core.Formats.Stalker2;
 public sealed class Stalker2NameTables
 {
     private const byte BaseSelector = 4;
-    private readonly IReadOnlyList<IReadOnlyList<string>> _tables;
+    private readonly ReadOnlyCollection<IReadOnlyList<string>> _tables;
 
     internal Stalker2NameTables(IEnumerable<IEnumerable<string>> tables)
     {
@@ -80,7 +81,7 @@ public static class Stalker2NameTableReader
         return null;
     }
 
-    private static IReadOnlyList<string>? ParseTable(ReadOnlySpan<byte> raw, int start)
+    private static ReadOnlyCollection<string>? ParseTable(ReadOnlySpan<byte> raw, int start)
     {
         if (start < 0 || raw.Length - start < sizeof(ushort)) return null;
         var count = BinaryPrimitives.ReadUInt16LittleEndian(raw[start..]);

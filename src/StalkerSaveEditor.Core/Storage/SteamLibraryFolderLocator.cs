@@ -83,10 +83,7 @@ public static class SteamLibraryFolderLocator
     public static string? GetManifestInstallDirectory(string libraryRoot, int appId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryRoot);
-        if (appId <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(appId));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(appId);
 
         var library = Path.GetFullPath(libraryRoot);
         var manifest = Path.Combine(library, "steamapps", $"appmanifest_{appId}.acf");

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
 using StalkerSaveEditor.Core.Codecs;
 
 namespace StalkerSaveEditor.Core.Formats.XRay;
@@ -111,7 +112,7 @@ public sealed class XRayContainer
         return output;
     }
 
-    private static IReadOnlyList<XRayChunk> ParseChunksOwned(byte[] raw)
+    private static ReadOnlyCollection<XRayChunk> ParseChunksOwned(byte[] raw)
     {
         var chunks = new List<XRayChunk>();
         var offset = 0;

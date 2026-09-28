@@ -82,7 +82,7 @@ public static class SteamVdfParser
         return false;
     }
 
-    private static IReadOnlyDictionary<string, object> ReadObject(
+    private static ReadOnlyDictionary<string, object> ReadObject(
         IReadOnlyList<Token> tokens,
         ref int index,
         bool expectClose)

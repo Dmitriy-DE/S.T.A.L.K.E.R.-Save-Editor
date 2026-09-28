@@ -86,7 +86,7 @@ public sealed record CompanionHotkeyBinding(CompanionHotkeyAction Action, Hotkey
 
 public sealed class HotkeyLayout
 {
-    private static readonly IReadOnlyDictionary<string, CompanionHotkeyAction> ActionNames =
+    private static readonly ReadOnlyDictionary<string, CompanionHotkeyAction> ActionNames =
         new ReadOnlyDictionary<string, CompanionHotkeyAction>(new Dictionary<string, CompanionHotkeyAction>(StringComparer.Ordinal)
         {
             ["heal"] = CompanionHotkeyAction.Heal,

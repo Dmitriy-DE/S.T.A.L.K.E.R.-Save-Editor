@@ -2,6 +2,7 @@ using StalkerSaveEditor.Core.Companion;
 
 namespace StalkerSaveEditor.Core.Hotkeys;
 
+#pragma warning disable CA1710 // This public event payload already derives from EventArgs; retain its established API name.
 public sealed class CompanionHotkeyCommandResult(
     CompanionHotkeyAction action,
     bool succeeded,
@@ -16,6 +17,7 @@ public sealed class CompanionHotkeyCommandResult(
 
     public string? Error { get; } = error;
 }
+#pragma warning restore CA1710
 
 public sealed class CompanionHotkeyService : IAsyncDisposable
 {

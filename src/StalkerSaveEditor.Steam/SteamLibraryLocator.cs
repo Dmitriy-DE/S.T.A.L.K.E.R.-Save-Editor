@@ -73,7 +73,7 @@ internal static class SteamLibraryLocator
         return null;
     }
 
-    private static IReadOnlyList<string> GetDefaultRoots()
+    private static List<string> GetDefaultRoots()
     {
         var roots = new List<string>();
         AddEnvironmentRoot(roots, "STEAM_DIR");
@@ -100,7 +100,7 @@ internal static class SteamLibraryLocator
         return roots;
     }
 
-    private static void AddEnvironmentRoot(ICollection<string> roots, string variable)
+    private static void AddEnvironmentRoot(List<string> roots, string variable)
     {
         var value = Environment.GetEnvironmentVariable(variable);
         if (!string.IsNullOrWhiteSpace(value))
@@ -110,7 +110,7 @@ internal static class SteamLibraryLocator
     }
 
     private static void AddEnvironmentSteamRoot(
-        ICollection<string> roots,
+        List<string> roots,
         string variable,
         params string[] segments)
     {

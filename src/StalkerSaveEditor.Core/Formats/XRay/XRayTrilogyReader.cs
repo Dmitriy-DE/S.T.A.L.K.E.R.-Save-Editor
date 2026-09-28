@@ -23,7 +23,7 @@ public static class XRayTrilogyReader
         new("stalker-cs-ee", 6, 54, [128], ["marsh"u8.ToArray()], ["zaton"u8.ToArray()]),
         new("stalker-cop-ee", 6, 54, [128], ["zaton"u8.ToArray()], ["marsh"u8.ToArray()]),
     ];
-    private static readonly IReadOnlyDictionary<string, string> StashLevels =
+    private static readonly Dictionary<string, string> StashLevels =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["esc"] = "Кордон",
@@ -547,7 +547,7 @@ public static class XRayTrilogyReader
         return match ?? throw Error($"обязательный chunk type={type} отсутствует");
     }
 
-    private static IReadOnlyList<ObjectRecord> ParseObjects(
+    private static List<ObjectRecord> ParseObjects(
         ReadOnlySpan<byte> raw,
         XRayChunk chunk)
     {

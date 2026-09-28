@@ -9,7 +9,9 @@ public interface ICapabilityService
 
     FormatCapabilityDescriptor GetFormat(string releaseId);
 
+#pragma warning disable CA1716 // Keep the existing public capability API stable across package consumers.
     CapabilitySupport Get(string releaseId, string capability);
+#pragma warning restore CA1716
 
     bool HasParityCapability(string formatId, string capability);
 }
@@ -53,7 +55,7 @@ public sealed class CapabilityService : ICapabilityService
         "format_detection",
     };
 
-    private readonly IReadOnlyDictionary<string, FormatCapabilityDescriptor> _formatsById;
+    private readonly ReadOnlyDictionary<string, FormatCapabilityDescriptor> _formatsById;
 
     private CapabilityService(string oracleRevision, IReadOnlyList<FormatCapabilityDescriptor> formats)
     {
@@ -169,7 +171,7 @@ public sealed class CapabilityService : ICapabilityService
         ParseSupport(element.GetProperty("remove")),
         ParseSupport(element.GetProperty("upgrades")));
 
-    private static IReadOnlyList<string> ParseStrings(JsonElement element) =>
+    private static ReadOnlyCollection<string> ParseStrings(JsonElement element) =>
         Array.AsReadOnly(element.EnumerateArray().Select(value => value.GetString() ?? string.Empty).ToArray());
 
     private static CapabilitySupport ParseSupport(JsonElement element)
@@ -199,7 +201,7 @@ public sealed record FormatCapabilityDescriptor(
         ("edition", Edition),
         ("capabilities", Capabilities.AsDictionary()));
 
-    private static IReadOnlyDictionary<string, object?> ReadOnly(
+    private static ReadOnlyDictionary<string, object?> ReadOnly(
         params (string Key, object? Value)[] values) =>
         new ReadOnlyDictionary<string, object?>(
             values.ToDictionary(value => value.Key, value => value.Value, StringComparer.Ordinal));
@@ -221,7 +223,7 @@ public sealed class FormatCapabilityProfile
         "edit_placement",
     ];
 
-    private readonly IReadOnlyDictionary<string, CapabilitySupport> _mutationSupport;
+    private readonly ReadOnlyDictionary<string, CapabilitySupport> _mutationSupport;
 
     internal FormatCapabilityProfile(
         bool readInventory,
@@ -301,7 +303,7 @@ public sealed class FormatCapabilityProfile
         return new ReadOnlyDictionary<string, object?>(payload);
     }
 
-    private static IReadOnlyDictionary<string, object?> ReadOnly(
+    private static ReadOnlyDictionary<string, object?> ReadOnly(
         IEnumerable<KeyValuePair<string, object?>> values) =>
         new ReadOnlyDictionary<string, object?>(
             values.ToDictionary(value => value.Key, value => value.Value, StringComparer.Ordinal));

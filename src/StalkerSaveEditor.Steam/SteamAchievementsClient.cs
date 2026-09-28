@@ -36,10 +36,7 @@ public sealed class SteamAchievementsClient
     {
         ArgumentNullException.ThrowIfNull(findLibrary);
         ArgumentNullException.ThrowIfNull(worker);
-        if (timeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(timeout));
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
 
         _findLibrary = findLibrary;
         _worker = worker;

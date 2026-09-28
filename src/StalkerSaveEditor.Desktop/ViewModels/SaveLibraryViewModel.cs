@@ -74,9 +74,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         WizardAutoDetectCommand = new RelayCommand(WizardAutoDetect);
         WizardAddDirectoryCommand = new RelayCommand(WizardAddDirectory, () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
 
+        // Refresh selects a save, which updates the comparison: it must exist first.
+        Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
         if (discoverLocalSaves) Refresh();
 
-        Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
         Diagnostics = new DiagnosticsViewModel(pendingCrash: InteractiveApp ? CrashReporter.Pending() : null);
 
         if (InteractiveApp)

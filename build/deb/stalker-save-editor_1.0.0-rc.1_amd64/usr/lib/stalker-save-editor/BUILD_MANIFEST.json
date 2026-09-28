@@ -1,0 +1,5 @@
+{
+  "target": "linux",
+  "architecture": "x86_64",
+  "version": "1.0.0-rc.1"
+}

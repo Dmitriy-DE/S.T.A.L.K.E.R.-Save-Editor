@@ -42,6 +42,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         _saveDirectoriesProvider = saveDirectoriesProvider ?? SaveDirectoryDiscovery.GetExistingDirectories;
         _backupDirectoryProvider = backupDirectoryProvider ?? GetDefaultBackupDirectory;
         _draftStore = new DraftStore(draftsDirectory);
+        if (!Directory.Exists(_draftStore.DirectoryPath))
+        {
+            Directory.CreateDirectory(_draftStore.DirectoryPath);
+        }
 
         RefreshCommand = new RelayCommand(Refresh);
         SaveCommand = new RelayCommand(SaveSelected, () => CanSave);
@@ -225,7 +229,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public bool CanEditMoney => SelectedSave?.CanEditMoney == true;
 
-    public bool CanSave => !_isSaving && SelectedSave is not null && EditService.CanEdit(SelectedSave.ReleaseId) && HasDraftChanges && InputsAreValid(SelectedSave);
+    public bool CanSave
+    {
+        get
+        {
+            if (_isSaving || SelectedSave is null) return false;
+            var plan = BuildCurrentEditPlan(SelectedSave);
+            if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds)) return false;
+            return HasDraftChanges && InputsAreValid(SelectedSave);
+        }
+    }
 
     public string SaveDisabledReason
     {
@@ -233,8 +246,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             if (SelectedSave is null)
                 return "Выберите сохранение для редактирования.";
-            if (!EditService.CanEdit(SelectedSave.ReleaseId))
+            var plan = BuildCurrentEditPlan(SelectedSave);
+            if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds))
+            {
+                if ((plan.EditKinds & (EditKind.Add | EditKind.Delete)) != EditKind.None)
+                {
+                    return "Операции добавления/удаления предметов ожидают поддержки в EditService (issue #81).";
+                }
                 return $"Запись для формата {SelectedSave.ReleaseName} отключена в UI в целях безопасности.";
+            }
             if (!HasDraftChanges)
                 return "Нет несохранённых изменений.";
             if (!InputsAreValid(SelectedSave))
@@ -443,7 +463,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public void AdjustFactionRelation(FactionRelationViewModel relation, int delta)
     {
-        relation.Goodwill = Math.Clamp(relation.Goodwill + delta, -5000, 5000);
+        var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
+        var catalog = Catalogs.TryGetValue(releaseId, out var bundle) ? bundle.Factions : null;
+        var min = catalog?.GoodwillMin ?? -3000;
+        var max = catalog?.GoodwillMax ?? 1000;
+        relation.Goodwill = Math.Clamp(relation.Goodwill + delta, min, max);
         RecordDraftChange();
     }
 
@@ -592,7 +616,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
             if (item.CanEditPlacement && !string.Equals(item.Placement, item.OriginalPlacement, StringComparison.Ordinal))
             {
-                placements.Add(new XRayPlacementChange(item.Handle, item.Placement, item.Placement == "slot" ? 1 : null));
+                placements.Add(new XRayPlacementChange(item.Handle, item.Placement, item.Placement == "slot" ? (item.BaseSlot ?? 1) : null));
             }
 
             if (item.CanEditUpgrades && item.HasUpgrades)
@@ -628,11 +652,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             money: money,
             stackCounts: stackCounts.Count > 0 ? stackCounts : null,
             detachHandles: detaches.Count > 0 ? detaches : null,
-            adds: _currentJournal?.Current.Adds,
+            adds: _currentJournal?.Current.Adds is { Count: > 0 } addsList ? addsList : null,
             stashTakes: stashTakes.Count > 0 ? stashTakes : null,
-            stashPuts: _currentJournal?.Current.StashPuts,
+            stashPuts: _currentJournal?.Current.StashPuts is { Count: > 0 } putsList ? putsList : null,
             upgrades: upgrades.Count > 0 ? upgrades : null,
-            playerFaction: save.PlayerFaction,
+            playerFaction: null,
             factionRelations: factionRelations.Count > 0 ? factionRelations : null,
             durability: durability.Count > 0 ? durability : null,
             placements: placements.Count > 0 ? placements : null);
@@ -672,11 +696,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         if (SelectedSave is null) return;
 
-        if (plan.Money.HasValue)
-        {
-            _moneyInput = plan.Money.Value.ToString(CultureInfo.InvariantCulture);
-            OnPropertyChanged(nameof(MoneyInput));
-        }
+        _moneyInput = plan.Money.HasValue
+            ? plan.Money.Value.ToString(CultureInfo.InvariantCulture)
+            : SelectedSave.Money.ToString(CultureInfo.InvariantCulture);
+        OnPropertyChanged(nameof(MoneyInput));
 
         foreach (var item in SelectedSave.Inventory)
         {
@@ -684,23 +707,45 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 item.CountInput = count.ToString(CultureInfo.InvariantCulture);
             }
+            else
+            {
+                item.CountInput = item.OriginalCount?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+            }
+
             if (plan.Durability.TryGetValue(item.Handle, out var cond))
             {
                 item.ConditionPercent = (int)Math.Round(cond * 100);
             }
-            if (plan.DetachHandles.Contains((ushort)item.Handle))
+            else
             {
-                item.IsDeleted = true;
+                item.ConditionPercent = item.OriginalCondition.HasValue
+                    ? (int)Math.Round(item.OriginalCondition.Value * 100)
+                    : 100;
             }
+
+            item.IsDeleted = plan.DetachHandles.Contains((ushort)item.Handle);
+
             if (plan.Placements.FirstOrDefault(p => p.Handle == item.Handle) is { } plc)
             {
                 item.Placement = plc.Type;
             }
+            else
+            {
+                item.Placement = item.OriginalPlacement ?? "backpack";
+            }
+
             if (plan.Upgrades.TryGetValue((ushort)item.Handle, out var ups))
             {
                 foreach (var up in item.UpgradeItems)
                 {
                     up.IsInstalled = ups.Contains(up.Key, StringComparer.Ordinal);
+                }
+            }
+            else
+            {
+                foreach (var up in item.UpgradeItems)
+                {
+                    up.IsInstalled = item.OriginalUpgrades.Contains(up.Key, StringComparer.Ordinal);
                 }
             }
         }
@@ -713,14 +758,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
         }
 
-        if (plan.FactionRelations.Count > 0)
+        foreach (var rel in SelectedSave.FactionRelations)
         {
-            foreach (var rel in SelectedSave.FactionRelations)
+            if (plan.FactionRelations.TryGetValue(rel.Community, out var val))
             {
-                if (plan.FactionRelations.TryGetValue(rel.Community, out var val))
-                {
-                    rel.Goodwill = val;
-                }
+                rel.Goodwill = val;
+            }
+            else
+            {
+                rel.Goodwill = rel.OriginalGoodwill;
             }
         }
     }
@@ -912,7 +958,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 countDisabledReason: stacksReason,
                 conditionDisabledReason: durabilityReason,
                 placementDisabledReason: placementReason,
-                upgradesDisabledReason: upgradesReason);
+                upgradesDisabledReason: upgradesReason,
+                baseSlot: item.PlacementBaseSlot);
         });
 
         var stashes = save.Stashes.Select(s => new StashViewModel(

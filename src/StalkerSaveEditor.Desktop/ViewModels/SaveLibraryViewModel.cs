@@ -87,6 +87,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public CapabilitiesViewModel Capabilities { get; } = new();
     public CloudViewModel Cloud { get; }
+    public AchievementsViewModel Achievements { get; } = new();
 
     /// <summary>
     /// Companion screen ViewModel — backed by real Core services in normal runs,
@@ -112,6 +113,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsCapabilitiesTab));
                 OnPropertyChanged(nameof(IsCompanionTab));
                 OnPropertyChanged(nameof(IsCloudTab));
+                OnPropertyChanged(nameof(IsAchievementsTab));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
                 OnPropertyChanged(nameof(ShowFactionsScreen));
@@ -122,6 +124,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowCapabilitiesScreen));
                 OnPropertyChanged(nameof(ShowCompanionScreen));
                 OnPropertyChanged(nameof(ShowCloudScreen));
+                OnPropertyChanged(nameof(ShowAchievementsScreen));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
             }
         }
@@ -137,6 +140,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsCapabilitiesTab => SelectedTab == "capabilities";
     public bool IsCompanionTab => SelectedTab == "companion";
     public bool IsCloudTab => SelectedTab == "cloud";
+    public bool IsAchievementsTab => SelectedTab == "achievements";
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
     public bool ShowInventoryScreen => HasSelection && IsInventoryTab;
@@ -148,7 +152,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
     public bool ShowCloudScreen => IsCloudTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab;
+    public bool ShowAchievementsScreen => IsAchievementsTab;
 
 
     public SaveFileSummary? SelectedSave

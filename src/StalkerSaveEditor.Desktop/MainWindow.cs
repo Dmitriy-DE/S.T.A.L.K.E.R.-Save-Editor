@@ -223,6 +223,7 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, "ВОЗМОЖНОСТИ", "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
         navBar.Children.Add(MakeNavTab(vm, "КОМПАНЬОН", "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
         navBar.Children.Add(MakeNavTab(vm, "ОБЛАКО", "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
+        navBar.Children.Add(MakeNavTab(vm, "ДОСТИЖЕНИЯ", "achievements", nameof(SaveLibraryViewModel.IsAchievementsTab)));
         navBar.Children.Add(MakeNavTab(vm, "НАСТРОЙКИ", "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
 
         var navBorder = new Border
@@ -316,6 +317,10 @@ public sealed class MainWindow : Window
         var cloud = new CloudView { DataContext = vm.Cloud };
         cloud.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCloudScreen)));
         screens.Children.Add(cloud);
+        // 10. Achievements
+        var achievements = new AchievementsView { DataContext = vm.Achievements };
+        achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)));
+        screens.Children.Add(achievements);
 
         contentGrid.Children.Add(screens);
 

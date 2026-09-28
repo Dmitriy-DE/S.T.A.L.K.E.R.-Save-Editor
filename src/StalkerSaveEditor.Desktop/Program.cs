@@ -105,6 +105,7 @@ internal static class Program
             return;
         }
 
+        ViewModels.SaveLibraryViewModel.CheckUpdatesAtStartup = true;
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .StartWithClassicDesktopLifetime(args);

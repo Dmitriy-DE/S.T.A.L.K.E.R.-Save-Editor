@@ -72,9 +72,12 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         if (discoverLocalSaves) Refresh();
 
-        // Silent background update check at startup
-        _ = Task.Run(() => Updates.CheckAsync(silent: true));
+        // Silent background update check; only the real interactive app goes online (not screenshots or tests).
+        if (CheckUpdatesAtStartup) _ = Task.Run(() => Updates.CheckAsync(silent: true));
     }
+
+    /// <summary>Set by <c>Program</c> for the interactive app only.</summary>
+    public static bool CheckUpdatesAtStartup { get; set; }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
     public ObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];

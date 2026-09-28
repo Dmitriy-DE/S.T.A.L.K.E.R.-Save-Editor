@@ -1,4 +1,3 @@
-using System.Reflection;
 using StalkerSaveEditor.Updater;
 
 namespace StalkerSaveEditor.Desktop.Services;
@@ -20,8 +19,7 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
     public UpdateServiceAdapter(string? currentVersion = null, string? downloadDirectory = null)
     {
         CurrentVersion = currentVersion
-            ?? Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3)
-            ?? "1.0.0";
+            ?? StalkerSaveEditor.Core.ApplicationVersion.Current;
 
         try
         {

@@ -24,6 +24,8 @@
 --]]
 
 local PROTOCOL = "v1"
+-- Bump on every change of the mod files: the editor compares it with the build it installs.
+local MOD_BUILD = "2026.09.28"
 local POLL_MS_DEFAULT = 2000
 local POLL_MS_HOTKEYS = 250
 local MAX_GIVE = 100
@@ -78,7 +80,7 @@ end
 local handlers = {}
 
 function handlers.ping()
-	return "ok", "pong"
+	return "ok", "pong " .. MOD_BUILD
 end
 
 function handlers.info()

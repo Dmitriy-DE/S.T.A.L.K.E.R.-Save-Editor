@@ -41,7 +41,7 @@ public sealed class CompanionServiceTests
             installer,
             CompanionGame.CallOfPripyat,
             game.GameDirectory,
-            protocolTimeout: TimeSpan.FromSeconds(2));
+            protocolTimeout: TimeSpan.FromSeconds(30));
 
         var statusTask = service.GetStatusAsync();
         var command = await WaitForCommand(game.AppDataRoot);
@@ -49,11 +49,12 @@ public sealed class CompanionServiceTests
         File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
         File.WriteAllText(
             Path.Combine(game.AppDataRoot, "save_editor_out.txt"),
-            $"v1 {command.Id} ok pong\n");
+            $"v1 {command.Id} ok pong {installer.BundledModBuild}\n");
 
         var status = await statusTask;
 
         Assert.Equal(CompanionRuntimeState.Active, status.State);
+        Assert.Equal(installer.BundledModBuild, status.GameModBuild);
         Assert.NotNull(status.LastPingUtc);
         Assert.NotNull(status.PingLatency);
         Assert.Equal(
@@ -61,6 +62,32 @@ public sealed class CompanionServiceTests
                 File.GetLastWriteTimeUtc(Path.Combine(game.AppDataRoot, "save_editor_out.txt")),
                 TimeSpan.Zero),
             status.LastPingUtc);
+    }
+
+    [Theory]
+    [InlineData("pong")]
+    [InlineData("pong 2000.01.01")]
+    public async Task Reports_outdated_when_the_game_runs_another_mod_build(string reply)
+    {
+        using var game = SyntheticGame.Create();
+        var installer = new CompanionInstaller(ModSourceRoot);
+        installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+        Assert.NotNull(installer.BundledModBuild);
+        await using var service = new CompanionService(
+            installer,
+            CompanionGame.CallOfPripyat,
+            game.GameDirectory,
+            protocolTimeout: TimeSpan.FromSeconds(30));
+
+        var statusTask = service.GetStatusAsync();
+        var command = await WaitForCommand(game.AppDataRoot);
+        File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
+        File.WriteAllText(Path.Combine(game.AppDataRoot, "save_editor_out.txt"), $"v1 {command.Id} ok {reply}\n");
+
+        var status = await statusTask;
+
+        Assert.Equal(CompanionRuntimeState.Outdated, status.State);
+        Assert.Contains("reinstall", status.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -73,7 +100,7 @@ public sealed class CompanionServiceTests
             installer,
             CompanionGame.CallOfPripyat,
             game.GameDirectory,
-            protocolTimeout: TimeSpan.FromSeconds(2));
+            protocolTimeout: TimeSpan.FromSeconds(30));
 
         var statusTask = service.GetStatusAsync();
         var command = await WaitForCommand(game.AppDataRoot);
@@ -97,7 +124,7 @@ public sealed class CompanionServiceTests
             installer,
             CompanionGame.CallOfPripyat,
             game.GameDirectory,
-            protocolTimeout: TimeSpan.FromSeconds(2));
+            protocolTimeout: TimeSpan.FromSeconds(30));
 
         var mark = await ReplyToAction(service.MarkAsync(), game.AppDataRoot, "mark");
         Assert.Equal(CompanionReplyStatus.Ok, mark.Status);

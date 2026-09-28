@@ -8,6 +8,7 @@ using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.Enhanced;
 using StalkerSaveEditor.Core.Formats.Stalker2;
 using StalkerSaveEditor.Core.Formats.XRay;
+using StalkerSaveEditor.Desktop.Services;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
@@ -77,6 +78,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public CapabilitiesViewModel Capabilities { get; } = new();
 
+    /// <summary>
+    /// Companion screen ViewModel — backed by real Core services in normal runs,
+    /// Mock only in --screenshot mode (via the no-arg CompanionViewModel() constructor).
+    /// </summary>
+    public CompanionViewModel Companion { get; } = new CompanionViewModel(
+        new CompanionServiceAdapter(ResolveModSourceRoot()));
+
     public string SelectedTab
     {
         get => _selectedTab;
@@ -92,6 +100,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsBackupsTab));
                 OnPropertyChanged(nameof(IsSettingsTab));
                 OnPropertyChanged(nameof(IsCapabilitiesTab));
+                OnPropertyChanged(nameof(IsCompanionTab));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
                 OnPropertyChanged(nameof(ShowFactionsScreen));
@@ -100,6 +109,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowBackupsScreen));
                 OnPropertyChanged(nameof(ShowSettingsScreen));
                 OnPropertyChanged(nameof(ShowCapabilitiesScreen));
+                OnPropertyChanged(nameof(ShowCompanionScreen));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
             }
         }
@@ -113,6 +123,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsBackupsTab => SelectedTab == "backups";
     public bool IsSettingsTab => SelectedTab == "settings";
     public bool IsCapabilitiesTab => SelectedTab == "capabilities";
+    public bool IsCompanionTab => SelectedTab == "companion";
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
     public bool ShowInventoryScreen => HasSelection && IsInventoryTab;
@@ -122,7 +133,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowBackupsScreen => HasSelection && IsBackupsTab;
     public bool ShowSettingsScreen => IsSettingsTab;
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab;
+    public bool ShowCompanionScreen => IsCompanionTab;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab;
+
 
     public SaveFileSummary? SelectedSave
     {
@@ -1100,6 +1113,32 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
 
         return Path.Combine(localApplicationData, "StalkerSaveEditor", "backups");
+    }
+
+    /// <summary>
+    /// Resolves the <c>mods/companion</c> directory for <see cref="CompanionServiceAdapter"/>.
+    /// Looks next to the executable first (packaged build), then walks up the source tree.
+    /// </summary>
+    private static string ResolveModSourceRoot()
+    {
+        // Packaged: mods/companion sits next to the binary.
+        var execDir = Path.GetDirectoryName(AppContext.BaseDirectory) ?? Directory.GetCurrentDirectory();
+        var candidate = Path.Combine(execDir, "mods", "companion");
+        if (Directory.Exists(candidate)) return candidate;
+
+        // Development: walk up from executable directory to find repository root (has mods/).
+        var current = execDir;
+        for (var depth = 0; depth < 8; depth++)
+        {
+            var modsDir = Path.Combine(current!, "mods", "companion");
+            if (Directory.Exists(modsDir)) return modsDir;
+            var parent = Path.GetDirectoryName(current);
+            if (parent is null || parent == current) break;
+            current = parent;
+        }
+
+        // Fallback: return a non-existent path; CompanionInstaller.GetStatus() will report the issue.
+        return Path.Combine(execDir, "mods", "companion");
     }
 
     private static bool IsBackupArtifact(string path)

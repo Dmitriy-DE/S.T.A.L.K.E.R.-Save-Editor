@@ -1037,7 +1037,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 conditionDisabledReason: durabilityReason,
                 placementDisabledReason: placementReason,
                 upgradesDisabledReason: upgradesReason,
-                baseSlot: item.PlacementBaseSlot);
+                baseSlot: item.PlacementBaseSlot,
+                releaseId: formatId);
         });
 
         var stashes = save.Stashes.Select(s => new StashViewModel(
@@ -1149,8 +1150,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
         var catalog = Catalogs.TryGetValue(formatId, out var bundle) ? bundle.Items : null;
+        var s2Items = Stalker2ItemCatalog.LoadEmbedded();
+        var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
-            item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
+            s2Items.Name(item.DisplayName, language) ?? item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
             item.TypeKey,
             item.Handle,
             item.Category,
@@ -1166,7 +1169,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             countDisabledReason: stacksReason,
             conditionDisabledReason: durabilityReason,
             placementDisabledReason: placementReason,
-            upgradesDisabledReason: upgradesReason));
+            upgradesDisabledReason: upgradesReason,
+            releaseId: formatId,
+            iconKey: item.DisplayName ?? item.TypeKey));
 
         return new SaveFileSummary(
             path,

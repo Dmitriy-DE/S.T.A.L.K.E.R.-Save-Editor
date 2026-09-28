@@ -5,6 +5,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
+using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
 
@@ -162,9 +163,21 @@ public static class InventoryView
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
             Margin = new Thickness(6, 4),
         };
+
+        // Icon from the installed game or the shipped pack; an empty box keeps the rows aligned.
+        var icon = new Image
+        {
+            Source = ItemIconService.Load(item.ReleaseId, item.IconKey),
+            Width = 64,
+            Height = 32,
+            Stretch = Stretch.Uniform,
+            Margin = new Thickness(0, 0, 8, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        row.Children.Add(icon);
 
         // Title and key
         var nameStack = new StackPanel { Spacing = 2 };
@@ -181,6 +194,7 @@ public static class InventoryView
             FontSize = 10,
             Foreground = StalkerTheme.BrushTextMuted,
         });
+        Grid.SetColumn(nameStack, 1);
         row.Children.Add(nameStack);
 
         // Placement Badge
@@ -188,7 +202,7 @@ public static class InventoryView
         {
             var badge = StalkerTheme.Badge(item.PlacementDisplay, StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentAmber, 10);
             badge.Margin = new Thickness(8, 0);
-            Grid.SetColumn(badge, 1);
+            Grid.SetColumn(badge, 2);
             row.Children.Add(badge);
         }
 
@@ -202,7 +216,7 @@ public static class InventoryView
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0),
         };
-        Grid.SetColumn(condBlock, 2);
+        Grid.SetColumn(condBlock, 3);
         row.Children.Add(condBlock);
 
         // Count
@@ -215,7 +229,7 @@ public static class InventoryView
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8, 0),
         };
-        Grid.SetColumn(countBlock, 3);
+        Grid.SetColumn(countBlock, 4);
         row.Children.Add(countBlock);
 
         return row;

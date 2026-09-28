@@ -362,20 +362,24 @@ public sealed class MainWindow : Window
 
         // 9. Companion
         var companion = new CompanionView { DataContext = vm.Companion };
-        companion.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCompanionScreen)));
+        // DataContext is the screen's own view model; visibility belongs to the window view model.
+        companion.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCompanionScreen)) { Source = vm });
         screens.Children.Add(companion);
 
         // 10. Cloud
         var cloud = new CloudView { DataContext = vm.Cloud };
-        cloud.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCloudScreen)));
+        // DataContext is the screen's own view model; visibility belongs to the window view model.
+        cloud.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCloudScreen)) { Source = vm });
         screens.Children.Add(cloud);
         // 10. Achievements
         var achievements = new AchievementsView { DataContext = vm.Achievements };
-        achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)));
+        // DataContext is the screen's own view model; visibility belongs to the window view model.
+        achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)) { Source = vm });
         screens.Children.Add(achievements);
         // 10. Updates
         var updates = new UpdatesView { DataContext = vm.Updates };
-        updates.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowUpdatesScreen)));
+        // DataContext is the screen's own view model; visibility belongs to the window view model.
+        updates.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowUpdatesScreen)) { Source = vm });
         screens.Children.Add(updates);
 
         contentGrid.Children.Add(screens);

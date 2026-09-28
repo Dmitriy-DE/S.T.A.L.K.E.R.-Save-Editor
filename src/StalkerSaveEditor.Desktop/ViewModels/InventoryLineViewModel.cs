@@ -29,8 +29,12 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         string? conditionDisabledReason = null,
         string? placementDisabledReason = null,
         string? upgradesDisabledReason = null,
-        int? baseSlot = null)
+        int? baseSlot = null,
+        string releaseId = "",
+        string? iconKey = null)
     {
+        ReleaseId = releaseId;
+        IconKey = iconKey ?? typeKey;
         BaseSlot = baseSlot;
         Name = name;
         TypeKey = typeKey;
@@ -90,6 +94,11 @@ public sealed class InventoryLineViewModel : ObservableViewModel
 
     public string Name { get; }
     public string TypeKey { get; }
+    public string ReleaseId { get; }
+
+    /// <summary>Key for the icon lookup: the X-Ray section or the S2 SID.</summary>
+    public string IconKey { get; }
+
     public uint Handle { get; }
     public string Category { get; }
     public uint? OriginalCount { get; }

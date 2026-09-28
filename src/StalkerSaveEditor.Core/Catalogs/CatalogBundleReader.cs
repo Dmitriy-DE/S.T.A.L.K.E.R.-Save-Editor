@@ -118,15 +118,17 @@ public static class CatalogBundleReader
                 OptionalString(rawItem, "display_name", releaseId),
                 OptionalString(rawItem, "category", releaseId),
                 OptionalDouble(rawItem, "unit_weight", releaseId),
-                width: null,
-                height: null,
+                OptionalInt(rawItem, "width", releaseId),
+                OptionalInt(rawItem, "height", releaseId),
                 OptionalInt(rawItem, "max_stack", releaseId),
                 OptionalStringList(rawItem, "slots", releaseId),
-                "generated-official-metadata",
+                OptionalString(rawItem, "source", releaseId) ?? "generated-official-metadata",
                 OptionalString(rawItem, "serialization_family", releaseId),
                 OptionalInt(rawItem, "icon_x", releaseId),
                 OptionalInt(rawItem, "icon_y", releaseId),
-                OptionalString(rawItem, "icon_texture", releaseId)));
+                OptionalString(rawItem, "icon_texture", releaseId),
+                OptionalString(rawItem, "class_name", releaseId),
+                OptionalString(rawItem, "display_name_key", releaseId)));
         }
 
         return new ItemCatalog(releaseId, items);

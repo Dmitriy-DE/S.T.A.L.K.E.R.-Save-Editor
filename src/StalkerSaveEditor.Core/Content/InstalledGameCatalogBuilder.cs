@@ -66,7 +66,7 @@ internal static partial class InstalledGameCatalogBuilder
         string releaseId,
         IReadOnlyList<(LtxSection Section, IReadOnlyDictionary<string, string> Values)> resolved,
         IReadOnlyDictionary<string, string> strings,
-        IReadOnlySet<string> itemKeys)
+        HashSet<string> itemKeys)
     {
         var aliases = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var (section, _) in resolved)

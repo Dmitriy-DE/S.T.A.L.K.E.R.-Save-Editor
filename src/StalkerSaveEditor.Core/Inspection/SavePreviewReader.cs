@@ -6,7 +6,7 @@ using StalkerSaveEditor.Core.Formats.Stalker2;
 namespace StalkerSaveEditor.Core.Inspection;
 
 /// <summary>Region, play time and save time of an S.T.A.L.K.E.R. 2 slot from <c>CampaignsSave.sav</c>.</summary>
-public sealed record Stalker2SlotMeta(string Guid, string RegionKey, string QuestKey, double PlayHours, DateTime SavedAtUtc)
+public sealed record Stalker2SlotMeta(string SlotGuid, string RegionKey, string QuestKey, double PlayHours, DateTime SavedAtUtc)
 {
     /// <summary><c>sid_locations_region_iron_forest_name</c> → <c>iron_forest</c>.</summary>
     public string RegionSlug

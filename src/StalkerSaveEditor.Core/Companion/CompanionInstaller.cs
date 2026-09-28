@@ -1082,8 +1082,8 @@ public sealed partial class CompanionInstaller
         if (steamRoots is null)
         {
             // Default discovery also looks at GOG, the retail installer and Heroic; explicit Steam roots stay exact.
-            var other = GameInstallLocator.FindNonSteam(definition.Game).FirstOrDefault();
-            if (other is not null) return (other.Directory, null);
+            var others = GameInstallLocator.FindNonSteam(definition.Game);
+            if (others.Count > 0) return (others[0].Directory, null);
         }
 
         return (null, $"Could not find an installed {definition.Id} game in Steam, GOG or the retail installer; choose its folder.");

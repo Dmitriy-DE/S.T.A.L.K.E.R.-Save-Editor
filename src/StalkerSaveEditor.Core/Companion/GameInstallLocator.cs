@@ -24,14 +24,14 @@ public sealed record GameInstallation(CompanionGame Game, string Directory, Game
 /// </summary>
 public static class GameInstallLocator
 {
-    private static readonly IReadOnlyDictionary<CompanionGame, string[]> TitleMarkers = new Dictionary<CompanionGame, string[]>
+    private static readonly Dictionary<CompanionGame, string[]> TitleMarkers = new Dictionary<CompanionGame, string[]>
     {
         [CompanionGame.ShadowOfChernobyl] = ["shadow of chernobyl", "shadow of chornobyl", "shoc", "тень чернобыля"],
         [CompanionGame.ClearSky] = ["clear sky", "чистое небо"],
         [CompanionGame.CallOfPripyat] = ["call of pripyat", "call of prypiat", "зов припяти"],
     };
 
-    private static readonly IReadOnlyDictionary<CompanionGame, string> RetailRegistryKeys = new Dictionary<CompanionGame, string>
+    private static readonly Dictionary<CompanionGame, string> RetailRegistryKeys = new Dictionary<CompanionGame, string>
     {
         [CompanionGame.ShadowOfChernobyl] = @"SOFTWARE\WOW6432Node\GSC Game World\STALKER-SHOC",
         [CompanionGame.ClearSky] = @"SOFTWARE\WOW6432Node\GSC Game World\STALKER-STCS",
@@ -127,7 +127,7 @@ public static class GameInstallLocator
         foreach (var directory in result) yield return directory;
     }
 
-    private static IEnumerable<string> ChildDirectoriesMatching(string root, CompanionGame game)
+    private static string[] ChildDirectoriesMatching(string root, CompanionGame game)
     {
         if (!Directory.Exists(root)) return [];
         try
@@ -160,7 +160,7 @@ public static class GameInstallLocator
     }
 
     [SupportedOSPlatform("windows")]
-    private static IEnumerable<string> GogGalaxyDirectories(CompanionGame game)
+    private static List<string> GogGalaxyDirectories(CompanionGame game)
     {
         var results = new List<string>();
         try

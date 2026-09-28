@@ -10,7 +10,7 @@ namespace StalkerSaveEditor.Core.Content;
 /// </summary>
 internal static class XRayStringTables
 {
-    private static readonly IReadOnlyDictionary<string, string[]> FolderCodes = new Dictionary<string, string[]>(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string[]> FolderCodes = new Dictionary<string, string[]>(StringComparer.Ordinal)
     {
         ["ru"] = ["rus", "ru"],
         ["uk"] = ["ukr", "uk", "ua"],

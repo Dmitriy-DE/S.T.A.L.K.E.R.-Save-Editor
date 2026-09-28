@@ -185,7 +185,7 @@ public static class GameDoctor
     public static IReadOnlyList<GameDoctorInstallation> DiscoverInstallations(IEnumerable<string>? steamRoots = null)
     {
         var includeNonSteam = steamRoots is null;
-        var roots = steamRoots?.ToArray() ?? CompanionInstaller.GetDefaultSteamRoots().ToArray();
+        var roots = steamRoots?.ToArray() ?? SaveDirectoryLocator.DefaultSteamRoots().ToArray();
         var libraries = SteamLibraryFolderLocator.GetLibraries(roots);
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var seen = new Dictionary<GameTarget, HashSet<string>>();

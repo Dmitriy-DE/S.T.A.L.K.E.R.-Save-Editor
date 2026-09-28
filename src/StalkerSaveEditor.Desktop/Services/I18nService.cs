@@ -368,7 +368,7 @@ public sealed class I18nService
     /// </summary>
     private static Dictionary<string, JsonElement> LoadCatalog(string code)
     {
-        var fileName = code.Replace('-', '_') + ".json";
+        var fileName = code + ".json";
         foreach (var path in new[]
                  {
                      Path.Combine(AppContext.BaseDirectory, "i18n", fileName),

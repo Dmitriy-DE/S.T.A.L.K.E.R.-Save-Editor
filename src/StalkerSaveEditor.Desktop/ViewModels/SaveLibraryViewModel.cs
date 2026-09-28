@@ -21,6 +21,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private static readonly OfficialNamesCatalog OfficialNames = OfficialNamesCatalog.LoadEmbedded();
 
+    /// <summary>The editor's language as the name catalogs spell it (zh_CN, pt_BR).</summary>
+    private static string NamesLanguage => I18nService.Instance.CurrentLanguage.Replace('-', '_');
+
     private readonly Func<IReadOnlyList<string>> _saveDirectoriesProvider;
     private readonly Func<string> _backupDirectoryProvider;
     private readonly DraftStore _draftStore;
@@ -739,7 +742,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
         var catalog = TryCatalog(releaseId, out var bundle) ? bundle.Items : null;
-        return new AddItemViewModel(catalog, OfficialNames, releaseId);
+        return new AddItemViewModel(catalog, OfficialNames, releaseId, NamesLanguage);
     }
 
     public void StageItemAddition(string sectionKey, uint quantity)
@@ -1190,7 +1193,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         var inventory = save.Inventory.Select(item =>
         {
-            var localizedName = OfficialNames.Resolve(formatId, "items", item.TypeKey, I18nService.Instance.CurrentLanguage)
+            var localizedName = OfficialNames.Resolve(formatId, "items", item.TypeKey, NamesLanguage)
                 ?? item.TypeKey;
             var availableUpgrades = upgradeCatalog?.ForItem(item.TypeKey);
             return new InventoryLineViewModel(
@@ -1222,7 +1225,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             s.Items.Select(i => new StashItemViewModel(
                 i.Handle,
                 i.TypeKey,
-                OfficialNames.Resolve(formatId, "items", i.TypeKey, I18nService.Instance.CurrentLanguage) ?? i.TypeKey,
+                OfficialNames.Resolve(formatId, "items", i.TypeKey, NamesLanguage) ?? i.TypeKey,
                 i.Count ?? 1,
                 canEdit: canEditStashes,
                 disabledReason: stashesReason))));
@@ -1235,7 +1238,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 var factionDef = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == relation.CommunityIndex);
                 var commKey = factionDef?.Key ?? $"faction_{relation.CommunityIndex}";
-                var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, I18nService.Instance.CurrentLanguage)
+                var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, NamesLanguage)
                     ?? factionDef?.DisplayName
                     ?? commKey;
                 factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions, factionReason));
@@ -1318,7 +1321,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         var catalog = TryCatalog(formatId, out var bundle) ? bundle.Items : null;
         var s2Items = Stalker2ItemCatalog.LoadEmbedded();
-        var language = I18nService.Instance.CurrentLanguage;
+        var language = NamesLanguage;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
             s2Items.Name(item.DisplayName, language) ?? item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
             item.TypeKey,

@@ -1,25 +1,66 @@
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
-public sealed class TransitionViewModel(
-    string sourceLevel,
-    string destLevel,
-    string destPoint,
-    float? posX,
-    float? posY,
-    float? posZ,
-    bool? silent) : ObservableViewModel
+public sealed class TransitionViewModel : ObservableViewModel
 {
-    public string SourceLevel { get; } = sourceLevel;
-    public string DestLevel { get; } = destLevel;
-    public string DestPoint { get; } = string.IsNullOrWhiteSpace(destPoint) ? "—" : destPoint;
-    public float? PosX { get; } = posX;
-    public float? PosY { get; } = posY;
-    public float? PosZ { get; } = posZ;
-    public bool? Silent { get; } = silent;
+    public ushort Handle { get; }
+    public string Name { get; }
+    public string NameReplace { get; }
+    public ushort ParentId { get; }
+    public int ObjectVersion { get; }
 
+    public string? SourceLevel { get; }
+    public string? DestLevel { get; }
+    public string? DestPoint { get; }
+    public float? PosX { get; }
+    public float? PosY { get; }
+    public float? PosZ { get; }
+    public bool? Silent { get; }
+
+    public TransitionViewModel(
+        ushort handle,
+        string name,
+        string nameReplace,
+        ushort parentId = 0,
+        int objectVersion = 0)
+    {
+        Handle = handle;
+        Name = name;
+        NameReplace = nameReplace;
+        ParentId = parentId;
+        ObjectVersion = objectVersion;
+    }
+
+    public TransitionViewModel(
+        string sourceLevel,
+        string destLevel,
+        string destPoint = "",
+        float? posX = null,
+        float? posY = null,
+        float? posZ = null,
+        bool? silent = null)
+    {
+        SourceLevel = sourceLevel;
+        DestLevel = destLevel;
+        DestPoint = string.IsNullOrWhiteSpace(destPoint) ? "—" : destPoint;
+        PosX = posX;
+        PosY = posY;
+        PosZ = posZ;
+        Silent = silent;
+        Name = "level_changer";
+        NameReplace = $"{sourceLevel} -> {destLevel}";
+    }
+
+    public string DisplayName => !string.IsNullOrWhiteSpace(NameReplace)
+        ? NameReplace
+        : (!string.IsNullOrWhiteSpace(Name) ? Name : $"Объект 0x{Handle:X4}");
+
+    public string HandleDisplay => Handle != 0 ? $"0x{Handle:X4} ({Handle})" : "—";
+    public string TypeDisplay => string.IsNullOrWhiteSpace(Name) ? "level_changer" : Name;
+    public string ParentDisplay => ParentId == 0 ? "0 (мир)" : $"0x{ParentId:X4} ({ParentId})";
+    public string VersionDisplay => ObjectVersion != 0 ? $"v{ObjectVersion}" : "—";
     public string CoordinatesDisplay => (PosX.HasValue && PosY.HasValue && PosZ.HasValue)
         ? $"{PosX.Value:F1}, {PosY.Value:F1}, {PosZ.Value:F1}"
         : "—";
-
     public string SilentDisplay => Silent.HasValue ? (Silent.Value ? "Да" : "Нет") : "—";
+    public string StatusDisplay => "Только чтение";
 }

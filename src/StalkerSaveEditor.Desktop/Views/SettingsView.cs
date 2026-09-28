@@ -1,6 +1,7 @@
 using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
@@ -266,7 +267,7 @@ public static class SettingsView
 
         stack.Children.Add(saveRow);
 
-        if (diagnostics is not null) stack.Children.Add(BuildDiagnostics(diagnostics));
+        if (diagnostics is not null) stack.Children.Add(BuildDiagnostics(diagnostics, settings));
 
         scroll.Content = stack;
         return scroll;
@@ -278,9 +279,17 @@ public static class SettingsView
         return path is not null && home.Length > 0 && path.StartsWith(home, StringComparison.Ordinal) ? "~" + path[home.Length..] : path ?? string.Empty;
     }
 
-    private static Control BuildDiagnostics(DiagnosticsViewModel diagnostics)
+    private static Control BuildDiagnostics(DiagnosticsViewModel diagnostics, SettingsViewModel settings)
     {
         var panel = new StackPanel { Spacing = 10, DataContext = diagnostics };
+        var reports = new CheckBox
+        {
+            Content = L.T("Отправлять разработчику журнал раз в сутки и после сбоя (без путей, имён, Steam ID и сейвов)"),
+            Foreground = StalkerTheme.BrushTextPrimary,
+            FontSize = 12,
+        };
+        reports.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(SettingsViewModel.SendReports)) { Source = settings, Mode = BindingMode.TwoWay });
+        panel.Children.Add(reports);
 
         var crash = new StackPanel { Spacing = 6 };
         crash.Bind(Visual.IsVisibleProperty, new Binding(nameof(DiagnosticsViewModel.HasPendingCrash)));
@@ -313,6 +322,10 @@ public static class SettingsView
             if (file?.TryGetLocalPath() is { } path) diagnostics.ExportBundle(path);
         };
         buttons.Children.Add(export);
+
+        var sendNow = StalkerTheme.StalkerButton(L.T("Отправить отчёт сейчас"), isPrimary: false, minWidth: 170);
+        sendNow.Bind(Button.CommandProperty, new Binding(nameof(DiagnosticsViewModel.SendNowCommand)));
+        buttons.Children.Add(sendNow);
 
         var dismiss = StalkerTheme.StalkerButton(L.T("Скрыть ошибку"), isPrimary: false, minWidth: 130);
         dismiss.Bind(Button.CommandProperty, new Binding(nameof(DiagnosticsViewModel.DismissCrashCommand)));

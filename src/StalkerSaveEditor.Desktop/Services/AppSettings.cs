@@ -15,6 +15,14 @@ public sealed record AppSettings
     public int SoundVolume { get; init; } = 80;
     public bool MusicEnabled { get; init; }
 
+    /// <summary>Send the redacted log to the developer once a day and after a crash.</summary>
+    public bool SendReports { get; init; } = true;
+
+    /// <summary>The user has seen the notice about reports; nothing is sent before that.</summary>
+    public bool ReportsNoticeShown { get; init; }
+
+    public DateTime? LastReportUtc { get; init; }
+
     public static string DefaultPath => Path.Combine(AppPaths.DataDirectory, "settings.json");
 
     /// <summary>Reads the file; a missing or damaged file gives defaults (a damaged one is logged, never overwritten silently).</summary>

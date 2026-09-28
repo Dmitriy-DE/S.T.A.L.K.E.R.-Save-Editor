@@ -253,6 +253,11 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
 
     private CompanionInstaller CreateInstaller() => new(_modSourceRoot);
 
+    /// <summary>EXPERIMENTAL S.T.A.L.K.E.R. 2 mod (UE4SS): status, install and removal.</summary>
+    public Stalker2CompanionStatus Stalker2Status() => Stalker2CompanionInstaller.GetStatus();
+
+    public Stalker2CompanionStatus InstallStalker2() => new Stalker2CompanionInstaller(_modSourceRoot).Install();
+
     private string? GetResolvedGameDir(CompanionGame game)
     {
         if (_userGameDirs.TryGetValue(game, out var d) && !string.IsNullOrWhiteSpace(d))

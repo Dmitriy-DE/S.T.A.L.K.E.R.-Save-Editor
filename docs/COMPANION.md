@@ -50,4 +50,14 @@ Copying the files by hand does not work: the hooks must be patched into the game
 Each game's calls are checked against its `lua_help` dump and `tools/check_companion.sh`
 (Lua syntax, XML controls, hook patches) runs in CI. Call of Pripyat was tested in the game by the
 owner; Shadow of Chernobyl and Clear Sky menus are installed on the owner's machine and wait for an
-in-game check. The S.T.A.L.K.E.R. 2 prototype in `mods/companion/s2` (UE4SS) is not shipped.
+in-game check.
+
+## S.T.A.L.K.E.R. 2 (experimental)
+
+`mods/companion/s2` is a UE4SS Lua mod for S.T.A.L.K.E.R. 2 (money, give item, position, teleport
+through the protocol). It is **experimental and not verified in the game**. It needs
+[UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) installed by the player; the editor (Companion → All
+games, unchecked by default) or `stalker-save-editor-cli companion install s2` copies it into
+`Stalker2/Binaries/Win64/ue4ss/Mods/SaveEditorCompanion`. It writes every command and every error to
+`%LOCALAPPDATA%\Stalker2\Saved\save_editor_companion.log`; the editor adds that log to its reports.
+Cloud gaming services (GeForce NOW) do not allow mods.

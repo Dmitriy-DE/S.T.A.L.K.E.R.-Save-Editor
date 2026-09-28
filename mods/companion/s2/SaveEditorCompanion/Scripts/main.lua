@@ -1,5 +1,8 @@
 --[[
   S.T.A.L.K.E.R. 2: Heart of Chornobyl — Save Editor Companion (UE4SS Lua Mod).
+  EXPERIMENTAL: not verified in the game yet. Everything it does and every error
+  is written to %LOCALAPPDATA%\Stalker2\Saved\save_editor_companion.log, which the
+  editor adds to its diagnostic reports so problems can be fixed.
   Implements protocol v1 (MOD_COMPANION_PROTOCOL.md) using UE4SS Lua scripting
   and Unreal Engine reflection / GSC debug console commands.
 
@@ -8,6 +11,8 @@
 
 local PROTOCOL = "v1"
 local POLL_INTERVAL_MS = 2000
+local MOD_BUILD = "2026.09.28.2-s2-experimental"
+local LOG_LIMIT = 512 * 1024
 
 local cmd_file_path = nil
 local tmp_file_path = nil
@@ -29,6 +34,34 @@ local function get_storage_paths()
 	tmp_file_path = base_dir .. "\\save_editor_out.tmp"
 	out_file_path = base_dir .. "\\save_editor_out.txt"
 	return cmd_file_path, tmp_file_path, out_file_path
+end
+
+local function log_path()
+	local base = os.getenv("LOCALAPPDATA")
+	if base == nil or base == "" then
+		return "save_editor_companion.log"
+	end
+	return base .. "\\Stalker2\\Saved\\save_editor_companion.log"
+end
+
+-- Append one line; keep the file below LOG_LIMIT by moving it to .old.
+local function log(text)
+	local path = log_path()
+	local f = io.open(path, "r")
+	if f ~= nil then
+		local size = f:seek("end")
+		f:close()
+		if size ~= nil and size > LOG_LIMIT then
+			os.remove(path .. ".old")
+			os.rename(path, path .. ".old")
+		end
+	end
+	f = io.open(path, "a")
+	if f == nil then
+		return
+	end
+	f:write(os.date("!%Y-%m-%dT%H:%M:%SZ"), " ", tostring(text), "\n")
+	f:close()
 end
 
 local function clean_text(text)
@@ -77,14 +110,14 @@ local function execute_console_command(cmd)
 		ExecuteConsoleCommand(world, cmd)
 		return true
 	end
-	print("[SaveEditorCompanion] Notice: console execution requested: " .. tostring(cmd))
+	log("console command not delivered (no World/KismetSystemLibrary): " .. tostring(cmd))
 	return false
 end
 
 local handlers = {}
 
 function handlers.ping(args)
-	return "ok", "pong"
+	return "ok", "pong " .. MOD_BUILD
 end
 
 function handlers.info(args)
@@ -174,7 +207,13 @@ local function process_command_line(line)
 		return
 	end
 
-	local status, text = handler(args)
+	local ok, status, text = pcall(handler, args)
+	if not ok then
+		log("error in " .. cmd .. ": " .. tostring(status))
+		write_reply(id, "error", "mod error: " .. tostring(status))
+		return
+	end
+	log(string.format("%s %s -> %s %s", cmd, table.concat(args, " "), tostring(status), tostring(text or "")))
 	write_reply(id, status, text or "")
 end
 
@@ -199,9 +238,13 @@ end
 -- Initialize periodic polling in UE4SS
 if LoopAsync ~= nil then
 	LoopAsync(POLL_INTERVAL_MS, function()
-		poll_commands()
+		local ok, err = pcall(poll_commands)
+		if not ok then
+			log("poll error: " .. tostring(err))
+		end
 		return false -- continue looping
 	end)
+	log("started " .. MOD_BUILD .. " (experimental)")
 	print("[SaveEditorCompanion] S.T.A.L.K.E.R. 2 companion initialized with LoopAsync (" .. POLL_INTERVAL_MS .. "ms)")
 else
 	print("[SaveEditorCompanion] S.T.A.L.K.E.R. 2 companion loaded (LoopAsync not available)")

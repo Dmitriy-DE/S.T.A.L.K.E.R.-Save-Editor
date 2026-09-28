@@ -74,6 +74,7 @@ public sealed class MainWindow : Window
 
         // 2. Update Notification Banner
         var updateBanner = new StackPanel();
+        if (!HostPlatform.IsBrowser) updateBanner.Children.Add(BuildReportsNotice(vm));
         updateBanner.Children.Add(BuildCrashBanner(vm));
         updateBanner.Children.Add(BuildUpdateBanner(vm));
         Grid.SetRow(updateBanner, 1);
@@ -101,6 +102,39 @@ public sealed class MainWindow : Window
         root.Children.Add(statusBar);
 
         return root;
+    }
+
+    /// <summary>First-run notice: what the daily report contains and how to switch it off.</summary>
+    private static Control BuildReportsNotice(SaveLibraryViewModel vm)
+    {
+        var banner = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#1F1C12")),
+            BorderBrush = StalkerTheme.BrushAccentAmber,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(18, 8, 18, 8),
+        };
+        banner.Bind(Visual.IsVisibleProperty, new Binding(nameof(SettingsViewModel.ReportsNoticeVisible)) { Source = vm.Settings });
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto") };
+        grid.Children.Add(new TextBlock
+        {
+            Text = L.T("Редактор раз в сутки и после сбоя отправляет разработчику журнал работы, чтобы находить ошибки. Пути, имена и Steam ID из него вырезаются, сейвы не отправляются. Отключить можно здесь или в Настройках → Диагностика."),
+            Foreground = StalkerTheme.BrushTextPrimary,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 12, 0),
+        });
+        var ok = StalkerTheme.StalkerButton(L.T("Понятно"), isPrimary: true, minWidth: 100);
+        ok.Command = vm.AcknowledgeReportsCommand;
+        Grid.SetColumn(ok, 1);
+        grid.Children.Add(ok);
+        var off = StalkerTheme.StalkerButton(L.T("Не отправлять"), isPrimary: false, minWidth: 120);
+        off.Command = vm.DisableReportsCommand;
+        off.Margin = new Thickness(8, 0, 0, 0);
+        Grid.SetColumn(off, 2);
+        grid.Children.Add(off);
+        banner.Child = grid;
+        return banner;
     }
 
     private static Control BuildCrashBanner(SaveLibraryViewModel vm)

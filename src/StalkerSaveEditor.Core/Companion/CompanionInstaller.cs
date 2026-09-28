@@ -1039,7 +1039,7 @@ public sealed partial class CompanionInstaller
     private bool FileExistsInState(string gameDirectory, string relativePath) =>
         _fileSystem.FileExists(ResolveStatePath(gameDirectory, relativePath));
 
-    private static ReadOnlyCollection<string> GetDefaultSteamRoots()
+    internal static ReadOnlyCollection<string> GetDefaultSteamRoots()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var roots = new List<string>();

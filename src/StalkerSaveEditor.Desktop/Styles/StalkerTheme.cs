@@ -58,6 +58,12 @@ public static class StalkerTheme
     public static readonly IBrush BrushTextMuted = new SolidColorBrush(TextMuted);
     public static readonly IBrush BrushTextKhaki = new SolidColorBrush(TextKhaki);
 
+    /// <summary>Body text: Liberation Sans Narrow (SIL OFL-compatible licence, shipped in Assets/Fonts).</summary>
+    public static readonly FontFamily BodyFont = new("avares://StalkerSaveEditor.Desktop/Assets/Fonts#Liberation Sans Narrow");
+
+    /// <summary>Headings: Oswald (SIL OFL), the condensed face of the game menus' look.</summary>
+    public static readonly FontFamily HeadingFont = new("avares://StalkerSaveEditor.Desktop/Assets/Fonts#Oswald");
+
     public static Border Card(Control content, string? title = null, Thickness? margin = null, Thickness? padding = null)
     {
         var container = new StackPanel { Spacing = 8 };
@@ -73,7 +79,8 @@ public static class StalkerTheme
                 Child = new TextBlock
                 {
                     Text = $"[ ▪ {title.ToUpperInvariant()} ]",
-                    FontSize = 11,
+                    FontFamily = HeadingFont,
+                    FontSize = 12,
                     FontWeight = FontWeight.Bold,
                     Foreground = BrushAccentAmber,
                     LetterSpacing = 1.1,

@@ -20,6 +20,7 @@ public sealed class MainWindow : Window
         DataContext = _viewModel;
 
         Title = "S.T.A.L.K.E.R. Save Editor";
+        FontFamily = StalkerTheme.BodyFont;
         Width = 1260;
         Height = 820;
         MinWidth = 940;
@@ -153,7 +154,8 @@ public sealed class MainWindow : Window
         titleStack.Children.Add(new TextBlock
         {
             Text = "S.T.A.L.K.E.R. SAVE EDITOR",
-            FontSize = 18,
+            FontFamily = StalkerTheme.HeadingFont,
+            FontSize = 20,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
             LetterSpacing = 1.2,
@@ -430,7 +432,8 @@ public sealed class MainWindow : Window
         var btn = new Button
         {
             Content = label,
-            FontSize = 12,
+            FontFamily = StalkerTheme.HeadingFont,
+            FontSize = 13,
             FontWeight = FontWeight.SemiBold,
             Padding = new Thickness(14, 7),
             CornerRadius = new CornerRadius(3),

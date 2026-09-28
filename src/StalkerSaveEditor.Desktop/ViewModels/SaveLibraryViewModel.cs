@@ -43,8 +43,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         Func<string>? backupDirectoryProvider = null,
         string? draftsDirectory = null)
     {
-        _saveDirectoriesProvider = saveDirectoriesProvider ?? SaveDirectoryDiscovery.GetExistingDirectories;
-        _backupDirectoryProvider = backupDirectoryProvider ?? GetDefaultBackupDirectory;
+        // The interactive app keeps preferences in settings.json; tests and screenshots never touch it.
+        var settingsPath = InteractiveApp ? AppSettings.DefaultPath : null;
+        var stored = settingsPath is null ? null : AppSettings.Load(settingsPath);
+        _saveDirectoriesProvider = saveDirectoriesProvider ?? (() => Settings?.SaveDirectories.ToArray() ?? SaveDirectoryDiscovery.GetExistingDirectories());
+        _backupDirectoryProvider = backupDirectoryProvider ?? (() => Settings is { BackupDirectory.Length: > 0 } settings ? settings.BackupDirectory : GetDefaultBackupDirectory());
         _draftStore = new DraftStore(draftsDirectory);
         if (!Directory.Exists(_draftStore.DirectoryPath))
         {
@@ -63,8 +66,12 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         RestoreConditionCommand = new RelayCommand<string>(SetItemCondition);
 
         Settings = new SettingsViewModel(
-            _saveDirectoriesProvider(),
-            _backupDirectoryProvider());
+            saveDirectoriesProvider is null ? stored?.SaveDirectories ?? SaveDirectoryDiscovery.GetExistingDirectories() : saveDirectoriesProvider(),
+            backupDirectoryProvider is null ? stored?.BackupDirectory ?? GetDefaultBackupDirectory() : backupDirectoryProvider(),
+            settingsPath: settingsPath,
+            stored: stored);
+        Settings.Saved += (_, _) => GameAudioService.Instance.Apply(Settings.SoundEnabled, Settings.SoundVolume, Settings.MusicEnabled);
+        GameAudioService.Instance.Apply(Settings.SoundEnabled, Settings.SoundVolume, InteractiveApp && Settings.MusicEnabled);
 
         Cloud = new CloudViewModel(
             backupDirectoryProvider: _backupDirectoryProvider,
@@ -128,6 +135,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             if (SetProperty(ref _selectedTab, value))
             {
+                if (InteractiveApp) GameAudioService.Instance.Play(SoundEvent.Tab);
                 OnPropertyChanged(nameof(IsOverviewTab));
                 OnPropertyChanged(nameof(IsInventoryTab));
                 OnPropertyChanged(nameof(IsFactionsTab));
@@ -667,10 +675,12 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             SelectedSave = refreshed;
             RefreshBackups();
             StatusMessage = $"Сохранено успешно. Backup: {Path.GetFileName(receipt.BackupPath)}";
+            GameAudioService.Instance.Play(SoundEvent.Save);
         }
         catch (Exception exception)
         {
             StatusMessage = $"Не удалось сохранить: {exception.Message}";
+            GameAudioService.Instance.Play(SoundEvent.Error);
         }
         finally
         {

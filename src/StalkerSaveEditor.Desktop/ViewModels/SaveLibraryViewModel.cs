@@ -490,6 +490,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         UpdateCompareSubject();
     }
 
+    /// <summary>Remove + insert: Avalonia's virtualizing list throws on a Replace notification for the selected row.</summary>
+    private void ReplaceSave(int index, SaveFileSummary save)
+    {
+        Saves.RemoveAt(index);
+        Saves.Insert(index, save);
+    }
+
     public bool AddPreviewSave(string path)
     {
         var parsed = TryReadSave(path);
@@ -688,7 +695,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
 
             var index = Saves.IndexOf(selected);
-            if (index >= 0) Saves[index] = refreshed;
+            if (index >= 0) ReplaceSave(index, refreshed);
             else Saves.Add(refreshed);
 
             SelectedSave = refreshed;

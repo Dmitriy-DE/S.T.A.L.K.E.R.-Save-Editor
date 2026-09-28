@@ -12,10 +12,7 @@ internal sealed class SteamNativeRemoteStorage : ISteamRemoteStorage
 
     public void Initialize(int appId)
     {
-        if (appId <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(appId));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(appId);
 
         Environment.SetEnvironmentVariable("SteamAppId", appId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Environment.SetEnvironmentVariable("SteamGameId", appId.ToString(System.Globalization.CultureInfo.InvariantCulture));

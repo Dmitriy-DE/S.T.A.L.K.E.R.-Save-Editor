@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -232,7 +233,7 @@ public sealed partial class CompanionInstaller
         return new CompanionInstallerResult(true, true, manifest.Version, messages.AsReadOnly());
     }
 
-    private IReadOnlyList<PlannedInstallFile> BuildInstallPlan(
+    private ReadOnlyCollection<PlannedInstallFile> BuildInstallPlan(
         string gameDirectory,
         CompanionGameDefinition definition,
         IReadOnlyDictionary<string, byte[]> payloads,
@@ -307,7 +308,7 @@ public sealed partial class CompanionInstaller
         return Array.AsReadOnly(plan.Values.OrderBy(file => file.RelativePath, StringComparer.Ordinal).ToArray());
     }
 
-    private List<InstallFileManifest> CreateFileManifest(
+    private static List<InstallFileManifest> CreateFileManifest(
         string gameDirectory,
         IReadOnlyList<PlannedInstallFile> plan,
         IReadOnlyDictionary<string, InstallFileManifest> oldFiles)
@@ -425,7 +426,7 @@ public sealed partial class CompanionInstaller
         }
     }
 
-    private IReadOnlyList<string> RollbackInstall(
+    private ReadOnlyCollection<string> RollbackInstall(
         string gameDirectory,
         IReadOnlyList<(string Path, byte[]? Before)> applied,
         IReadOnlyList<(string Path, byte[] Bytes)> staleFiles)
@@ -676,7 +677,7 @@ public sealed partial class CompanionInstaller
         }
     }
 
-    private IReadOnlyDictionary<string, byte[]> ReadModPayloads(CompanionGameDefinition definition)
+    private Dictionary<string, byte[]> ReadModPayloads(CompanionGameDefinition definition)
     {
         if (!_fileSystem.DirectoryExists(_modSourceRoot))
         {
@@ -825,7 +826,7 @@ public sealed partial class CompanionInstaller
             definition.FsgameFileNames,
             definition.Game);
 
-    private static IReadOnlyList<HookFileTarget> GetHookTargets(
+    private static ReadOnlyCollection<HookFileTarget> GetHookTargets(
         string gameDirectory,
         CompanionArchiveSearchResult search)
     {
@@ -989,7 +990,7 @@ public sealed partial class CompanionInstaller
     private bool FileExistsInState(string gameDirectory, string relativePath) =>
         _fileSystem.FileExists(ResolveStatePath(gameDirectory, relativePath));
 
-    private static IReadOnlyList<string> GetDefaultSteamRoots()
+    private static ReadOnlyCollection<string> GetDefaultSteamRoots()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var roots = new List<string>();
@@ -1076,10 +1077,10 @@ public sealed partial class CompanionInstaller
     private static string GetManifestPath(string gameDirectory) =>
         Path.Combine(gameDirectory, ManifestDirectoryName, ManifestFileName);
 
-    private string ResolveGamePath(string gameDirectory, string relativePath) =>
+    private static string ResolveGamePath(string gameDirectory, string relativePath) =>
         ResolveUnderRoot(gameDirectory, ResolveGameRelative(relativePath));
 
-    private string ResolveStatePath(string gameDirectory, string relativePath) =>
+    private static string ResolveStatePath(string gameDirectory, string relativePath) =>
         ResolveUnderRoot(Path.Combine(gameDirectory, ManifestDirectoryName), ResolveStateRelative(relativePath));
 
     private static string ResolveGameRelative(string path) => ResolveRelative(path, "gamedata/");

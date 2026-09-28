@@ -65,7 +65,7 @@ internal sealed record SteamCloudSaveProfile(
 
 internal static class SteamCloudSaveProfiles
 {
-    private static readonly IReadOnlyDictionary<int, SteamCloudSaveProfile> Profiles =
+    private static readonly Dictionary<int, SteamCloudSaveProfile> Profiles =
         new Dictionary<int, SteamCloudSaveProfile>
         {
             [4500] = Profile(4500, "stalker-soc", "_appdata_/savedgames/", ".sav"),

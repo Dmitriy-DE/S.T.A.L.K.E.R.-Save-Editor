@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace StalkerSaveEditor.Core.Companion;
 
 internal sealed record CompanionArchiveSearchResult(
@@ -148,7 +150,7 @@ internal static class CompanionArchiveLocator
             gameConfigDirectory);
     }
 
-    private static IReadOnlyList<AliasDefinition> ParseAliases(
+    private static ReadOnlyCollection<AliasDefinition> ParseAliases(
         string contents,
         string fsgamePath,
         out IReadOnlyList<string> issues)

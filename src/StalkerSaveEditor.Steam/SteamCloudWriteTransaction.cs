@@ -59,10 +59,7 @@ internal static class SteamCloudWriteTransaction
         ArgumentNullException.ThrowIfNull(prepared);
         ArgumentException.ThrowIfNullOrWhiteSpace(remotePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);
-        if (persistedTimeoutSeconds <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(persistedTimeoutSeconds));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(persistedTimeoutSeconds);
 
         var output = prepared.Data;
         var outputSha256 = Sha256(output.Span);

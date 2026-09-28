@@ -21,7 +21,7 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
     private Thread? _eventThread;
     private TaskCompletionSource? _started;
     private TaskCompletionSource? _stopped;
-    private CancellationTokenSource? _stopSignal;
+    private int _stopRequested;
     private IntPtr _display;
     private UIntPtr _rootWindow;
     private Action<CompanionHotkeyBinding>? _onPressed;
@@ -45,10 +45,10 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
 
             _started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            _stopSignal = new CancellationTokenSource();
+            Volatile.Write(ref _stopRequested, 0);
             _onPressed = onPressed;
             started = _started.Task;
-            _eventThread = new Thread(() => RunEventLoop(bindings, _stopSignal.Token))
+            _eventThread = new Thread(() => RunEventLoop(bindings))
             {
                 IsBackground = true,
                 Name = "Stalker Save Editor X11 hotkeys",
@@ -78,7 +78,7 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            _stopSignal?.Cancel();
+            Volatile.Write(ref _stopRequested, 1);
             stopped = _stopped?.Task;
         }
 
@@ -92,12 +92,10 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
             _eventThread = null;
             _started = null;
             _stopped = null;
-            _stopSignal?.Dispose();
-            _stopSignal = null;
         }
     }
 
-    private void RunEventLoop(IReadOnlyList<CompanionHotkeyBinding> bindings, CancellationToken cancellationToken)
+    private void RunEventLoop(IReadOnlyList<CompanionHotkeyBinding> bindings)
     {
         try
         {
@@ -121,7 +119,7 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
             _rootWindow = NativeMethods.XDefaultRootWindow(_display);
             RegisterBindings(bindings);
             _started?.TrySetResult();
-            while (!cancellationToken.IsCancellationRequested)
+            while (Volatile.Read(ref _stopRequested) == 0)
             {
                 DrainEvents();
                 Thread.Sleep(30);
@@ -146,7 +144,7 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         foreach (var binding in bindings)
         {
             var keyName = char.ToLowerInvariant(binding.Gesture.Key).ToString();
-            var symbol = NativeMethods.XStringToKeysym(keyName);
+            var symbol = ResolveKeySym(keyName);
             if (symbol == UIntPtr.Zero)
             {
                 throw new HotkeyRegistrationException($"X11 does not recognize the key '{binding.Gesture.Key}'.", new InvalidOperationException());
@@ -216,7 +214,7 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
     {
         while (NativeMethods.XPending(_display) > 0)
         {
-            NativeMethods.XNextEvent(_display, out var nativeEvent);
+            _ = NativeMethods.XNextEvent(_display, out var nativeEvent);
             if (nativeEvent.Type != KeyPress || !_bindingsByKey.TryGetValue((byte)nativeEvent.Key.KeyCode, out var matches))
             {
                 continue;
@@ -273,6 +271,19 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         }
 
         return result;
+    }
+
+    private static UIntPtr ResolveKeySym(string keyName)
+    {
+        var utf8Name = Marshal.StringToCoTaskMemUTF8(keyName);
+        try
+        {
+            return NativeMethods.XStringToKeysym(utf8Name);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(utf8Name);
+        }
     }
 
     private static int CaptureXError(IntPtr display, ref NativeXErrorEvent errorEvent)
@@ -340,8 +351,8 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
         internal static extern UIntPtr XDefaultRootWindow(IntPtr display);
 
-        [DllImport(X11, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        internal static extern UIntPtr XStringToKeysym(string name);
+        [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern UIntPtr XStringToKeysym(IntPtr name);
 
         [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
         internal static extern byte XKeysymToKeycode(IntPtr display, UIntPtr keySym);

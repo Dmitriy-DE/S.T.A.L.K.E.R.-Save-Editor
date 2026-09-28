@@ -182,7 +182,7 @@ public sealed class CatalogBundleReaderTests
         }
         """u8.ToArray();
 
-    private static IReadOnlyList<string> NormalizedApplicableItems(JsonElement upgrade)
+    private static List<string> NormalizedApplicableItems(JsonElement upgrade)
     {
         var values = new List<string>();
         if (upgrade.TryGetProperty("applicable_item_keys", out var rawValues) && rawValues.ValueKind == JsonValueKind.Array)

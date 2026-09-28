@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
 
 namespace StalkerSaveEditor.Core.Formats.Stalker2;
 
@@ -296,7 +297,7 @@ public static class Stalker2ItemState
         return true;
     }
 
-    private static IReadOnlyList<string> ReadDirectModules(
+    private static ReadOnlyCollection<string> ReadDirectModules(
         ReadOnlySpan<byte> raw,
         int valueOffset,
         int recordStart,

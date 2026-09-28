@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
 
 namespace StalkerSaveEditor.Core.Formats.Stalker2;
 
@@ -574,7 +575,7 @@ public static class Stalker2InventoryReader
             names);
     }
 
-    private static IReadOnlyList<Stalker2OrphanItem> LocateOrphans(
+    private static ReadOnlyCollection<Stalker2OrphanItem> LocateOrphans(
         ReadOnlySpan<byte> raw,
         Stalker2InventoryLayout layout,
         HashSet<uint> gridHandles,
@@ -605,7 +606,7 @@ public static class Stalker2InventoryReader
         return Array.AsReadOnly(result.ToArray());
     }
 
-    private static IReadOnlyList<ObjectCandidate> FindObjectCandidates(ReadOnlySpan<byte> raw, uint handle)
+    private static List<ObjectCandidate> FindObjectCandidates(ReadOnlySpan<byte> raw, uint handle)
     {
         Span<byte> needle = stackalloc byte[sizeof(uint)];
         BinaryPrimitives.WriteUInt32LittleEndian(needle, handle);

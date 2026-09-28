@@ -167,6 +167,7 @@ public sealed class Stalker2Save
         NameTables = inventory.NameTables;
     }
 
+#pragma warning disable CA1822 // These instance properties are part of the shared save-model shape.
     public string FormatId => "stalker2";
 
     public string ReleaseId => "stalker2";
@@ -174,6 +175,7 @@ public sealed class Stalker2Save
     public int? FormatVersion => null;
 
     public int? ContainerVersion => null;
+#pragma warning restore CA1822
 
     public int PackedSize { get; }
 

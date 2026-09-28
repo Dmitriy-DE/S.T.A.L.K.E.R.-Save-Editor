@@ -3,3 +3,9 @@
 .vs/
 .worktrees/
 /artifacts/
+
+# Packaging output
+/dist/
+/build/
+/packaging/windows/dist/
+BenchmarkDotNet.Artifacts/

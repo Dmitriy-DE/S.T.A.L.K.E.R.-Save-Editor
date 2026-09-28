@@ -6,7 +6,7 @@ namespace StalkerSaveEditor.Updater;
 /// <summary>Identifies the installation around the running executable without changing files.</summary>
 public static class UpdateInstallationDetector
 {
-    public const string LinuxPackageInstallRoot = "/usr/lib/stalker2-save-editor";
+    public const string LinuxPackageInstallRoot = "/usr/lib/stalker-save-editor";
 
     public static UpdateInstallation Detect(string? executablePath = null, string? platformName = null) =>
         Detect(executablePath, platformName, LinuxPackageInstallRoot);

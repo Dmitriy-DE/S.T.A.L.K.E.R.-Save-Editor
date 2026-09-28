@@ -30,11 +30,7 @@ mkdir -p "$HOME" "$TMPDIR"
 
 native_library="$repo_root/artifacts/native/libstalker_ooz.so"
 if [[ ! -f "$native_library" ]]; then
-  if [[ -z "${PYTHON_REPO:-}" ]]; then
-    echo "PYTHON_REPO must point to the read-only pinned Python oracle when the Kraken library is absent." >&2
-    exit 2
-  fi
-  python3 "$repo_root/tools/build_ooz_native.py" --python-repo "$PYTHON_REPO" --output-dir "$repo_root/artifacts/native"
+  python3 "$repo_root/tools/build_ooz_native.py" --output-dir "$repo_root/artifacts/native"
   created_native_library=1
 fi
 

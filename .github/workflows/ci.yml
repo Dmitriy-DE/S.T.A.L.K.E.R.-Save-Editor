@@ -26,20 +26,13 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Check out Python codec oracle
-        uses: actions/checkout@v4
-        with:
-          repository: Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor
-          ref: 6f3839cb870161290ae1d404c40e291485c29e37
-          path: python-oracle
-
       - name: Set up MSVC environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build native Kraken library
         shell: bash
-        run: python tools/build_ooz_native.py --python-repo python-oracle --output-dir artifacts/native
+        run: python tools/build_ooz_native.py --output-dir artifacts/native
 
       - uses: actions/setup-dotnet@v4
         with:

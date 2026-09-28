@@ -55,6 +55,9 @@ public static class Stalker2SaveReader
 
     internal static byte[] GetWalletAnchor() => WalletAnchor.ToArray();
 
+    /// <summary>Unpacks any S2 container file (campaign index, thumbnails) after its CRC check.</summary>
+    internal static byte[] Unpack(ReadOnlySpan<byte> data) => ReadContainer(data).Raw;
+
     private static ContainerData ReadContainer(ReadOnlySpan<byte> data)
     {
         if (data.Length < 8)

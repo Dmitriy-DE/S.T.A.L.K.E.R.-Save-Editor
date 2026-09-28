@@ -1,64 +1,41 @@
 #!/usr/bin/env bash
+# .deb: the application folder in /usr/lib/stalker-save-editor (the updater recognises this root),
+# launchers in /usr/bin, desktop entry and icon.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VERSION="${1:-1.4.0}"
+VERSION="${1:?version}"
 ARCH="amd64"
 OUTPUT_DIR="${ROOT}/dist"
 PKG_ROOT="${ROOT}/build/deb/stalker-save-editor_${VERSION}_${ARCH}"
+APP="${PKG_ROOT}/usr/lib/stalker-save-editor"
 
-echo "=== Building S.T.A.L.K.E.R. Save Editor .deb package v${VERSION} (${ARCH}) ==="
-
-# 1. Clean previous build
 rm -rf "${ROOT}/build/deb"
-mkdir -p "${PKG_ROOT}/DEBIAN"
-mkdir -p "${PKG_ROOT}/usr/bin"
-mkdir -p "${PKG_ROOT}/usr/share/applications"
-mkdir -p "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps"
-mkdir -p "${OUTPUT_DIR}"
+mkdir -p "${PKG_ROOT}/DEBIAN" "${PKG_ROOT}/usr/bin" "${PKG_ROOT}/usr/share/applications" \
+  "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps" "${OUTPUT_DIR}"
 
-# 2. Control file
-cat << EOF > "${PKG_ROOT}/DEBIAN/control"
+"${ROOT}/packaging/publish_app.sh" linux-x64 "${APP}" "${VERSION}"
+ln -s ../lib/stalker-save-editor/StalkerSaveEditor "${PKG_ROOT}/usr/bin/stalker-save-editor"
+ln -s ../lib/stalker-save-editor/stalker-save-editor-cli "${PKG_ROOT}/usr/bin/stalker-save-editor-cli"
+
+cat > "${PKG_ROOT}/DEBIAN/control" <<CONTROL
 Package: stalker-save-editor
 Version: ${VERSION}
-Section: utils
+Section: games
 Priority: optional
 Architecture: ${ARCH}
-Maintainer: Dmitriy-DE <dmitriy@example.com>
-Depends: libc6, libgcc-s1, libstdc++6
-Description: S.T.A.L.K.E.R. Save Editor & Game Companion
- Save editor and real-time companion for the S.T.A.L.K.E.R. original trilogy
- (Shadow of Chernobyl, Clear Sky, Call of Pripyat) and S.T.A.L.K.E.R. 2:
- Heart of Chornobyl. Supports inventory mutation, fast travel, stashes,
- relation editing, and automated verified backups.
-EOF
+Maintainer: Dmitriy-DE <Dmitriy-DE@users.noreply.github.com>
+Depends: libc6, libgcc-s1, libstdc++6, libfontconfig1, libice6, libsm6, libx11-6
+Homepage: https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next
+Description: Save editor and game companion for S.T.A.L.K.E.R.
+ Save editor for Shadow of Chernobyl, Clear Sky, Call of Pripyat (including the
+ Enhanced Editions) and S.T.A.L.K.E.R. 2, with verified backups, Steam Cloud
+ access and the in-game companion mod.
+CONTROL
 
-# 3. Publish .NET self-contained single file
-echo "Publishing .NET project for linux-x64..."
-# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
-dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
-    -c Release \
-    -r linux-x64 \
-    --self-contained true \
-    -p:PublishSingleFile=true \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:NoWarn="IL3000" \
-    -o "${PKG_ROOT}/usr/bin"
-
-mv "${PKG_ROOT}/usr/bin/StalkerSaveEditor.Desktop" "${PKG_ROOT}/usr/bin/stalker-save-editor"
-chmod 755 "${PKG_ROOT}/usr/bin/stalker-save-editor"
-
-# Bundle companion mod next to binary so CompanionServiceAdapter.ResolveModSourceRoot() finds it.
-echo "Bundling companion mod..."
-mkdir -p "${PKG_ROOT}/usr/bin/mods"
-cp -r "${ROOT}/mods/companion" "${PKG_ROOT}/usr/bin/mods/companion"
-
-# 4. Install desktop entry and icons
 cp "${ROOT}/packaging/linux/stalker-save-editor.desktop" "${PKG_ROOT}/usr/share/applications/"
 cp "${ROOT}/packaging/linux/stalker-save-editor.png" "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps/"
 
-# 5. Build .deb package
 DEB_FILE="${OUTPUT_DIR}/stalker-save-editor_${VERSION}_${ARCH}.deb"
 dpkg-deb --build --root-owner-group "${PKG_ROOT}" "${DEB_FILE}"
-
 echo "DEB package created: ${DEB_FILE}"

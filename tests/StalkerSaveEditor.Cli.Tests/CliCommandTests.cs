@@ -175,6 +175,18 @@ public sealed class CliCommandTests
         Assert.Contains("Usage:", unknown.Error);
     }
 
+    [Fact]
+    public void Companion_command_validates_arguments_and_reports_a_missing_game()
+    {
+        Assert.Equal(2, Run("companion", "install", "stalker3").ExitCode);
+        Assert.Equal(2, Run("companion", "install", "all", "--game-dir", "/nowhere").ExitCode);
+
+        var missing = Run("companion", "status", "cop", "--game-dir", Path.Combine(Path.GetTempPath(), "no-game-" + Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(1, missing.ExitCode);
+        Assert.Contains("CallOfPripyat: game not found", missing.Output, StringComparison.Ordinal);
+    }
+
     private static CliResult Run(params string[] args)
     {
         using var output = new StringWriter();

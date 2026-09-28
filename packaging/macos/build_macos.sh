@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VERSION="${1:-1.4.0}"
+VERSION="${1:?version}"
 RID="${2:-osx-arm64}"
 DIST="${ROOT}/dist"
 BUILD_DIR="${ROOT}/build/macos"
@@ -12,28 +12,12 @@ APP_DIR="${BUILD_DIR}/${APP_NAME}"
 echo "=== Building S.T.A.L.K.E.R. Save Editor macOS Bundle v${VERSION} (${RID}) ==="
 
 rm -rf "${BUILD_DIR}"
-mkdir -p "${APP_DIR}/Contents/MacOS"
 mkdir -p "${APP_DIR}/Contents/Resources"
 mkdir -p "${DIST}"
 
-# 1. Publish .NET self-contained
-# Suppress IL3000 (Assembly.Location warning in SteamWorkerProcessRunner) for single-file publish while keeping TreatWarningsAsErrors=true
-dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
-    -c Release \
-    -r "${RID}" \
-    --self-contained true \
-    -p:PublishSingleFile=true \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:NoWarn="IL3000" \
-    -o "${APP_DIR}/Contents/MacOS"
-
-mv "${APP_DIR}/Contents/MacOS/StalkerSaveEditor.Desktop" "${APP_DIR}/Contents/MacOS/StalkerSaveEditor"
-chmod +x "${APP_DIR}/Contents/MacOS/StalkerSaveEditor"
-
-# Bundle companion mod next to binary inside MacOS folder
-echo "Bundling companion mod..."
-mkdir -p "${APP_DIR}/Contents/MacOS/mods"
-cp -r "${ROOT}/mods/companion" "${APP_DIR}/Contents/MacOS/mods/companion"
+# 1. Application folder inside the bundle; the updater reads Contents/Resources/BUILD_MANIFEST.json.
+"${ROOT}/packaging/publish_app.sh" "${RID}" "${APP_DIR}/Contents/MacOS" "${VERSION}"
+mv "${APP_DIR}/Contents/MacOS/BUILD_MANIFEST.json" "${APP_DIR}/Contents/Resources/BUILD_MANIFEST.json"
 
 # 2. Copy Info.plist and resources
 cp "${ROOT}/packaging/macos/Info.plist" "${APP_DIR}/Contents/Info.plist"

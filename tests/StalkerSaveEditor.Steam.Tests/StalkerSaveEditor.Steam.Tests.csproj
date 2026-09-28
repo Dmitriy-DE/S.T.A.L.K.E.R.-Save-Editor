@@ -18,5 +18,6 @@
     <None Include="../Fixtures/cloud-transaction/**/*" Link="Fixtures/cloud-transaction/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../golden/cloud-transaction/**/*" Link="golden/cloud-transaction/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../Fixtures/writer-money/**/*" Link="Fixtures/writer-money/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../Fixtures/writer-s2-money/**/*" Link="Fixtures/writer-s2-money/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -46,6 +46,24 @@ public sealed class Stalker2EditWriterTests
     }
 
     [Fact]
+    public void Single_money_dispatch_does_not_create_a_duplicate_source_snapshot()
+    {
+        var source = ReadFixture(MoneyFixtureDirectory, "s2-money-source.sav");
+        var sourceSha = Sha256(source);
+        var plan = new EditPlan(sourceSha, money: 777_888);
+
+        _ = Stalker2EditWriter.Prepare(source, plan);
+        _ = Stalker2MoneyWriter.Prepare(source, plan);
+        var directAllocation = MeasureAllocation(() => Stalker2MoneyWriter.Prepare(source, plan));
+        var dispatchAllocation = MeasureAllocation(() => Stalker2EditWriter.Prepare(source, plan));
+
+        Assert.True(
+            dispatchAllocation <= directAllocation + 256,
+            $"Single-writer dispatch added {dispatchAllocation - directAllocation} bytes; " +
+            "it should leave source ownership to the specialized writer.");
+    }
+
+    [Fact]
     public void Dispatches_single_stack_edit_via_fast_path()
     {
         var manifest = ReadManifest(StackFixtureDirectory, "s2-stacks-vectors.json");
@@ -117,14 +135,15 @@ public sealed class Stalker2EditWriterTests
     }
 
     [Fact]
-    public void Combines_durability_money_and_stacks_in_single_durability_writer_pass()
+    public void Matches_python_bytes_for_combined_money_and_durability_edit()
     {
         var manifest = ReadManifest(EquipmentFixtureDirectory, "s2-equipment-vectors.json");
-        var vector = ReadVector(manifest.RootElement, "weapon");
+        var vector = ReadVector(manifest.RootElement, "armor-money");
         var source = ReadFixture(EquipmentFixtureDirectory, vector.GetProperty("source").GetString()!);
+        var expected = ReadFixture(EquipmentFixtureDirectory, vector.GetProperty("expected").GetString()!);
         var handle = vector.GetProperty("handle").GetUInt32();
         var targetCondition = vector.GetProperty("targetCondition").GetDouble();
-        const uint targetMoney = 555_444;
+        var targetMoney = vector.GetProperty("money").GetUInt32();
 
         var plan = new EditPlan(
             vector.GetProperty("sourceSha256").GetString()!,
@@ -134,9 +153,12 @@ public sealed class Stalker2EditWriterTests
         var prepared = Stalker2EditWriter.Prepare(source, plan);
         var parsed = Stalker2SaveReader.FromBytes(prepared.Data.Span);
 
+        Assert.Equal(expected, prepared.Data.ToArray());
         Assert.True(parsed.CrcOk);
         Assert.Equal(targetMoney, parsed.Money);
         Assert.Equal((float)targetCondition, Assert.Single(parsed.Inventory, item => item.Handle == handle).Condition);
+        Assert.Equal(Sha256(source), prepared.SourceSha256);
+        Assert.Equal(Sha256(expected), prepared.OutputSha256);
     }
 
     [Fact]
@@ -180,4 +202,11 @@ public sealed class Stalker2EditWriterTests
 
     private static string Sha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+    private static long MeasureAllocation(Action action)
+    {
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        action();
+        return GC.GetAllocatedBytesForCurrentThread() - before;
+    }
 }

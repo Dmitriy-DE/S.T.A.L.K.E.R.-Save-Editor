@@ -54,11 +54,16 @@ public sealed class EditServiceTests
     }
 
     [Fact]
-    public void CanEdit_returns_false_for_s2_to_enforce_ui_safety()
+    public void CanEdit_uses_registered_s2_capabilities()
     {
-        Assert.False(EditService.CanEdit("stalker2"));
-        Assert.False(EditService.CanEdit("stalker2", EditKind.Money));
-        Assert.False(EditService.CanEdit("stalker2", EditKind.StackCounts));
+        Assert.True(EditService.CanEdit("stalker2"));
+        Assert.True(EditService.CanEdit("stalker2", EditKind.Money));
+        Assert.True(EditService.CanEdit("s2", EditKind.StackCounts));
+        Assert.True(EditService.CanEdit("stalker2", EditKind.Durability));
+        Assert.False(EditService.CanEdit("stalker2", EditKind.Add));
+        Assert.False(EditService.CanEdit("stalker2", EditKind.Stalker2StashTransfer));
+        Assert.False(EditService.CanEdit("stalker-soc", EditKind.Upgrades));
+        Assert.False(EditService.CanEdit("not-a-release", EditKind.Money));
     }
 
     [Theory]

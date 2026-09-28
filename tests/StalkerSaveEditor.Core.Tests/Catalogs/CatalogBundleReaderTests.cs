@@ -31,6 +31,15 @@ public sealed class CatalogBundleReaderTests
     }
 
     [Fact]
+    public void Embedded_bundle_is_loaded_once_and_reused()
+    {
+        var first = CatalogBundleReader.LoadEmbedded();
+        var second = CatalogBundleReader.LoadEmbedded();
+
+        Assert.Same(first, second);
+    }
+
+    [Fact]
     public void Catalog_lookup_is_exact_and_ambiguous_display_names_stay_unresolved()
     {
         var parsed = Assert.Single(CatalogBundleReader.Load(SyntheticBundleWithAmbiguousNames())).Value;

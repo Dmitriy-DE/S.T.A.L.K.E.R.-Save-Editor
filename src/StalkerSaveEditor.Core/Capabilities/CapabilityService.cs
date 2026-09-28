@@ -13,6 +13,8 @@ public interface ICapabilityService
     CapabilitySupport Get(string releaseId, string capability);
 #pragma warning restore CA1716
 
+    bool CanWrite(string releaseId, params string[] capabilities);
+
     bool HasParityCapability(string formatId, string capability);
 }
 
@@ -55,6 +57,16 @@ public sealed class CapabilityService : ICapabilityService
         "format_detection",
     };
 
+    private static readonly ReadOnlyDictionary<string, string> ReleaseAliases =
+        new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["s2"] = "stalker2",
+            ["soc"] = "stalker-soc",
+            ["cs"] = "stalker-cs",
+            ["clear_sky"] = "stalker-cs",
+            ["cop"] = "stalker-cop",
+        });
+
     private readonly ReadOnlyDictionary<string, FormatCapabilityDescriptor> _formatsById;
 
     private CapabilityService(string oracleRevision, IReadOnlyList<FormatCapabilityDescriptor> formats)
@@ -62,7 +74,7 @@ public sealed class CapabilityService : ICapabilityService
         OracleRevision = oracleRevision;
         Formats = formats;
         _formatsById = new ReadOnlyDictionary<string, FormatCapabilityDescriptor>(
-            formats.ToDictionary(format => format.Id, StringComparer.Ordinal));
+            formats.ToDictionary(format => format.Id, StringComparer.OrdinalIgnoreCase));
     }
 
     public static CapabilityService Default { get; } = LoadEmbedded();
@@ -74,7 +86,13 @@ public sealed class CapabilityService : ICapabilityService
     public FormatCapabilityDescriptor GetFormat(string releaseId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(releaseId);
-        return _formatsById.TryGetValue(releaseId, out var format)
+        var normalized = releaseId.Trim();
+        if (ReleaseAliases.TryGetValue(normalized, out var canonical))
+        {
+            normalized = canonical;
+        }
+
+        return _formatsById.TryGetValue(normalized, out var format)
             ? format
             : throw new KeyNotFoundException($"Unknown release capability registry: {releaseId}");
     }
@@ -83,6 +101,36 @@ public sealed class CapabilityService : ICapabilityService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(capability);
         return GetFormat(releaseId).Capabilities.Support(capability);
+    }
+
+    public bool CanWrite(string releaseId, params string[] capabilities)
+    {
+        if (string.IsNullOrWhiteSpace(releaseId) || capabilities is null || capabilities.Length == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            foreach (var capability in capabilities)
+            {
+                if (string.IsNullOrWhiteSpace(capability))
+                {
+                    return false;
+                }
+
+                if (!Get(releaseId, capability).Writable)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (KeyNotFoundException)
+        {
+            return false;
+        }
     }
 
     public bool HasParityCapability(string formatId, string capability)

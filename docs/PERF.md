@@ -2,6 +2,24 @@
 
 Measurements are observations from the stated local environment, not CI thresholds. Synthetic fixtures are used; these results do not describe the memory footprint of the packaged desktop UI or prove in-game behavior.
 
+## Desktop headless observation (E1)
+
+Command: `tools/measure_desktop.sh`. Environment: Linux x64, .NET SDK 10.0.112. It used a temporary `HOME` and `TMPDIR`, synthetic save fixtures for seven formats, five fresh headless process starts, and 20 sequential open/close cycles through the Desktop `SaveLibraryViewModel`.
+
+| Measurement | Result |
+| --- | ---: |
+| Process start + headless window, median (5 runs) | 1,514 ms |
+| Process start minimum / maximum | 1,449 ms / 1,831 ms |
+| Idle managed heap after full GC | 9,140,656 B |
+| Managed heap after first close | 16,042,952 B |
+| Managed heap after 20th close | 16,106,288 B |
+| Growth from first close to 20th close | 63,336 B |
+| Managed heap after Desktop close and full GC | 16,085,488 B |
+| Idle working set | 109,178,880 B |
+| Scenario process maximum RSS | 159,380 KiB (~155.6 MiB) |
+
+The harness rendered an empty startup window and one final synthetic save. The 20-cycle memory values are from one scenario run. During the open/close cycles, the changing ViewModel collection was not bound to a window: binding and clearing it reproduces a Desktop `NullReferenceException` in item templates. Issue [#90](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/issues/90) tracks the UI fix. The heap result therefore covers the Desktop ViewModel/Core lifecycle, not interactive save switching or UI collection recycling. The post-close heap remains about 6.9 MB above the idle baseline after the first parse/render warm-up; this single run does not identify that retained memory as a leak.
+
 ## Core open-edit-close cycles (E2)
 
 Command:

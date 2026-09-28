@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Steam;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -18,7 +19,7 @@ public sealed class AchievementItemViewModel : ObservableViewModel
 
     public string ApiName => Model.ApiName;
     public string Name => string.IsNullOrWhiteSpace(Model.Name) ? Model.ApiName : Model.Name;
-    public string Description => string.IsNullOrWhiteSpace(Model.Description) ? "Скрытое достижение" : Model.Description;
+    public string Description => string.IsNullOrWhiteSpace(Model.Description) ? L.T("Скрытое достижение") : Model.Description;
     public bool Hidden => Model.Hidden;
 
     public bool IsAchieved
@@ -52,8 +53,8 @@ public sealed class AchievementItemViewModel : ObservableViewModel
         : null;
 
     public string StatusText => IsAchieved
-        ? (UnlockDateTime.HasValue ? $"Получено: {UnlockDateTime:yyyy-MM-dd HH:mm}" : "Получено")
-        : "Не получено";
+        ? (UnlockDateTime.HasValue ? L.T("Получено: {0:yyyy-MM-dd HH:mm}", UnlockDateTime) : L.T("Получено"))
+        : L.T("Не получено");
 
     public string StatusBadgeColor => IsAchieved ? "#4E7A4A" : "#333333";
 

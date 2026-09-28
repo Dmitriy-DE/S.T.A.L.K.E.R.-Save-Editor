@@ -574,8 +574,7 @@ internal static class Program
         return Path.Combine(directory, Path.GetFileNameWithoutExtension(fullPath) + "_edited" + Path.GetExtension(fullPath));
     }
 
-    private static string DefaultBackupDirectory() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StalkerSaveEditor", "backups");
+    private static string DefaultBackupDirectory() => StalkerSaveEditor.Core.Diagnostics.AppPaths.Backups;
 
     private static int UnsupportedWrite(string command) =>
         throw new NotSupportedException(command + " is not supported by a confirmed Core writer.");

@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using System.Collections.ObjectModel;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -14,7 +15,7 @@ public sealed class StashItemViewModel : ObservableViewModel
         Count = count;
         CountDisplay = count > 1 ? $"× {count}" : string.Empty;
         CanEdit = canEdit;
-        DisabledReason = disabledReason ?? (canEdit ? "Переместить предмет в инвентарь персонажа" : "Перемещение из тайников не поддерживается");
+        DisabledReason = disabledReason ?? (canEdit ? L.T("Переместить предмет в инвентарь персонажа") : L.T("Перемещение из тайников не поддерживается"));
     }
 
     public ushort Handle { get; }
@@ -37,8 +38,8 @@ public sealed class StashViewModel : ObservableViewModel
     public StashViewModel(ushort handle, string name, string? level, IEnumerable<StashItemViewModel> items)
     {
         Handle = handle;
-        Name = string.IsNullOrWhiteSpace(name) ? $"Тайник 0x{handle:X4}" : name;
-        Level = string.IsNullOrWhiteSpace(level) ? "Неизвестно" : level;
+        Name = string.IsNullOrWhiteSpace(name) ? L.T("Тайник 0x{0:X4}", handle) : name;
+        Level = string.IsNullOrWhiteSpace(level) ? L.T("Неизвестно") : level;
         Items = new ObservableCollection<StashItemViewModel>(items);
     }
 
@@ -48,5 +49,5 @@ public sealed class StashViewModel : ObservableViewModel
     public ObservableCollection<StashItemViewModel> Items { get; }
 
     public int ItemCount => Items.Count;
-    public string HeaderDisplay => $"{Name} ({Level}) — {Items.Count} предм.";
+    public string HeaderDisplay => L.T("{0} ({1}) — {2} предм.", Name, Level, Items.Count);
 }

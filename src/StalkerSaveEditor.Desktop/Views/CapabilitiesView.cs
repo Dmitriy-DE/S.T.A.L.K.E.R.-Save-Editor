@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -26,7 +27,7 @@ public static class CapabilitiesView
 
         var titleBlock = new TextBlock
         {
-            Text = "МАТРИЦА ВОЗМОЖНОСТЕЙ РЕДАКТОРА",
+            Text = L.T("МАТРИЦА ВОЗМОЖНОСТЕЙ РЕДАКТОРА"),
             FontSize = 20,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -45,13 +46,13 @@ public static class CapabilitiesView
 
         var subtitle = new TextBlock
         {
-            Text = "Статус поддержки операций по версиям движка и форматам сейвов на основе ICapabilityService.",
+            Text = L.T("Что редактор умеет делать с сейвами каждой игры."),
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextSecondary,
         };
         headerStack.Children.Add(subtitle);
 
-        stack.Children.Add(StalkerTheme.Card(headerStack, "Справка по возможностям"));
+        stack.Children.Add(StalkerTheme.Card(headerStack, L.T("Справка по возможностям")));
 
         // 2. Table Card
         var tableStack = new StackPanel { Spacing = 2 };
@@ -65,7 +66,7 @@ public static class CapabilitiesView
 
         var opHeader = new TextBlock
         {
-            Text = "ОПЕРАЦИЯ",
+            Text = L.T("ОПЕРАЦИЯ"),
             FontWeight = FontWeight.Bold,
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextMuted,
@@ -183,23 +184,23 @@ public static class CapabilitiesView
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             Content = tableStack,
         };
-        stack.Children.Add(StalkerTheme.Card(tableScroll, "Матрица поддерживаемых возможностей"));
+        stack.Children.Add(StalkerTheme.Card(tableScroll, L.T("Матрица поддерживаемых возможностей")));
 
         // 3. Legend Card
         var legendStack = new StackPanel { Spacing = 8 };
         var legendRow = new WrapPanel { Orientation = Orientation.Horizontal };
 
-        legendRow.Children.Add(MakeLegendItem("Запись (Verified)", StalkerTheme.BrushSuccess, new SolidColorBrush(Color.Parse("#1A2E1A")), "Полная поддержка чтения и записи, верифицировано тестами."));
-        legendRow.Children.Add(MakeLegendItem("Эксперим. (Experimental)", StalkerTheme.BrushWarning, new SolidColorBrush(Color.Parse("#332A15")), "Поддержка в формате реализована, ожидается подтверждение в игре."));
-        legendRow.Children.Add(MakeLegendItem("Чтение (Research)", new SolidColorBrush(Color.Parse("#64B5F6")), new SolidColorBrush(Color.Parse("#16283B")), "Режим только для чтения."));
-        legendRow.Children.Add(MakeLegendItem("Нет (Unsupported)", StalkerTheme.BrushTextMuted, new SolidColorBrush(Color.Parse("#1E201C")), "Механика отсутствует в игре или не поддерживается."));
-        legendRow.Children.Add(MakeLegendItem("Блок UI", StalkerTheme.BrushAccentAmber, new SolidColorBrush(Color.Parse("#2B2215")), "Поддержано в ядре, но отключено в UI в целях безопасности."));
+        legendRow.Children.Add(MakeLegendItem(L.T("Запись (Verified)"), StalkerTheme.BrushSuccess, new SolidColorBrush(Color.Parse("#1A2E1A")), L.T("Полная поддержка чтения и записи, верифицировано тестами.")));
+        legendRow.Children.Add(MakeLegendItem(L.T("Эксперим. (Experimental)"), StalkerTheme.BrushWarning, new SolidColorBrush(Color.Parse("#332A15")), L.T("Поддержка в формате реализована, ожидается подтверждение в игре.")));
+        legendRow.Children.Add(MakeLegendItem(L.T("Чтение (Research)"), new SolidColorBrush(Color.Parse("#64B5F6")), new SolidColorBrush(Color.Parse("#16283B")), L.T("Режим только для чтения.")));
+        legendRow.Children.Add(MakeLegendItem(L.T("Нет (Unsupported)"), StalkerTheme.BrushTextMuted, new SolidColorBrush(Color.Parse("#1E201C")), L.T("Механика отсутствует в игре или не поддерживается.")));
+        legendRow.Children.Add(MakeLegendItem(L.T("Блок UI"), StalkerTheme.BrushAccentAmber, new SolidColorBrush(Color.Parse("#2B2215")), L.T("Поддержано в ядре, но отключено в UI в целях безопасности.")));
 
         legendStack.Children.Add(legendRow);
 
         var note = new TextBlock
         {
-            Text = "Правило безопасности репозитория: запись S.T.A.L.K.E.R. 2 выключена в UI до получения подтверждения приёма мутаций движком игры.",
+            Text = L.T("Запись сейвов S.T.A.L.K.E.R. 2 выключена, пока изменения не проверены в самой игре."),
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextMuted,
             FontStyle = FontStyle.Italic,
@@ -207,7 +208,7 @@ public static class CapabilitiesView
         };
         legendStack.Children.Add(note);
 
-        stack.Children.Add(StalkerTheme.Card(legendStack, "Обозначения"));
+        stack.Children.Add(StalkerTheme.Card(legendStack, L.T("Обозначения")));
 
         scroll.Content = stack;
         return scroll;

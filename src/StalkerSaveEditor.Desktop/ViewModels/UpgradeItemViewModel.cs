@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Core.Catalogs;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -11,11 +12,11 @@ public sealed class UpgradeItemViewModel : ObservableViewModel
         Definition = definition;
         Key = definition.Key;
         DisplayName = definition.DisplayName ?? definition.Key;
-        Category = definition.Category ?? "Апгрейд";
+        Category = definition.Category ?? L.T("Апгрейд");
         _isInstalled = isInstalled;
         OriginalInstalled = isInstalled;
         CanEdit = canEdit;
-        DisabledReason = disabledReason ?? (canEdit ? "Установить или снять апгрейд" : "Модификации оружия и брони не поддерживаются форматом");
+        DisabledReason = disabledReason ?? (canEdit ? L.T("Установить или снять апгрейд") : L.T("Модификации оружия и брони не поддерживаются форматом"));
     }
 
     public UpgradeItemViewModel(string key, string displayName, string category, bool isInstalled, bool canEdit, string? disabledReason = null)
@@ -27,7 +28,7 @@ public sealed class UpgradeItemViewModel : ObservableViewModel
         _isInstalled = isInstalled;
         OriginalInstalled = isInstalled;
         CanEdit = canEdit;
-        DisabledReason = disabledReason ?? (canEdit ? "Установить или снять апгрейд" : "Модификации оружия и брони не поддерживаются форматом");
+        DisabledReason = disabledReason ?? (canEdit ? L.T("Установить или снять апгрейд") : L.T("Модификации оружия и брони не поддерживаются форматом"));
     }
 
     public UpgradeDefinition? Definition { get; }

@@ -143,7 +143,7 @@ public sealed class AchievementsViewModelTests
         Assert.True(item.IsAchieved);
         Assert.True(item.UnlockTime > 0);
         Assert.Equal(1, vm.UnlockedCount);
-        Assert.Contains("успешно получено", vm.StatusMessage);
+        Assert.Contains("получено в Steam", vm.StatusMessage);
     }
 
     [Fact]

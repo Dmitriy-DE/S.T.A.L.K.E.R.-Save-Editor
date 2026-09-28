@@ -32,7 +32,7 @@ public sealed class CloudViewModel : ObservableViewModel
         Action<string>? onSaveDownloaded = null)
     {
         _cloudService = cloudService ?? new CloudServiceAdapter();
-        _backupDirectoryProvider = backupDirectoryProvider ?? (() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StalkerSaveEditor", "backups"));
+        _backupDirectoryProvider = backupDirectoryProvider ?? (() => StalkerSaveEditor.Core.Diagnostics.AppPaths.Backups);
         _localSaveFilesProvider = localSaveFilesProvider ?? (() => Array.Empty<string>());
         _onSaveDownloaded = onSaveDownloaded;
 
@@ -50,7 +50,7 @@ public sealed class CloudViewModel : ObservableViewModel
     public bool IsSteamAvailable => _cloudService.IsSteamAvailable;
 
     public string SteamStatusMessage => _cloudService.SteamStatusMessage
-        ?? (IsSteamAvailable ? "Steam доступен" : "Steam не запущен или недоступен.");
+        ?? (IsSteamAvailable ? L.T("Steam доступен") : L.T("Steam не запущен или недоступен."));
 
     public int SelectedAppId
     {
@@ -178,7 +178,7 @@ public sealed class CloudViewModel : ObservableViewModel
     {
         if (IsLoading) return;
         IsLoading = true;
-        StatusMessage = "Запрос списка сохранений Steam Cloud...";
+        StatusMessage = L.T("Запрос списка сохранений Steam Cloud...");
 
         try
         {
@@ -198,12 +198,12 @@ public sealed class CloudViewModel : ObservableViewModel
             }
 
             StatusMessage = CloudSaves.Count == 0
-                ? "В Steam Cloud не найдено сохранений для выбранных игр."
-                : $"Найдено {CloudSaves.Count} сохранений в облаке.";
+                ? L.T("В Steam Cloud не найдено сохранений для выбранных игр.")
+                : L.T("Найдено {0} сохранений в облаке.", CloudSaves.Count);
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка загрузки списка: {ex.Message}";
+            StatusMessage = L.T("Ошибка загрузки списка: {0}", ex.Message);
         }
         finally
         {
@@ -219,7 +219,7 @@ public sealed class CloudViewModel : ObservableViewModel
         if (selected is null || IsWriting) return;
 
         IsWriting = true;
-        StatusMessage = $"Скачивание {selected.FileName} из Steam Cloud...";
+        StatusMessage = L.T("Скачивание {0} из Steam Cloud...", selected.FileName);
 
         try
         {
@@ -249,14 +249,14 @@ public sealed class CloudViewModel : ObservableViewModel
             }
 
             await File.WriteAllBytesAsync(targetPath, bytes);
-            StatusMessage = $"Файл {selected.FileName} успешно скачан: {targetPath}";
+            StatusMessage = L.T("Файл {0} успешно скачан: {1}", selected.FileName, targetPath);
             _onSaveDownloaded?.Invoke(targetPath);
 
             await RefreshAsync();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка скачивания: {ex.Message}";
+            StatusMessage = L.T("Ошибка скачивания: {0}", ex.Message);
         }
         finally
         {
@@ -288,7 +288,7 @@ public sealed class CloudViewModel : ObservableViewModel
 
         ShowWriteConfirmDialog = false;
         IsWriting = true;
-        StatusMessage = $"Запись {selected.FileName} в Steam Cloud (RemoteStorage)...";
+        StatusMessage = L.T("Запись {0} в Steam Cloud (RemoteStorage)...", selected.FileName);
 
         try
         {
@@ -319,7 +319,7 @@ public sealed class CloudViewModel : ObservableViewModel
         {
             LastWriteStatus = CloudWriteStatus.Aborted;
             LastWriteReason = ex.Message;
-            StatusMessage = $"Ошибка записи: {ex.Message}";
+            StatusMessage = L.T("Ошибка записи: {0}", ex.Message);
         }
         finally
         {

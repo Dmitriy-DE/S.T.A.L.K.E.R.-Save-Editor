@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia.Media;
 using StalkerSaveEditor.Core.Capabilities;
 using StalkerSaveEditor.Core.Editing;
@@ -43,38 +44,38 @@ public sealed class CapabilityCellViewModel
 
         if (isSafetyRestricted)
         {
-            StatusText = "Блок UI";
+            StatusText = L.T("Блок UI");
             BadgeBackground = new SolidColorBrush(Color.Parse("#2B2215"));
             BadgeForeground = StalkerTheme.BrushAccentAmber;
-            TooltipText = "Запись для данного формата выключена в UI до верификации мутаций в живой игре.";
+            TooltipText = L.T("Запись для данного формата выключена в UI до верификации мутаций в живой игре.");
         }
         else
         {
             switch (maturity)
             {
                 case CapabilityMaturity.Verified:
-                    StatusText = "Запись";
+                    StatusText = L.T("Запись");
                     BadgeBackground = new SolidColorBrush(Color.Parse("#1A2E1A"));
                     BadgeForeground = StalkerTheme.BrushSuccess;
-                    TooltipText = reason ?? "Подтверждено и верифицировано в игре.";
+                    TooltipText = reason ?? L.T("Подтверждено и верифицировано в игре.");
                     break;
                 case CapabilityMaturity.Experimental:
-                    StatusText = "Эксперим.";
+                    StatusText = L.T("Эксперим.");
                     BadgeBackground = new SolidColorBrush(Color.Parse("#332A15"));
                     BadgeForeground = StalkerTheme.BrushWarning;
-                    TooltipText = reason ?? "Экспериментальная поддержка (требуется проверка в игре).";
+                    TooltipText = reason ?? L.T("Экспериментальная поддержка (требуется проверка в игре).");
                     break;
                 case CapabilityMaturity.Research:
-                    StatusText = "Чтение";
+                    StatusText = L.T("Чтение");
                     BadgeBackground = new SolidColorBrush(Color.Parse("#16283B"));
                     BadgeForeground = new SolidColorBrush(Color.Parse("#64B5F6"));
-                    TooltipText = reason ?? "Исследование / режим только для чтения.";
+                    TooltipText = reason ?? L.T("Исследование / режим только для чтения.");
                     break;
                 default:
-                    StatusText = "Нет";
+                    StatusText = L.T("Нет");
                     BadgeBackground = new SolidColorBrush(Color.Parse("#1E201C"));
                     BadgeForeground = StalkerTheme.BrushTextMuted;
-                    TooltipText = reason ?? "Не поддерживается движком или форматом сохранения.";
+                    TooltipText = reason ?? L.T("Не поддерживается движком или форматом сохранения.");
                     break;
             }
         }
@@ -122,29 +123,29 @@ public sealed class CapabilitiesViewModel : ObservableViewModel
 
         Columns =
         [
-            new("stalker-soc", "ТЧ", "Тень Чернобыля", "X-Ray 1.0"),
-            new("stalker-cs", "ЧН", "Чистое Небо", "X-Ray 1.5"),
-            new("stalker-cop", "ЗП", "Зов Припяти", "X-Ray 1.6"),
-            new("stalker-soc-ee", "ТЧ EE", "Тень Чернобыля EE", "Enhanced"),
-            new("stalker-cs-ee", "ЧН EE", "Чистое Небо EE", "Enhanced"),
-            new("stalker-cop-ee", "ЗП EE", "Зов Припяти EE", "Enhanced"),
+            new("stalker-soc", L.T("ТЧ"), L.T("Тень Чернобыля"), "X-Ray 1.0"),
+            new("stalker-cs", L.T("ЧН"), L.T("Чистое Небо"), "X-Ray 1.5"),
+            new("stalker-cop", L.T("ЗП"), L.T("Зов Припяти"), "X-Ray 1.6"),
+            new("stalker-soc-ee", L.T("ТЧ EE"), L.T("Тень Чернобыля EE"), "Enhanced"),
+            new("stalker-cs-ee", L.T("ЧН EE"), L.T("Чистое Небо EE"), "Enhanced"),
+            new("stalker-cop-ee", L.T("ЗП EE"), L.T("Зов Припяти EE"), "Enhanced"),
             new("stalker2", "S2", "S.T.A.L.K.E.R. 2", "Unreal Engine 5"),
         ];
 
         var operations = new (string Key, string Name, string Desc)[]
         {
-            ("edit_money", "Деньги", "Изменение количества рублей у сталкера"),
-            ("edit_stacks", "Стаки предметов", "Изменение количества в пачках патронов и расходников"),
-            ("edit_durability", "Прочность снаряжения", "Состояние и износ оружия, бронекостюмов и шлемов"),
-            ("edit_placement", "Размещение в слотах", "Слоты оружия, пояс для артефактов и рюкзак"),
-            ("edit_upgrades", "Апгрейды и модификации", "Установка и снятие веток улучшений оружия и брони"),
-            ("edit_relations", "Отношения группировок", "Редактирование очков репутации и враждебности фракций"),
-            ("edit_player_faction", "Фракция игрока", "Смена принадлежности сталкера к группировке"),
-            ("move_items", "Тайники (перемещение)", "Перемещение хабара из тайников в рюкзак и обратно"),
-            ("add_items", "Добавление предметов", "Спавн новых предметов из каталога в инвентарь"),
-            ("remove_items", "Удаление предметов", "Безопасное удаление объектов из инвентаря"),
-            ("read_inventory", "Чтение инвентаря", "Парсинг предметов, патронов и экипировки"),
-            ("catalog", "Каталог предметов", "Сопоставление идентификаторов с официальными именами"),
+            ("edit_money", L.T("Деньги"), L.T("Изменение количества рублей у сталкера")),
+            ("edit_stacks", L.T("Стаки предметов"), L.T("Изменение количества в пачках патронов и расходников")),
+            ("edit_durability", L.T("Прочность снаряжения"), L.T("Состояние и износ оружия, бронекостюмов и шлемов")),
+            ("edit_placement", L.T("Размещение в слотах"), L.T("Слоты оружия, пояс для артефактов и рюкзак")),
+            ("edit_upgrades", L.T("Апгрейды и модификации"), L.T("Установка и снятие веток улучшений оружия и брони")),
+            ("edit_relations", L.T("Отношения группировок"), L.T("Редактирование очков репутации и враждебности фракций")),
+            ("edit_player_faction", L.T("Фракция игрока"), L.T("Смена принадлежности сталкера к группировке")),
+            ("move_items", L.T("Тайники (перемещение)"), L.T("Перемещение хабара из тайников в рюкзак и обратно")),
+            ("add_items", L.T("Добавление предметов"), L.T("Спавн новых предметов из каталога в инвентарь")),
+            ("remove_items", L.T("Удаление предметов"), L.T("Безопасное удаление объектов из инвентаря")),
+            ("read_inventory", L.T("Чтение инвентаря"), L.T("Парсинг предметов, патронов и экипировки")),
+            ("catalog", L.T("Каталог предметов"), L.T("Сопоставление идентификаторов с официальными именами")),
         };
 
         var rows = new List<CapabilityRowViewModel>();

@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using StalkerSaveEditor.Core.Catalogs;
@@ -43,33 +44,33 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         OriginalCount = count;
         CanEditCount = canEditCount && count is not null;
         CountDisabledReason = CanEditCount
-            ? "Изменить количество предметов в пачке"
+            ? L.T("Изменить количество предметов в пачке")
             : count is null
-                ? "Предмет не стакается (уникальный или штучный объект)"
-                : countDisabledReason ?? "Редактирование количества предметов не поддерживается форматом";
+                ? L.T("Предмет не стакается (уникальный или штучный объект)")
+                : countDisabledReason ?? L.T("Редактирование количества предметов не поддерживается форматом");
         _countInput = count?.ToString(CultureInfo.InvariantCulture) ?? "1";
 
         OriginalCondition = condition;
         CanEditCondition = canEditCondition && condition is not null;
         ConditionDisabledReason = CanEditCondition
-            ? "Изменить состояние предмета (0–100%)"
+            ? L.T("Изменить состояние предмета (0–100%)")
             : condition is null
-                ? "Предмет не имеет шкалы состояния / износа"
-                : conditionDisabledReason ?? "Редактирование прочности не поддерживается форматом";
+                ? L.T("Предмет не имеет шкалы состояния / износа")
+                : conditionDisabledReason ?? L.T("Редактирование прочности не поддерживается форматом");
         _conditionPercent = condition.HasValue ? (int)Math.Round(condition.Value * 100f) : 100;
 
         _placement = placement ?? "ruck";
         OriginalPlacement = placement ?? "ruck";
         CanEditPlacement = canEditPlacement;
         PlacementDisabledReason = CanEditPlacement
-            ? "Переместить предмет (слот / пояс / рюкзак)"
-            : placementDisabledReason ?? "Перемещение предметов не поддерживается данным форматом";
+            ? L.T("Переместить предмет (слот / пояс / рюкзак)")
+            : placementDisabledReason ?? L.T("Перемещение предметов не поддерживается данным форматом");
 
         OriginalUpgrades = upgrades ?? [];
         CanEditUpgrades = canEditUpgrades;
         UpgradesDisabledReason = CanEditUpgrades
-            ? "Установить или снять апгрейд"
-            : upgradesDisabledReason ?? "Модификации оружия и брони не поддерживаются форматом";
+            ? L.T("Установить или снять апгрейд")
+            : upgradesDisabledReason ?? L.T("Модификации оружия и брони не поддерживаются форматом");
 
         var availableList = availableUpgrades?.ToList() ?? [];
         var upgradeViewModels = new List<UpgradeItemViewModel>();
@@ -84,7 +85,7 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         {
             if (upgradeViewModels.All(u => u.Key != key))
             {
-                var upgVm = new UpgradeItemViewModel(key, key, "Установленный апгрейд", isInstalled: true, canEditUpgrades, UpgradesDisabledReason);
+                var upgVm = new UpgradeItemViewModel(key, key, L.T("Установленный апгрейд"), isInstalled: true, canEditUpgrades, UpgradesDisabledReason);
                 upgVm.PropertyChanged += (_, _) => OnPropertyChanged(nameof(UpgradeItems));
                 upgradeViewModels.Add(upgVm);
             }
@@ -197,9 +198,9 @@ public sealed class InventoryLineViewModel : ObservableViewModel
 
     public string PlacementDisplay => _placement switch
     {
-        "slot" => "Слот",
-        "belt" => "Пояс",
-        "ruck" => "Рюкзак",
+        "slot" => L.T("Слот"),
+        "belt" => L.T("Пояс"),
+        "ruck" => L.T("Рюкзак"),
         _ => _placement,
     };
 

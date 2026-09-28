@@ -23,6 +23,11 @@ public sealed class App : Application
         Resources["TextControlBorderBrushFocused"] = StalkerTheme.BrushAccentAmber;
         Resources["ProgressBarForeground"] = StalkerTheme.BrushAccentAmber;
         Resources["ProgressBarBackground"] = new SolidColorBrush(Color.Parse("#181D15"));
+
+        // Disabled buttons stay readable (Fluent's defaults are near-invisible on the dark palette).
+        Resources["ButtonBackgroundDisabled"] = new SolidColorBrush(Color.Parse("#12150F"));
+        Resources["ButtonForegroundDisabled"] = StalkerTheme.BrushTextMuted;
+        Resources["ButtonBorderBrushDisabled"] = StalkerTheme.BrushBorderSubtle;
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -30,6 +35,13 @@ public sealed class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        {
+            // Web host: the same interface without a window.
+            var viewModel = new ViewModels.SaveLibraryViewModel();
+            foreach (var path in Services.HostPlatform.StartupFiles) viewModel.AddPreviewSave(path);
+            singleView.MainView = MainWindow.BuildRoot(viewModel);
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -13,7 +14,7 @@ public sealed class AddItemDialog : Window
 {
     public AddItemDialog(AddItemViewModel addVm, SaveLibraryViewModel parentVm)
     {
-        Title = "Добавить предмет в инвентарь";
+        Title = L.T("Добавить предмет в инвентарь");
         Width = 520;
         Height = 560;
         Background = StalkerTheme.BrushBgBase;
@@ -31,7 +32,7 @@ public sealed class AddItemDialog : Window
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
-            Watermark = "Поиск по названию или ключу секции…",
+            Watermark = L.T("Поиск по названию или ключу секции…"),
             Margin = new Thickness(0, 0, 0, 10),
         };
         searchBox.Bind(TextBox.TextProperty, new Binding(nameof(AddItemViewModel.SearchText))
@@ -85,7 +86,7 @@ public sealed class AddItemDialog : Window
         };
         qtyRow.Children.Add(new TextBlock
         {
-            Text = "Количество:",
+            Text = L.T("Количество:"),
             Foreground = StalkerTheme.BrushTextSecondary,
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 12,
@@ -115,7 +116,7 @@ public sealed class AddItemDialog : Window
             Spacing = 10,
         };
 
-        var addBtn = StalkerTheme.StalkerButton("Добавить", isPrimary: true, minWidth: 110);
+        var addBtn = StalkerTheme.StalkerButton(L.T("Добавить"), isPrimary: true, minWidth: 110);
         addBtn.Click += (_, _) =>
         {
             if (addVm.SelectedItem is not null)
@@ -126,7 +127,7 @@ public sealed class AddItemDialog : Window
         };
         btnRow.Children.Add(addBtn);
 
-        var cancelBtn = StalkerTheme.StalkerButton("Отмена", isPrimary: false, minWidth: 100);
+        var cancelBtn = StalkerTheme.StalkerButton(L.T("Отмена"), isPrimary: false, minWidth: 100);
         cancelBtn.Click += (_, _) => Close();
         btnRow.Children.Add(cancelBtn);
 

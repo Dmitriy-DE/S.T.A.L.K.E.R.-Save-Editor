@@ -12,7 +12,7 @@ public interface IUpdateServiceAdapter
 
 public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
 {
-    private readonly UpdateService _service;
+    private readonly UpdateService? _service;
     private readonly UpdateInstallation _installation;
     private readonly string _downloadDirectory;
 
@@ -26,11 +26,12 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
             _installation = UpdateInstallationDetector.Detect();
             _service = new UpdateService(CurrentVersion, _installation);
         }
-        catch
+        catch (Exception exception) when (exception is UpdateManifestException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
+            // The web host (and any unknown platform) has no self-update.
             var fallbackPath = Environment.ProcessPath ?? AppContext.BaseDirectory;
             _installation = new UpdateInstallation("linux", "x64", "package", AppContext.BaseDirectory, fallbackPath);
-            _service = new UpdateService(CurrentVersion);
+            _service = OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UpdateService(CurrentVersion) : null;
         }
 
         _downloadDirectory = downloadDirectory ?? Path.Combine(Path.GetTempPath(), "stalker-save-editor-updates");
@@ -47,7 +48,9 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
     public string CurrentVersion { get; }
 
     public Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default) =>
-        _service.CheckAsync(cancellationToken);
+        Service.CheckAsync(cancellationToken);
+
+    private UpdateService Service => _service ?? throw new PlatformNotSupportedException("Updates are not available on this platform.");
 
     public Task<string> DownloadAsync(
         UpdateArtifact artifact,
@@ -55,7 +58,7 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
         CancellationToken cancellationToken = default)
     {
         var destination = Path.Combine(_downloadDirectory, artifact.File);
-        return _service.DownloadAsync(artifact, destination, progress, cancellationToken);
+        return Service.DownloadAsync(artifact, destination, progress, cancellationToken);
     }
 
     public Task<UpdateInstallResult> InstallAsync(
@@ -63,7 +66,7 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
         UpdateArtifact artifact,
         IProgress<UpdateProgress>? progress = null,
         CancellationToken cancellationToken = default) =>
-        _service.InstallAsync(artifact, downloadedPath, _installation, progress, cancellationToken);
+        Service.InstallAsync(artifact, downloadedPath, _installation, progress, cancellationToken);
 
-    public void Dispose() => _service.Dispose();
+    public void Dispose() => _service?.Dispose();
 }

@@ -47,8 +47,8 @@ public sealed class UpdatesViewModel : ObservableViewModel
     }
 
     public string NotificationBannerText => string.IsNullOrWhiteSpace(LatestVersion)
-        ? "Доступна новая версия приложения!"
-        : $"Доступна новая версия приложения ({LatestVersion})!";
+        ? L.T("Доступна новая версия приложения!")
+        : L.T("Доступна новая версия приложения ({0})!", LatestVersion);
 
     public UpdateState State
     {
@@ -70,11 +70,11 @@ public sealed class UpdatesViewModel : ObservableViewModel
 
     public string StateBadgeText => State switch
     {
-        UpdateState.Current => "У вас актуальная версия",
-        UpdateState.Available => "Доступно обновление",
-        UpdateState.Unavailable => "Обновление недоступно",
-        UpdateState.Invalid => "Ошибка проверки манифеста",
-        _ => "Статус неизвестен"
+        UpdateState.Current => L.T("У вас актуальная версия"),
+        UpdateState.Available => L.T("Доступно обновление"),
+        UpdateState.Unavailable => L.T("Обновление недоступно"),
+        UpdateState.Invalid => L.T("Ошибка проверки манифеста"),
+        _ => L.T("Статус неизвестен")
     };
 
     public string StateBadgeColor => State switch
@@ -205,7 +205,7 @@ public sealed class UpdatesViewModel : ObservableViewModel
         IsChecking = true;
         if (!silent)
         {
-            StatusMessage = "Проверка наличия обновлений...";
+            StatusMessage = L.T("Проверка наличия обновлений...");
             ErrorMessage = null;
         }
 
@@ -224,19 +224,19 @@ public sealed class UpdatesViewModel : ObservableViewModel
             if (result.State == UpdateState.Available)
             {
                 ShowNotificationBanner = true;
-                StatusMessage = $"Доступна новая версия {LatestVersion}!";
+                StatusMessage = L.T("Доступна новая версия {0}!", LatestVersion);
             }
             else if (result.State == UpdateState.Current)
             {
                 ShowNotificationBanner = false;
-                StatusMessage = "Установлена последняя версия приложения.";
+                StatusMessage = L.T("Установлена последняя версия приложения.");
             }
             else
             {
                 if (!silent)
                 {
-                    ErrorMessage = result.Error ?? "Не удалось проверить обновления.";
-                    StatusMessage = "Проверка завершилась с ошибкой.";
+                    ErrorMessage = result.Error ?? L.T("Не удалось проверить обновления.");
+                    StatusMessage = L.T("Проверка завершилась с ошибкой.");
                 }
             }
         }
@@ -245,7 +245,7 @@ public sealed class UpdatesViewModel : ObservableViewModel
             if (!silent)
             {
                 ErrorMessage = ex.Message;
-                StatusMessage = "Ошибка подключения к серверу обновлений.";
+                StatusMessage = L.T("Ошибка подключения к серверу обновлений.");
             }
         }
         finally
@@ -261,7 +261,7 @@ public sealed class UpdatesViewModel : ObservableViewModel
 
         IsDownloading = true;
         ErrorMessage = null;
-        StatusMessage = "Скачивание пакета обновления...";
+        StatusMessage = L.T("Скачивание пакета обновления...");
         ProgressPercentage = 0;
 
         var progress = new Progress<UpdateProgress>(p =>
@@ -277,13 +277,13 @@ public sealed class UpdatesViewModel : ObservableViewModel
         {
             var path = await _adapter.DownloadAsync(artifact, progress);
             DownloadedFilePath = path;
-            StatusMessage = $"Пакет обновления скачан: {Path.GetFileName(path)}";
+            StatusMessage = L.T("Пакет обновления скачан: {0}", Path.GetFileName(path));
             ProgressPercentage = 100;
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Ошибка скачивания: {ex.Message}";
-            StatusMessage = "Не удалось завершить скачивание.";
+            ErrorMessage = L.T("Ошибка скачивания: {0}", ex.Message);
+            StatusMessage = L.T("Не удалось завершить скачивание.");
         }
         finally
         {
@@ -299,7 +299,7 @@ public sealed class UpdatesViewModel : ObservableViewModel
 
         IsInstalling = true;
         ErrorMessage = null;
-        StatusMessage = "Установка обновления...";
+        StatusMessage = L.T("Установка обновления...");
 
         var progress = new Progress<UpdateProgress>(p =>
         {
@@ -311,18 +311,18 @@ public sealed class UpdatesViewModel : ObservableViewModel
             var result = await _adapter.InstallAsync(path, artifact, progress);
             if (result.State == UpdateInstallState.Succeeded || result.State == UpdateInstallState.OpenedExternally)
             {
-                StatusMessage = $"Обновление запущено: {result.Message}";
+                StatusMessage = L.T("Обновление запущено: {0}", result.Message);
             }
             else
             {
-                ErrorMessage = $"Установка не удалась ({result.State}): {result.Message}";
-                StatusMessage = "Ошибка установки обновления.";
+                ErrorMessage = L.T("Установка не удалась ({0}): {1}", result.State, result.Message);
+                StatusMessage = L.T("Ошибка установки обновления.");
             }
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Ошибка запуска установки: {ex.Message}";
-            StatusMessage = "Не удалось запустить установку.";
+            ErrorMessage = L.T("Ошибка запуска установки: {0}", ex.Message);
+            StatusMessage = L.T("Не удалось запустить установку.");
         }
         finally
         {

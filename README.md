@@ -1,7 +1,6 @@
 # S.T.A.L.K.E.R. Save Editor — Next (C#)
 
-[![Companion Mod Check](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/companion-check.yml/badge.svg)](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/companion-check.yml)
-[![Build and test](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/ci.yml/badge.svg)](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor/actions/workflows/ci.yml)
+[![CI](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/actions/workflows/ci.yml/badge.svg)](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor-Next/actions/workflows/ci.yml)
 
 High-performance, cross-platform **.NET 10** desktop save editor and live in-game companion for the entire **S.T.A.L.K.E.R.** series:
 - **S.T.A.L.K.E.R.: Shadow of Chernobyl** (1.0004 / 1.0006)
@@ -10,52 +9,35 @@ High-performance, cross-platform **.NET 10** desktop save editor and live in-gam
 - **Enhanced Editions** (SoC, CS, CoP)
 - **S.T.A.L.K.E.R. 2: Heart of Chornobyl** (UE5)
 
-![S.T.A.L.K.E.R. Save Editor Overview](docs/pr-screenshots/task-7-ui/overview-after.png)
+![S.T.A.L.K.E.R. Save Editor](docs/images/inventory.png)
 
 ---
 
 ## What It Can Do
 
-### 1. 🗃️ Complete Save Editing & Inspection
-- **Overview Screen**: Inspect player health, radiation, psy-health, stamina, game coordinates (X, Y, Z), game time, and monetary balance.
-- **Inventory Editor**:
-  - View and modify item count, weight, and condition/durability (0–100%).
-  - Inspect weapon and armor upgrade flags.
-  - Inspect equipment placement (belt, backpack, weapon slots).
-  - Add and delete inventory items through the centralized Core `EditService` API.
-  - Non-destructive **Draft Store** with multi-step **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Y`).
-- **Stashes**: Discover and manage hidden stashes across the Zone.
-- **Factions & Relations**: View and tune community goodwill and player reputation.
-- **Level Transitions**: Inspect level changers and map transitions directly from X-Ray saves (`LevelChangers` reader).
-- **Safety First**: Ambiguous fields stay read-only. S2 save modifications remain locked until verified writers land. Writes always create verified SHA-256 pre-save backups outside the save folder.
+Every write goes through the same checked path: the change is prepared, the file is re-read and
+verified, and a backup of the original is kept outside the save folder. Fields whose meaning is not
+proven stay read-only; the **Capabilities** tab shows, per game, what can be written.
 
-![Capabilities Matrix](docs/pr-screenshots/task-7-ui/capabilities-after.png)
-
-### 2. 🎮 Authentic Trilogy Industrial Theme & Zone Audio
-- **Zone Aesthetic**: Authentic industrial framing, sharp corners (`CornerRadius = 1`), military bracket headers (`[ ▪ TITLE ]`), and X-Ray button hover/press states (`_e`, `_h`, `_t`).
-- **Interactive Audio**: Authentic sound effects for button clicks, tab transitions, file loading, and save confirmations. Native cross-platform audio engines:
-  - **Linux**: PulseAudio (`paplay`), PipeWire (`pw-play`), ALSA (`aplay`).
-  - **Windows**: WinMM `PlaySound`.
-  - **macOS**: `afplay`.
-
-### 3. ☁️ Steam Cloud & Achievements
-- **Steam RemoteStorage & S2 Auto-Cloud**: View local vs. cloud saves, compare timestamps, and download/synchronize saves.
-- **Strict Write Safety**: Cloud writes require explicit user confirmation. Uncertain writes are marked in red with diagnostic explanations and are never automatically retried.
-- **Achievements Manager**: Inspect unlocked Steam achievements with timestamps, view lock/unlock statuses, and toggle achievements with safeguard confirmations against lockout.
-
-### 4. ⚙️ Settings & First-Launch Auto-Discovery
-- **Smart Path Auto-Discovery**: Automatically searches and detects save directories for all 4 games across Windows and Linux (native Steam, GOG, and Linux Steam Proton wine prefixes: AppIDs 4500, 20510, 41700, 1643320).
-- **First-Launch Wizard**: Automatically guides new users to locate or configure save directories on clean installs.
-- **14-Language Localization**: English, Russian, Ukrainian, Polish, German, French, Spanish, Italian, Czech, Brazilian Portuguese, Turkish, Japanese, Simplified Chinese, and Traditional Chinese. Fully verified with zero missing keys.
-
-### 5. 📡 In-Game Companion Mod
-- **Live In-Game Bridge**: Issue commands to a running X-Ray engine without reloading your save (`ping`, `heal`, `repair_equipped`, `give`, `money`, `teleport`, `mark`, `jump_last`, `quicksave`, `weather`).
-- **Safe Hotkeys**: Global non-conflicting hotkeys (`Ctrl+H`, `Ctrl+R`, `Ctrl+M`, `Ctrl+J`, `Ctrl+S`).
-- **Automated Hook Manager**: Detects, installs, and uninstalls companion hooks in `bind_stalker.script` with automatic backup creation.
-
-![Companion Packaging](docs/pr-screenshots/task-8-packaging/appimage-companion.png)
-
----
+- **Library** — finds saves of all games (Steam, Proton, GOG, disc installs) and shows the game's own
+  slot screenshot, level or S.T.A.L.K.E.R. 2 region and play time; «Open…» opens any file.
+- **Overview** — money, actor name, health, rank, level, in-game date, item and stash counts; compare
+  the save with another save of the same game or with one of its backups.
+- **Inventory (X-Ray)** — money, stack counts, condition, slot/belt/backpack placement, weapon and armour
+  upgrades, adding items from the catalogue and removing items. Item names and icons come from the
+  installed game (mods such as OGSM included) or from the shipped pack.
+- **Stashes, factions, level changers** — take loot out of stashes, change faction goodwill; level
+  changers are read-only.
+- **S.T.A.L.K.E.R. 2** — reading, official item names and icons; writing stays off in the interface
+  until changes are confirmed in the game.
+- **Drafts** — edits are kept as a draft with undo/redo (`Ctrl+Z`, `Ctrl+Y`) and written with `Ctrl+S`.
+- **Steam Cloud and achievements** — compare local and cloud saves, download, upload only after an
+  explicit confirmation (never retried automatically); view and toggle achievements.
+- **Companion mod** — installs into every SoC/CS/CoP found and gives an in-game menu (Esc → F1) with
+  live cheats, teleport marks, weather and more; the app talks to it through a file protocol.
+- **Interface** — 14 languages, the games' own menu sounds and optional main-menu music, crash report
+  and «Check environment» under Settings → Diagnostics.
+- **Web edition** — the same interface in the browser (WebAssembly); files never leave the browser.
 
 ## How to Install & Run
 
@@ -110,15 +92,15 @@ dotnet test
 ./tools/check_companion.sh
 
 # Verify i18n coverage across all 14 locales
-dotnet run --project src/StalkerSaveEditor.Desktop -- --test-i18n
+dotnet run --project src/StalkerSaveEditor.App -- --test-i18n
 
 # Verify audio sound asset integrity
-dotnet run --project src/StalkerSaveEditor.Desktop -- --test-audio
+dotnet run --project src/StalkerSaveEditor.App -- --test-audio
 ```
 
 #### Launch the Desktop Editor
 ```bash
-dotnet run --project src/StalkerSaveEditor.Desktop
+dotnet run --project src/StalkerSaveEditor.App
 ```
 
 ---

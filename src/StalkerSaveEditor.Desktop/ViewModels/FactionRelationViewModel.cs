@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
 public sealed class FactionRelationViewModel : ObservableViewModel
@@ -11,7 +12,7 @@ public sealed class FactionRelationViewModel : ObservableViewModel
         _goodwill = goodwill;
         OriginalGoodwill = goodwill;
         CanEdit = canEdit;
-        DisabledReason = disabledReason ?? (canEdit ? "Изменить отношение группировки" : "Редактирование отношений фракций не поддерживается данным форматом");
+        DisabledReason = disabledReason ?? (canEdit ? L.T("Изменить отношение группировки") : L.T("Редактирование отношений фракций не поддерживается данным форматом"));
     }
 
     public string Community { get; }
@@ -38,9 +39,9 @@ public sealed class FactionRelationViewModel : ObservableViewModel
 
     public string Attitude => _goodwill switch
     {
-        >= 1000 => "Друг",
-        <= -1000 => "Враг",
-        _ => "Нейтрал",
+        >= 1000 => L.T("Друг"),
+        <= -1000 => L.T("Враг"),
+        _ => L.T("Нейтрал"),
     };
 
     public string AttitudeBadgeColor => _goodwill switch

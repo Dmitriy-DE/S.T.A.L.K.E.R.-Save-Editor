@@ -75,9 +75,9 @@ public sealed class CompanionViewModel : ObservableViewModel
 
     public IReadOnlyList<KeyValuePair<string, string>> AvailableGames { get; } =
     [
-        new("stalker-cop", "S.T.A.L.K.E.R. Зов Припяти"),
-        new("stalker-cs", "S.T.A.L.K.E.R. Чистое Небо"),
-        new("stalker-soc", "S.T.A.L.K.E.R. Тень Чернобыля"),
+        new("stalker-cop", L.T("S.T.A.L.K.E.R. Зов Припяти")),
+        new("stalker-cs", L.T("S.T.A.L.K.E.R. Чистое Небо")),
+        new("stalker-soc", L.T("S.T.A.L.K.E.R. Тень Чернобыля")),
     ];
 
     public string SelectedGame
@@ -120,10 +120,10 @@ public sealed class CompanionViewModel : ObservableViewModel
 
     public string StatusBadgeText => _state switch
     {
-        CompanionState.Active => "РАБОТАЕТ (ПОДКЛЮЧЁН)",
-        CompanionState.Installed => "УСТАНОВЛЕН (ОЖИДАНИЕ ИГРЫ)",
-        CompanionState.NotInstalled => "НЕ УСТАНОВЛЕН",
-        _ => "ОШИБКА",
+        CompanionState.Active => L.T("РАБОТАЕТ (ПОДКЛЮЧЁН)"),
+        CompanionState.Installed => L.T("УСТАНОВЛЕН (ОЖИДАНИЕ ИГРЫ)"),
+        CompanionState.NotInstalled => L.T("НЕ УСТАНОВЛЕН"),
+        _ => L.T("ОШИБКА"),
     };
 
     public string StatusBadgeColor => _state switch
@@ -226,12 +226,12 @@ public sealed class CompanionViewModel : ObservableViewModel
         {
             var status = await _service.GetStatusAsync(releaseId);
             var found = status.GamePath is { Length: > 0 } path && path != "—";
-            rows.Add(new CompanionGameRow(releaseId, title, found, found ? status.GamePath : "не найдена", status.State switch
+            rows.Add(new CompanionGameRow(releaseId, title, found, found ? status.GamePath : L.T("не найдена"), status.State switch
             {
-                CompanionState.Active => "работает",
-                CompanionState.Installed => "мод установлен " + status.Version,
-                CompanionState.Error => "ошибка: " + (status.ErrorMessage ?? "проверьте файлы"),
-                _ => found ? "мод не установлен" : "игра не найдена",
+                CompanionState.Active => L.T("работает"),
+                CompanionState.Installed => L.T("мод установлен ") + status.Version,
+                CompanionState.Error => L.T("ошибка: ") + (status.ErrorMessage ?? L.T("проверьте файлы")),
+                _ => found ? L.T("мод не установлен") : L.T("игра не найдена"),
             }));
         }
 
@@ -253,7 +253,7 @@ public sealed class CompanionViewModel : ObservableViewModel
         {
             foreach (var row in Games.Where(row => row.IsChecked && row.GameFound).ToArray())
             {
-                StatusMessage = $"Установка в «{row.Title}»…";
+                StatusMessage = L.T("Установка в «{0}»…", row.Title);
                 bool ok;
                 try
                 {
@@ -269,7 +269,7 @@ public sealed class CompanionViewModel : ObservableViewModel
                 results.Add($"{row.Title}: {(ok ? "готово" : "не удалось")}");
             }
 
-            StatusMessage = string.Join("; ", results) + ". Перезапустите игры, которые были открыты.";
+            StatusMessage = string.Join("; ", results) + L.T(". Перезапустите игры, которые были открыты.");
         }
         finally
         {
@@ -347,7 +347,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             VersionText = status.Version;
             GamePath = status.GamePath;
             PingText = status.LastPing.HasValue
-                ? $"{DateTime.UtcNow.Subtract(status.LastPing.Value).TotalSeconds:F0} сек назад"
+                ? L.T("{0:F0} сек назад", DateTime.UtcNow.Subtract(status.LastPing.Value).TotalSeconds)
                 : "—";
 
             // Show any installer issues (anchor not found, file changed, etc.)
@@ -367,7 +367,7 @@ public sealed class CompanionViewModel : ObservableViewModel
                 HotkeysEnabled = false;
             }
 
-            if (string.IsNullOrEmpty(StatusMessage) || StatusMessage.StartsWith("Ошибка", StringComparison.Ordinal))
+            if (string.IsNullOrEmpty(StatusMessage) || StatusMessage.StartsWith(L.T("Ошибка"), StringComparison.Ordinal))
             {
                 StatusMessage = string.Empty;
             }
@@ -381,14 +381,14 @@ public sealed class CompanionViewModel : ObservableViewModel
                 {
                     if (!await _service.UpdateHotkeyAsync(_selectedGame, action, newKey))
                     {
-                        StatusMessage = "Переназначение клавиш пока не сохраняется — действует раскладка по умолчанию.";
+                        StatusMessage = L.T("Переназначение клавиш пока не сохраняется — действует раскладка по умолчанию.");
                     }
                 }));
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка обновления статуса: {ex.Message}";
+            StatusMessage = L.T("Ошибка обновления статуса: {0}", ex.Message);
         }
         finally
         {
@@ -401,18 +401,18 @@ public sealed class CompanionViewModel : ObservableViewModel
     public async Task InstallAsync()
     {
         IsBusy = true;
-        StatusMessage = "Установка компаньона в gamedata…";
+        StatusMessage = L.T("Установка компаньона в gamedata…");
         try
         {
             var ok = await _service.InstallAsync(_selectedGame);
             StatusMessage = ok
-                ? "Компаньон успешно установлен!"
-                : "Не удалось установить компаньон — убедитесь, что папка игры найдена.";
+                ? L.T("Компаньон успешно установлен!")
+                : L.T("Не удалось установить компаньон — убедитесь, что папка игры найдена.");
             await RefreshStatusAsync();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка установки: {ex.Message}";
+            StatusMessage = L.T("Ошибка установки: {0}", ex.Message);
         }
         finally
         {
@@ -423,16 +423,16 @@ public sealed class CompanionViewModel : ObservableViewModel
     public async Task UninstallAsync()
     {
         IsBusy = true;
-        StatusMessage = "Удаление компаньона…";
+        StatusMessage = L.T("Удаление компаньона…");
         try
         {
             var ok = await _service.UninstallAsync(_selectedGame);
-            StatusMessage = ok ? "Компаньон удалён." : "Не удалось удалить компаньон.";
+            StatusMessage = ok ? L.T("Компаньон удалён.") : L.T("Не удалось удалить компаньон.");
             await RefreshStatusAsync();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка удаления: {ex.Message}";
+            StatusMessage = L.T("Ошибка удаления: {0}", ex.Message);
         }
         finally
         {
@@ -445,26 +445,26 @@ public sealed class CompanionViewModel : ObservableViewModel
     public async Task PingAsync()
     {
         IsBusy = true;
-        StatusMessage = "Проверка связи с модом…";
+        StatusMessage = L.T("Проверка связи с модом…");
         try
         {
             var latency = await _service.PingAsync(_selectedGame);
             if (latency.HasValue)
             {
-                PingText = $"{latency.Value.TotalMilliseconds:F0} мс";
+                PingText = L.T("{0:F0} мс", latency.Value.TotalMilliseconds);
                 StatusMessage = (_service as CompanionServiceAdapter)?.ModBuildWarning(_selectedGame)
-                    ?? $"Мод отвечает. Задержка: {latency.Value.TotalMilliseconds:F0} мс";
+                    ?? L.T("Мод отвечает. Задержка: {0:F0} мс", latency.Value.TotalMilliseconds);
             }
             else
             {
-                PingText = "Нет ответа";
-                StatusMessage = "Компаньон не отвечает. Убедитесь, что игра запущена.";
+                PingText = L.T("Нет ответа");
+                StatusMessage = L.T("Компаньон не отвечает. Убедитесь, что игра запущена.");
             }
         }
         catch (Exception ex)
         {
-            PingText = "Ошибка";
-            StatusMessage = $"Ошибка пинга: {ex.Message}";
+            PingText = L.T("Ошибка");
+            StatusMessage = L.T("Ошибка пинга: {0}", ex.Message);
         }
         finally
         {
@@ -480,15 +480,15 @@ public sealed class CompanionViewModel : ObservableViewModel
         var dir = ManualGameDir.Trim();
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
         {
-            StatusMessage = $"Папка не найдена: {dir}";
+            StatusMessage = L.T("Папка не найдена: {0}", dir);
             return;
         }
 
         var game = ParseGame(_selectedGame);
         adapter.SetUserGameDirectory(game, string.IsNullOrEmpty(dir) ? null : dir);
         StatusMessage = string.IsNullOrEmpty(dir)
-            ? "Папка очищена, используется автообнаружение."
-            : $"Папка задана: {dir}";
+            ? L.T("Папка очищена, используется автообнаружение.")
+            : L.T("Папка задана: {0}", dir);
         _ = RefreshStatusAsync();
     }
 
@@ -499,7 +499,7 @@ public sealed class CompanionViewModel : ObservableViewModel
         if (_service is not CompanionServiceAdapter adapter) return;
         IsBusy = true;
         var enable = !_hotkeysEnabled;
-        StatusMessage = enable ? "Включение горячих клавиш…" : "Отключение горячих клавиш…";
+        StatusMessage = enable ? L.T("Включение горячих клавиш…") : L.T("Отключение горячих клавиш…");
         try
         {
             var (success, error) = await adapter.ToggleHotkeysAsync(
@@ -508,17 +508,17 @@ public sealed class CompanionViewModel : ObservableViewModel
             {
                 HotkeysEnabled = enable;
                 StatusMessage = enable
-                    ? "Горячие клавиши активированы (Ctrl+H/R/M/J/S)."
-                    : "Горячие клавиши отключены.";
+                    ? L.T("Горячие клавиши активированы (Ctrl+H/R/M/J/S).")
+                    : L.T("Горячие клавиши отключены.");
             }
             else
             {
-                StatusMessage = $"Не удалось {(enable ? "включить" : "отключить")} горячие клавиши: {error}";
+                StatusMessage = (enable ? L.T("Не удалось включить горячие клавиши: {0}", error) : L.T("Не удалось отключить горячие клавиши: {0}", error));
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка горячих клавиш: {ex.Message}";
+            StatusMessage = L.T("Ошибка горячих клавиш: {0}", ex.Message);
         }
         finally
         {

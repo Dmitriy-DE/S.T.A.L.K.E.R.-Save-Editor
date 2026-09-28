@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Core.Backups;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -19,9 +20,9 @@ public sealed class BackupRecordViewModel(LocalSaveBackupRecord record) : Observ
 
     public string StatusDisplay => Status switch
     {
-        BackupVerificationStatus.Verified => "Проверен",
-        BackupVerificationStatus.Missing => "Отсутствует",
-        BackupVerificationStatus.Corrupt => "Повреждён",
+        BackupVerificationStatus.Verified => L.T("Проверен"),
+        BackupVerificationStatus.Missing => L.T("Отсутствует"),
+        BackupVerificationStatus.Corrupt => L.T("Повреждён"),
         _ => Status.ToString(),
     };
 

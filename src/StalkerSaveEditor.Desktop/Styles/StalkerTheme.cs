@@ -86,7 +86,7 @@ public static class StalkerTheme
                 Margin = new Thickness(-14, -14, -14, 6),
                 Child = new TextBlock
                 {
-                    Text = $"[ ▪ {title.ToUpperInvariant()} ]",
+                    Text = $"[ {title.ToUpperInvariant()} ]",
                     FontFamily = HeadingFont,
                     FontSize = 12,
                     FontWeight = FontWeight.Bold,

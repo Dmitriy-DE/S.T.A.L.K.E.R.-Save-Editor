@@ -10,19 +10,11 @@ public sealed class LanguageOption(string code, string name)
     public override string ToString() => Name;
 }
 
-public sealed class ThemeOption(string id, string name)
-{
-    public string Id { get; } = id;
-    public string Name { get; } = name;
-    public override string ToString() => Name;
-}
-
 public sealed class SettingsViewModel : ObservableViewModel
 {
     private string _backupDirectory;
     private string _newSaveDirectory = string.Empty;
     private LanguageOption _selectedLanguage;
-    private ThemeOption _selectedTheme;
     private bool _soundEnabled = true;
     private int _soundVolume = 80;
     private string _settingsStatus = string.Empty;
@@ -41,16 +33,14 @@ public sealed class SettingsViewModel : ObservableViewModel
     public SettingsViewModel(
         IEnumerable<string> saveDirectories,
         string backupDirectory,
-        string currentLanguageCode = "ru",
-        string currentThemeId = "game",
+        string? currentLanguageCode = null,
         string? settingsPath = null,
         AppSettings? stored = null)
     {
         _settingsPath = settingsPath;
         if (stored is not null)
         {
-            currentLanguageCode = stored.Language;
-            currentThemeId = stored.Theme;
+            currentLanguageCode = stored.Language ?? currentLanguageCode;
             _soundEnabled = stored.SoundEnabled;
             _soundVolume = Math.Clamp(stored.SoundVolume, 0, 100);
             _musicEnabled = stored.MusicEnabled;
@@ -78,15 +68,7 @@ public sealed class SettingsViewModel : ObservableViewModel
             new LanguageOption("zh_TW", "繁體中文"),
         ];
 
-        Themes =
-        [
-            new ThemeOption("game", "Игровая (S.T.A.L.K.E.R.)"),
-            new ThemeOption("dark", "Тёмная"),
-            new ThemeOption("light", "Светлая"),
-        ];
-
-        _selectedLanguage = Languages.FirstOrDefault(l => l.Code == currentLanguageCode) ?? Languages[0];
-        _selectedTheme = Themes.FirstOrDefault(t => t.Id == currentThemeId) ?? Themes[0];
+        _selectedLanguage = Languages.FirstOrDefault(l => l.Code == (currentLanguageCode ?? I18nService.Instance.CurrentLanguage)) ?? Languages[0];
 
         AddSaveDirectoryCommand = new RelayCommand(() => AddSaveDirectory(NewSaveDirectory), () => !string.IsNullOrWhiteSpace(NewSaveDirectory));
         RemoveSaveDirectoryCommand = new RelayCommand<string>(RemoveSaveDirectory);
@@ -96,7 +78,6 @@ public sealed class SettingsViewModel : ObservableViewModel
 
     public ObservableCollection<string> SaveDirectories { get; }
     public IReadOnlyList<LanguageOption> Languages { get; }
-    public IReadOnlyList<ThemeOption> Themes { get; }
 
     public RelayCommand AddSaveDirectoryCommand { get; }
     public RelayCommand<string> RemoveSaveDirectoryCommand { get; }
@@ -127,12 +108,6 @@ public sealed class SettingsViewModel : ObservableViewModel
         set => SetProperty(ref _selectedLanguage, value);
     }
 
-    public ThemeOption SelectedTheme
-    {
-        get => _selectedTheme;
-        set => SetProperty(ref _selectedTheme, value);
-    }
-
     public bool SoundEnabled
     {
         get => _soundEnabled;
@@ -158,7 +133,7 @@ public sealed class SettingsViewModel : ObservableViewModel
         {
             SaveDirectories.Add(path);
             NewSaveDirectory = string.Empty;
-            SettingsStatus = $"Папка добавлена: {path}";
+            SettingsStatus = L.T("Папка добавлена: {0}", path);
             TryPersist();
             return true;
         }
@@ -169,7 +144,7 @@ public sealed class SettingsViewModel : ObservableViewModel
     {
         if (directory is not null && SaveDirectories.Remove(directory))
         {
-            SettingsStatus = "Папка удалена из списка.";
+            SettingsStatus = L.T("Папка удалена из списка.");
             TryPersist();
         }
     }
@@ -188,8 +163,8 @@ public sealed class SettingsViewModel : ObservableViewModel
         }
         if (added > 0) TryPersist();
         SettingsStatus = added > 0
-            ? $"Автопоиск завершён. Добавлено папок: {added}."
-            : "Автопоиск завершён. Новых папок не найдено.";
+            ? L.T("Автопоиск завершён. Добавлено папок: {0}.", added)
+            : L.T("Автопоиск завершён. Новых папок не найдено.");
         return added;
     }
 
@@ -198,12 +173,12 @@ public sealed class SettingsViewModel : ObservableViewModel
         try
         {
             Persist();
-            SettingsStatus = _settingsPath is null ? "Настройки применены." : "Настройки сохранены.";
+            SettingsStatus = _settingsPath is null ? L.T("Настройки применены.") : L.T("Настройки сохранены.");
             Saved?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            SettingsStatus = "Не удалось сохранить настройки: " + exception.Message;
+            SettingsStatus = L.T("Не удалось сохранить настройки: ") + exception.Message;
         }
     }
 
@@ -215,7 +190,7 @@ public sealed class SettingsViewModel : ObservableViewModel
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            SettingsStatus = "Не удалось сохранить настройки: " + exception.Message;
+            SettingsStatus = L.T("Не удалось сохранить настройки: ") + exception.Message;
         }
     }
 
@@ -224,7 +199,6 @@ public sealed class SettingsViewModel : ObservableViewModel
         SaveDirectories = [.. SaveDirectories],
         BackupDirectory = BackupDirectory,
         Language = SelectedLanguage.Code,
-        Theme = SelectedTheme.Id,
         SoundEnabled = SoundEnabled,
         SoundVolume = SoundVolume,
         MusicEnabled = MusicEnabled,

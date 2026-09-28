@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
 public sealed class TransitionViewModel : ObservableViewModel
@@ -52,15 +53,15 @@ public sealed class TransitionViewModel : ObservableViewModel
 
     public string DisplayName => !string.IsNullOrWhiteSpace(NameReplace)
         ? NameReplace
-        : (!string.IsNullOrWhiteSpace(Name) ? Name : $"Объект 0x{Handle:X4}");
+        : (!string.IsNullOrWhiteSpace(Name) ? Name : L.T("Объект 0x{0:X4}", Handle));
 
     public string HandleDisplay => Handle != 0 ? $"0x{Handle:X4} ({Handle})" : "—";
     public string TypeDisplay => string.IsNullOrWhiteSpace(Name) ? "level_changer" : Name;
-    public string ParentDisplay => ParentId == 0 ? "0 (мир)" : $"0x{ParentId:X4} ({ParentId})";
+    public string ParentDisplay => ParentId == 0 ? L.T("0 (мир)") : $"0x{ParentId:X4} ({ParentId})";
     public string VersionDisplay => ObjectVersion != 0 ? $"v{ObjectVersion}" : "—";
     public string CoordinatesDisplay => (PosX.HasValue && PosY.HasValue && PosZ.HasValue)
         ? $"{PosX.Value:F1}, {PosY.Value:F1}, {PosZ.Value:F1}"
         : "—";
-    public string SilentDisplay => Silent.HasValue ? (Silent.Value ? "Да" : "Нет") : "—";
-    public string StatusDisplay => "Только чтение";
+    public string SilentDisplay => Silent.HasValue ? (Silent.Value ? L.T("Да") : L.T("Нет")) : "—";
+    public string StatusDisplay => L.T("Только чтение");
 }

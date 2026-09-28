@@ -52,9 +52,9 @@ public sealed class AchievementsViewModel : ObservableViewModel
 
     public string GameName => SelectedAppId switch
     {
-        4500 => "S.T.A.L.K.E.R.: Тень Чернобыля",
-        20510 => "S.T.A.L.K.E.R.: Чистое Небо",
-        41700 => "S.T.A.L.K.E.R.: Зов Припяти",
+        4500 => L.T("S.T.A.L.K.E.R.: Тень Чернобыля"),
+        20510 => L.T("S.T.A.L.K.E.R.: Чистое Небо"),
+        41700 => L.T("S.T.A.L.K.E.R.: Зов Припяти"),
         1643320 => "S.T.A.L.K.E.R. 2: Heart of Chornobyl",
         _ => "S.T.A.L.K.E.R."
     };
@@ -62,7 +62,7 @@ public sealed class AchievementsViewModel : ObservableViewModel
     public bool IsAvailable => _adapter.IsAvailable(SelectedAppId);
 
     public string AvailabilityMessage => _adapter.GetAvailabilityMessage(SelectedAppId)
-        ?? (IsAvailable ? "Steam доступен" : "Steam не запущен или недоступен.");
+        ?? (IsAvailable ? L.T("Steam доступен") : L.T("Steam не запущен или недоступен."));
 
     public string SearchText
     {
@@ -106,7 +106,7 @@ public sealed class AchievementsViewModel : ObservableViewModel
     public int UnlockedCount => AllAchievements.Count(a => a.IsAchieved);
     public double ProgressFraction => TotalCount == 0 ? 0.0 : (double)UnlockedCount / TotalCount;
     public double ProgressPercentage => Math.Round(ProgressFraction * 100);
-    public string ProgressText => $"{UnlockedCount} из {TotalCount} получено ({ProgressPercentage:F0}%)";
+    public string ProgressText => L.T("{0} из {1} получено ({2:F0}%)", UnlockedCount, TotalCount, ProgressPercentage);
 
     // Dialog state
     public bool ShowConfirmDialog
@@ -148,11 +148,11 @@ public sealed class AchievementsViewModel : ObservableViewModel
         }
     }
 
-    public string ConfirmDialogTitle => PendingNewState ? "РАЗБЛОКИРОВАТЬ ДОСТИЖЕНИЕ" : "СНЯТЬ ДОСТИЖЕНИЕ";
+    public string ConfirmDialogTitle => PendingNewState ? L.T("РАЗБЛОКИРОВАТЬ ДОСТИЖЕНИЕ") : L.T("СНЯТЬ ДОСТИЖЕНИЕ");
 
     public string ConfirmDialogMessage => PendingAchievement is null
         ? string.Empty
-        : $"Вы действительно хотите {(PendingNewState ? "разблокировать" : "снять")} достижение «{PendingAchievement.Name}» в Steam?";
+        : (PendingNewState ? L.T("Вы действительно хотите разблокировать достижение «{0}» в Steam?", PendingAchievement.Name) : L.T("Вы действительно хотите снять достижение «{0}» в Steam?", PendingAchievement.Name));
 
     public bool CanConfirmToggle => ShowConfirmDialog && PendingAchievement is not null && !IsMutating;
 
@@ -165,7 +165,7 @@ public sealed class AchievementsViewModel : ObservableViewModel
     {
         if (IsLoading) return;
         IsLoading = true;
-        StatusMessage = $"Запрос достижений для {GameName}...";
+        StatusMessage = L.T("Запрос достижений для {0}...", GameName);
 
         try
         {
@@ -180,12 +180,12 @@ public sealed class AchievementsViewModel : ObservableViewModel
             UpdateProgress();
 
             StatusMessage = AllAchievements.Count == 0
-                ? "Достижения не найдены (проверьте подключение к Steam)."
-                : $"Загружено {AllAchievements.Count} достижений.";
+                ? L.T("Достижения не найдены (проверьте подключение к Steam).")
+                : L.T("Загружено {0} достижений.", AllAchievements.Count);
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка загрузки достижений: {ex.Message}";
+            StatusMessage = L.T("Ошибка загрузки достижений: {0}", ex.Message);
         }
         finally
         {
@@ -221,7 +221,7 @@ public sealed class AchievementsViewModel : ObservableViewModel
 
         ShowConfirmDialog = false;
         IsMutating = true;
-        StatusMessage = $"Обновление «{item.Name}» в Steam...";
+        StatusMessage = L.T("Обновление «{0}» в Steam...", item.Name);
 
         try
         {
@@ -229,11 +229,11 @@ public sealed class AchievementsViewModel : ObservableViewModel
             item.IsAchieved = result.Achieved;
             item.UnlockTime = result.UnlockTime;
             UpdateProgress();
-            StatusMessage = $"Достижение «{item.Name}» успешно {(newState ? "получено" : "снято")} в Steam.";
+            StatusMessage = (newState ? L.T("Достижение «{0}» получено в Steam.", item.Name) : L.T("Достижение «{0}» снято в Steam.", item.Name));
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка изменения достижения: {ex.Message}";
+            StatusMessage = L.T("Ошибка изменения достижения: {0}", ex.Message);
         }
         finally
         {

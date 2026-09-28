@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -23,19 +24,19 @@ public static class TransitionsView
         var noteStack = new StackPanel { Spacing = 6 };
         noteStack.Children.Add(new TextBlock
         {
-            Text = "Объекты переходов между локациями (Level Changers) из реестра X-Ray.",
+            Text = L.T("Объекты переходов между локациями (Level Changers) из реестра X-Ray."),
             Foreground = StalkerTheme.BrushTextPrimary,
             FontSize = 13,
             FontWeight = FontWeight.SemiBold,
         });
         noteStack.Children.Add(new TextBlock
         {
-            Text = "Данные прочитаны напрямую из реестра сохранения. Согласно правилу AGENTS.md («Unknown or ambiguous fields stay read-only»), недокументированные внутренние смещения состояний остаются закрытыми для записи до официальной поддержки в Core. Редактирование отключено.",
+            Text = L.T("Данные прочитаны из сохранения. Поля переходов не описаны, поэтому они только для чтения."),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
         });
-        root.Children.Add(StalkerTheme.Card(noteStack, "Переходы между локациями (Read-Only)"));
+        root.Children.Add(StalkerTheme.Card(noteStack, L.T("Переходы между локациями (Read-Only)")));
 
         // 2. Empty State
         var emptyPanel = new StackPanel
@@ -47,7 +48,7 @@ public static class TransitionsView
         };
         emptyPanel.Children.Add(new TextBlock
         {
-            Text = "ТОЧКИ ПЕРЕХОДОВ ОТСУТСТВУЮТ",
+            Text = L.T("ТОЧКИ ПЕРЕХОДОВ ОТСУТСТВУЮТ"),
             FontSize = 14,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushTextMuted,
@@ -55,7 +56,7 @@ public static class TransitionsView
         });
         emptyPanel.Children.Add(new TextBlock
         {
-            Text = "В объектах реестра данного сохранения нет записей типа level_changer.",
+            Text = L.T("В объектах реестра данного сохранения нет записей типа level_changer."),
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextSecondary,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -86,12 +87,12 @@ public static class TransitionsView
         {
             ColumnDefinitions = new ColumnDefinitions("120,*,120,100,80,110"),
         };
-        headerGrid.Children.Add(MakeColHeader("ID В РЕЕСТРЕ", 0));
-        headerGrid.Children.Add(MakeColHeader("ИДЕНТИФИКАТОР / ТОЧКА", 1));
-        headerGrid.Children.Add(MakeColHeader("ТИП ОБЪЕКТА", 2));
-        headerGrid.Children.Add(MakeColHeader("РОДИТЕЛЬ", 3));
-        headerGrid.Children.Add(MakeColHeader("ВЕРСИЯ", 4));
-        headerGrid.Children.Add(MakeColHeader("СТАТУС", 5));
+        headerGrid.Children.Add(MakeColHeader(L.T("ID В РЕЕСТРЕ"), 0));
+        headerGrid.Children.Add(MakeColHeader(L.T("ИДЕНТИФИКАТОР / ТОЧКА"), 1));
+        headerGrid.Children.Add(MakeColHeader(L.T("ТИП ОБЪЕКТА"), 2));
+        headerGrid.Children.Add(MakeColHeader(L.T("РОДИТЕЛЬ"), 3));
+        headerGrid.Children.Add(MakeColHeader(L.T("ВЕРСИЯ"), 4));
+        headerGrid.Children.Add(MakeColHeader(L.T("СТАТУС"), 5));
         headerBorder.Child = headerGrid;
         listContainer.Children.Add(headerBorder);
 
@@ -204,7 +205,7 @@ public static class TransitionsView
         grid.Children.Add(verText);
 
         // 5. Read-only badge
-        var roBadge = StalkerTheme.Badge("Только чтение", StalkerTheme.BrushBgInput, StalkerTheme.BrushTextSecondary, 10);
+        var roBadge = StalkerTheme.Badge(L.T("Только чтение"), StalkerTheme.BrushBgInput, StalkerTheme.BrushTextSecondary, 10);
         Grid.SetColumn(roBadge, 5);
         grid.Children.Add(roBadge);
 

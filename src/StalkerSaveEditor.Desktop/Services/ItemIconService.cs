@@ -36,6 +36,49 @@ public static class ItemIconService
         return $"xray/{itemKey}.png";
     }
 
+    /// <summary>
+    /// Shows the icon in <paramref name="image"/>: at once when it is on disk, otherwise (web host)
+    /// fetched from the site's Assets/Icons in the background and set on the UI thread.
+    /// </summary>
+    public static void Show(Avalonia.Controls.Image image, string releaseId, string itemKey)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        image.Source = Load(releaseId, itemKey);
+        if (image.Source is not null || HostPlatform.FetchAsset is not { } fetch) return;
+        var relative = IconKey(releaseId.Replace("-ee", string.Empty, StringComparison.Ordinal), itemKey);
+        if (relative is null) return;
+        _ = ShowFetchedAsync(image, fetch, "Assets/Icons/" + relative, $"{releaseId}|{itemKey}");
+    }
+
+    private static async Task ShowFetchedAsync(Avalonia.Controls.Image image, Func<string, Task<byte[]?>> fetch, string path, string cacheKey)
+    {
+        try
+        {
+            if (Remote.TryGetValue(cacheKey, out var known))
+            {
+                image.Source = known;
+                return;
+            }
+
+            var bytes = await fetch(path);
+            Bitmap? bitmap = null;
+            if (bytes is { Length: > 0 })
+            {
+                using var stream = new MemoryStream(bytes);
+                bitmap = new Bitmap(stream);
+            }
+
+            Remote[cacheKey] = bitmap;
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => image.Source = bitmap);
+        }
+        catch (Exception exception) when (exception is IOException or ArgumentException or InvalidOperationException or NotSupportedException or HttpRequestException)
+        {
+            Remote[cacheKey] = null;
+        }
+    }
+
+    private static readonly ConcurrentDictionary<string, Bitmap?> Remote = new(StringComparer.Ordinal);
+
     public static Bitmap? Load(string releaseId, string itemKey)
     {
         if (string.IsNullOrWhiteSpace(itemKey)) return null;

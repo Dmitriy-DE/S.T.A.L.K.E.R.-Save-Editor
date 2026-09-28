@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -22,12 +23,12 @@ public static class StashesView
         var hintCard = new StackPanel { Spacing = 4 };
         hintCard.Children.Add(new TextBlock
         {
-            Text = "Отмеченные галочками предметы будут перенесены из тайников в инвентарь персонажа при сохранении.",
+            Text = L.T("Отмеченные галочками предметы будут перенесены из тайников в инвентарь персонажа при сохранении."),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
         });
-        root.Children.Add(StalkerTheme.Card(hintCard, "Управление тайниками Зоны"));
+        root.Children.Add(StalkerTheme.Card(hintCard, L.T("Управление тайниками Зоны")));
 
         var stashesList = new ItemsControl
         {
@@ -72,7 +73,7 @@ public static class StashesView
 
                 var takeChk = new CheckBox
                 {
-                    Content = "В рюкзак",
+                    Content = L.T("В рюкзак"),
                     FontSize = 11,
                     Foreground = StalkerTheme.BrushAccentAmber,
                     HorizontalAlignment = HorizontalAlignment.Right,

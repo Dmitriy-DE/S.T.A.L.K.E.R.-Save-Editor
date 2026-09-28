@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -28,7 +29,7 @@ public sealed class UpdatesView : UserControl
         // 1. Header
         var header = new TextBlock
         {
-            Text = "ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ",
+            Text = L.T("ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ"),
             FontSize = 18,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -53,7 +54,7 @@ public sealed class UpdatesView : UserControl
         // Version Row
         var versionRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,16,Auto,16,Auto") };
         var curVerStack = new StackPanel { Spacing = 2 };
-        curVerStack.Children.Add(new TextBlock { Text = "ТЕКУЩАЯ ВЕРСИЯ", FontSize = 10, Foreground = StalkerTheme.BrushTextMuted });
+        curVerStack.Children.Add(new TextBlock { Text = L.T("ТЕКУЩАЯ ВЕРСИЯ"), FontSize = 10, Foreground = StalkerTheme.BrushTextMuted });
         var curVerText = new TextBlock { FontSize = 16, FontWeight = FontWeight.Bold, Foreground = StalkerTheme.BrushTextPrimary };
         curVerText.Bind(TextBlock.TextProperty, new Binding(nameof(UpdatesViewModel.CurrentVersion)));
         curVerStack.Children.Add(curVerText);
@@ -64,7 +65,7 @@ public sealed class UpdatesView : UserControl
         versionRow.Children.Add(arrow);
 
         var latVerStack = new StackPanel { Spacing = 2 };
-        latVerStack.Children.Add(new TextBlock { Text = "ПОСЛЕДНЯЯ ВЕРСИЯ", FontSize = 10, Foreground = StalkerTheme.BrushTextMuted });
+        latVerStack.Children.Add(new TextBlock { Text = L.T("ПОСЛЕДНЯЯ ВЕРСИЯ"), FontSize = 10, Foreground = StalkerTheme.BrushTextMuted });
         var latVerText = new TextBlock { FontSize = 16, FontWeight = FontWeight.Bold, Foreground = StalkerTheme.BrushAccentAmber };
         latVerText.Bind(TextBlock.TextProperty, new Binding(nameof(UpdatesViewModel.LatestVersion)));
         latVerStack.Children.Add(latVerText);
@@ -106,15 +107,15 @@ public sealed class UpdatesView : UserControl
             Margin = new Thickness(0, 0, 0, 16),
         };
 
-        var checkBtn = StalkerTheme.StalkerButton("ПРОВЕРИТЬ ОБНОВЛЕНИЯ");
+        var checkBtn = StalkerTheme.StalkerButton(L.T("ПРОВЕРИТЬ ОБНОВЛЕНИЯ"));
         checkBtn.Bind(Button.CommandProperty, new Binding(nameof(UpdatesViewModel.CheckUpdatesCommand)));
         btnRow.Children.Add(checkBtn);
 
-        var downloadBtn = StalkerTheme.StalkerButton("СКАЧАТЬ ОБНОВЛЕНИЕ", isPrimary: true);
+        var downloadBtn = StalkerTheme.StalkerButton(L.T("СКАЧАТЬ ОБНОВЛЕНИЕ"), isPrimary: true);
         downloadBtn.Bind(Button.CommandProperty, new Binding(nameof(UpdatesViewModel.DownloadCommand)));
         btnRow.Children.Add(downloadBtn);
 
-        var installBtn = StalkerTheme.StalkerButton("УСТАНОВИТЬ ОБНОВЛЕНИЕ", isPrimary: true);
+        var installBtn = StalkerTheme.StalkerButton(L.T("УСТАНОВИТЬ ОБНОВЛЕНИЕ"), isPrimary: true);
         installBtn.Bind(Button.CommandProperty, new Binding(nameof(UpdatesViewModel.InstallCommand)));
         btnRow.Children.Add(installBtn);
 

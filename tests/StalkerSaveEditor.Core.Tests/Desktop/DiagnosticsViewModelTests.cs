@@ -19,7 +19,7 @@ public sealed class DiagnosticsViewModelTests
 
         await vm.RunChecksAsync();
 
-        Assert.Equal(["OK", "!", "✕"], vm.Checks.Select(row => row.Status));
+        Assert.Equal(["OK", "!", "×"], vm.Checks.Select(row => row.Status));
         Assert.True(vm.Checks[1].HasHint);
         Assert.Equal("Ошибок: 1, предупреждений: 1.", vm.Status);
         Assert.False(vm.IsChecking);

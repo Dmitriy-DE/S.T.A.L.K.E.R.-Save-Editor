@@ -54,7 +54,7 @@ jobs:
         run: dotnet src/StalkerSaveEditor.Cli/bin/Release/net10.0/StalkerSaveEditor.Cli.dll version
 
       - name: Render read-only UI screenshot
-        run: dotnet src/StalkerSaveEditor.Desktop/bin/Release/net10.0/StalkerSaveEditor.Desktop.dll --screenshot artifacts/ui/${{ runner.os }}.png --fixture tests/Fixtures/xray-call-of-pripyat.sav
+        run: dotnet src/StalkerSaveEditor.App/bin/Release/net10.0/StalkerSaveEditor.dll --screenshot artifacts/ui/${{ runner.os }}.png --fixture tests/Fixtures/xray-call-of-pripyat.sav
 
       - name: Upload UI screenshot
         if: always()

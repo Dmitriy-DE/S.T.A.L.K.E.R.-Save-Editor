@@ -12,7 +12,7 @@ namespace StalkerSaveEditor.Desktop.Views;
 
 public static class SettingsView
 {
-    public static Control Build(SettingsViewModel settings)
+    public static Control Build(SettingsViewModel settings, DiagnosticsViewModel? diagnostics = null)
     {
         var scroll = new ScrollViewer { Padding = new Thickness(16) };
         var stack = new StackPanel { Spacing = 16 };
@@ -36,13 +36,17 @@ public static class SettingsView
                     ColumnDefinitions = new ColumnDefinitions("*,Auto"),
                     Margin = new Thickness(0, 2),
                 };
-                row.Children.Add(new TextBlock
+                var label = new TextBlock
                 {
-                    Text = dir,
+                    Text = ShortPath(dir),
                     Foreground = StalkerTheme.BrushTextPrimary,
                     FontSize = 12,
                     VerticalAlignment = VerticalAlignment.Center,
-                });
+                    TextTrimming = TextTrimming.PrefixCharacterEllipsis,
+                    Margin = new Thickness(0, 0, 8, 0),
+                };
+                ToolTip.SetTip(label, dir);
+                row.Children.Add(label);
 
                 var removeBtn = new Button
                 {
@@ -266,7 +270,86 @@ public static class SettingsView
 
         stack.Children.Add(saveRow);
 
+        if (diagnostics is not null) stack.Children.Add(BuildDiagnostics(diagnostics));
+
         scroll.Content = stack;
         return scroll;
+    }
+
+    private static string ShortPath(string? path)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return path is not null && home.Length > 0 && path.StartsWith(home, StringComparison.Ordinal) ? "~" + path[home.Length..] : path ?? string.Empty;
+    }
+
+    private static Control BuildDiagnostics(DiagnosticsViewModel diagnostics)
+    {
+        var panel = new StackPanel { Spacing = 10, DataContext = diagnostics };
+
+        var crash = new StackPanel { Spacing = 6 };
+        crash.Bind(Visual.IsVisibleProperty, new Binding(nameof(DiagnosticsViewModel.HasPendingCrash)));
+        crash.Children.Add(new TextBlock
+        {
+            Text = "Прошлый запуск завершился ошибкой. Сохраните отчёт и приложите его к issue.",
+            Foreground = StalkerTheme.BrushDanger,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        var crashText = new TextBox { IsReadOnly = true, MaxHeight = 140, FontSize = 11, TextWrapping = TextWrapping.Wrap };
+        crashText.Bind(TextBox.TextProperty, new Binding(nameof(DiagnosticsViewModel.PendingCrash)));
+        crash.Children.Add(crashText);
+        panel.Children.Add(crash);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var check = StalkerTheme.StalkerButton("Проверить окружение", isPrimary: true, minWidth: 170);
+        check.Bind(Button.CommandProperty, new Binding(nameof(DiagnosticsViewModel.RunChecksCommand)));
+        buttons.Children.Add(check);
+
+        var export = StalkerTheme.StalkerButton("Сохранить отчёт…", isPrimary: false, minWidth: 150);
+        export.Click += async (_, _) =>
+        {
+            var topLevel = TopLevel.GetTopLevel(export);
+            if (topLevel?.StorageProvider is not { } storage) return;
+            var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Отчёт для поддержки",
+                SuggestedFileName = "save-editor-report.txt.gz",
+            });
+            if (file?.TryGetLocalPath() is { } path) diagnostics.ExportBundle(path);
+        };
+        buttons.Children.Add(export);
+
+        var dismiss = StalkerTheme.StalkerButton("Скрыть ошибку", isPrimary: false, minWidth: 130);
+        dismiss.Bind(Button.CommandProperty, new Binding(nameof(DiagnosticsViewModel.DismissCrashCommand)));
+        dismiss.Bind(Visual.IsVisibleProperty, new Binding(nameof(DiagnosticsViewModel.HasPendingCrash)));
+        buttons.Children.Add(dismiss);
+        panel.Children.Add(buttons);
+
+        var status = new TextBlock { Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        status.Bind(TextBlock.TextProperty, new Binding(nameof(DiagnosticsViewModel.Status)));
+        panel.Children.Add(status);
+
+        panel.Children.Add(new ItemsControl
+        {
+            ItemsSource = diagnostics.Checks,
+            ItemTemplate = new FuncDataTemplate<EnvironmentCheckRow>((row, _) =>
+            {
+                var line = new Grid { ColumnDefinitions = new ColumnDefinitions("32,*"), Margin = new Thickness(0, 2) };
+                if (row is null) return line;
+                line.Children.Add(new TextBlock
+                {
+                    Text = row.Status,
+                    FontWeight = FontWeight.Bold,
+                    Foreground = row.Status == "OK" ? StalkerTheme.BrushSuccess : row.Status == "!" ? StalkerTheme.BrushWarning : StalkerTheme.BrushDanger,
+                });
+                var text = new StackPanel();
+                text.Children.Add(new TextBlock { Text = row.Title + ": " + row.Detail, Foreground = StalkerTheme.BrushTextPrimary, FontSize = 12, TextWrapping = TextWrapping.Wrap });
+                if (row.HasHint) text.Children.Add(new TextBlock { Text = row.Hint, Foreground = StalkerTheme.BrushTextMuted, FontSize = 11, TextWrapping = TextWrapping.Wrap });
+                Grid.SetColumn(text, 1);
+                line.Children.Add(text);
+                return line;
+            }),
+        });
+
+        return StalkerTheme.Card(panel, "Диагностика");
     }
 }

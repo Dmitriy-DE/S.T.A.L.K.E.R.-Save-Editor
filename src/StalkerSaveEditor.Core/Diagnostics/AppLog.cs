@@ -178,6 +178,9 @@ public static class DiagnosticsBundle
     public static byte[] Create(string? environmentReport = null)
     {
         var builder = new StringBuilder();
+        builder.Append("S.T.A.L.K.E.R. Save Editor ").Append(ApplicationVersion.Current).Append(", ")
+            .Append(System.Runtime.InteropServices.RuntimeInformation.OSDescription).Append(", ")
+            .Append(System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture).Append('\n');
         if (CrashReporter.Pending() is { } crash) builder.Append("--- crash ---\n").Append(crash).Append('\n');
         if (!string.IsNullOrWhiteSpace(environmentReport)) builder.Append("--- environment ---\n").Append(AppLog.Redact(environmentReport)).Append('\n');
         var directory = AppLog.Directory;

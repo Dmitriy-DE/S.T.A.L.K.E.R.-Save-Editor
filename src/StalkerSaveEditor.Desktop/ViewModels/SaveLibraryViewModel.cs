@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Core.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -15,6 +16,9 @@ namespace StalkerSaveEditor.Desktop.ViewModels;
 public sealed class SaveLibraryViewModel : ObservableViewModel
 {
     private static readonly IReadOnlyDictionary<string, CatalogBundle> Catalogs = CatalogBundleReader.LoadEmbedded();
+    private static bool TryCatalog(string releaseId, out CatalogBundle bundle) =>
+        GameContentRegistry.TryGetCatalog(releaseId, out bundle) || Catalogs.TryGetValue(releaseId, out bundle!);
+
     private static readonly OfficialNamesCatalog OfficialNames = OfficialNamesCatalog.LoadEmbedded();
 
     private readonly Func<IReadOnlyList<string>> _saveDirectoriesProvider;
@@ -72,12 +76,23 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         if (discoverLocalSaves) Refresh();
 
+        Diagnostics = new DiagnosticsViewModel(pendingCrash: InteractiveApp ? CrashReporter.Pending() : null);
+
+        if (InteractiveApp)
+        {
+            // Items, names and icons of the installed games (and their mods) arrive in the background.
+            GameContentRegistry.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(ReloadSelectedSave);
+            _ = Task.Run(() => GameContentRegistry.LoadInstalled());
+        }
+
         // Silent background update check; only the real interactive app goes online (not screenshots or tests).
-        if (CheckUpdatesAtStartup) _ = Task.Run(() => Updates.CheckAsync(silent: true));
+        if (InteractiveApp) _ = Task.Run(() => Updates.CheckAsync(silent: true));
     }
 
-    /// <summary>Set by <c>Program</c> for the interactive app only.</summary>
-    public static bool CheckUpdatesAtStartup { get; set; }
+    /// <summary>Set by <c>Program</c> for the interactive app only: network checks and the previous run's crash.</summary>
+    public static bool InteractiveApp { get; set; }
+
+    public DiagnosticsViewModel Diagnostics { get; }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
     public ObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];
@@ -411,6 +426,14 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
+    /// <summary>Re-reads the library with the new catalogs, keeping the selected save; drafts live on disk and are restored.</summary>
+    private void ReloadSelectedSave()
+    {
+        var selectedPath = SelectedSave?.FilePath;
+        Refresh();
+        if (selectedPath is not null && Saves.FirstOrDefault(save => save.FilePath == selectedPath) is { } same) SelectedSave = same;
+    }
+
     public void Refresh()
     {
         Saves.Clear();
@@ -545,7 +568,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public void AdjustFactionRelation(FactionRelationViewModel relation, int delta)
     {
         var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
-        var catalog = Catalogs.TryGetValue(releaseId, out var bundle) ? bundle.Factions : null;
+        var catalog = TryCatalog(releaseId, out var bundle) ? bundle.Factions : null;
         var min = catalog?.GoodwillMin ?? -3000;
         var max = catalog?.GoodwillMax ?? 1000;
         relation.Goodwill = Math.Clamp(relation.Goodwill + delta, min, max);
@@ -555,7 +578,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public AddItemViewModel CreateAddItemDialog()
     {
         var releaseId = SelectedSave?.ReleaseId ?? "stalker-cop";
-        var catalog = Catalogs.TryGetValue(releaseId, out var bundle) ? bundle.Items : null;
+        var catalog = TryCatalog(releaseId, out var bundle) ? bundle.Items : null;
         return new AddItemViewModel(catalog, OfficialNames, releaseId);
     }
 
@@ -620,7 +643,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         try
         {
             var source = File.ReadAllBytes(selected.FilePath);
-            var catalog = Catalogs.TryGetValue(selected.ReleaseId, out var bundle) ? bundle : null;
+            var catalog = TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null;
             var prepared = EditService.PrepareEdit(source, plan, selected.ReleaseId, catalog);
 
             var receipt = LocalSaveReplacement.ReplaceLocal(
@@ -1014,7 +1037,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
         var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
-        var catalog = Catalogs.TryGetValue(formatId, out var bundle) ? bundle : null;
+        var catalog = TryCatalog(formatId, out var bundle) ? bundle : null;
         var upgradeCatalog = catalog?.Upgrades;
 
         var inventory = save.Inventory.Select(item =>
@@ -1152,7 +1175,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
         var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
-        var catalog = Catalogs.TryGetValue(formatId, out var bundle) ? bundle.Items : null;
+        var catalog = TryCatalog(formatId, out var bundle) ? bundle.Items : null;
         var s2Items = Stalker2ItemCatalog.LoadEmbedded();
         var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(

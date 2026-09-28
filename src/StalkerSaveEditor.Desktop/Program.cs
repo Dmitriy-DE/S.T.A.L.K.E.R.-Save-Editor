@@ -105,7 +105,9 @@ internal static class Program
             return;
         }
 
-        ViewModels.SaveLibraryViewModel.CheckUpdatesAtStartup = true;
+        ViewModels.SaveLibraryViewModel.InteractiveApp = true;
+        Core.Diagnostics.CrashReporter.Install();
+        Core.Diagnostics.AppLog.Info("start " + Core.ApplicationVersion.Current);
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .StartWithClassicDesktopLifetime(args);
@@ -159,6 +161,9 @@ internal static class Program
         window.Show();
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        if (Environment.GetEnvironmentVariable("SE_DEBUG_LAYOUT") == "1")
+            foreach (var v in Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
+                if (v.Bounds.Width > 1000) Console.WriteLine($"{v.GetType().Name} {v.Bounds} depth");
         using var frame = window.CaptureRenderedFrame()
             ?? throw new InvalidOperationException("Avalonia headless renderer returned no frame.");
 
@@ -181,6 +186,9 @@ internal static class Program
         window.Show();
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        if (Environment.GetEnvironmentVariable("SE_DEBUG_LAYOUT") == "1")
+            foreach (var v in Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
+                if (v.Bounds.Width > 1000) Console.WriteLine($"{v.GetType().Name} {v.Bounds} depth");
         using var frame = window.CaptureRenderedFrame()
             ?? throw new InvalidOperationException("Avalonia headless renderer returned no frame.");
 

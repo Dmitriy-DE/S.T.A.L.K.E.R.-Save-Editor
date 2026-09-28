@@ -48,7 +48,7 @@ public static class SaveDirectoryDiscovery
         return candidates
             .Where(Directory.Exists)
             .Select(Path.GetFullPath)
-            .Where(seen.Add)
+            .Where(path => seen.Add(StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(path))) // ~/.steam/steam is a link
             .ToArray();
     }
 

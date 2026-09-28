@@ -203,10 +203,17 @@ public sealed class Stalker2EditWriterTests
     private static string Sha256(ReadOnlySpan<byte> bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
+    // Minimum of several runs: a single run can include one-off JIT/tiering allocations.
     private static long MeasureAllocation(Action action)
     {
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        action();
-        return GC.GetAllocatedBytesForCurrentThread() - before;
+        var best = long.MaxValue;
+        for (var run = 0; run < 5; run++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            action();
+            best = Math.Min(best, GC.GetAllocatedBytesForCurrentThread() - before);
+        }
+
+        return best;
     }
 }

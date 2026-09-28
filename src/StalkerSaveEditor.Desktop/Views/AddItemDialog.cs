@@ -50,7 +50,7 @@ public sealed class AddItemDialog : Window
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(3),
             ItemsSource = addVm.FilteredItems,
-            ItemTemplate = new FuncDataTemplate<CatalogItemEntry>((item, _) =>
+            ItemTemplate = StalkerTheme.Template<CatalogItemEntry>(item =>
             {
                 var row = new StackPanel { Spacing = 2, Margin = new Thickness(6, 4) };
                 row.Children.Add(new TextBlock

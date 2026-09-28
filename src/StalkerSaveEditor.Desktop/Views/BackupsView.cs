@@ -66,7 +66,7 @@ public static class BackupsView
         // List
         var list = new ItemsControl
         {
-            ItemTemplate = new FuncDataTemplate<BackupRecordViewModel>((item, _) => MakeBackupRow(vm, item)),
+            ItemTemplate = StalkerTheme.Template<BackupRecordViewModel>(item => MakeBackupRow(vm, item)),
         };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.Backups)));
 

@@ -63,6 +63,7 @@ public sealed class CompanionViewModel : ObservableViewModel
         InitCommands();
         CheckHotkeySupport();
         _ = RefreshStatusAsync();
+        _ = RefreshGamesAsync();
     }
 
     /// <summary>
@@ -170,6 +171,7 @@ public sealed class CompanionViewModel : ObservableViewModel
                 RefreshCommand.NotifyCanExecuteChanged();
                 SetManualDirCommand.NotifyCanExecuteChanged();
                 ToggleHotkeysCommand.NotifyCanExecuteChanged();
+                InstallCheckedCommand?.NotifyCanExecuteChanged();
             }
         }
     }
@@ -210,7 +212,73 @@ public sealed class CompanionViewModel : ObservableViewModel
         set => SetProperty(ref _manualGameDir, value);
     }
 
-    public bool CanInstall => !_isBusy && _state == CompanionState.NotInstalled;
+    public bool CanInstall => !_isBusy && _state != CompanionState.Active;
+
+    /// <summary>All three X-Ray games: where each was found and whether the mod is there.</summary>
+    public ObservableCollection<CompanionGameRow> Games { get; } = [];
+
+    public RelayCommand InstallCheckedCommand { get; private set; } = null!;
+
+    public async Task RefreshGamesAsync()
+    {
+        var rows = new List<CompanionGameRow>();
+        foreach (var (releaseId, title) in AvailableGames)
+        {
+            var status = await _service.GetStatusAsync(releaseId);
+            var found = status.GamePath is { Length: > 0 } path && path != "—";
+            rows.Add(new CompanionGameRow(releaseId, title, found, found ? status.GamePath : "не найдена", status.State switch
+            {
+                CompanionState.Active => "работает",
+                CompanionState.Installed => "мод установлен " + status.Version,
+                CompanionState.Error => "ошибка: " + (status.ErrorMessage ?? "проверьте файлы"),
+                _ => found ? "мод не установлен" : "игра не найдена",
+            }));
+        }
+
+        Games.Clear();
+        foreach (var row in rows)
+        {
+            row.PropertyChanged += (_, _) => InstallCheckedCommand.NotifyCanExecuteChanged();
+            Games.Add(row);
+        }
+
+        InstallCheckedCommand.NotifyCanExecuteChanged();
+    }
+
+    public async Task InstallCheckedAsync()
+    {
+        IsBusy = true;
+        var results = new List<string>();
+        try
+        {
+            foreach (var row in Games.Where(row => row.IsChecked && row.GameFound).ToArray())
+            {
+                StatusMessage = $"Установка в «{row.Title}»…";
+                bool ok;
+                try
+                {
+                    ok = await _service.InstallAsync(row.ReleaseId);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    ok = false;
+                    results.Add($"{row.Title}: {exception.Message}");
+                    continue;
+                }
+
+                results.Add($"{row.Title}: {(ok ? "готово" : "не удалось")}");
+            }
+
+            StatusMessage = string.Join("; ", results) + ". Перезапустите игры, которые были открыты.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+        await RefreshGamesAsync();
+        await RefreshStatusAsync();
+    }
     public bool CanUninstall => !_isBusy && _state != CompanionState.NotInstalled;
     public bool CanPing => !_isBusy && (_state == CompanionState.Active || _state == CompanionState.Installed);
 
@@ -227,9 +295,14 @@ public sealed class CompanionViewModel : ObservableViewModel
 
     private void InitCommands()
     {
+        // Install is idempotent: on an installed game it updates the mod files to the bundled build.
         InstallCommand = new RelayCommand(
             async () => await InstallAsync(),
-            () => !_isBusy && _state == CompanionState.NotInstalled);
+            () => !_isBusy && _state != CompanionState.Active);
+
+        InstallCheckedCommand = new RelayCommand(
+            async () => await InstallCheckedAsync(),
+            () => !_isBusy && Games.Any(row => row.IsChecked && row.GameFound));
 
         UninstallCommand = new RelayCommand(
             async () => await UninstallAsync(),
@@ -379,7 +452,8 @@ public sealed class CompanionViewModel : ObservableViewModel
             if (latency.HasValue)
             {
                 PingText = $"{latency.Value.TotalMilliseconds:F0} мс";
-                StatusMessage = $"Мод отвечает. Задержка: {latency.Value.TotalMilliseconds:F0} мс";
+                StatusMessage = (_service as CompanionServiceAdapter)?.ModBuildWarning(_selectedGame)
+                    ?? $"Мод отвечает. Задержка: {latency.Value.TotalMilliseconds:F0} мс";
             }
             else
             {
@@ -461,4 +535,22 @@ public sealed class CompanionViewModel : ObservableViewModel
         "stalker-cop" => CompanionGame.CallOfPripyat,
         _ => CompanionGame.CallOfPripyat,
     };
+}
+
+/// <summary>A row of the companion's game list; checked rows get «Установить / обновить во все отмеченные».</summary>
+public sealed class CompanionGameRow(string releaseId, string title, bool gameFound, string path, string status) : ObservableViewModel
+{
+    private bool _isChecked = gameFound;
+
+    public string ReleaseId { get; } = releaseId;
+    public string Title { get; } = title;
+    public bool GameFound { get; } = gameFound;
+    public string Path { get; } = path;
+    public string Status { get; } = status;
+
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set => SetProperty(ref _isChecked, value && GameFound);
+    }
 }

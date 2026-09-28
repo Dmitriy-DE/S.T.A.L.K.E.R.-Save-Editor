@@ -98,7 +98,7 @@ public static class TransitionsView
         // Items List
         var itemsControl = new ItemsControl
         {
-            ItemTemplate = new FuncDataTemplate<TransitionViewModel>((item, _) => MakeTransitionRow(item)),
+            ItemTemplate = StalkerTheme.Template<TransitionViewModel>(item => MakeTransitionRow(item)),
         };
         itemsControl.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedSave.Transitions"));
 

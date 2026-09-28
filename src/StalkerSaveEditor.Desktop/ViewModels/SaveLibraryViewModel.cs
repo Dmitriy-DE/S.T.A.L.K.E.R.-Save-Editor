@@ -81,6 +81,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         WizardAutoDetectCommand = new RelayCommand(WizardAutoDetect);
         WizardAddDirectoryCommand = new RelayCommand(WizardAddDirectory, () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
 
+        // Refresh selects a save, which updates the comparison: it must exist first.
+        Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
         if (discoverLocalSaves) Refresh();
 
         Diagnostics = new DiagnosticsViewModel(pendingCrash: InteractiveApp ? CrashReporter.Pending() : null);
@@ -100,6 +102,27 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public static bool InteractiveApp { get; set; }
 
     public DiagnosticsViewModel Diagnostics { get; }
+
+    public CompareViewModel Compare { get; }
+
+    private void UpdateCompareSubject()
+    {
+        var save = SelectedSave;
+        if (save is null)
+        {
+            Compare.SetSubject(null, string.Empty, []);
+            return;
+        }
+
+        var family = save.ReleaseId.Replace("-ee", string.Empty, StringComparison.Ordinal);
+        var others = Saves
+            .Where(other => other.ReleaseId.Replace("-ee", string.Empty, StringComparison.Ordinal) == family)
+            .Select(other => new CompareCandidate(other.DisplayName, other.FilePath));
+        var backups = Backups
+            .Where(backup => backup.SourcePath == save.FilePath && File.Exists(backup.BackupPath))
+            .Select(backup => new CompareCandidate("Бэкап " + backup.CreatedAt, backup.BackupPath));
+        Compare.SetSubject(save.FilePath, save.ReleaseId, backups.Concat(others).ToArray());
+    }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
     public ObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];
@@ -270,6 +293,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 _currentJournal = null;
             }
+
+            UpdateCompareSubject();
 
             ApplyInventoryFilter();
             SelectedItem = FilteredInventory.FirstOrDefault();
@@ -469,6 +494,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 Backups.Add(new BackupRecordViewModel(r));
             }
         }
+
+        UpdateCompareSubject();
+    }
+
+    /// <summary>Remove + insert: Avalonia's virtualizing list throws on a Replace notification for the selected row.</summary>
+    private void ReplaceSave(int index, SaveFileSummary save)
+    {
+        Saves.RemoveAt(index);
+        Saves.Insert(index, save);
     }
 
     public bool AddPreviewSave(string path)
@@ -669,7 +703,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
 
             var index = Saves.IndexOf(selected);
-            if (index >= 0) Saves[index] = refreshed;
+            if (index >= 0) ReplaceSave(index, refreshed);
             else Saves.Add(refreshed);
 
             SelectedSave = refreshed;
@@ -733,13 +767,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 placements.Add(new XRayPlacementChange(item.Handle, item.Placement, item.Placement == "slot" ? (item.BaseSlot ?? 1) : null));
             }
 
-            if (item.CanEditUpgrades && item.HasUpgrades)
+            if (item.UpgradesChanged)
             {
-                var currentInstalled = item.UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).ToList();
-                if (!currentInstalled.SequenceEqual(item.OriginalUpgrades, StringComparer.Ordinal))
-                {
-                    upgrades.Add((ushort)item.Handle, currentInstalled);
-                }
+                upgrades.Add((ushort)item.Handle, item.UpgradesToWrite());
             }
         }
 
@@ -1247,7 +1277,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             (i.CanEditCount && !string.Equals(i.OriginalCount?.ToString(CultureInfo.InvariantCulture), i.CountInput, StringComparison.Ordinal)) ||
             (i.CanEditCondition && i.OriginalCondition.HasValue && Math.Abs(i.ConditionFraction - i.OriginalCondition.Value) > 0.005f) ||
             (i.CanEditPlacement && !string.Equals(i.Placement, i.OriginalPlacement, StringComparison.Ordinal)) ||
-            (i.CanEditUpgrades && i.HasUpgrades && !i.UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).SequenceEqual(i.OriginalUpgrades, StringComparer.Ordinal))))
+            i.UpgradesChanged))
             return true;
 
         if (save.Stashes.Any(s => s.Items.Any(i => i.IsTaken)))

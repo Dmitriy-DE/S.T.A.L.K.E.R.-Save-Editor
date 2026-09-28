@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using StalkerSaveEditor.Core.Companion;
+using StalkerSaveEditor.Core.Diagnostics;
+using StalkerSaveEditor.Core.Patching;
 using StalkerSaveEditor.Core.Formats.XRay;
 using Xunit;
 
@@ -15,6 +17,69 @@ public sealed class CompanionInstallerTests
 
     private static readonly string ModSourceRoot = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "../../../../../mods/companion"));
+
+    [Fact]
+    public void Game_fix_refuses_a_path_already_managed_by_companion()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var companion = new CompanionInstaller(ModSourceRoot);
+        companion.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+        var bindPath = Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script");
+        var before = File.ReadAllBytes(bindPath);
+        var fix = CreateCopGameFix("gamedata/scripts/bind_stalker.script");
+
+        var error = Assert.Throws<InvalidOperationException>(() => TestGameFixEngine().Install(fix, game.GameDirectory));
+
+        Assert.Contains("Companion", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, File.ReadAllBytes(bindPath));
+    }
+
+    [Fact]
+    public void Companion_refuses_a_path_already_managed_by_game_fix()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var bindPath = Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script");
+        Directory.CreateDirectory(Path.GetDirectoryName(bindPath)!);
+        var archived = ReadArchiveFiles(game.GameDirectory, "configs.db")["scripts/bind_stalker.script"];
+        var original = archived.Concat(Encoding.ASCII.GetBytes("\n-- fix marker\n")).ToArray();
+        File.WriteAllBytes(bindPath, original);
+        var fix = CreateCopGameFix("gamedata/scripts/bind_stalker.script") with
+        {
+            TextPatches = [new TextPatchOperation("gamedata/scripts/bind_stalker.script", "-- fix marker", "-- fix applied")],
+        };
+        var engine = TestGameFixEngine();
+        engine.Install(fix, game.GameDirectory);
+        var afterFix = File.ReadAllBytes(bindPath);
+
+        var error = Assert.Throws<CompanionInstallerException>(() =>
+            new CompanionInstaller(ModSourceRoot).Install(CompanionGame.CallOfPripyat, game.GameDirectory));
+
+        Assert.Contains("Game Fix", error.Message, StringComparison.Ordinal);
+        Assert.Equal(afterFix, File.ReadAllBytes(bindPath));
+        Assert.Equal(GameFixState.Installed, engine.GetStatus(fix, game.GameDirectory));
+        Assert.False(File.Exists(Path.Combine(game.GameDirectory, ".save-editor-companion", "manifest.json")));
+    }
+
+    private static GameFixDefinition CreateCopGameFix(string relativePath) => new(
+        "cop.test.companion-overlap",
+        GameTarget.CallOfPripyat,
+        "1.0.0",
+        "Synthetic overlap regression",
+        ["19000000"],
+        GameFixCategory.Recommended,
+        GameFixMaturity.Validated,
+        [],
+        [],
+        [new TextPatchOperation(relativePath, "expected anchor", "replacement anchor")],
+        "unit-test fixture")
+    {
+        Problem = "Synthetic Companion overlap regression",
+        Description = "Proves that the two game-file mutation providers refuse shared managed paths.",
+        VerificationState = GameFixVerificationState.SyntheticTests,
+        DetectionMethod = "Managed path manifest",
+    };
+
+    private static GameFixEngine TestGameFixEngine() => new(new PhysicalGameFileSystem(), allowSyntheticDefinitions: true);
 
     [Fact]
     public void Steam_discovery_installation_is_idempotent_and_uninstall_restores_archived_bytes()
@@ -500,7 +565,7 @@ public sealed class CompanionInstallerTests
                 _ => throw new ArgumentOutOfRangeException(nameof(game)),
             };
             File.WriteAllText(Path.Combine(steamApps, $"appmanifest_{appId}.acf"),
-                $"\"AppState\" {{ \"appid\" \"{appId}\" \"installdir\" \"{gameDirectoryName}\" }}\n");
+                $"\"AppState\" {{ \"appid\" \"{appId}\" \"buildid\" \"19000000\" \"installdir\" \"{gameDirectoryName}\" }}\n");
             var resourceDirectory = Path.Combine(gameDirectory, "resources");
             Directory.CreateDirectory(resourceDirectory);
             var gameConfigDirectory = game == CompanionGame.ShadowOfChernobyl ? "config" : "configs";
@@ -562,7 +627,7 @@ public sealed class CompanionInstallerTests
         }
     }
 
-    private sealed class DenyWritesFileSystem : ICompanionInstallFileSystem
+    private sealed class DenyWritesFileSystem : IGameFileSystem
     {
         public bool FileExists(string path) => File.Exists(path);
 

@@ -70,7 +70,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             Directory.CreateDirectory(_draftStore.DirectoryPath);
         }
 
-        RefreshCommand = new RelayCommand(Refresh);
+        RefreshCommand = new RelayCommand(async () => await RefreshAsync());
         SaveCommand = new RelayCommand(SaveSelected, () => CanSave);
         UndoCommand = new RelayCommand(Undo, () => CanUndo);
         RedoCommand = new RelayCommand(Redo, () => CanRedo);
@@ -94,12 +94,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             localSaveFilesProvider: () => Saves.Select(s => s.FilePath).ToArray(),
             onSaveDownloaded: path => AddPreviewSave(path));
         DismissWizardCommand = new RelayCommand(DismissFirstRunWizard);
-        WizardAutoDetectCommand = new RelayCommand(WizardAutoDetect);
-        WizardAddDirectoryCommand = new RelayCommand(WizardAddDirectory, () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
+        WizardAutoDetectCommand = new RelayCommand(async () => await WizardAutoDetectAsync());
+        WizardAddDirectoryCommand = new RelayCommand(async () => await WizardAddDirectoryAsync(), () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
 
-        // Refresh selects a save, which updates the comparison: it must exist first.
+        // Loading selects a save, which updates the comparison: it must exist first.
         Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
-        if (discoverLocalSaves) Refresh();
 
         Diagnostics = new DiagnosticsViewModel(
             pendingCrash: InteractiveApp ? CrashReporter.Pending() : null,
@@ -110,12 +109,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         DisableReportsCommand = new RelayCommand(() => AnswerReportsNotice(false));
         SendReportIfDue();
 
-        if (InteractiveApp)
+        if (discoverLocalSaves && InteractiveApp)
         {
-            // Items, names and icons of the installed games (and their mods) arrive in the background.
-            GameContentRegistry.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(ReloadSelectedSave);
+            // Items, names and icons of the installed games (and their mods) first, then the saves read
+            // with them — all off the interface thread.
             var contentLanguage = I18nService.Instance.CurrentLanguage;
-            _ = Task.Run(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
+            _ = RefreshAsync(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
+        }
+        else if (discoverLocalSaves)
+        {
+            Refresh();
         }
 
         // Silent background update check; only the real interactive app goes online (not screenshots or tests).
@@ -247,7 +250,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -260,27 +263,19 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         OnPropertyChanged(nameof(ShouldShowEmptyState));
     }
 
-    public void WizardAutoDetect()
+    public async Task WizardAutoDetectAsync()
     {
         Settings.AutoDetectSaveDirectories();
-        Refresh();
-        if (Saves.Count > 0)
-        {
-            DismissFirstRunWizard();
-        }
+        await RefreshAsync();
+        if (Saves.Count > 0) DismissFirstRunWizard();
     }
 
-    public void WizardAddDirectory()
+    public async Task WizardAddDirectoryAsync()
     {
-        if (Settings.AddSaveDirectory(WizardDirectoryInput))
-        {
-            WizardDirectoryInput = string.Empty;
-            Refresh();
-            if (Saves.Count > 0)
-            {
-                DismissFirstRunWizard();
-            }
-        }
+        if (!Settings.AddSaveDirectory(WizardDirectoryInput)) return;
+        WizardDirectoryInput = string.Empty;
+        await RefreshAsync();
+        if (Saves.Count > 0) DismissFirstRunWizard();
     }
 
     public bool IsOverviewTab => SelectedTab == "overview";
@@ -503,24 +498,115 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    /// <summary>Re-reads the library with the new catalogs, keeping the selected save; drafts live on disk and are restored.</summary>
-    private void ReloadSelectedSave()
+    /// <summary>A parsed save (null: not a save), reused while the file keeps its size and modification time.</summary>
+    private sealed record CachedSave(long Length, DateTime LastWriteUtc, SaveFileSummary? Summary);
+
+    private Dictionary<string, CachedSave> _libraryCache = new(StringComparer.Ordinal);
+    private bool _isLoadingLibrary;
+    private int _libraryVersion;
+
+    /// <summary>Re-reads the save folders now (tests, restores): only new or changed files are parsed.</summary>
+    public void Refresh() => ApplyLibrary(LoadLibrary(_saveDirectoriesProvider().ToArray(), _libraryCache));
+
+    /// <summary>
+    /// Re-reads the save folders off the interface thread (the app: hundreds of saves take seconds);
+    /// <paramref name="before"/> runs first on the same thread (the installed games' content).
+    /// </summary>
+    public async Task RefreshAsync(Action? before = null)
     {
-        var selectedPath = SelectedSave?.FilePath;
-        Refresh();
-        if (selectedPath is not null && Saves.FirstOrDefault(save => save.FilePath == selectedPath) is { } same) SelectedSave = same;
+        var directories = _saveDirectoriesProvider().ToArray();
+        var cache = _libraryCache;
+        var version = ++_libraryVersion;
+        SetLoadingLibrary(true);
+        try
+        {
+            // A first load shows each finished batch at once (newest saves first); later loads come from the cache.
+            var progressive = Saves.Count == 0;
+            var loaded = await Task.Run(() =>
+            {
+                before?.Invoke();
+                return LoadLibrary(directories, cache, progressive
+                    ? batch => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendBatch(batch, version))
+                    : null);
+            });
+            if (version == _libraryVersion) ApplyLibrary(loaded);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            AppLog.Error("save library not loaded", exception);
+            StatusMessage = L.T("Не удалось прочитать папки сохранений: {0}", exception.Message);
+        }
+        finally
+        {
+            if (version == _libraryVersion) SetLoadingLibrary(false);
+        }
     }
 
-    public void Refresh()
+    private void SetLoadingLibrary(bool loading)
     {
-        Saves.Clear();
-        foreach (var path in EnumerateSaveFiles(_saveDirectoriesProvider()))
+        _isLoadingLibrary = loading;
+        if (loading) StatusMessage = L.T("Чтение сохранений…");
+        else if (StatusMessage == L.T("Чтение сохранений…")) StatusMessage = string.Empty;
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
+    }
+
+    /// <summary>
+    /// Lists and parses the save files, newest first, in parallel batches; unchanged files (and files
+    /// known not to be saves) come from <paramref name="cache"/>. <paramref name="batchLoaded"/> sees
+    /// the saves of each finished batch, so a first load can show the newest ones at once.
+    /// </summary>
+    private static (List<SaveFileSummary> Saves, Dictionary<string, CachedSave> Cache) LoadLibrary(
+        IReadOnlyList<string> directories,
+        IReadOnlyDictionary<string, CachedSave> cache,
+        Action<IReadOnlyList<SaveFileSummary>>? batchLoaded = null)
+    {
+        var files = EnumerateSaveFiles(directories)
+            .Select(path => new FileInfo(path))
+            .Where(info => info.Exists)
+            .OrderByDescending(info => info.LastWriteTimeUtc)
+            .ToArray();
+        var entries = new CachedSave[files.Length];
+        var parallelism = Math.Clamp(Environment.ProcessorCount - 1, 1, 8);
+        for (var start = 0; start < files.Length; start += parallelism * 2)
         {
-            var parsed = TryReadSave(path);
-            if (parsed is not null) Saves.Add(parsed);
+            var end = Math.Min(files.Length, start + parallelism * 2);
+            Parallel.For(start, end, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, index =>
+            {
+                var info = files[index];
+                entries[index] = cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc
+                    ? hit
+                    : new CachedSave(info.Length, info.LastWriteTimeUtc, TryReadSave(info.FullName));
+            });
+            batchLoaded?.Invoke(entries[start..end].Select(entry => entry.Summary).OfType<SaveFileSummary>().ToArray());
         }
 
-        SelectedSave = Saves.FirstOrDefault();
+        var next = new Dictionary<string, CachedSave>(StringComparer.Ordinal);
+        for (var index = 0; index < files.Length; index++) next[files[index].FullName] = entries[index];
+        return (entries.Select(entry => entry.Summary).OfType<SaveFileSummary>().ToList(), next);
+    }
+
+    private void AppendBatch(IReadOnlyList<SaveFileSummary> batch, int version)
+    {
+        if (version != _libraryVersion) return;
+        foreach (var save in batch) Saves.Add(save);
+        SelectedSave ??= Saves.FirstOrDefault();
+        OnPropertyChanged(nameof(IsFirstRunWizardVisible));
+        OnPropertyChanged(nameof(ShouldShowEmptyState));
+    }
+
+    /// <summary>Shows a loaded library, keeping the selected save when it is still there.</summary>
+    private void ApplyLibrary((List<SaveFileSummary> Saves, Dictionary<string, CachedSave> Cache) library)
+    {
+        var selectedPath = SelectedSave?.FilePath;
+        _libraryCache = library.Cache;
+        if (!Saves.SequenceEqual(library.Saves))
+        {
+            Saves.Clear();
+            foreach (var save in library.Saves) Saves.Add(save);
+        }
+
+        SelectedSave = Saves.FirstOrDefault(save => save.FilePath == selectedPath) ?? Saves.FirstOrDefault();
         RefreshBackups();
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
         OnPropertyChanged(nameof(ShouldShowEmptyState));
@@ -1162,12 +1248,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             lc.ParentId,
             lc.ObjectVersion)).ToList();
 
-        var levelName = save.Stashes.FirstOrDefault(s => !string.IsNullOrEmpty(s.Level))?.Level;
-        if (!string.IsNullOrEmpty(levelName))
-        {
-            levelName = OfficialNames.Resolve(formatId, "levels", levelName, CultureInfo.CurrentUICulture.Name) ?? levelName;
-        }
-
         return new SaveFileSummary(
             path,
             ReleaseName(formatId),
@@ -1184,7 +1264,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             save.ActorReputation,
             save.GameTime,
             save.TimeFactor,
-            levelName,
             playerFaction,
             canEditFactions,
             canEditUpgrades,

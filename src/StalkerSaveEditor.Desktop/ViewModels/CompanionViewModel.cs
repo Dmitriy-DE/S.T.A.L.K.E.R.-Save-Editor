@@ -273,21 +273,17 @@ public sealed class CompanionViewModel : ObservableViewModel
             foreach (var row in Games.Where(row => row.IsChecked && row.GameFound).ToArray())
             {
                 StatusMessage = L.T("Установка в «{0}»…", row.Title);
-                bool ok;
                 try
                 {
-                    ok = row.ReleaseId == Stalker2ReleaseId && _service is CompanionServiceAdapter s2Adapter
+                    var ok = row.ReleaseId == Stalker2ReleaseId && _service is CompanionServiceAdapter s2Adapter
                         ? (await Task.Run(s2Adapter.InstallStalker2)).ModInstalled
                         : await _service.InstallAsync(row.ReleaseId);
+                    results.Add($"{row.Title}: {(ok ? L.T("Готово") : L.T("не установлен, причина — в строке игры"))}");
                 }
                 catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
-                    ok = false;
                     results.Add($"{row.Title}: {exception.Message}");
-                    continue;
                 }
-
-                results.Add($"{row.Title}: {(ok ? "готово" : "не удалось")}");
             }
 
             StatusMessage = string.Join("; ", results) + L.T(". Перезапустите игры, которые были открыты.");

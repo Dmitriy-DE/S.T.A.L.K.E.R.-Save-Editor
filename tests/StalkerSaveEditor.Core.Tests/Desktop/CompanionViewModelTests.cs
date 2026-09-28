@@ -177,7 +177,7 @@ public sealed class CompanionViewModelTests
         await vm.InstallCheckedAsync();
 
         Assert.Equal(before + 2, fake.InstallCallCount);
-        Assert.Contains("готово", vm.StatusMessage, StringComparison.Ordinal);
+        Assert.Contains("Готово", vm.StatusMessage, StringComparison.Ordinal);
     }
 
     [Fact]

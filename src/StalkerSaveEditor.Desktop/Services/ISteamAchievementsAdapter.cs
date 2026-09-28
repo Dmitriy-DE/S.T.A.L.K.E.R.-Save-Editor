@@ -41,7 +41,7 @@ public sealed class SteamAchievementsAdapter : ISteamAchievementsAdapter
         }
         catch (Exception ex)
         {
-            return $"Steam недоступен: {ex.Message}";
+            return L.T("Steam недоступен: {0}", ex.Message);
         }
     }
 

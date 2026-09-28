@@ -224,31 +224,35 @@ public sealed class CloudViewModel : ObservableViewModel
         try
         {
             var bytes = await _cloudService.ReadCloudFileAsync(selected.AppId, selected.RemotePath);
-            var backupDir = _backupDirectoryProvider();
-            Directory.CreateDirectory(backupDir);
-
-            // Determine target download location
-            string targetPath;
-            if (!string.IsNullOrEmpty(selected.Model.LocalFilePath))
+            if (Core.Editing.EditService.DetectFormat(bytes) is null)
             {
+                throw new InvalidDataException(L.T("Файл из облака — не сохранение S.T.A.L.K.E.R. или повреждён; локальный файл не тронут."));
+            }
+
+            var backupDir = _backupDirectoryProvider();
+            string targetPath;
+            if (!string.IsNullOrEmpty(selected.Model.LocalFilePath) && File.Exists(selected.Model.LocalFilePath))
+            {
+                // The local save is replaced like an edit: journaled backup (restorable in «Бэкапы»), atomic swap, read-back.
                 targetPath = selected.Model.LocalFilePath;
+                var receipt = await Task.Run(() => Core.Backups.LocalSaveReplacement.ReplaceWithBytes(
+                    targetPath,
+                    bytes,
+                    backupDir,
+                    readBack => _ = Core.Editing.EditService.DetectFormat(readBack.Span)
+                        ?? throw new InvalidDataException("The replaced save is not readable.")));
+                LastBackupPath = receipt.BackupPath;
             }
             else
             {
-                var fallbackDir = Path.Combine(backupDir, "cloud_downloads");
-                Directory.CreateDirectory(fallbackDir);
-                targetPath = Path.Combine(fallbackDir, selected.FileName);
+                var downloads = Path.Combine(backupDir, "cloud_downloads");
+                Directory.CreateDirectory(downloads);
+                targetPath = Path.Combine(downloads, Path.GetFileName(selected.FileName));
+                var temporary = targetPath + ".part";
+                await File.WriteAllBytesAsync(temporary, bytes);
+                File.Move(temporary, targetPath, overwrite: true);
             }
 
-            // Create safety backup of existing local file before overwriting
-            if (File.Exists(targetPath))
-            {
-                var safetyBackup = Path.Combine(backupDir, $"{Path.GetFileNameWithoutExtension(targetPath)}_precloud_{DateTime.Now:yyyyMMdd_HHmmss}.bak");
-                File.Copy(targetPath, safetyBackup, overwrite: true);
-                LastBackupPath = safetyBackup;
-            }
-
-            await File.WriteAllBytesAsync(targetPath, bytes);
             StatusMessage = L.T("Файл {0} успешно скачан: {1}", selected.FileName, targetPath);
             _onSaveDownloaded?.Invoke(targetPath);
 
@@ -306,11 +310,12 @@ public sealed class CloudViewModel : ObservableViewModel
             LastWriteReason = result.Message;
             LastBackupPath = result.BackupPath;
 
-            var writeMessage = result.Status == CloudWriteStatus.Verified
-                ? $"Verified: {result.Message}"
-                : (result.Status == CloudWriteStatus.Uncertain
-                    ? $"Uncertain: {result.Message}"
-                    : $"Aborted: {result.Message}");
+            var writeMessage = result.Status switch
+            {
+                CloudWriteStatus.Verified => L.T("Записано и проверено: {0}", result.Message),
+                CloudWriteStatus.Uncertain => L.T("Результат записи не подтверждён (повтор не выполняется): {0}", result.Message),
+                _ => L.T("Запись отменена: {0}", result.Message),
+            };
 
             await RefreshAsync();
             StatusMessage = writeMessage;

@@ -29,6 +29,21 @@ public sealed class LocalSaveReplacementException(
 
 public static class LocalSaveReplacement
 {
+    /// <summary>
+    /// Replaces a save with bytes from elsewhere (a Steam Cloud copy) through the same journaled backup,
+    /// atomic replacement and read-back as an edit.
+    /// </summary>
+    public static LocalSaveReplacementReceipt ReplaceWithBytes(
+        string sourcePath,
+        ReadOnlySpan<byte> replacement,
+        string backupDirectory,
+        Action<ReadOnlyMemory<byte>> verifyReadback)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        var plan = new EditPlan(Sha256(File.ReadAllBytes(sourcePath)));
+        return ReplaceLocal(sourcePath, new PreparedEdit(plan, replacement), backupDirectory, verifyReadback);
+    }
+
     public static LocalSaveReplacementReceipt ReplaceLocal(
         string sourcePath,
         PreparedEdit prepared,

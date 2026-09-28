@@ -100,25 +100,6 @@ public sealed class XRayTrilogySave
     public IReadOnlyList<XRayInventoryItem> Inventory { get; }
 
     public IReadOnlyList<XRayStash> Stashes { get; }
-
-    /// <summary>Returns a read-only exact object-record window when the handle is present.</summary>
-    public XRayObjectRecord? FindObjectRecord(ushort handle)
-    {
-        foreach (var record in RegistryObjects)
-        {
-            if (record.ObjectId == handle)
-            {
-                return new XRayObjectRecord(
-                    record.ObjectId,
-                    record.Name,
-                    record.NameReplace,
-                    record.RecordOffset,
-                    Container.Raw.Slice(record.RecordOffset, record.RecordLength));
-            }
-        }
-
-        return null;
-    }
 }
 
 public sealed record XRayFactionRelation(int CommunityIndex, int Value);
@@ -130,13 +111,6 @@ public sealed record XRayLevelChanger(
     int ObjectVersion,
     string Name,
     string NameReplace);
-
-public sealed record XRayObjectRecord(
-    ushort Handle,
-    string Name,
-    string NameReplace,
-    int Offset,
-    ReadOnlyMemory<byte> Bytes);
 
 internal sealed record XRayRegistryObject(
     string Name,

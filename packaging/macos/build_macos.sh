@@ -30,6 +30,11 @@ dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.
 mv "${APP_DIR}/Contents/MacOS/StalkerSaveEditor.Desktop" "${APP_DIR}/Contents/MacOS/StalkerSaveEditor"
 chmod +x "${APP_DIR}/Contents/MacOS/StalkerSaveEditor"
 
+# Bundle companion mod next to binary inside MacOS folder
+echo "Bundling companion mod..."
+mkdir -p "${APP_DIR}/Contents/MacOS/mods"
+cp -r "${ROOT}/mods/companion" "${APP_DIR}/Contents/MacOS/mods/companion"
+
 # 2. Copy Info.plist and resources
 cp "${ROOT}/packaging/macos/Info.plist" "${APP_DIR}/Contents/Info.plist"
 cp "${ROOT}/packaging/macos/app_icon.png" "${APP_DIR}/Contents/Resources/AppIcon.png"

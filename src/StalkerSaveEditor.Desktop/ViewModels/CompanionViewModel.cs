@@ -3,6 +3,7 @@ using System.Windows.Input;
 using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Hotkeys;
 using StalkerSaveEditor.Desktop.Services;
+using ICompanionService = StalkerSaveEditor.Desktop.Services.ICompanionService;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 

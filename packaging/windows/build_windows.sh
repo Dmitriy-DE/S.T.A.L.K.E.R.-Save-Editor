@@ -23,4 +23,10 @@ dotnet publish "${ROOT}/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.
     -o "${WIN_DIST}"
 
 cp "${WIN_DIST}/StalkerSaveEditor.Desktop.exe" "${DIST}/StalkerSaveEditor-v${VERSION}-win-x64.exe"
+
+# Bundle companion mod next to binary
+echo "Bundling companion mod..."
+mkdir -p "${WIN_DIST}/mods"
+cp -r "${ROOT}/mods/companion" "${WIN_DIST}/mods/companion"
+
 echo "Published Windows executable: ${DIST}/StalkerSaveEditor-v${VERSION}-win-x64.exe"

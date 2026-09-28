@@ -138,7 +138,7 @@ public static class EditService
 
         if (IsXRayRelease(detectedRelease))
         {
-            return XRayEditWriter.Prepare(source, plan, catalogs);
+            return PrepareXRay(source, plan, catalogs);
         }
 
         if (IsStalker2Release(detectedRelease))
@@ -147,6 +147,53 @@ public static class EditService
         }
 
         throw new NotSupportedException($"Unsupported release for editing: '{detectedRelease}'.");
+    }
+
+    /// <summary>
+    /// X-Ray add and delete have their own writers; the rest of the plan goes through
+    /// <see cref="XRayEditWriter"/>. Steps run in a fixed order (in-place edits, then deletes, then
+    /// adds), each against the previous step's output and its SHA-256.
+    /// </summary>
+    private static PreparedEdit PrepareXRay(ReadOnlySpan<byte> source, EditPlan plan, CatalogBundle? catalogs)
+    {
+        if ((plan.EditKinds & (EditKind.Add | EditKind.Delete)) == EditKind.None)
+        {
+            return XRayEditWriter.Prepare(source, plan, catalogs);
+        }
+
+        var working = source.ToArray();
+        var sha = plan.SourceSha256;
+        var rest = new EditPlan(
+            sha,
+            money: plan.Money,
+            stackCounts: plan.StackCounts,
+            stashTakes: plan.StashTakes,
+            stashPuts: plan.StashPuts,
+            upgrades: plan.Upgrades,
+            playerFaction: plan.PlayerFaction,
+            factionRelations: plan.FactionRelations,
+            durability: plan.Durability,
+            placements: plan.Placements);
+        if (rest.EditKinds != EditKind.None)
+        {
+            var step = XRayEditWriter.Prepare(working, rest, catalogs);
+            (working, sha) = (step.Data.ToArray(), step.OutputSha256);
+        }
+
+        if (plan.DetachHandles.Count > 0)
+        {
+            var step = XRayDeleteWriter.Prepare(working, new EditPlan(sha, detachHandles: plan.DetachHandles));
+            (working, sha) = (step.Data.ToArray(), step.OutputSha256);
+        }
+
+        if (plan.Adds.Count > 0)
+        {
+            var items = catalogs?.Items ?? throw new XRayFormatException("X-Ray edit: adding items requires the release catalog.");
+            var step = XRayAddWriter.Prepare(working, new EditPlan(sha, adds: plan.Adds), items);
+            working = step.Data.ToArray();
+        }
+
+        return new PreparedEdit(plan, working);
     }
 
     /// <summary>

@@ -253,14 +253,14 @@ public sealed class SaveLibraryEditingTests
     }
 
     [Fact]
-    public void Stages_item_addition_in_draft_and_gates_save_until_editservice_issue_81()
+    public void Saves_a_staged_item_addition_through_backup_and_readback()
     {
         using var directory = new TemporaryDirectory();
         var saveDirectory = Path.Combine(directory.Path, "saves");
         var backupDirectory = Path.Combine(directory.Path, "backups");
         Directory.CreateDirectory(saveDirectory);
         var path = Path.Combine(saveDirectory, "add.sav");
-        File.WriteAllBytes(path, ReadFixture(Path.Combine("writer-add", "xray-add-cop-source.sav")));
+        File.WriteAllBytes(path, ReadFixture(Path.Combine("writer-add", "xray-add-cop-ammo-source.sav")));
 
         var viewModel = new SaveLibraryViewModel(
             discoverLocalSaves: false,
@@ -271,13 +271,19 @@ public sealed class SaveLibraryEditingTests
         viewModel.StageItemAddition("ammo_9x18_fmj", 15);
 
         Assert.True(viewModel.HasDraftChanges);
-        // Saving is safely blocked until EditService supports Add (issue #81)
-        Assert.False(viewModel.CanSave);
-        Assert.Contains("issue #81", viewModel.SaveDisabledReason);
+        var before = XRayTrilogyReader.FromBytes(File.ReadAllBytes(path)).Inventory.Count(item => item.TypeKey == "ammo_9x18_fmj");
+        Assert.True(viewModel.CanSave, viewModel.SaveDisabledReason);
+        viewModel.SaveCommand.Execute(null);
+        Assert.Contains("Backup:", viewModel.StatusMessage, StringComparison.Ordinal);
+
+        var saved = XRayTrilogyReader.FromBytes(File.ReadAllBytes(path));
+        Assert.Equal(before + 1, saved.Inventory.Count(item => item.TypeKey == "ammo_9x18_fmj"));
+        Assert.Contains("Backup:", viewModel.StatusMessage, StringComparison.Ordinal);
+        Assert.NotEmpty(Directory.GetFiles(backupDirectory));
     }
 
     [Fact]
-    public void Stages_item_removal_in_draft_and_gates_save_until_editservice_issue_81()
+    public void Saves_a_staged_item_removal_through_backup_and_readback()
     {
         using var directory = new TemporaryDirectory();
         var saveDirectory = Path.Combine(directory.Path, "saves");
@@ -299,9 +305,13 @@ public sealed class SaveLibraryEditingTests
         Assert.True(toRemove.IsDeleted);
         Assert.True(viewModel.HasDraftChanges);
 
-        // Saving is safely blocked until EditService supports Delete (issue #81)
-        Assert.False(viewModel.CanSave);
-        Assert.Contains("issue #81", viewModel.SaveDisabledReason);
+        var handle = toRemove.Handle;
+        Assert.True(viewModel.CanSave, viewModel.SaveDisabledReason);
+        viewModel.SaveCommand.Execute(null);
+
+        var saved = XRayTrilogyReader.FromBytes(File.ReadAllBytes(path));
+        Assert.DoesNotContain(saved.Inventory, item => item.Handle == handle);
+        Assert.Contains("Backup:", viewModel.StatusMessage, StringComparison.Ordinal);
     }
 
     [Fact]

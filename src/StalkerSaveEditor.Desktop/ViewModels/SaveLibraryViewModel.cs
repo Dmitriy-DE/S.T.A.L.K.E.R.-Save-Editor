@@ -155,7 +155,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -214,7 +214,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
     public bool ShowCloudScreen => IsCloudTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsUpdatesTab && !IsFirstRunWizardVisible;
     public bool ShowAchievementsScreen => IsAchievementsTab;
     public bool ShowUpdatesScreen => IsUpdatesTab;
 
@@ -327,11 +327,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             var plan = BuildCurrentEditPlan(SelectedSave);
             if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds))
             {
-                if ((plan.EditKinds & (EditKind.Add | EditKind.Delete)) != EditKind.None)
-                {
-                    return "Операции добавления/удаления предметов ожидают поддержки в EditService (issue #81).";
-                }
-                return $"Запись для формата {SelectedSave.ReleaseName} отключена в UI в целях безопасности.";
+                return $"Эта правка для формата {SelectedSave.ReleaseName} не поддерживается (см. «Возможности»).";
             }
             if (!HasDraftChanges)
                 return "Нет несохранённых изменений.";
@@ -565,7 +561,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         if (SelectedSave is null) return;
         var plan = BuildCurrentEditPlan(SelectedSave);
         var currentAdds = plan.Adds.ToList();
-        currentAdds.Add(new ItemAddRequest(sectionKey, quantity, "actor_inventory"));
+        currentAdds.Add(new ItemAddRequest(sectionKey, quantity, "inventory"));
         var nextPlan = new EditPlan(
             SelectedSave.SourceSha256,
             plan.Money,

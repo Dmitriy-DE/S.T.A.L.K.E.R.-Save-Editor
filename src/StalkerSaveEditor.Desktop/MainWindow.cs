@@ -222,6 +222,7 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, "БЭКАПЫ", "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
         navBar.Children.Add(MakeNavTab(vm, "ВОЗМОЖНОСТИ", "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
         navBar.Children.Add(MakeNavTab(vm, "КОМПАНЬОН", "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
+        navBar.Children.Add(MakeNavTab(vm, "ДОСТИЖЕНИЯ", "achievements", nameof(SaveLibraryViewModel.IsAchievementsTab)));
         navBar.Children.Add(MakeNavTab(vm, "НАСТРОЙКИ", "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
 
         var navBorder = new Border
@@ -310,6 +311,11 @@ public sealed class MainWindow : Window
         var companion = new CompanionView { DataContext = vm.Companion };
         companion.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCompanionScreen)));
         screens.Children.Add(companion);
+
+        // 10. Achievements
+        var achievements = new AchievementsView { DataContext = vm.Achievements };
+        achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)));
+        screens.Children.Add(achievements);
 
         contentGrid.Children.Add(screens);
 

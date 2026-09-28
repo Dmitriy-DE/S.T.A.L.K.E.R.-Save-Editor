@@ -9,3 +9,4 @@
 /build/
 /packaging/windows/dist/
 BenchmarkDotNet.Artifacts/
+.wrangler/

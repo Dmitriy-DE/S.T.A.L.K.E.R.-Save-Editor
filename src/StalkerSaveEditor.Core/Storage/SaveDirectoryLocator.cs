@@ -418,6 +418,16 @@ public static partial class SaveDirectoryLocator
         }
     }
 
+    /// <summary>Where Steam may be installed on this machine: the registry path, standard folders, Flatpak.</summary>
+    public static IReadOnlyList<string> DefaultSteamRoots()
+    {
+        var environment = ReadEnvironment();
+        var platform = GetPlatform(SaveDiscoveryPlatform.Current);
+        var home = FullPath(GetEnvironment(environment, "HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        var localAppData = FullPath(GetEnvironment(environment, "LOCALAPPDATA") ?? Path.Combine(home, "AppData", "Local"));
+        return GetDefaultSteamRoots(platform, home, localAppData, environment);
+    }
+
     private static ReadOnlyCollection<string> GetDefaultSteamRoots(
         SaveDiscoveryPlatform platform,
         string home,

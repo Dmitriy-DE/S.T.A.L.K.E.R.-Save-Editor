@@ -1039,31 +1039,6 @@ public sealed partial class CompanionInstaller
     private bool FileExistsInState(string gameDirectory, string relativePath) =>
         _fileSystem.FileExists(ResolveStatePath(gameDirectory, relativePath));
 
-    internal static ReadOnlyCollection<string> GetDefaultSteamRoots()
-    {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var roots = new List<string>();
-        if (OperatingSystem.IsWindows())
-        {
-            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (!string.IsNullOrWhiteSpace(programFiles)) roots.Add(Path.Combine(programFiles, "Steam"));
-            if (!string.IsNullOrWhiteSpace(localAppData)) roots.Add(Path.Combine(localAppData, "Programs", "Steam"));
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            roots.Add(Path.Combine(home, "Library", "Application Support", "Steam"));
-        }
-        else
-        {
-            roots.Add(Path.Combine(home, ".steam", "steam"));
-            roots.Add(Path.Combine(home, ".local", "share", "Steam"));
-            roots.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"));
-        }
-
-        return roots.AsReadOnly();
-    }
-
     private (string? Directory, string? Issue) ResolveGameDirectory(
         CompanionGameDefinition definition,
         string? selectedGameDirectory,
@@ -1086,7 +1061,7 @@ public sealed partial class CompanionInstaller
                 : (null, $"Selected directory is not a recognized {definition.Id} installation: {selected}");
         }
 
-        var roots = steamRoots ?? GetDefaultSteamRoots();
+        var roots = steamRoots ?? SaveDirectoryLocator.DefaultSteamRoots();
         foreach (var library in SteamLibraryFolderLocator.GetLibraries(roots))
         {
             var manifestDirectory = SteamLibraryFolderLocator.GetManifestInstallDirectory(library, definition.SteamAppId);

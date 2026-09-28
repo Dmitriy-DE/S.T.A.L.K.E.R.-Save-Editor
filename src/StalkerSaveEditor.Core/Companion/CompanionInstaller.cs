@@ -12,12 +12,17 @@ public sealed class CompanionInstaller
     private const string ManifestDirectoryName = ".save-editor-companion";
     private const string ManifestFileName = "manifest.json";
     private const string ModVersion = "v1";
-    private static readonly string[] HookFiles =
-    [
-        "scripts/bind_stalker.script",
-        "scripts/ui_main_menu.script",
-        "configs/misc/quest_items.ltx",
-    ];
+    private enum HookFileKind
+    {
+        BindStalker,
+        MainMenu,
+        QuestItems,
+    }
+
+    private sealed record HookFileTarget(
+        HookFileKind Kind,
+        string GameRelativePath,
+        string ArchiveRelativePath);
     private static readonly JsonSerializerOptions ManifestJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -238,10 +243,13 @@ public sealed class CompanionInstaller
         IReadOnlyDictionary<string, byte[]> payloads,
         IReadOnlyDictionary<string, InstallFileManifest> oldFiles)
     {
+        var archiveSearch = DiscoverArchives(gameDirectory, definition);
+        var hookTargets = GetHookTargets(gameDirectory, archiveSearch);
+        var configRelativePath = GetConfigRelativePath(archiveSearch);
         var plan = new Dictionary<string, PlannedInstallFile>(StringComparer.Ordinal);
-        foreach (var relative in HookFiles)
+        foreach (var hook in hookTargets)
         {
-            var normalized = NormalizeRelative($"gamedata/{relative}");
+            var normalized = NormalizeRelative(hook.GameRelativePath);
             var existing = oldFiles.TryGetValue(normalized, out var oldEntry) ? oldEntry : null;
             var target = ResolveGamePath(gameDirectory, normalized);
             var targetExisted = _fileSystem.FileExists(target);
@@ -261,23 +269,24 @@ public sealed class CompanionInstaller
             {
                 original = targetExisted
                     ? _fileSystem.ReadAllBytes(target)
-                    : ReadFromArchives(gameDirectory, relative, definition);
+                    : ReadFromArchives(gameDirectory, hook.ArchiveRelativePath, definition, archiveSearch);
                 wasPresentBeforeInstall = targetExisted;
             }
 
-            var patched = relative switch
+            var patched = hook.Kind switch
             {
-                "scripts/bind_stalker.script" => CompanionHookPatcher.PatchBindStalker(original),
-                "scripts/ui_main_menu.script" => CompanionHookPatcher.PatchMainMenu(original),
-                "configs/misc/quest_items.ltx" => CompanionHookPatcher.PatchQuestItems(original),
-                _ => throw new InvalidOperationException($"Unknown companion hook target: {relative}"),
+                HookFileKind.BindStalker => CompanionHookPatcher.PatchBindStalker(original, definition.Game),
+                HookFileKind.MainMenu => CompanionHookPatcher.PatchMainMenu(original),
+                HookFileKind.QuestItems => CompanionHookPatcher.PatchQuestItems(original, hook.ArchiveRelativePath),
+                _ => throw new InvalidOperationException($"Unknown companion hook target: {hook.GameRelativePath}"),
             };
             plan.Add(normalized, new PlannedInstallFile(normalized, patched, original, "modified", wasPresentBeforeInstall));
         }
 
         foreach (var (relative, bytes) in payloads)
         {
-            var normalized = NormalizeRelative($"gamedata/{relative}");
+            var mappedRelative = MapPayloadRelativePath(relative, configRelativePath);
+            var normalized = NormalizeRelative($"gamedata/{mappedRelative}");
             if (plan.ContainsKey(normalized))
             {
                 throw new CompanionInstallerException($"Mod asset conflicts with hook target: {normalized}", normalized);
@@ -555,8 +564,14 @@ public sealed class CompanionInstaller
         }
 
         IReadOnlyDictionary<string, byte[]> payloads;
+        CompanionArchiveSearchResult archiveSearch;
+        IReadOnlyList<HookFileTarget> hookTargets;
+        string configRelativePath;
         try
         {
+            archiveSearch = DiscoverArchives(gameDirectory, definition);
+            hookTargets = GetHookTargets(gameDirectory, archiveSearch);
+            configRelativePath = GetConfigRelativePath(archiveSearch);
             payloads = ReadModPayloads(definition);
         }
         catch (CompanionInstallerException)
@@ -568,7 +583,8 @@ public sealed class CompanionInstaller
         var files = new List<InstallFileManifest>();
         foreach (var (relative, expectedBytes) in payloads)
         {
-            var normalized = NormalizeRelative($"gamedata/{relative}");
+            var mappedRelative = MapPayloadRelativePath(relative, configRelativePath);
+            var normalized = NormalizeRelative($"gamedata/{mappedRelative}");
             var path = ResolveGamePath(gameDirectory, normalized);
             if (!_fileSystem.FileExists(path))
             {
@@ -584,9 +600,9 @@ public sealed class CompanionInstaller
             files.Add(new InstallFileManifest(normalized, "copy", null, Sha256(current), null, false));
         }
 
-        foreach (var relative in HookFiles)
+        foreach (var hook in hookTargets)
         {
-            var normalized = NormalizeRelative($"gamedata/{relative}");
+            var normalized = NormalizeRelative(hook.GameRelativePath);
             var path = ResolveGamePath(gameDirectory, normalized);
             if (!_fileSystem.FileExists(path))
             {
@@ -597,12 +613,12 @@ public sealed class CompanionInstaller
             byte[] original;
             try
             {
-                original = relative switch
+                original = hook.Kind switch
                 {
-                    "scripts/bind_stalker.script" => CompanionHookPatcher.RemoveBindStalkerHooks(current),
-                    "scripts/ui_main_menu.script" => CompanionHookPatcher.RemoveMainMenuHook(current),
-                    "configs/misc/quest_items.ltx" => CompanionHookPatcher.RemoveQuestInclude(current),
-                    _ => throw new InvalidOperationException($"Unknown companion hook target: {relative}"),
+                    HookFileKind.BindStalker => CompanionHookPatcher.RemoveBindStalkerHooks(current, definition.Game),
+                    HookFileKind.MainMenu => CompanionHookPatcher.RemoveMainMenuHook(current),
+                    HookFileKind.QuestItems => CompanionHookPatcher.RemoveQuestInclude(current, hook.ArchiveRelativePath),
+                    _ => throw new InvalidOperationException($"Unknown companion hook target: {hook.GameRelativePath}"),
                 };
             }
             catch (CompanionInstallerException)
@@ -610,7 +626,7 @@ public sealed class CompanionInstaller
                 return false;
             }
 
-            var archived = ReadFromArchives(gameDirectory, relative, definition);
+            var archived = ReadFromArchives(gameDirectory, hook.ArchiveRelativePath, definition, archiveSearch);
             if (!original.AsSpan().SequenceEqual(archived))
             {
                 return false;
@@ -711,24 +727,34 @@ public sealed class CompanionInstaller
         string gameDirectory,
         CompanionGameDefinition definition)
     {
-        var search = CompanionArchiveLocator.Discover(_fileSystem, gameDirectory, definition.FsgameFileNames);
+        var search = DiscoverArchives(gameDirectory, definition);
         var issues = new List<string>(search.Issues);
         if (search.Issues.Count > 0 || search.ArchivePaths.Count == 0)
         {
             return issues;
         }
 
-        var gameDataDirectory = Path.Combine(gameDirectory, "gamedata");
-        foreach (var relativePath in HookFiles)
+        IReadOnlyList<HookFileTarget> hookTargets;
+        try
         {
-            if (_fileSystem.FileExists(Path.Combine(gameDataDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar))))
+            hookTargets = GetHookTargets(gameDirectory, search);
+        }
+        catch (CompanionInstallerException exception)
+        {
+            issues.Add(exception.Message);
+            return issues.AsReadOnly();
+        }
+
+        foreach (var hook in hookTargets)
+        {
+            if (_fileSystem.FileExists(ResolveGamePath(gameDirectory, hook.GameRelativePath)))
             {
                 continue;
             }
 
             try
             {
-                _ = ReadFromArchives(gameDirectory, relativePath, definition, search);
+                _ = ReadFromArchives(gameDirectory, hook.ArchiveRelativePath, definition, search);
             }
             catch (CompanionInstallerException exception)
             {
@@ -745,10 +771,7 @@ public sealed class CompanionInstaller
         CompanionGameDefinition definition,
         CompanionArchiveSearchResult? archiveSearch = null)
     {
-        var search = archiveSearch ?? CompanionArchiveLocator.Discover(
-            _fileSystem,
-            gameDirectory,
-            definition.FsgameFileNames);
+        var search = archiveSearch ?? DiscoverArchives(gameDirectory, definition);
         if (search.Issues.Count > 0)
         {
             throw new CompanionInstallerException(
@@ -797,6 +820,74 @@ public sealed class CompanionInstaller
             $"Could not find vanilla {relativePath}: {details} Check {Path.GetFileName(search.FsgamePath ?? "fsgame.ltx")}.",
             relativePath);
     }
+
+    private CompanionArchiveSearchResult DiscoverArchives(
+        string gameDirectory,
+        CompanionGameDefinition definition) =>
+        CompanionArchiveLocator.Discover(
+            _fileSystem,
+            gameDirectory,
+            definition.FsgameFileNames,
+            definition.Game);
+
+    private static IReadOnlyList<HookFileTarget> GetHookTargets(
+        string gameDirectory,
+        CompanionArchiveSearchResult search)
+    {
+        var resolvedGameDataDirectory = search.GameDataDirectory ?? throw new CompanionInstallerException(
+            $"Could not resolve fsgame alias $game_data$ from {Path.GetFileName(search.FsgamePath ?? "fsgame.ltx")}.",
+            search.FsgamePath);
+        var gameDataDirectory = Path.TrimEndingDirectorySeparator(resolvedGameDataDirectory);
+        var expectedGameDataDirectory = Path.GetFullPath(Path.Combine(gameDirectory, "gamedata"));
+        if (!string.Equals(gameDataDirectory, expectedGameDataDirectory, PathComparison))
+        {
+            throw new CompanionInstallerException(
+                $"The fsgame $game_data$ alias resolves outside the supported gamedata directory: {gameDataDirectory}",
+                search.FsgamePath);
+        }
+
+        var configRelativePath = GetConfigRelativePath(search);
+        var questItemsPath = JoinRelative(configRelativePath, "misc/quest_items.ltx");
+        return Array.AsReadOnly<HookFileTarget>(
+        [
+            new HookFileTarget(HookFileKind.BindStalker, "gamedata/scripts/bind_stalker.script", "scripts/bind_stalker.script"),
+            new HookFileTarget(HookFileKind.MainMenu, "gamedata/scripts/ui_main_menu.script", "scripts/ui_main_menu.script"),
+            new HookFileTarget(HookFileKind.QuestItems, JoinRelative("gamedata", questItemsPath), questItemsPath),
+        ]);
+    }
+
+    private static string GetConfigRelativePath(CompanionArchiveSearchResult search)
+    {
+        var gameDataDirectory = search.GameDataDirectory ?? throw new CompanionInstallerException(
+            $"Could not resolve fsgame alias $game_data$ from {Path.GetFileName(search.FsgamePath ?? "fsgame.ltx")}.",
+            search.FsgamePath);
+        var gameConfigDirectory = search.GameConfigDirectory ?? throw new CompanionInstallerException(
+            $"Could not resolve fsgame alias $game_config$ from {Path.GetFileName(search.FsgamePath ?? "fsgame.ltx")}.",
+            search.FsgamePath);
+        var relative = Path.GetRelativePath(gameDataDirectory, gameConfigDirectory);
+        if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith($"..{Path.DirectorySeparatorChar}", PathComparison))
+        {
+            throw new CompanionInstallerException(
+                "The fsgame $game_config$ alias must stay under $game_data$.",
+                search.FsgamePath);
+        }
+
+        return relative == "." ? string.Empty : NormalizeRelative(relative).TrimEnd('/');
+    }
+
+    private static string MapPayloadRelativePath(string relativePath, string configRelativePath)
+    {
+        const string sourceConfigPrefix = "configs/";
+        var normalized = NormalizeRelative(relativePath);
+        return normalized.StartsWith(sourceConfigPrefix, StringComparison.Ordinal)
+            ? JoinRelative(configRelativePath, normalized[sourceConfigPrefix.Length..])
+            : normalized;
+    }
+
+    private static string JoinRelative(params string[] paths) =>
+        string.Join('/', paths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => NormalizeRelative(path).Trim('/')));
 
     private static bool EntryMatches(string entryName, string relativePath)
     {

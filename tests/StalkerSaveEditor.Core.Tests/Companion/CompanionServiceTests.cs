@@ -188,6 +188,8 @@ public sealed class CompanionServiceTests
             File.WriteAllText(
                 Path.Combine(gameDirectory, "fsgame.ltx"),
                 "$app_data_root$ = true| false| $fs_root$| _appdata_\\\n" +
+                "$game_data$ = true| true| $fs_root$| gamedata\\\n" +
+                "$game_config$ = true| false| $game_data$| configs\\\n" +
                 "$arch_dir_resources$ = false| false| $fs_root$| resources\\\n" +
                 "$game_arch_mp$ = false| true| $fs_root$| patches\\\n");
             var manifestPath = Path.Combine(FixtureDirectory, "manifest.json");

@@ -6,8 +6,8 @@
       "entries": [
         {
           "name": "gamedata/scripts/bind_stalker.script",
-          "size": 205,
-          "sha256": "381386fb036780444fceb3cf61100f4d6c2aceb50e7fb614c2644b0d0f413618"
+          "size": 234,
+          "sha256": "a799f818b8d33715cbf9268a8042cef79d02336e8231504569ae2bc3bd0daa23"
         },
         {
           "name": "gamedata/scripts/ui_main_menu.script",
@@ -15,7 +15,7 @@
           "sha256": "18441f41717529a4c2f2a3e6e74d9cfe467f173a7d47457369817346293f8d91"
         },
         {
-          "name": "gamedata/configs/misc/quest_items.ltx",
+          "name": "gamedata/config/misc/quest_items.ltx",
           "size": 73,
           "sha256": "cfdcdc3242feb0f14c1ceb287d5e50ddc3621c2d87ded41acf5a16e2d6eefc1e"
         }
@@ -26,8 +26,8 @@
       "entries": [
         {
           "name": "gamedata/scripts/bind_stalker.script",
-          "size": 204,
-          "sha256": "20fe1046d58cac7b0f14be97c352532063022b643ee6bba62df9509606e7d097"
+          "size": 233,
+          "sha256": "119d1e21935c1988b99eaf6c3f68647bf94d22a9f2fb1b808c52b30f9581a1a2"
         },
         {
           "name": "gamedata/scripts/ui_main_menu.script",

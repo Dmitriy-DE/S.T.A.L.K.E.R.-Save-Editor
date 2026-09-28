@@ -109,7 +109,7 @@ $game_data$   = true|  true|  $fs_root$|  gamedata\
    - `mods/companion/gamedata/scripts/save_editor_level_changer.script` → `<SoC_Root>/gamedata/scripts/`
 2. Copy SoC-specific files:
    - `mods/companion/soc/gamedata/scripts/*` → `<SoC_Root>/gamedata/scripts/`
-   - `mods/companion/soc/gamedata/configs/*` → `<SoC_Root>/gamedata/config/` (or `configs/` depending on mod/version)
+   - `mods/companion/soc/gamedata/configs/*` → `<SoC_Root>/gamedata/config/` (SoC uses `config`, check `$game_config$` in fsgame.ltx)
    - `mods/companion/soc/gamedata/textures/*` → `<SoC_Root>/gamedata/textures/`
 
 #### Clear Sky (ЧН - 1.5.10)
@@ -123,34 +123,32 @@ $game_data$   = true|  true|  $fs_root$|  gamedata\
 
 ---
 
-### Step 2: Hook Injection in `bind_stalker.script`
+### Step 2: Hooks (four lines, three files)
 
-If `gamedata/scripts/bind_stalker.script` does not exist in loose files, extract it from the game archives:
-- **SoC**: Extract from `gamedata.db*` using `converter.exe` or the desktop editor.
-- **CS / CoP**: Extract from `resources.db*` / `patches.db*`.
+Recommended: use the **Companion** screen — the installer reads the vanilla files from the game archives through `fsgame.ltx` (patches override base archives), inserts the hooks, converts to cp1251 and keeps a manifest with backups. Manual steps below produce the same result.
 
-Make a backup copy: `bind_stalker.script.bak`.
+Take each file from `gamedata/` if it already exists there, otherwise extract it from the game archives (SoC: `gamedata.db*`; CS/CoP: `resources/*.db`, and `patches/*.db` wins over `resources/`). Keep a backup of every file you edit. Files are cp1251.
 
-#### Hook 1: Actor Update Loop
-In `bind_stalker.script`, locate `function actor_binder:update(delta)`. Right after the call to `object_binder.update(self, delta)`:
-- **SoC** (~line 215 in vanilla 1.0006):
-- **CS** (~line 253 in vanilla 1.5.10):
-- **CoP** (~line 246 in vanilla 1.6.02):
+1. `scripts/bind_stalker.script`, in `actor_binder:update(delta)`, right after `object_binder.update(self, delta)`:
+   ```lua
+   if save_editor_companion then save_editor_companion.update() end
+   ```
+2. `scripts/bind_stalker.script`, item use:
+   - CoP: first line of the body of `actor_binder:use_inventory_item(obj)`:
+     ```lua
+     if save_editor_companion then save_editor_companion.on_use(obj) end
+     ```
+   - SoC/CS: there is no `use_inventory_item` in their `bind_stalker.script`. Being fixed in the installer (use `callback.use_object` registered in `actor_binder:reinit()`); not verified in game yet.
+3. `scripts/ui_main_menu.script`, in `main_menu:OnKeyboard`, inside the `WINDOW_KEY_PRESSED` block (`ui_events.WINDOW_KEY_PRESSED` in CoP), right after the `DIK_Q` branch (`DIK_keys.DIK_Q` in CoP):
+   ```lua
+   if save_editor_companion_ui then save_editor_companion_ui.on_menu_key(dik, self) end
+   ```
+4. `configs/misc/quest_items.ltx`, at the end of the file:
+   ```ini
+   #include "save_editor_companion.ltx"
+   ```
 
-Insert the following line:
-```lua
-if save_editor_companion then save_editor_companion.update() end
-```
-
-#### Hook 2: Item Usage Trigger
-In `bind_stalker.script`, locate `function actor_binder:use_inventory_item(obj)` and insert:
-```lua
-if save_editor_companion and save_editor_companion.on_item_use then
-    save_editor_companion.on_item_use(obj)
-end
-```
-
----
+These exact lines and places were checked against a real Steam CoP install (the owner's manual install works in game); SoC/CS differ (see hook 2; SoC keeps configs in `config/`) and have not been run in game yet.
 
 ### Step 3: Uninstallation / Rollback
 1. Delete or restore `bind_stalker.script` from `bind_stalker.script.bak`.
@@ -335,7 +333,7 @@ Every engine function and method called by `mods/companion` has been audited aga
 The companion hotkeys are specifically chosen to avoid collision with standard X-Ray engine F-keys (F5 Quicksave, F6/F7 Quickload, F8/F9 etc.):
 - `Ctrl+H` — Restore health, stamina, psy-health, clear radiation (`heal`).
 - `Ctrl+R` — Repair equipped armor and weapons to 100% condition (`repair_equipped`).
-- `Ctrl+M` — Add currency (`money +5000`).
+- `Ctrl+M` — Mark the current position (`mark`).
 - `Ctrl+J` — Teleport to last saved marker (`jump_last`).
 - `Ctrl+S` — Trigger immediate engine save (`quicksave`).
 

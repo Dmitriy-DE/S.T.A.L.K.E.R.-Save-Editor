@@ -29,6 +29,13 @@ game's `lua_help`: `set_npc_position`, writable `bleeding`, `surge_manager`).
 The spawn list is written by the installer from the game's own configs, so items added by mods
 (OGSM, …) appear and sections the engine cannot spawn as inventory items stay out.
 
+## Hotkeys
+
+Companion → «Горячие клавиши» turns on Ctrl+H (heal), Ctrl+R (repair), Ctrl+M (mark), Ctrl+J (return to
+the mark) and Ctrl+S (quick save) while the game runs. The editor holds these keys only while the game
+window is in front (`XR_3DA` / `xrEngine`), so they keep their usual meaning in every other program.
+Linux needs X11 or XWayland. The layout is fixed.
+
 ## Installing
 
 Use any of these; each writes a manifest so the mod can be updated and removed cleanly:

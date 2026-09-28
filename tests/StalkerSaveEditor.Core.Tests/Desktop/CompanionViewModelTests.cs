@@ -61,10 +61,6 @@ public sealed class CompanionViewModelTests
             ];
             return Task.FromResult(result);
         }
-
-        public Task<bool> UpdateHotkeyAsync(
-            string gameReleaseId, string action, string newKey, CancellationToken ct = default)
-            => Task.FromResult(true);
     }
 
     // ── Constructor ───────────────────────────────────────────────────────────

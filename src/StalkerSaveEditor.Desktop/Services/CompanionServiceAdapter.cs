@@ -128,12 +128,6 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         return Task.FromResult(result);
     }
 
-    public Task<bool> UpdateHotkeyAsync(
-        string gameReleaseId, string action, string newKey, CancellationToken ct = default)
-    {
-        // Remapping is not persisted yet: report failure instead of pretending the key changed.
-        return Task.FromResult(false);
-    }
 
     // ── Extended API (consumed by CompanionViewModel directly) ────────────────
 

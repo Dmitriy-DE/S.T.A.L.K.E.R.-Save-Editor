@@ -27,5 +27,4 @@ public interface ICompanionService
     Task<bool> UninstallAsync(string gameReleaseId, CancellationToken ct = default);
     Task<TimeSpan?> PingAsync(string gameReleaseId, CancellationToken ct = default);
     Task<IReadOnlyList<CompanionHotkey>> GetHotkeysAsync(string gameReleaseId, CancellationToken ct = default);
-    Task<bool> UpdateHotkeyAsync(string gameReleaseId, string action, string newKey, CancellationToken ct = default);
 }

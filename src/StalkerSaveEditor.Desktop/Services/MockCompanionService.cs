@@ -66,20 +66,4 @@ public sealed class MockCompanionService : ICompanionService
         return Task.FromResult<IReadOnlyList<CompanionHotkey>>(list);
     }
 
-    public Task<bool> UpdateHotkeyAsync(string gameReleaseId, string action, string newKey, CancellationToken ct = default)
-    {
-        if (_hotkeys.TryGetValue(gameReleaseId, out var list))
-        {
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (string.Equals(list[i].Action, action, StringComparison.OrdinalIgnoreCase))
-                {
-                    list[i] = list[i] with { Key = newKey };
-                    return Task.FromResult(true);
-                }
-            }
-        }
-
-        return Task.FromResult(false);
-    }
 }

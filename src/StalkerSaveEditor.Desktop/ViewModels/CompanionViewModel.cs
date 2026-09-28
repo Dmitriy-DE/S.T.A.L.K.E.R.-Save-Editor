@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Hotkeys;
 using StalkerSaveEditor.Desktop.Services;
@@ -7,35 +6,13 @@ using ICompanionService = StalkerSaveEditor.Desktop.Services.ICompanionService;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
-public sealed class CompanionHotkeyItemViewModel : ObservableViewModel
+/// <summary>One companion hotkey as shown on the screen (the layout is fixed: <see cref="HotkeyLayout.Default"/>).</summary>
+public sealed record CompanionHotkeyItemViewModel(string Action, string Key, string Description)
 {
-    private string _key;
-
-    public CompanionHotkeyItemViewModel(CompanionHotkey model, Action<string, string> onKeyChanged)
+    public CompanionHotkeyItemViewModel(CompanionHotkey model)
+        : this(model.Action, model.Key, model.Description)
     {
-        Action = model.Action;
-        _key = model.Key;
-        Description = model.Description;
-        ChangeKeyCommand = new RelayCommand<string>(newKey =>
-        {
-            if (!string.IsNullOrWhiteSpace(newKey))
-            {
-                Key = newKey.Trim().ToUpperInvariant();
-                onKeyChanged(Action, Key);
-            }
-        });
     }
-
-    public string Action { get; }
-    public string Description { get; }
-
-    public string Key
-    {
-        get => _key;
-        set => SetProperty(ref _key, value);
-    }
-
-    public ICommand ChangeKeyCommand { get; }
 }
 
 public sealed class CompanionViewModel : ObservableViewModel
@@ -394,13 +371,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             Hotkeys.Clear();
             foreach (var hk in hotkeys)
             {
-                Hotkeys.Add(new CompanionHotkeyItemViewModel(hk, async (action, newKey) =>
-                {
-                    if (!await _service.UpdateHotkeyAsync(_selectedGame, action, newKey))
-                    {
-                        StatusMessage = L.T("Переназначение клавиш пока не сохраняется — действует раскладка по умолчанию.");
-                    }
-                }));
+                Hotkeys.Add(new CompanionHotkeyItemViewModel(hk));
             }
         }
         catch (Exception ex)

@@ -372,21 +372,8 @@ public sealed class CompanionView : UserControl
                 Grid.SetColumn(actionTb, 0);
                 rowGrid.Children.Add(actionTb);
 
-                var keyBox = new TextBox
-                {
-                    [!TextBox.TextProperty] = new Binding("Key") { Source = item },
-                    MaxWidth = 115,
-                    TextAlignment = TextAlignment.Center,
-                    FontWeight = FontWeight.Bold,
-                    Foreground = StalkerTheme.BrushAccentAmber,
-                    Background = StalkerTheme.BrushBgInput,
-                    BorderBrush = StalkerTheme.BrushBorder,
-                };
-                keyBox.LostFocus += (_, _) =>
-                {
-                    if (item.ChangeKeyCommand.CanExecute(keyBox.Text))
-                        item.ChangeKeyCommand.Execute(keyBox.Text);
-                };
+                var keyBox = StalkerTheme.Badge(item.Key, StalkerTheme.BrushBgInput, StalkerTheme.BrushAccentAmber, 12);
+                keyBox.HorizontalAlignment = HorizontalAlignment.Left;
                 Grid.SetColumn(keyBox, 1);
                 rowGrid.Children.Add(keyBox);
 

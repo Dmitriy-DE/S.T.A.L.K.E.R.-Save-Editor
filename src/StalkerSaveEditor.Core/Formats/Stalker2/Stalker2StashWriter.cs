@@ -230,23 +230,23 @@ public static class Stalker2StashWriter
         ReadOnlySpan<byte> raw,
         int countOffset,
         int oldEndOffset,
-        IReadOnlyList<uint> handles,
-        IReadOnlyList<Stalker2GridCell> cells)
+        uint[] handles,
+        Stalker2GridCell[] cells)
     {
-        if (handles.Count > ushort.MaxValue || cells.Count > ushort.MaxValue)
+        if (handles.Length > ushort.MaxValue || cells.Length > ushort.MaxValue)
         {
             throw Error("Inventory or stash array exceeds the u16 count limit.");
         }
 
-        var handleBytes = checked(handles.Count * sizeof(uint));
-        var gridBytes = checked(cells.Count * GridRecordSize);
+        var handleBytes = checked(handles.Length * sizeof(uint));
+        var gridBytes = checked(cells.Length * GridRecordSize);
         var replacementLength = checked(sizeof(ushort) + handleBytes + sizeof(ushort) + gridBytes);
         var oldLength = oldEndOffset - countOffset;
         var output = new byte[checked(raw.Length - oldLength + replacementLength)];
         raw[..countOffset].CopyTo(output);
 
         var offset = countOffset;
-        BinaryPrimitives.WriteUInt16LittleEndian(output.AsSpan(offset), checked((ushort)handles.Count));
+        BinaryPrimitives.WriteUInt16LittleEndian(output.AsSpan(offset), checked((ushort)handles.Length));
         offset += sizeof(ushort);
         foreach (var handle in handles)
         {
@@ -254,7 +254,7 @@ public static class Stalker2StashWriter
             offset += sizeof(uint);
         }
 
-        BinaryPrimitives.WriteUInt16LittleEndian(output.AsSpan(offset), checked((ushort)cells.Count));
+        BinaryPrimitives.WriteUInt16LittleEndian(output.AsSpan(offset), checked((ushort)cells.Length));
         offset += sizeof(ushort);
         foreach (var cell in cells)
         {

@@ -32,7 +32,7 @@ public static class CatalogBundleReader
         return LoadDocument(document);
     }
 
-    private static IReadOnlyDictionary<string, CatalogBundle> LoadDocument(JsonDocument document)
+    private static ReadOnlyDictionary<string, CatalogBundle> LoadDocument(JsonDocument document)
     {
         using (document)
         {
@@ -78,7 +78,7 @@ public static class CatalogBundleReader
 
     public static IReadOnlyDictionary<string, CatalogBundle> LoadEmbedded() => EmbeddedBundles.Value;
 
-    private static IReadOnlyDictionary<string, CatalogBundle> LoadEmbeddedCore()
+    private static ReadOnlyDictionary<string, CatalogBundle> LoadEmbeddedCore()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(EmbeddedResourceName)
             ?? throw new CatalogBundleException("Embedded official catalog bundle is missing.");

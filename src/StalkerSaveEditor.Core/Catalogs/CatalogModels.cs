@@ -212,7 +212,7 @@ public sealed record FactionRelationAddress(
 
 public sealed class FactionCatalog
 {
-    private readonly IReadOnlyDictionary<string, FactionDefinition> _byKey;
+    private readonly ReadOnlyDictionary<string, FactionDefinition> _byKey;
 
     internal FactionCatalog(
         string releaseId,

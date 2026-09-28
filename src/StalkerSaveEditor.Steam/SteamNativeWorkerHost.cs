@@ -135,7 +135,9 @@ public static partial class SteamNativeWorkerHost
             var appId = root.GetProperty("appId").GetInt32();
             if (appId <= 0)
             {
+#pragma warning disable CA2208 // appId is a field in the worker request, not a method parameter.
                 throw new ArgumentOutOfRangeException("appId", "Steam app id must be positive.");
+#pragma warning restore CA2208
             }
 
             if (operation is not ("list" or "read" or "write"))

@@ -45,10 +45,7 @@ public sealed class SteamRemoteStorageCloudWriter
     {
         ArgumentNullException.ThrowIfNull(findLibrary);
         ArgumentNullException.ThrowIfNull(worker);
-        if (persistedPollInterval <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(persistedPollInterval));
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(persistedPollInterval, TimeSpan.Zero);
 
         _findLibrary = findLibrary;
         _worker = worker;

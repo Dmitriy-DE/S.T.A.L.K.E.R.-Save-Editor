@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
 using System.Text;
 using StalkerSaveEditor.Core.Codecs;
 
@@ -53,7 +54,7 @@ public static class XRayArchiveReader
         }
     }
 
-    private static IReadOnlyList<XRayArchiveEntry> ReadEntries(
+    private static ReadOnlyCollection<XRayArchiveEntry> ReadEntries(
         Stream source,
         long archiveStart,
         long archiveLength)
@@ -124,7 +125,7 @@ public static class XRayArchiveReader
         throw Error("archive has no verified file-table header variant");
     }
 
-    private static IReadOnlyList<byte[]> DecodeHeaders(byte[] headerData, bool compressed)
+    private static List<byte[]> DecodeHeaders(byte[] headerData, bool compressed)
     {
         if (!compressed)
         {

@@ -31,13 +31,6 @@ public static class Stalker2EditWriter
             throw Error($"EditPlan contains unsupported edit kinds for S.T.A.L.K.E.R. 2: {editKinds & ~SupportedKinds}.");
         }
 
-        var sourceBytes = source.ToArray();
-        var sourceSha256 = Convert.ToHexString(SHA256.HashData(sourceBytes)).ToLowerInvariant();
-        if (!string.Equals(sourceSha256, plan.SourceSha256, StringComparison.Ordinal))
-        {
-            throw Error("Source SHA256 does not match the edit plan.");
-        }
-
         // Fast paths for single edit kinds
         if (editKinds == EditKind.Money)
         {
@@ -62,7 +55,9 @@ public static class Stalker2EditWriter
         }
 
         // Composite edits pipeline
-        var working = sourceBytes;
+        // The first specialized writer verifies SourceSha256. Keep the input copy only for
+        // multi-stage edits, where each stage produces the next stage's source.
+        var working = source.ToArray();
         var currentSha256 = plan.SourceSha256;
 
         if ((editKinds & EditKind.Stalker2StashTransfer) != EditKind.None)

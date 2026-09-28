@@ -13,9 +13,34 @@ namespace StalkerSaveEditor.Core.Editing;
 /// </summary>
 public static class EditService
 {
+    private const EditKind KnownEditKinds =
+        EditKind.Money |
+        EditKind.StackCounts |
+        EditKind.Delete |
+        EditKind.Add |
+        EditKind.XRayStashTransfer |
+        EditKind.Stalker2StashTransfer |
+        EditKind.Upgrades |
+        EditKind.Durability |
+        EditKind.Placement |
+        EditKind.Faction;
+
+    private static readonly (EditKind Kind, string[] Capabilities)[] EditCapabilities =
+    [
+        (EditKind.Money, ["edit_money"]),
+        (EditKind.StackCounts, ["edit_stacks"]),
+        (EditKind.Delete, ["remove_items"]),
+        (EditKind.Add, ["add_items"]),
+        (EditKind.XRayStashTransfer, ["add_items"]),
+        (EditKind.Stalker2StashTransfer, ["move_items"]),
+        (EditKind.Upgrades, ["edit_upgrades"]),
+        (EditKind.Durability, ["edit_durability"]),
+        (EditKind.Placement, ["edit_placement"]),
+        (EditKind.Faction, ["edit_relations", "edit_player_faction"]),
+    ];
+
     /// <summary>
-    /// Checks whether saving/editing is permitted for the specified release and optional edit kinds.
-    /// S.T.A.L.K.E.R. 2 writing is explicitly disabled for consumer UI until full in-game validation.
+    /// Checks whether saving/editing is permitted by the central release capability registry.
     /// </summary>
     public static bool CanEdit(string? releaseId, EditKind editKinds = EditKind.None)
     {
@@ -24,87 +49,26 @@ public static class EditService
             return false;
         }
 
-        // S2 writing remains disabled in UI until in-game mutation verification is completed.
-        if (IsStalker2Release(releaseId))
+        if (editKinds == EditKind.None)
+        {
+            return CapabilityService.Default.CanWrite(releaseId, "edit_money");
+        }
+
+        if ((editKinds & ~KnownEditKinds) != EditKind.None)
         {
             return false;
         }
 
-        if (!IsXRayRelease(releaseId))
+        var requiredCapabilities = new List<string>(EditCapabilities.Length);
+        foreach (var requirement in EditCapabilities)
         {
-            return false;
+            if ((editKinds & requirement.Kind) != EditKind.None)
+            {
+                requiredCapabilities.AddRange(requirement.Capabilities);
+            }
         }
 
-        var normalized = NormalizeXRayReleaseId(releaseId);
-        if (normalized is null)
-        {
-            return false;
-        }
-
-        try
-        {
-            if (editKinds == EditKind.None)
-            {
-                return CapabilityRegistry.Get(normalized, "edit_money").Writable;
-            }
-
-            const EditKind allowedXRay =
-                EditKind.Money |
-                EditKind.StackCounts |
-                EditKind.Durability |
-                EditKind.Placement |
-                EditKind.Upgrades |
-                EditKind.Faction |
-                EditKind.XRayStashTransfer;
-
-            if ((editKinds & ~allowedXRay) != EditKind.None)
-            {
-                return false;
-            }
-
-            if ((editKinds & EditKind.Money) != EditKind.None &&
-                !CapabilityRegistry.Get(normalized, "edit_money").Writable)
-            {
-                return false;
-            }
-
-            if ((editKinds & EditKind.StackCounts) != EditKind.None &&
-                !CapabilityRegistry.Get(normalized, "edit_stacks").Writable)
-            {
-                return false;
-            }
-
-            if ((editKinds & EditKind.Durability) != EditKind.None &&
-                !CapabilityRegistry.Get(normalized, "edit_durability").Writable)
-            {
-                return false;
-            }
-
-            if ((editKinds & EditKind.Placement) != EditKind.None &&
-                !CapabilityRegistry.Get(normalized, "edit_placement").Writable)
-            {
-                return false;
-            }
-
-            if ((editKinds & EditKind.Upgrades) != EditKind.None &&
-                normalized is "stalker-soc" or "stalker-soc-ee")
-            {
-                return false;
-            }
-
-            if ((editKinds & EditKind.Faction) != EditKind.None &&
-                (!CapabilityRegistry.Get(normalized, "edit_relations").Writable ||
-                 !CapabilityRegistry.Get(normalized, "edit_player_faction").Writable))
-            {
-                return false;
-            }
-
-            return true;
-        }
-        catch (KeyNotFoundException)
-        {
-            return false;
-        }
+        return CapabilityService.Default.CanWrite(releaseId, requiredCapabilities.ToArray());
     }
 
     /// <summary>
@@ -251,18 +215,4 @@ public static class EditService
         throw new NotSupportedException($"Unsupported release for readback verification: '{expectedReleaseId}'.");
     }
 
-    private static string? NormalizeXRayReleaseId(string releaseId)
-    {
-        var lower = releaseId.Trim().ToLowerInvariant();
-        return lower switch
-        {
-            "stalker-soc" or "soc" => "stalker-soc",
-            "stalker-soc-ee" => "stalker-soc-ee",
-            "stalker-cs" or "clear_sky" or "cs" => "stalker-cs",
-            "stalker-cs-ee" => "stalker-cs-ee",
-            "stalker-cop" or "cop" => "stalker-cop",
-            "stalker-cop-ee" => "stalker-cop-ee",
-            _ => null,
-        };
-    }
 }

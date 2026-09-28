@@ -7,6 +7,8 @@ namespace StalkerSaveEditor.Core.Catalogs;
 public static class CatalogBundleReader
 {
     private const string EmbeddedResourceName = "StalkerSaveEditor.Core.Catalogs.Data.catalogs.json";
+    private static readonly Lazy<IReadOnlyDictionary<string, CatalogBundle>> EmbeddedBundles =
+        new(LoadEmbeddedCore, LazyThreadSafetyMode.ExecutionAndPublication);
     private static readonly HashSet<string> SupportedReleases = new(StringComparer.Ordinal)
     {
         "stalker-soc",
@@ -27,6 +29,11 @@ public static class CatalogBundleReader
             throw new CatalogBundleException("Invalid JSON catalog bundle.", exception);
         }
 
+        return LoadDocument(document);
+    }
+
+    private static IReadOnlyDictionary<string, CatalogBundle> LoadDocument(JsonDocument document)
+    {
         using (document)
         {
             var root = document.RootElement;
@@ -69,13 +76,23 @@ public static class CatalogBundleReader
         }
     }
 
-    public static IReadOnlyDictionary<string, CatalogBundle> LoadEmbedded()
+    public static IReadOnlyDictionary<string, CatalogBundle> LoadEmbedded() => EmbeddedBundles.Value;
+
+    private static IReadOnlyDictionary<string, CatalogBundle> LoadEmbeddedCore()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(EmbeddedResourceName)
             ?? throw new CatalogBundleException("Embedded official catalog bundle is missing.");
-        using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        return Load(buffer.ToArray());
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(stream);
+        }
+        catch (JsonException exception)
+        {
+            throw new CatalogBundleException("Invalid JSON catalog bundle.", exception);
+        }
+
+        return LoadDocument(document);
     }
 
     private static ItemCatalog ReadItems(JsonElement release, string releaseId)

@@ -13,7 +13,11 @@ public static class CapabilitiesView
 {
     public static Control Build(CapabilitiesViewModel vm)
     {
-        var scroll = new ScrollViewer { Padding = new Thickness(16) };
+        var scroll = new ScrollViewer
+        {
+            Padding = new Thickness(16),
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        };
         var stack = new StackPanel { Spacing = 16 };
 
         // 1. Header Card
@@ -55,7 +59,7 @@ public static class CapabilitiesView
         // Table Header
         var headerGrid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("260,95,95,95,95,95,95,95"),
+            ColumnDefinitions = new ColumnDefinitions("200,80,80,80,80,80,80,80"),
             Margin = new Thickness(8, 4, 8, 8),
         };
 
@@ -116,7 +120,7 @@ public static class CapabilitiesView
 
             var rowGrid = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("260,95,95,95,95,95,95,95"),
+                ColumnDefinitions = new ColumnDefinitions("200,80,80,80,80,80,80,80"),
                 Margin = new Thickness(8, 4, 8, 4),
             };
 
@@ -173,7 +177,13 @@ public static class CapabilitiesView
             tableStack.Children.Add(rowBorder);
         }
 
-        stack.Children.Add(StalkerTheme.Card(tableStack, "Матрица поддерживаемых возможностей"));
+        var tableScroll = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            Content = tableStack,
+        };
+        stack.Children.Add(StalkerTheme.Card(tableScroll, "Матрица поддерживаемых возможностей"));
 
         // 3. Legend Card
         var legendStack = new StackPanel { Spacing = 8 };

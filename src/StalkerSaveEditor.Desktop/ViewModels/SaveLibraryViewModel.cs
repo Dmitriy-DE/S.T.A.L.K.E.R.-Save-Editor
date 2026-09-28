@@ -949,8 +949,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             playerFaction = def?.DisplayName ?? def?.Key;
         }
 
-        // Transitions are not fabricated; empty until Core Level Changers API is available
-        var transitions = Array.Empty<TransitionViewModel>();
+        // Real level changers from X-Ray registry (read-only per AGENTS.md)
+        var transitions = save.LevelChangers.Select(lc => new TransitionViewModel(
+            lc.Handle,
+            lc.Name,
+            lc.NameReplace,
+            lc.ParentId,
+            lc.ObjectVersion)).ToList();
 
         var levelName = save.Stashes.FirstOrDefault(s => !string.IsNullOrEmpty(s.Level))?.Level;
         if (!string.IsNullOrEmpty(levelName))

@@ -147,6 +147,8 @@ public sealed class SaveFileSummary
     public ObservableCollection<InventoryLineViewModel> Inventory { get; }
     public ObservableCollection<StashViewModel> Stashes { get; }
     public ObservableCollection<TransitionViewModel> Transitions { get; }
+    public bool HasTransitions => Transitions.Count > 0;
+    public bool HasNoTransitions => Transitions.Count == 0;
     public ObservableCollection<FactionRelationViewModel> FactionRelations { get; }
 
     public string FileSizeDisplay => FileSizeBytes switch

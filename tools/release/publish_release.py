@@ -36,9 +36,10 @@ TARGETS = {
     "linux-x86_64": ("portable", "x86_64", "SaveEditor-linux-x86_64.tar.gz", "*linux*x64*.tar.gz"),
     "linux-deb-amd64": ("package", "x86_64", "stalker-save-editor_amd64.deb", "stalker-save-editor_*_amd64.deb"),
     "macos-arm64": ("disk-image", "arm64", "SaveEditor-macos-arm64.dmg", "*arm64*.dmg"),
+    "macos-x86_64": ("disk-image", "x86_64", "SaveEditor-macos-x86_64.dmg", "*osx-x64*.dmg"),
 }
 REQUIRED = ("windows-x86_64", "linux-x86_64", "linux-deb-amd64")
-OPTIONAL = ("windows-installer-x86_64", "macos-arm64")
+OPTIONAL = ("windows-installer-x86_64", "macos-arm64", "macos-x86_64")
 CONTENT_TYPES = {
     ".zip": "application/zip",
     ".exe": "application/vnd.microsoft.portable-executable",

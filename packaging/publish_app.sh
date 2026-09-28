@@ -31,11 +31,10 @@ fi
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
-dotnet publish "$ROOT/src/StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" \
+dotnet publish "$ROOT/src/StalkerSaveEditor.App/StalkerSaveEditor.App.csproj" \
   -c Release -r "$RID" --self-contained true \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:NoWarn=IL3000 \
   -p:Version="$VERSION" -o "$OUT"
-mv "$OUT/StalkerSaveEditor.Desktop$EXE" "$OUT/StalkerSaveEditor$EXE"
 
 cli_out="$(mktemp -d "${TMPDIR:-$ROOT/build}/cli.XXXXXX")"
 dotnet publish "$ROOT/src/StalkerSaveEditor.Cli/StalkerSaveEditor.Cli.csproj" \

@@ -4,6 +4,8 @@ using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
 using StalkerSaveEditor.Desktop.Views;
@@ -27,7 +29,35 @@ public sealed class MainWindow : Window
         MinHeight = 600;
         Background = StalkerTheme.BrushBgBase;
 
-        Content = BuildContent(_viewModel);
+        var content = BuildContent(_viewModel);
+        AddShortcuts(content, _viewModel);
+        Content = content;
+    }
+
+    /// <summary>Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) undo and redo draft edits, Ctrl+S writes the save.</summary>
+    private static void AddShortcuts(Control root, SaveLibraryViewModel vm)
+    {
+        foreach (var (gesture, command) in new (string, System.Windows.Input.ICommand)[]
+                 {
+                     ("Ctrl+Z", vm.UndoCommand),
+                     ("Ctrl+Y", vm.RedoCommand),
+                     ("Ctrl+Shift+Z", vm.RedoCommand),
+                     ("Ctrl+S", vm.SaveCommand),
+                 })
+        {
+            root.KeyBindings.Add(new Avalonia.Input.KeyBinding { Gesture = Avalonia.Input.KeyGesture.Parse(gesture), Command = command });
+        }
+    }
+
+    /// <summary>The whole interface as one control (the web host shows it without a window).</summary>
+    public static Control BuildRoot(SaveLibraryViewModel vm)
+    {
+        ArgumentNullException.ThrowIfNull(vm);
+        var root = BuildContent(vm);
+        root.DataContext = vm;
+        AddShortcuts(root, vm);
+        root.SetValue(Avalonia.Controls.Documents.TextElement.FontFamilyProperty, StalkerTheme.BodyFont);
+        return root;
     }
 
     private static Control BuildContent(SaveLibraryViewModel vm)
@@ -87,12 +117,12 @@ public sealed class MainWindow : Window
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         grid.Children.Add(new TextBlock
         {
-            Text = "Прошлый запуск завершился ошибкой — отчёт в Настройках → Диагностика.",
+            Text = L.T("Прошлый запуск завершился ошибкой — отчёт в Настройках → Диагностика."),
             Foreground = StalkerTheme.BrushDanger,
             FontWeight = FontWeight.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
         });
-        var open = StalkerTheme.StalkerButton("Открыть", isPrimary: true, minWidth: 100);
+        var open = StalkerTheme.StalkerButton(L.T("Открыть"), isPrimary: true, minWidth: 100);
         open.Click += (_, _) => vm.SelectedTab = "settings";
         Grid.SetColumn(open, 1);
         grid.Children.Add(open);
@@ -126,12 +156,12 @@ public sealed class MainWindow : Window
         text.Bind(TextBlock.TextProperty, new Binding(nameof(UpdatesViewModel.NotificationBannerText)));
         grid.Children.Add(text);
 
-        var openBtn = StalkerTheme.StalkerButton("Посмотреть", isPrimary: true, minWidth: 100);
+        var openBtn = StalkerTheme.StalkerButton(L.T("Посмотреть"), isPrimary: true, minWidth: 100);
         openBtn.Click += (_, _) => vm.SelectedTab = "updates";
         Grid.SetColumn(openBtn, 1);
         grid.Children.Add(openBtn);
 
-        var dismissBtn = StalkerTheme.StalkerButton("✕", isPrimary: false, minWidth: 32);
+        var dismissBtn = StalkerTheme.StalkerButton("×", isPrimary: false, minWidth: 32);
         dismissBtn.Bind(Button.CommandProperty, new Binding(nameof(UpdatesViewModel.DismissBannerCommand)));
         Grid.SetColumn(dismissBtn, 2);
         dismissBtn.Margin = new Thickness(8, 0, 0, 0);
@@ -176,23 +206,53 @@ public sealed class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        var undoBtn = StalkerTheme.StalkerButton("↶ Отменить", isPrimary: false, minWidth: 90);
+        var undoBtn = StalkerTheme.StalkerButton(L.T("Отменить"), isPrimary: false, minWidth: 90);
         undoBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.UndoCommand)));
         actions.Children.Add(undoBtn);
 
-        var redoBtn = StalkerTheme.StalkerButton("↷ Повторить", isPrimary: false, minWidth: 90);
+        var redoBtn = StalkerTheme.StalkerButton(L.T("Вернуть"), isPrimary: false, minWidth: 90);
         redoBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.RedoCommand)));
         actions.Children.Add(redoBtn);
 
-        var discardBtn = StalkerTheme.StalkerButton("Сбросить", isPrimary: false, minWidth: 90);
+        var discardBtn = StalkerTheme.StalkerButton(L.T("Сбросить"), isPrimary: false, minWidth: 90);
         discardBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.DiscardDraftCommand)));
         actions.Children.Add(discardBtn);
 
-        var refreshBtn = StalkerTheme.StalkerButton("Обновить", isPrimary: false, minWidth: 90);
+        var openBtn = StalkerTheme.StalkerButton(L.T("Открыть…"), isPrimary: false, minWidth: 90);
+        openBtn.Click += async (_, _) =>
+        {
+            if (TopLevel.GetTopLevel(openBtn)?.StorageProvider is not { } storage) return;
+            var files = await storage.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = L.T("Открыть сохранение"),
+                AllowMultiple = true,
+            });
+            foreach (var file in files)
+            {
+                try
+                {
+                    var path = file.TryGetLocalPath();
+                    if (path is null || HostPlatform.IsBrowser)
+                    {
+                        await using var stream = await file.OpenReadAsync();
+                        path = await HostPlatform.ImportAsync(stream, file.Name);
+                    }
+
+                    if (!vm.AddPreviewSave(path)) vm.StatusMessage = L.T("«{0}» — не сохранение S.T.A.L.K.E.R. или файл повреждён.", file.Name);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    vm.StatusMessage = L.T("Не удалось открыть «{0}»: {1}", file.Name, exception.Message);
+                }
+            }
+        };
+        actions.Children.Add(openBtn);
+
+        var refreshBtn = StalkerTheme.StalkerButton(L.T("Обновить"), isPrimary: false, minWidth: 90);
         refreshBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.RefreshCommand)));
         actions.Children.Add(refreshBtn);
 
-        var saveBtn = StalkerTheme.StalkerButton("СОХРАНИТЬ", isPrimary: true, minWidth: 120);
+        var saveBtn = StalkerTheme.StalkerButton(L.T("СОХРАНИТЬ"), isPrimary: true, minWidth: 120);
         saveBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.SaveCommand)));
         saveBtn.Bind(ToolTip.TipProperty, new Binding(nameof(SaveLibraryViewModel.SaveDisabledReason)));
         actions.Children.Add(saveBtn);
@@ -216,7 +276,7 @@ public sealed class MainWindow : Window
 
         var header = new TextBlock
         {
-            Text = "БИБЛИОТЕКА СОХРАНЕНИЙ",
+            Text = L.T("БИБЛИОТЕКА СОХРАНЕНИЙ"),
             FontSize = 11,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -300,18 +360,18 @@ public sealed class MainWindow : Window
             Margin = new Thickness(14, 8, 14, 8),
         };
 
-        navBar.Children.Add(MakeNavTab(vm, "ОБЗОР", "overview", nameof(SaveLibraryViewModel.IsOverviewTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ИНВЕНТАРЬ", "inventory", nameof(SaveLibraryViewModel.IsInventoryTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ФРАКЦИИ", "factions", nameof(SaveLibraryViewModel.IsFactionsTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ТАЙНИКИ", "stashes", nameof(SaveLibraryViewModel.IsStashesTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ПЕРЕХОДЫ", "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
-        navBar.Children.Add(MakeNavTab(vm, "БЭКАПЫ", "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ВОЗМОЖНОСТИ", "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
-        navBar.Children.Add(MakeNavTab(vm, "КОМПАНЬОН", "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ОБЛАКО", "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ДОСТИЖЕНИЯ", "achievements", nameof(SaveLibraryViewModel.IsAchievementsTab)));
-        navBar.Children.Add(MakeNavTab(vm, "ОБНОВЛЕНИЯ", "updates", nameof(SaveLibraryViewModel.IsUpdatesTab)));
-        navBar.Children.Add(MakeNavTab(vm, "НАСТРОЙКИ", "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("ОБЗОР"), "overview", nameof(SaveLibraryViewModel.IsOverviewTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("ИНВЕНТАРЬ"), "inventory", nameof(SaveLibraryViewModel.IsInventoryTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("ФРАКЦИИ"), "factions", nameof(SaveLibraryViewModel.IsFactionsTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("ТАЙНИКИ"), "stashes", nameof(SaveLibraryViewModel.IsStashesTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("ПЕРЕХОДЫ"), "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("БЭКАПЫ"), "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("ВОЗМОЖНОСТИ"), "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("КОМПАНЬОН"), "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ОБЛАКО"), "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОСТИЖЕНИЯ"), "achievements", nameof(SaveLibraryViewModel.IsAchievementsTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ОБНОВЛЕНИЯ"), "updates", nameof(SaveLibraryViewModel.IsUpdatesTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("НАСТРОЙКИ"), "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
 
         var navBorder = new Border
         {
@@ -341,7 +401,7 @@ public sealed class MainWindow : Window
             {
                 new TextBlock
                 {
-                    Text = "ВЫБЕРИТЕ СОХРАНЕНИЕ",
+                    Text = L.T("ВЫБЕРИТЕ СОХРАНЕНИЕ"),
                     FontSize = 20,
                     FontWeight = FontWeight.Bold,
                     Foreground = StalkerTheme.BrushAccentAmber,
@@ -349,7 +409,7 @@ public sealed class MainWindow : Window
                 },
                 new TextBlock
                 {
-                    Text = "Выберите сейв из списка слева для просмотра и редактирования.",
+                    Text = L.T("Выберите сейв из списка слева для просмотра и редактирования."),
                     Foreground = StalkerTheme.BrushTextSecondary,
                     HorizontalAlignment = HorizontalAlignment.Center,
                 },
@@ -481,7 +541,7 @@ public sealed class MainWindow : Window
         status.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.StatusMessage)));
         grid.Children.Add(status);
 
-        var draftBadge = StalkerTheme.Badge("Сохранено", StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentDim, 10);
+        var draftBadge = StalkerTheme.Badge(L.T("Сохранено"), StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentDim, 10);
         draftBadge.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.DraftStatusText)));
         Grid.SetColumn(draftBadge, 1);
         grid.Children.Add(draftBadge);
@@ -512,6 +572,29 @@ public sealed class MainWindow : Window
 
     private static Control BuildFirstRunWizard(SaveLibraryViewModel vm)
     {
+        if (HostPlatform.IsBrowser)
+        {
+            return new Border
+            {
+                Background = StalkerTheme.BrushBgPanel,
+                BorderBrush = StalkerTheme.BrushAccentAmber,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(24),
+                MaxWidth = 680,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = L.T("Откройте файл сохранения кнопкой «Открыть…» вверху.\n") +
+                           L.T("Файл не покидает браузер: он разбирается и изменяется здесь, а после «Сохранить» скачивается обратно."),
+                    Foreground = StalkerTheme.BrushTextSecondary,
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                },
+            };
+        }
+
         var card = new Border
         {
             Background = StalkerTheme.BrushBgPanel,
@@ -528,7 +611,7 @@ public sealed class MainWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "МАСТЕР ПЕРВОГО ЗАПУСКА",
+            Text = L.T("МАСТЕР ПЕРВОГО ЗАПУСКА"),
             FontSize = 18,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -537,20 +620,20 @@ public sealed class MainWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "Сохранения S.T.A.L.K.E.R. не были найдены в стандартных каталогах.\nУкажите папку с файлами сохранений (savedgames или SaveGames) или запустите автоматический поиск на диске.",
+            Text = L.T("Сохранения S.T.A.L.K.E.R. не были найдены в стандартных каталогах.\nУкажите папку с файлами сохранений (savedgames или SaveGames) или запустите автоматический поиск на диске."),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
         });
 
         // Auto-detect Button
-        var autoDetectBtn = StalkerTheme.StalkerButton("АВТОПОИСК ПАПОК НА ДИСКЕ", isPrimary: true, minWidth: 220);
+        var autoDetectBtn = StalkerTheme.StalkerButton(L.T("АВТОПОИСК ПАПОК НА ДИСКЕ"), isPrimary: true, minWidth: 220);
         autoDetectBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.WizardAutoDetectCommand)));
         stack.Children.Add(autoDetectBtn);
 
         var orDivider = new TextBlock
         {
-            Text = "— ИЛИ УКАЖИТЕ ПУТЬ ВРУЧНУЮ —",
+            Text = L.T("— ИЛИ УКАЖИТЕ ПУТЬ ВРУЧНУЮ —"),
             FontSize = 10,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushTextMuted,
@@ -570,7 +653,7 @@ public sealed class MainWindow : Window
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
-            Watermark = "Путь к папке с сейвами…",
+            Watermark = L.T("Путь к папке с сейвами…"),
         };
         input.Bind(TextBox.TextProperty, new Binding(nameof(SaveLibraryViewModel.WizardDirectoryInput))
         {
@@ -578,7 +661,7 @@ public sealed class MainWindow : Window
         });
         inputRow.Children.Add(input);
 
-        var browseBtn = StalkerTheme.StalkerButton("Обзор…", isPrimary: false, minWidth: 80);
+        var browseBtn = StalkerTheme.StalkerButton(L.T("Обзор…"), isPrimary: false, minWidth: 80);
         browseBtn.Margin = new Thickness(8, 0, 0, 0);
         browseBtn.Click += async (_, _) =>
         {
@@ -587,7 +670,7 @@ public sealed class MainWindow : Window
             {
                 var folders = await storageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
                 {
-                    Title = "Выберите папку с сохранениями",
+                    Title = L.T("Выберите папку с сохранениями"),
                     AllowMultiple = false,
                 });
                 if (folders.Count > 0 && folders[0].Path.LocalPath is { } path)
@@ -599,7 +682,7 @@ public sealed class MainWindow : Window
         Grid.SetColumn(browseBtn, 1);
         inputRow.Children.Add(browseBtn);
 
-        var addBtn = StalkerTheme.StalkerButton("Добавить", isPrimary: false, minWidth: 90);
+        var addBtn = StalkerTheme.StalkerButton(L.T("Добавить"), isPrimary: false, minWidth: 90);
         addBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.WizardAddDirectoryCommand)));
         addBtn.Margin = new Thickness(8, 0, 0, 0);
         Grid.SetColumn(addBtn, 2);
@@ -616,11 +699,11 @@ public sealed class MainWindow : Window
             Margin = new Thickness(0, 10, 0, 0),
         };
 
-        var settingsBtn = StalkerTheme.StalkerButton("Перейти в настройки", isPrimary: false, minWidth: 140);
+        var settingsBtn = StalkerTheme.StalkerButton(L.T("Перейти в настройки"), isPrimary: false, minWidth: 140);
         settingsBtn.Click += (_, _) => vm.SelectedTab = "settings";
         bottomActions.Children.Add(settingsBtn);
 
-        var dismissBtn = StalkerTheme.StalkerButton("Пропустить", isPrimary: false, minWidth: 100);
+        var dismissBtn = StalkerTheme.StalkerButton(L.T("Пропустить"), isPrimary: false, minWidth: 100);
         dismissBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.DismissWizardCommand)));
         bottomActions.Children.Add(dismissBtn);
 

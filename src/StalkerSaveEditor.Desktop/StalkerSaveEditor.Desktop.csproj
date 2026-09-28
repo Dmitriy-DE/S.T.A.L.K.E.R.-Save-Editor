@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- The interface shared by the desktop host (StalkerSaveEditor.App) and the web host (StalkerSaveEditor.Browser). -->
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="i18n/*.json" />
@@ -11,8 +12,7 @@
     <None Include="Assets/PROVENANCE.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
-    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
+    <PackageReference Include="Avalonia" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <ProjectReference Include="../StalkerSaveEditor.Core/StalkerSaveEditor.Core.csproj" />

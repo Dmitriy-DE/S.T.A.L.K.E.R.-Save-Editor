@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using System.Collections.ObjectModel;
 using StalkerSaveEditor.Core.Catalogs;
 using StalkerSaveEditor.Core.Inspection;
@@ -56,7 +57,7 @@ public sealed class CompareViewModel : ObservableViewModel
         OnPropertyChanged(nameof(Selected));
         OnPropertyChanged(nameof(HasCandidates));
         Rows.Clear();
-        Status = Candidates.Count == 0 ? "Нет других сейвов этой игры или бэкапов для сравнения." : "Выберите, с чем сравнить.";
+        Status = Candidates.Count == 0 ? L.T("Нет других сейвов этой игры или бэкапов для сравнения.") : L.T("Выберите, с чем сравнить.");
     }
 
     public void Run()
@@ -70,7 +71,7 @@ public sealed class CompareViewModel : ObservableViewModel
             var after = SaveInspector.Inspect(File.ReadAllBytes(_currentPath), catalog);
             if (before.ReleaseId != after.ReleaseId)
             {
-                Status = "Это сейвы разных игр.";
+                Status = L.T("Это сейвы разных игр.");
                 return;
             }
 
@@ -79,20 +80,20 @@ public sealed class CompareViewModel : ObservableViewModel
                 Rows.Add(new CompareRow(Label(difference), difference.Before ?? "—", difference.After ?? "—"));
             }
 
-            Status = Rows.Count == 0 ? "Различий нет." : $"Различий: {Rows.Count}. Слева — «{_selected.Title}», справа — выбранный сейв.";
+            Status = Rows.Count == 0 ? L.T("Различий нет.") : L.T("Различий: {0}. Слева — «{1}», справа — выбранный сейв.", Rows.Count, _selected.Title);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            Status = "Не удалось прочитать: " + exception.Message;
+            Status = L.T("Не удалось прочитать: ") + exception.Message;
         }
     }
 
     private static string Label(SaveDifference difference) => difference.Kind switch
     {
-        "money" => "Деньги",
-        "health" => "Здоровье",
-        "rank" => "Ранг",
-        "reputation" => "Репутация",
+        "money" => L.T("Деньги"),
+        "health" => L.T("Здоровье"),
+        "rank" => L.T("Ранг"),
+        "reputation" => L.T("Репутация"),
         _ => difference.Label,
     };
 }

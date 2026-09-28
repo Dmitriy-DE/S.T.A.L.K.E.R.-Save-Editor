@@ -9,8 +9,8 @@ public sealed record AppSettings
 {
     public List<string>? SaveDirectories { get; init; }
     public string? BackupDirectory { get; init; }
-    public string Language { get; init; } = "ru";
-    public string Theme { get; init; } = "game";
+    /// <summary>Null until chosen: the system language is used.</summary>
+    public string? Language { get; init; }
     public bool SoundEnabled { get; init; } = true;
     public int SoundVolume { get; init; } = 80;
     public bool MusicEnabled { get; init; }

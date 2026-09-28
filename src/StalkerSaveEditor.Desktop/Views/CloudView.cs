@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -29,7 +30,7 @@ public sealed class CloudView : UserControl
         var headerPanel = new StackPanel { Spacing = 8, Margin = new Thickness(0, 0, 0, 16) };
         headerPanel.Children.Add(new TextBlock
         {
-            Text = "СОХРАНЕНИЯ В STEAM CLOUD",
+            Text = L.T("СОХРАНЕНИЯ В STEAM CLOUD"),
             FontSize = 18,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -67,10 +68,10 @@ public sealed class CloudView : UserControl
             Width = 240,
             ItemsSource = new[]
             {
-                new ComboBoxItem { Content = "Все игры", Tag = 0 },
-                new ComboBoxItem { Content = "S.T.A.L.K.E.R.: Тень Чернобыля (4500)", Tag = 4500 },
-                new ComboBoxItem { Content = "S.T.A.L.K.E.R.: Чистое Небо (20510)", Tag = 20510 },
-                new ComboBoxItem { Content = "S.T.A.L.K.E.R.: Зов Припяти (41700)", Tag = 41700 },
+                new ComboBoxItem { Content = L.T("Все игры"), Tag = 0 },
+                new ComboBoxItem { Content = L.T("S.T.A.L.K.E.R.: Тень Чернобыля (4500)"), Tag = 4500 },
+                new ComboBoxItem { Content = L.T("S.T.A.L.K.E.R.: Чистое Небо (20510)"), Tag = 20510 },
+                new ComboBoxItem { Content = L.T("S.T.A.L.K.E.R.: Зов Припяти (41700)"), Tag = 41700 },
                 new ComboBoxItem { Content = "S.T.A.L.K.E.R. 2: Heart of Chornobyl (1643320)", Tag = 1643320 },
             },
             SelectedIndex = 0,
@@ -87,7 +88,7 @@ public sealed class CloudView : UserControl
         };
         filterBar.Children.Add(appSelector);
 
-        var refreshBtn = StalkerTheme.StalkerButton("ОБНОВИТЬ СПИСОК");
+        var refreshBtn = StalkerTheme.StalkerButton(L.T("ОБНОВИТЬ СПИСОК"));
         refreshBtn.Bind(Button.CommandProperty, new Binding(nameof(CloudViewModel.RefreshCommand)));
         Grid.SetColumn(refreshBtn, 2);
         filterBar.Children.Add(refreshBtn);
@@ -178,7 +179,7 @@ public sealed class CloudView : UserControl
 
         detailStack.Children.Add(new TextBlock
         {
-            Text = "ДЕЙСТВИЯ С СОХРАНЕНИЕМ",
+            Text = L.T("ДЕЙСТВИЯ С СОХРАНЕНИЕМ"),
             FontSize = 12,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -205,11 +206,11 @@ public sealed class CloudView : UserControl
         detailStack.Children.Add(selectedRemote);
 
         // Action Buttons
-        var downloadBtn = StalkerTheme.StalkerButton("СКАЧАТЬ В ЛОКАЛЬНЫЕ", isPrimary: false);
+        var downloadBtn = StalkerTheme.StalkerButton(L.T("СКАЧАТЬ В ЛОКАЛЬНЫЕ"), isPrimary: false);
         downloadBtn.Bind(Button.CommandProperty, new Binding(nameof(CloudViewModel.DownloadSelectedCommand)));
         detailStack.Children.Add(downloadBtn);
 
-        var writeBtn = StalkerTheme.StalkerButton("ЗАПИСАТЬ В ОБЛАКО...", isPrimary: true);
+        var writeBtn = StalkerTheme.StalkerButton(L.T("ЗАПИСАТЬ В ОБЛАКО..."), isPrimary: true);
         writeBtn.Bind(Button.CommandProperty, new Binding(nameof(CloudViewModel.RequestWriteCommand)));
         detailStack.Children.Add(writeBtn);
 
@@ -225,7 +226,7 @@ public sealed class CloudView : UserControl
         };
         safetyBorder.Child = new TextBlock
         {
-            Text = "Безопасность Steam Cloud:\n• Запись в облако требует явного подтверждения.\n• Перед записью автоматически создаётся страховочный бэкап.\n• Если статус Uncertain — автоматический повтор запрещён.",
+            Text = L.T("Безопасность Steam Cloud:\n• Запись в облако требует явного подтверждения.\n• Перед записью автоматически создаётся страховочный бэкап.\n• Если статус Uncertain — автоматический повтор запрещён."),
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextMuted,
             TextWrapping = TextWrapping.Wrap,
@@ -247,14 +248,14 @@ public sealed class CloudView : UserControl
         var confirmStack = new StackPanel { Spacing = 8 };
         confirmStack.Children.Add(new TextBlock
         {
-            Text = "ПОДТВЕРЖДЕНИЕ ПЕРЕЗАПИСИ",
+            Text = L.T("ПОДТВЕРЖДЕНИЕ ПЕРЕЗАПИСИ"),
             FontSize = 12,
             FontWeight = FontWeight.Bold,
             Foreground = Brush.Parse("#FF6B55"),
         });
         confirmStack.Children.Add(new TextBlock
         {
-            Text = "Внимание: локальный файл будет отправлен в Steam Cloud и перезапишет облачное сохранение. Резервная копия будет сохранена в бэкапы.",
+            Text = L.T("Внимание: локальный файл будет отправлен в Steam Cloud и перезапишет облачное сохранение. Резервная копия будет сохранена в бэкапы."),
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextPrimary,
             TextWrapping = TextWrapping.Wrap,
@@ -262,18 +263,18 @@ public sealed class CloudView : UserControl
 
         var confirmCheck = new CheckBox
         {
-            Content = "Я подтверждаю перезапись",
+            Content = L.T("Я подтверждаю перезапись"),
             Foreground = StalkerTheme.BrushTextPrimary,
         };
         confirmCheck.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(CloudViewModel.WriteConfirmationChecked), BindingMode.TwoWay));
         confirmStack.Children.Add(confirmCheck);
 
         var confirmBtnRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,8,*") };
-        var execWriteBtn = StalkerTheme.StalkerButton("ЗАПИСАТЬ", isPrimary: true);
+        var execWriteBtn = StalkerTheme.StalkerButton(L.T("ЗАПИСАТЬ"), isPrimary: true);
         execWriteBtn.Bind(Button.CommandProperty, new Binding(nameof(CloudViewModel.ConfirmWriteCommand)));
         confirmBtnRow.Children.Add(execWriteBtn);
 
-        var cancelWriteBtn = StalkerTheme.StalkerButton("ОТМЕНА", isPrimary: false);
+        var cancelWriteBtn = StalkerTheme.StalkerButton(L.T("ОТМЕНА"), isPrimary: false);
         cancelWriteBtn.Bind(Button.CommandProperty, new Binding(nameof(CloudViewModel.CancelWriteCommand)));
         Grid.SetColumn(cancelWriteBtn, 2);
         confirmBtnRow.Children.Add(cancelWriteBtn);

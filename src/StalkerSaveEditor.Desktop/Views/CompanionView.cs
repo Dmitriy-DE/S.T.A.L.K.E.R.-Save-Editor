@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -33,7 +34,7 @@ public sealed class CompanionView : UserControl
         var headerPanel = new StackPanel { Spacing = 6 };
         headerPanel.Children.Add(new TextBlock
         {
-            Text = "МОД-КОМПАНЬОН",
+            Text = L.T("МОД-КОМПАНЬОН"),
             FontSize = 18,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushTextPrimary,
@@ -41,7 +42,7 @@ public sealed class CompanionView : UserControl
         });
         headerPanel.Children.Add(new TextBlock
         {
-            Text = "Меню в игре: Esc → F1 или КПК компаньона. Установка через приложение ниже.",
+            Text = L.T("Меню в игре: Esc → F1 или КПК компаньона. Установка через приложение ниже."),
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextMuted,
         });
@@ -54,7 +55,7 @@ public sealed class CompanionView : UserControl
         };
         gameSelectorRow.Children.Add(new TextBlock
         {
-            Text = "Целевая игра:",
+            Text = L.T("Целевая игра:"),
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = StalkerTheme.BrushTextPrimary,
             FontWeight = FontWeight.SemiBold,
@@ -79,7 +80,7 @@ public sealed class CompanionView : UserControl
         var statusHeaderRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var statusTitle = new TextBlock
         {
-            Text = "СТАТУС И СВЯЗЬ",
+            Text = L.T("СТАТУС И СВЯЗЬ"),
             FontSize = 13,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -142,9 +143,9 @@ public sealed class CompanionView : UserControl
             detailsGrid.Children.Add(val);
         }
 
-        AddDetail(0, "Версия мода:", "VersionText");
-        AddDetail(1, "Связь / Задержка:", "PingText");
-        AddDetail(2, "Путь установки:", "GamePath");
+        AddDetail(0, L.T("Версия мода:"), "VersionText");
+        AddDetail(1, L.T("Связь / Задержка:"), "PingText");
+        AddDetail(2, L.T("Путь установки:"), "GamePath");
 
         statusStack.Children.Add(detailsGrid);
 
@@ -170,19 +171,19 @@ public sealed class CompanionView : UserControl
             Margin = new Thickness(0, 6, 0, 0),
         };
 
-        var btnInstall = StalkerTheme.StalkerButton("УСТАНОВИТЬ / ОБНОВИТЬ", isPrimary: true, minWidth: 150);
+        var btnInstall = StalkerTheme.StalkerButton(L.T("УСТАНОВИТЬ / ОБНОВИТЬ"), isPrimary: true, minWidth: 150);
         btnInstall.Bind(Button.CommandProperty, new Binding("InstallCommand"));
         btnRow.Children.Add(btnInstall);
 
-        var btnUninstall = StalkerTheme.StalkerButton("УДАЛИТЬ", isPrimary: false, minWidth: 100);
+        var btnUninstall = StalkerTheme.StalkerButton(L.T("УДАЛИТЬ"), isPrimary: false, minWidth: 100);
         btnUninstall.Bind(Button.CommandProperty, new Binding("UninstallCommand"));
         btnRow.Children.Add(btnUninstall);
 
-        var btnPing = StalkerTheme.StalkerButton("ПРОВЕРИТЬ СВЯЗЬ", isPrimary: false, minWidth: 160);
+        var btnPing = StalkerTheme.StalkerButton(L.T("ПРОВЕРИТЬ СВЯЗЬ"), isPrimary: false, minWidth: 160);
         btnPing.Bind(Button.CommandProperty, new Binding("PingCommand"));
         btnRow.Children.Add(btnPing);
 
-        var btnRefresh = StalkerTheme.StalkerButton("ОБНОВИТЬ СТАТУС", isPrimary: false, minWidth: 140);
+        var btnRefresh = StalkerTheme.StalkerButton(L.T("ОБНОВИТЬ СТАТУС"), isPrimary: false, minWidth: 140);
         btnRefresh.Bind(Button.CommandProperty, new Binding("RefreshCommand"));
         btnRow.Children.Add(btnRefresh);
 
@@ -193,7 +194,7 @@ public sealed class CompanionView : UserControl
         var gamesStack = new StackPanel { Spacing = 8 };
         gamesStack.Children.Add(new TextBlock
         {
-            Text = "ВСЕ ИГРЫ",
+            Text = L.T("ВСЕ ИГРЫ"),
             FontSize = 13,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -227,7 +228,7 @@ public sealed class CompanionView : UserControl
         };
         gamesList.Bind(ItemsControl.ItemsSourceProperty, new Binding("Games"));
         gamesStack.Children.Add(gamesList);
-        var btnInstallChecked = StalkerTheme.StalkerButton("УСТАНОВИТЬ / ОБНОВИТЬ ВО ВСЕ ОТМЕЧЕННЫЕ", isPrimary: true, minWidth: 300);
+        var btnInstallChecked = StalkerTheme.StalkerButton(L.T("УСТАНОВИТЬ / ОБНОВИТЬ ВО ВСЕ ОТМЕЧЕННЫЕ"), isPrimary: true, minWidth: 300);
         btnInstallChecked.Bind(Button.CommandProperty, new Binding("InstallCheckedCommand"));
         btnInstallChecked.HorizontalAlignment = HorizontalAlignment.Left;
         gamesStack.Children.Add(btnInstallChecked);
@@ -237,7 +238,7 @@ public sealed class CompanionView : UserControl
         var gameDirStack = new StackPanel { Spacing = 10 };
         gameDirStack.Children.Add(new TextBlock
         {
-            Text = "ПАПКА ИГРЫ (РУЧНОЙ ВЫБОР)",
+            Text = L.T("ПАПКА ИГРЫ (РУЧНОЙ ВЫБОР)"),
             FontSize = 13,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -245,7 +246,7 @@ public sealed class CompanionView : UserControl
         });
         gameDirStack.Children.Add(new TextBlock
         {
-            Text = "Оставьте пустым для автоматического поиска через Steam. Укажите путь вручную, если папка нестандартная.",
+            Text = L.T("Оставьте пустым для автоматического поиска через Steam. Укажите путь вручную, если папка нестандартная."),
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextMuted,
             TextWrapping = TextWrapping.Wrap,
@@ -254,7 +255,7 @@ public sealed class CompanionView : UserControl
         var dirRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var dirBox = new TextBox
         {
-            Watermark = "/путь/к/папке/игры",
+            Watermark = L.T("/путь/к/папке/игры"),
             MinWidth = 400,
             MaxWidth = 600,
             Background = StalkerTheme.BrushBgInput,
@@ -263,7 +264,7 @@ public sealed class CompanionView : UserControl
         };
         dirRow.Children.Add(dirBox);
 
-        var btnApplyDir = StalkerTheme.StalkerButton("ПРИМЕНИТЬ", isPrimary: false, minWidth: 100);
+        var btnApplyDir = StalkerTheme.StalkerButton(L.T("ПРИМЕНИТЬ"), isPrimary: false, minWidth: 100);
         btnApplyDir.Bind(Button.CommandProperty, new Binding("SetManualDirCommand"));
         dirRow.Children.Add(btnApplyDir);
 
@@ -274,7 +275,7 @@ public sealed class CompanionView : UserControl
         var hotkeysStack = new StackPanel { Spacing = 14 };
         hotkeysStack.Children.Add(new TextBlock
         {
-            Text = "ГОРЯЧИЕ КЛАВИШИ",
+            Text = L.T("ГОРЯЧИЕ КЛАВИШИ"),
             FontSize = 13,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -283,8 +284,8 @@ public sealed class CompanionView : UserControl
 
         hotkeysStack.Children.Add(new TextBlock
         {
-            Text = "Приложение перехватывает сочетание и отправляет команду моду через файл-протокол. " +
-                   "Игра должна быть запущена с установленным модом.",
+            Text = L.T("Приложение перехватывает сочетание и отправляет команду моду через файл-протокол. ") +
+                   L.T("Игра должна быть запущена с установленным модом."),
             FontSize = 12,
             Foreground = StalkerTheme.BrushTextMuted,
             TextWrapping = TextWrapping.Wrap,
@@ -317,7 +318,7 @@ public sealed class CompanionView : UserControl
 
         var hotkeyToggle = new ToggleButton
         {
-            Content = "Горячие клавиши",
+            Content = L.T("Горячие клавиши"),
             MinWidth = 160,
             [!ToggleButton.IsCheckedProperty] = new Binding("HotkeysEnabled"),
             [!IsEnabledProperty] = new Binding("HotkeysSupported"),
@@ -333,7 +334,7 @@ public sealed class CompanionView : UserControl
 
         toggleRow.Children.Add(new TextBlock
         {
-            Text = "Ctrl+H  Лечить   |   Ctrl+R  Починить   |   Ctrl+M  Метка   |   Ctrl+J  Прыжок   |   Ctrl+S  Сохранить",
+            Text = L.T("Ctrl+H  Лечить   |   Ctrl+R  Починить   |   Ctrl+M  Метка   |   Ctrl+J  Прыжок   |   Ctrl+S  Сохранить"),
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextMuted,
             VerticalAlignment = VerticalAlignment.Center,

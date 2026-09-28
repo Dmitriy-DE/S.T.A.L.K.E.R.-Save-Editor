@@ -30,7 +30,7 @@ public static class InventoryView
         };
         moneyPanel.Children.Add(new TextBlock
         {
-            Text = "ДЕНЬГИ:",
+            Text = L.T("ДЕНЬГИ:"),
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
             VerticalAlignment = VerticalAlignment.Center,
@@ -60,7 +60,7 @@ public static class InventoryView
         moneyPanel.Children.Add(MakeQuickMoneyButton(vm, "+50 000", "50000"));
         moneyPanel.Children.Add(MakeQuickMoneyButton(vm, "+100 000", "100000"));
 
-        var addBtn = StalkerTheme.StalkerButton("+ Добавить предмет", isPrimary: true, minWidth: 150);
+        var addBtn = StalkerTheme.StalkerButton(L.T("+ Добавить предмет"), isPrimary: true, minWidth: 150);
         addBtn.HorizontalAlignment = HorizontalAlignment.Right;
         addBtn.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanAddItems"));
         addBtn.Bind(ToolTip.TipProperty, new Binding("SelectedSave.AddItemsDisabledReason"));
@@ -87,21 +87,23 @@ public static class InventoryView
         root.Children.Add(topBar);
 
         // 2. Category Filter & Search Bar
-        var filterBar = new StackPanel
+        // Wraps on narrow windows (and in the browser) instead of running under the search box.
+        var filterBar = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 6,
-            Margin = new Thickness(0, 0, 0, 10),
+            ItemSpacing = 6,
+            LineSpacing = 6,
+            Margin = new Thickness(0, 0, 8, 10),
         };
 
-        filterBar.Children.Add(MakeCategoryChip(vm, "ВСЕ", "all"));
-        filterBar.Children.Add(MakeCategoryChip(vm, "ОРУЖИЕ", "weapon"));
-        filterBar.Children.Add(MakeCategoryChip(vm, "БОЕПРИПАСЫ", "ammo"));
-        filterBar.Children.Add(MakeCategoryChip(vm, "СНАРЯЖЕНИЕ", "armor"));
-        filterBar.Children.Add(MakeCategoryChip(vm, "РАСХОДНИКИ", "consumable"));
-        filterBar.Children.Add(MakeCategoryChip(vm, "АРТЕФАКТЫ", "artifact"));
-        filterBar.Children.Add(MakeCategoryChip(vm, "КЛЮЧИ", "quest"));
-        filterBar.Children.Add(MakeCategoryChip(vm, "ПРОЧЕЕ", "other"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("ВСЕ"), "all"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("ОРУЖИЕ"), "weapon"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("БОЕПРИПАСЫ"), "ammo"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("СНАРЯЖЕНИЕ"), "armor"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("РАСХОДНИКИ"), "consumable"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("АРТЕФАКТЫ"), "artifact"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("КЛЮЧИ"), "quest"));
+        filterBar.Children.Add(MakeCategoryChip(vm, L.T("ПРОЧЕЕ"), "other"));
 
         var searchBox = new TextBox
         {
@@ -110,7 +112,7 @@ public static class InventoryView
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
-            Watermark = "Поиск предметов…",
+            Watermark = L.T("Поиск предметов…"),
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         searchBox.Bind(TextBox.TextProperty, new Binding(nameof(SaveLibraryViewModel.InventorySearchText))
@@ -170,13 +172,13 @@ public static class InventoryView
         // Icon from the installed game or the shipped pack; an empty box keeps the rows aligned.
         var icon = new Image
         {
-            Source = ItemIconService.Load(item.ReleaseId, item.IconKey),
             Width = 64,
             Height = 32,
             Stretch = Stretch.Uniform,
             Margin = new Thickness(0, 0, 8, 0),
             VerticalAlignment = VerticalAlignment.Center,
         };
+        ItemIconService.Show(icon, item.ReleaseId, item.IconKey);
         row.Children.Add(icon);
 
         // Title and key
@@ -243,7 +245,7 @@ public static class InventoryView
         // Empty state
         var noSelect = new TextBlock
         {
-            Text = "Выберите предмет для редактирования характеристик",
+            Text = L.T("Выберите предмет для редактирования характеристик"),
             Foreground = StalkerTheme.BrushTextMuted,
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -270,11 +272,11 @@ public static class InventoryView
         var key = new TextBlock { FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         key.Bind(TextBlock.TextProperty, new Binding("SelectedItem.TypeKey"));
         headerCard.Children.Add(key);
-        content.Children.Add(StalkerTheme.Card(headerCard, "Выбранный предмет"));
+        content.Children.Add(StalkerTheme.Card(headerCard, L.T("Выбранный предмет")));
 
         // Durability Card
         var durStack = new StackPanel { Spacing = 6 };
-        var durLabel = new TextBlock { Text = "Состояние / Прочность:", Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 };
+        var durLabel = new TextBlock { Text = L.T("Состояние / Прочность:"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 };
         durStack.Children.Add(durLabel);
 
         var sliderRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
@@ -307,11 +309,11 @@ public static class InventoryView
         quickCondRow.Children.Add(MakeQuickCondButton(vm, "50%", "50"));
         durStack.Children.Add(quickCondRow);
 
-        content.Children.Add(StalkerTheme.Card(durStack, "Прочность"));
+        content.Children.Add(StalkerTheme.Card(durStack, L.T("Прочность")));
 
         // Count Card
         var countStack = new StackPanel { Spacing = 6 };
-        countStack.Children.Add(new TextBlock { Text = "Количество в стаке:", Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 });
+        countStack.Children.Add(new TextBlock { Text = L.T("Количество в стаке:"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 });
         var countBox = new TextBox
         {
             Width = 100,
@@ -324,17 +326,17 @@ public static class InventoryView
         countBox.Bind(TextBox.IsEnabledProperty, new Binding("SelectedItem.CanEditCount"));
         countBox.Bind(ToolTip.TipProperty, new Binding("SelectedItem.CountDisabledReason"));
         countStack.Children.Add(countBox);
-        content.Children.Add(StalkerTheme.Card(countStack, "Количество"));
+        content.Children.Add(StalkerTheme.Card(countStack, L.T("Количество")));
 
         // Placement Card
         var placeStack = new StackPanel { Spacing = 8 };
-        placeStack.Children.Add(new TextBlock { Text = "Размещение:", Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 });
+        placeStack.Children.Add(new TextBlock { Text = L.T("Размещение:"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 });
         var placeButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        placeButtons.Children.Add(MakePlacementButton(vm, "Слот", "slot"));
-        placeButtons.Children.Add(MakePlacementButton(vm, "Пояс", "belt"));
-        placeButtons.Children.Add(MakePlacementButton(vm, "Рюкзак", "ruck"));
+        placeButtons.Children.Add(MakePlacementButton(vm, L.T("Слот"), "slot"));
+        placeButtons.Children.Add(MakePlacementButton(vm, L.T("Пояс"), "belt"));
+        placeButtons.Children.Add(MakePlacementButton(vm, L.T("Рюкзак"), "ruck"));
         placeStack.Children.Add(placeButtons);
-        content.Children.Add(StalkerTheme.Card(placeStack, "Размещение"));
+        content.Children.Add(StalkerTheme.Card(placeStack, L.T("Размещение")));
 
         // Upgrades Card
         var upgList = new ItemsControl
@@ -355,10 +357,10 @@ public static class InventoryView
             }),
         };
         upgList.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedItem.UpgradeItems"));
-        content.Children.Add(StalkerTheme.Card(upgList, "Апгрейды"));
+        content.Children.Add(StalkerTheme.Card(upgList, L.T("Апгрейды")));
 
         // Action Buttons
-        var deleteBtn = StalkerTheme.StalkerButton("Удалить предмет", isPrimary: false);
+        var deleteBtn = StalkerTheme.StalkerButton(L.T("Удалить предмет"), isPrimary: false);
         deleteBtn.Foreground = StalkerTheme.BrushDanger;
         deleteBtn.BorderBrush = StalkerTheme.BrushDanger;
         deleteBtn.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanRemoveItems"));

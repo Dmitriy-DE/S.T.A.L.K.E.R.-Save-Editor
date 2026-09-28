@@ -1,0 +1,34 @@
+name: Web
+
+# The browser edition (StalkerSaveEditor.Browser): WebAssembly build with the Kraken library compiled
+# by the wasm-tools Emscripten. The site is uploaded as an artifact; publishing it is a separate step.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install wasm-tools
+        run: dotnet workload install wasm-tools
+      - name: Build Kraken for WebAssembly
+        run: python tools/build_ooz_native.py --wasm --output-dir artifacts/native-wasm
+      - name: Publish the web edition
+        run: dotnet publish src/StalkerSaveEditor.Browser -c Release -o artifacts/web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: artifacts/web/wwwroot

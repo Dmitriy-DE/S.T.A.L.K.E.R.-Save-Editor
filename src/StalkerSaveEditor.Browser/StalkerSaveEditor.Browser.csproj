@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!-- Web host (decision D15): the same interface as the desktop app, compiled to WebAssembly.
+       Kraken (S.T.A.L.K.E.R. 2) is linked in from artifacts/native-wasm/stalker_ooz.a:
+       (tools/build_ooz_native.py with the wasm switch, output artifacts/native-wasm). -->
+  <PropertyGroup>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>StalkerSaveEditor.Browser</RootNamespace>
+    <WasmEnableThreads>false</WasmEnableThreads>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- The interface binds by property name (reflection); its assemblies are kept whole instead of trimmed. -->
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+  </PropertyGroup>
+  <ItemGroup>
+    <TrimmerRootAssembly Include="StalkerSaveEditor.Desktop" />
+    <TrimmerRootAssembly Include="StalkerSaveEditor.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Browser" Version="11.3.22" />
+    <ProjectReference Include="../StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" />
+    <NativeFileReference Include="../../artifacts/native-wasm/stalker_ooz.a" />
+    <!-- Item icons are fetched by the page on demand. -->
+    <Content Include="../StalkerSaveEditor.Desktop/Assets/Icons/**/*.png" Link="wwwroot/Assets/Icons/%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

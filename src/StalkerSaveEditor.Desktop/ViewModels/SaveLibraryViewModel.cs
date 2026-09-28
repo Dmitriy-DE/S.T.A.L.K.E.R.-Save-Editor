@@ -46,7 +46,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         // The interactive app keeps preferences in settings.json; tests and screenshots never touch it.
         var settingsPath = InteractiveApp ? AppSettings.DefaultPath : null;
         var stored = settingsPath is null ? null : AppSettings.Load(settingsPath);
-        _saveDirectoriesProvider = saveDirectoriesProvider ?? (() => Settings?.SaveDirectories.ToArray() ?? SaveDirectoryDiscovery.GetExistingDirectories());
+        if (stored?.Language is { } language) I18nService.Instance.SetLanguage(language);
+        _saveDirectoriesProvider = saveDirectoriesProvider ?? (HostPlatform.IsBrowser
+            ? () => [HostPlatform.OpenedSavesDirectory]
+            : () => Settings?.SaveDirectories.ToArray() ?? SaveDirectoryDiscovery.GetExistingDirectories());
         _backupDirectoryProvider = backupDirectoryProvider ?? (() => Settings is { BackupDirectory.Length: > 0 } settings ? settings.BackupDirectory : GetDefaultBackupDirectory());
         _draftStore = new DraftStore(draftsDirectory);
         if (!Directory.Exists(_draftStore.DirectoryPath))
@@ -91,7 +94,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             // Items, names and icons of the installed games (and their mods) arrive in the background.
             GameContentRegistry.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(ReloadSelectedSave);
-            _ = Task.Run(() => GameContentRegistry.LoadInstalled());
+            var contentLanguage = I18nService.Instance.CurrentLanguage;
+            _ = Task.Run(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
         }
 
         // Silent background update check; only the real interactive app goes online (not screenshots or tests).
@@ -120,7 +124,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             .Select(other => new CompareCandidate(other.DisplayName, other.FilePath));
         var backups = Backups
             .Where(backup => backup.SourcePath == save.FilePath && File.Exists(backup.BackupPath))
-            .Select(backup => new CompareCandidate("Бэкап " + backup.CreatedAt, backup.BackupPath));
+            .Select(backup => new CompareCandidate(L.T("Бэкап ") + backup.CreatedAt, backup.BackupPath));
         Compare.SetSubject(save.FilePath, save.ReleaseId, backups.Concat(others).ToArray());
     }
 
@@ -374,17 +378,17 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         get
         {
             if (SelectedSave is null)
-                return "Выберите сохранение для редактирования.";
+                return L.T("Выберите сохранение для редактирования.");
             var plan = BuildCurrentEditPlan(SelectedSave);
             if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds))
             {
-                return $"Эта правка для формата {SelectedSave.ReleaseName} не поддерживается (см. «Возможности»).";
+                return L.T("Эта правка для формата {0} не поддерживается (см. «Возможности»).", SelectedSave.ReleaseName);
             }
             if (!HasDraftChanges)
-                return "Нет несохранённых изменений.";
+                return L.T("Нет несохранённых изменений.");
             if (!InputsAreValid(SelectedSave))
-                return "Введены некорректные значения (проверьте введённые числа).";
-            return "Сохранить изменения в файл сейва (с созданием резервной копии).";
+                return L.T("Введены некорректные значения (проверьте введённые числа).");
+            return L.T("Сохранить изменения в файл сейва (с созданием резервной копии).");
         }
     }
 
@@ -407,13 +411,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             if (_currentJournal is not null && _currentJournal.Index > 0)
             {
-                return $"Черновик: {_currentJournal.Index} действ.";
+                return L.T("Черновик: {0} действ.", _currentJournal.Index);
             }
             if (SelectedSave is not null && HasPendingChanges(SelectedSave))
             {
-                return "Есть несохранённые изменения";
+                return L.T("Есть несохранённые изменения");
             }
-            return "Все изменения сохранены";
+            return L.T("Все изменения сохранены");
         }
     }
 
@@ -509,7 +513,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         var parsed = TryReadSave(path);
         if (parsed is null) return false;
-        Saves.Add(parsed);
+        // Opening a file that is already listed (or re-opening it after a change) replaces its entry.
+        var index = Saves.ToList().FindIndex(save => string.Equals(save.FilePath, parsed.FilePath, StringComparison.Ordinal));
+        if (index >= 0) ReplaceSave(index, parsed);
+        else Saves.Add(parsed);
         SelectedSave = parsed;
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
         OnPropertyChanged(nameof(ShouldShowEmptyState));
@@ -565,7 +572,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
 
         UpdateDraftState();
-        StatusMessage = "Черновик сброшен.";
+        StatusMessage = L.T("Черновик сброшен.");
     }
 
     public void AddMoney(string? amountText)
@@ -646,7 +653,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             plan.Placements);
 
         RecordPlan(nextPlan);
-        StatusMessage = $"Предмет {sectionKey} ({quantity} шт.) добавлен в очередь на запись.";
+        StatusMessage = L.T("Предмет {0} ({1} шт.) добавлен в очередь на запись.", sectionKey, quantity);
     }
 
     public void RestoreBackup(BackupRecordViewModel backup, bool inPlace)
@@ -656,19 +663,32 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             if (inPlace)
             {
                 var receipt = LocalSaveStorage.RestoreInPlace(backup.JournalPath);
-                StatusMessage = $"Восстановлено на место. Создан страховочный бэкап: {Path.GetFileName(receipt.SafetyBackupPath)}";
+                StatusMessage = L.T("Восстановлено на место. Создан страховочный бэкап: {0}", Path.GetFileName(receipt.SafetyBackupPath));
             }
             else
             {
                 var targetPath = Path.Combine(Path.GetDirectoryName(backup.SourcePath)!, $"{Path.GetFileNameWithoutExtension(backup.SourceName)}_restored_{DateTime.Now:yyyyMMdd_HHmmss}.sav");
                 var receipt = LocalSaveStorage.RestoreBackup(backup.JournalPath, targetPath);
-                StatusMessage = $"Восстановлено в файл: {Path.GetFileName(receipt.OutputPath)}";
+                StatusMessage = L.T("Восстановлено в файл: {0}", Path.GetFileName(receipt.OutputPath));
             }
             Refresh();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Ошибка восстановления: {ex.Message}";
+            StatusMessage = L.T("Ошибка восстановления: {0}", ex.Message);
+        }
+    }
+
+    /// <summary>Web host: the written save goes back to the user as a download.</summary>
+    private async Task ExportSavedAsync(Func<string, Task> export, string path)
+    {
+        try
+        {
+            await export(path);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            StatusMessage = L.T("Сохранено, но скачивание не началось: ") + exception.Message;
         }
     }
 
@@ -708,12 +728,14 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
             SelectedSave = refreshed;
             RefreshBackups();
-            StatusMessage = $"Сохранено успешно. Backup: {Path.GetFileName(receipt.BackupPath)}";
+            StatusMessage = L.T("Сохранено успешно. Backup: {0}", Path.GetFileName(receipt.BackupPath));
             GameAudioService.Instance.Play(SoundEvent.Save);
+            if (HostPlatform.ExportFile is { } export) _ = ExportSavedAsync(export, refreshed.FilePath);
         }
         catch (Exception exception)
         {
-            StatusMessage = $"Не удалось сохранить: {exception.Message}";
+            StatusMessage = L.T("Не удалось сохранить: {0}", exception.Message);
+            AppLog.Error("save failed", exception);
             GameAudioService.Instance.Play(SoundEvent.Error);
         }
         finally
@@ -1035,19 +1057,19 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             var isS2 = string.Equals(releaseId, "stalker2", StringComparison.OrdinalIgnoreCase);
             var reason = isS2
-                ? "Запись S.T.A.L.K.E.R. 2 выключена в UI до верификации мутаций в живой игре."
-                : $"Запись для формата {releaseId} выключена в UI в целях безопасности.";
+                ? L.T("Запись S.T.A.L.K.E.R. 2 выключена в UI до верификации мутаций в живой игре.")
+                : L.T("Запись для формата {0} выключена в UI в целях безопасности.", releaseId);
             return (false, reason);
         }
 
         try
         {
             var support = CapabilityRegistry.Get(releaseId, capability);
-            return (support.Writable, support.Writable ? null : (support.Reason ?? "Операция не поддерживается данным форматом"));
+            return (support.Writable, support.Writable ? null : (support.Reason ?? L.T("Операция не поддерживается данным форматом")));
         }
         catch (KeyNotFoundException)
         {
-            return (false, "Операция не поддерживается данным форматом");
+            return (false, L.T("Операция не поддерживается данным форматом"));
         }
     }
 
@@ -1073,7 +1095,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var factionReason = canEditFactions ? null : (relationsReason ?? playerFactionReason);
         var (canMoveItems, moveReason) = CheckCapability(formatId, "move_items");
         var canEditStashes = canMoveItems && save.Stashes.Count > 0;
-        var stashesReason = !canMoveItems ? moveReason : (save.Stashes.Count == 0 ? "В сохранении нет тайников" : null);
+        var stashesReason = !canMoveItems ? moveReason : (save.Stashes.Count == 0 ? L.T("В сохранении нет тайников") : null);
         var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
         var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
@@ -1305,16 +1327,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private static string Sha256(ReadOnlySpan<byte> data) =>
         Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
 
-    private static string GetDefaultBackupDirectory()
-    {
-        var localApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (string.IsNullOrWhiteSpace(localApplicationData))
-        {
-            throw new IOException("The local application data directory is not available.");
-        }
-
-        return Path.Combine(localApplicationData, "StalkerSaveEditor", "backups");
-    }
+    // One data folder for the app, the CLI and the cloud screen (STALKER_SAVE_EDITOR_DATA overrides it).
+    private static string GetDefaultBackupDirectory() => AppPaths.Backups;
 
     /// <summary>
     /// Resolves the <c>mods/companion</c> directory for <see cref="CompanionServiceAdapter"/>.
@@ -1357,13 +1371,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private static string ReleaseName(string releaseId) => releaseId switch
     {
-        "stalker-soc" => "Тень Чернобыля",
-        "stalker-soc-ee" => "Тень Чернобыля (Enhanced Edition)",
-        "stalker-cs" => "Чистое Небо",
-        "stalker-cs-ee" => "Чистое Небо (Enhanced Edition)",
-        "stalker-cop" => "Зов Припяти",
-        "stalker-cop-ee" => "Зов Припяти (Enhanced Edition)",
-        "stalker2" => "S.T.A.L.K.E.R. 2: Сердце Чернобыля",
+        "stalker-soc" => L.T("Тень Чернобыля"),
+        "stalker-soc-ee" => L.T("Тень Чернобыля (Enhanced Edition)"),
+        "stalker-cs" => L.T("Чистое Небо"),
+        "stalker-cs-ee" => L.T("Чистое Небо (Enhanced Edition)"),
+        "stalker-cop" => L.T("Зов Припяти"),
+        "stalker-cop-ee" => L.T("Зов Припяти (Enhanced Edition)"),
+        "stalker2" => L.T("S.T.A.L.K.E.R. 2: Сердце Чернобыля"),
         _ => releaseId,
     };
 }

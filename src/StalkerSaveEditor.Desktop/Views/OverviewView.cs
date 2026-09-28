@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -46,7 +47,7 @@ public static class OverviewView
         };
         rows.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(CompareViewModel.Rows)));
         panel.Children.Add(rows);
-        return StalkerTheme.Card(panel, "Сравнить с другим сейвом или бэкапом");
+        return StalkerTheme.Card(panel, L.T("Сравнить с другим сейвом или бэкапом"));
     }
 
     public static Control Build()
@@ -83,7 +84,7 @@ public static class OverviewView
             Spacing = 6,
             Children = { releaseTitle, saveName, savePath }
         };
-        stack.Children.Add(StalkerTheme.Card(headerContent, "Информация о сохранении"));
+        stack.Children.Add(StalkerTheme.Card(headerContent, L.T("Информация о сохранении")));
 
         // Stats Grid
         var statsGrid = new Grid
@@ -92,26 +93,26 @@ public static class OverviewView
             RowDefinitions = new RowDefinitions("Auto,Auto"),
         };
 
-        statsGrid.Children.Add(MakeMetricCell("ДЕНЬГИ", "SelectedSave.MoneyDisplay", 0, 0, StalkerTheme.BrushAccentAmber));
-        statsGrid.Children.Add(MakeMetricCell("ПРЕДМЕТОВ", "SelectedSave.Inventory.Count", 1, 0, StalkerTheme.BrushTextPrimary));
-        statsGrid.Children.Add(MakeMetricCell("ТАЙНИКОВ", "SelectedSave.Stashes.Count", 2, 0, StalkerTheme.BrushTextPrimary));
-        statsGrid.Children.Add(MakeMetricCell("ИГРОВОЕ ВРЕМЯ", "SelectedSave.GameTimeDisplay", 3, 0, StalkerTheme.BrushTextSecondary));
+        statsGrid.Children.Add(MakeMetricCell(L.T("ДЕНЬГИ"), "SelectedSave.MoneyDisplay", 0, 0, StalkerTheme.BrushAccentAmber));
+        statsGrid.Children.Add(MakeMetricCell(L.T("ПРЕДМЕТОВ"), "SelectedSave.Inventory.Count", 1, 0, StalkerTheme.BrushTextPrimary));
+        statsGrid.Children.Add(MakeMetricCell(L.T("ТАЙНИКОВ"), "SelectedSave.Stashes.Count", 2, 0, StalkerTheme.BrushTextPrimary));
+        statsGrid.Children.Add(MakeMetricCell(L.T("ИГРОВОЕ ВРЕМЯ"), "SelectedSave.GameTimeDisplay", 3, 0, StalkerTheme.BrushTextSecondary));
 
-        statsGrid.Children.Add(MakeMetricCell("ПЕРСОНАЖ", "SelectedSave.ActorName", 0, 1, StalkerTheme.BrushTextPrimary));
-        statsGrid.Children.Add(MakeMetricCell("ЗДОРОВЬЕ", "SelectedSave.HealthDisplay", 1, 1, StalkerTheme.BrushSuccess));
-        statsGrid.Children.Add(MakeMetricCell("РАНГ", "SelectedSave.RankDisplay", 2, 1, StalkerTheme.BrushAccentDim));
-        statsGrid.Children.Add(MakeMetricCell("ЛОКАЦИЯ", "SelectedSave.LevelName", 3, 1, StalkerTheme.BrushTextSecondary));
+        statsGrid.Children.Add(MakeMetricCell(L.T("ПЕРСОНАЖ"), "SelectedSave.ActorName", 0, 1, StalkerTheme.BrushTextPrimary));
+        statsGrid.Children.Add(MakeMetricCell(L.T("ЗДОРОВЬЕ"), "SelectedSave.HealthDisplay", 1, 1, StalkerTheme.BrushSuccess));
+        statsGrid.Children.Add(MakeMetricCell(L.T("РАНГ"), "SelectedSave.RankDisplay", 2, 1, StalkerTheme.BrushAccentDim));
+        statsGrid.Children.Add(MakeMetricCell(L.T("ЛОКАЦИЯ"), "SelectedSave.LevelName", 3, 1, StalkerTheme.BrushTextSecondary));
 
-        stack.Children.Add(StalkerTheme.Card(statsGrid, "Параметры сталкера"));
+        stack.Children.Add(StalkerTheme.Card(statsGrid, L.T("Параметры сталкера")));
 
         // File Details & Checksums
         var fileDetails = new StackPanel { Spacing = 6 };
 
-        fileDetails.Children.Add(MakeRow("Размер файла:", "SelectedSave.FileSizeDisplay"));
-        fileDetails.Children.Add(MakeRow("Изменён:", "SelectedSave.LastModifiedDisplay"));
+        fileDetails.Children.Add(MakeRow(L.T("Размер файла:"), "SelectedSave.FileSizeDisplay"));
+        fileDetails.Children.Add(MakeRow(L.T("Изменён:"), "SelectedSave.LastModifiedDisplay"));
         fileDetails.Children.Add(MakeRow("SHA-256:", "SelectedSave.SourceSha256"));
 
-        stack.Children.Add(StalkerTheme.Card(fileDetails, "Целостность и метаданные"));
+        stack.Children.Add(StalkerTheme.Card(fileDetails, L.T("Целостность и метаданные")));
         stack.Children.Add(BuildCompare());
 
         scroll.Content = stack;

@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -21,7 +22,7 @@ public static class SettingsView
         var dirsStack = new StackPanel { Spacing = 8 };
         dirsStack.Children.Add(new TextBlock
         {
-            Text = "Папки автоматического поиска сохранений (ТЧ, ЧН, ЗП, S2):",
+            Text = L.T("Папки автоматического поиска сохранений (ТЧ, ЧН, ЗП, S2):"),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
         });
@@ -50,7 +51,7 @@ public static class SettingsView
 
                 var removeBtn = new Button
                 {
-                    Content = "Удалить",
+                    Content = L.T("Удалить"),
                     FontSize = 10,
                     Padding = new Thickness(6, 2),
                     Background = StalkerTheme.BrushBgElevated,
@@ -77,7 +78,7 @@ public static class SettingsView
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
-            Watermark = "Путь к папке с сейвами (savedgames или SaveGames)…",
+            Watermark = L.T("Путь к папке с сейвами (savedgames или SaveGames)…"),
         };
         addInput.Bind(TextBox.TextProperty, new Binding(nameof(SettingsViewModel.NewSaveDirectory))
         {
@@ -86,7 +87,7 @@ public static class SettingsView
         });
         addRow.Children.Add(addInput);
 
-        var browseBtn = StalkerTheme.StalkerButton("Обзор…", isPrimary: false, minWidth: 80);
+        var browseBtn = StalkerTheme.StalkerButton(L.T("Обзор…"), isPrimary: false, minWidth: 80);
         browseBtn.Margin = new Thickness(8, 0, 0, 0);
         browseBtn.Click += async (_, _) =>
         {
@@ -95,7 +96,7 @@ public static class SettingsView
             {
                 var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
-                    Title = "Выберите папку с сохранениями S.T.A.L.K.E.R.",
+                    Title = L.T("Выберите папку с сохранениями S.T.A.L.K.E.R."),
                     AllowMultiple = false,
                 });
                 if (folders.Count > 0 && folders[0].Path.LocalPath is { } path)
@@ -107,25 +108,25 @@ public static class SettingsView
         Grid.SetColumn(browseBtn, 1);
         addRow.Children.Add(browseBtn);
 
-        var addBtn = StalkerTheme.StalkerButton("Добавить папку", isPrimary: false, minWidth: 120);
+        var addBtn = StalkerTheme.StalkerButton(L.T("Добавить папку"), isPrimary: false, minWidth: 120);
         addBtn.Bind(Button.CommandProperty, new Binding(nameof(SettingsViewModel.AddSaveDirectoryCommand)) { Source = settings });
         addBtn.Margin = new Thickness(8, 0, 0, 0);
         Grid.SetColumn(addBtn, 2);
         addRow.Children.Add(addBtn);
         dirsStack.Children.Add(addRow);
 
-        var autoDetectBtn = StalkerTheme.StalkerButton("Автопоиск папок на диске", isPrimary: false, minWidth: 200);
+        var autoDetectBtn = StalkerTheme.StalkerButton(L.T("Автопоиск папок на диске"), isPrimary: false, minWidth: 200);
         autoDetectBtn.Bind(Button.CommandProperty, new Binding(nameof(SettingsViewModel.AutoDetectSaveDirectoriesCommand)) { Source = settings });
         autoDetectBtn.Margin = new Thickness(0, 6, 0, 0);
         dirsStack.Children.Add(autoDetectBtn);
 
-        stack.Children.Add(StalkerTheme.Card(dirsStack, "Каталоги сохранений"));
+        stack.Children.Add(StalkerTheme.Card(dirsStack, L.T("Каталоги сохранений")));
 
         // 2. Backup Directory Card
         var backupStack = new StackPanel { Spacing = 6 };
         backupStack.Children.Add(new TextBlock
         {
-            Text = "Папка для создания резервных копий и журналов восстановления:",
+            Text = L.T("Папка для создания резервных копий и журналов восстановления:"),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
         });
@@ -141,7 +142,7 @@ public static class SettingsView
             Mode = BindingMode.TwoWay,
         });
         backupStack.Children.Add(backupInput);
-        stack.Children.Add(StalkerTheme.Card(backupStack, "Резервное копирование"));
+        stack.Children.Add(StalkerTheme.Card(backupStack, L.T("Резервное копирование")));
 
         // 3. Interface & Audio Card
         var prefStack = new StackPanel { Spacing = 10 };
@@ -150,7 +151,7 @@ public static class SettingsView
         var langRow = new Grid { ColumnDefinitions = new ColumnDefinitions("160,220") };
         langRow.Children.Add(new TextBlock
         {
-            Text = "Язык интерфейса:",
+            Text = L.T("Язык интерфейса:"),
             Foreground = StalkerTheme.BrushTextPrimary,
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
@@ -173,35 +174,17 @@ public static class SettingsView
         prefStack.Children.Add(langRow);
 
         // Theme
-        var themeRow = new Grid { ColumnDefinitions = new ColumnDefinitions("160,220") };
-        themeRow.Children.Add(new TextBlock
+        prefStack.Children.Add(new TextBlock
         {
-            Text = "Тема оформления:",
-            Foreground = StalkerTheme.BrushTextPrimary,
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
+            Text = L.T("Язык применится после перезапуска приложения."),
+            Foreground = StalkerTheme.BrushTextMuted,
+            FontSize = 11,
         });
-        var themeCombo = new ComboBox
-        {
-            ItemsSource = settings.Themes,
-            Width = 220,
-            Background = StalkerTheme.BrushBgInput,
-            Foreground = StalkerTheme.BrushTextPrimary,
-            BorderBrush = StalkerTheme.BrushBorder,
-        };
-        themeCombo.Bind(ComboBox.SelectedItemProperty, new Binding(nameof(SettingsViewModel.SelectedTheme))
-        {
-            Source = settings,
-            Mode = BindingMode.TwoWay,
-        });
-        Grid.SetColumn(themeCombo, 1);
-        themeRow.Children.Add(themeCombo);
-        prefStack.Children.Add(themeRow);
 
         // Audio
         var soundChk = new CheckBox
         {
-            Content = "Включить звуковые эффекты меню игры",
+            Content = L.T("Включить звуковые эффекты меню игры"),
             Foreground = StalkerTheme.BrushTextPrimary,
             FontSize = 12,
         };
@@ -214,7 +197,7 @@ public static class SettingsView
 
         var musicChk = new CheckBox
         {
-            Content = "Музыка главного меню игры открытого сейва",
+            Content = L.T("Музыка главного меню игры открытого сейва"),
             Foreground = StalkerTheme.BrushTextPrimary,
             FontSize = 12,
         };
@@ -228,7 +211,7 @@ public static class SettingsView
         var volRow = new Grid { ColumnDefinitions = new ColumnDefinitions("160,200,50") };
         volRow.Children.Add(new TextBlock
         {
-            Text = "Громкость звуков:",
+            Text = L.T("Громкость звуков:"),
             Foreground = StalkerTheme.BrushTextPrimary,
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
@@ -264,11 +247,11 @@ public static class SettingsView
         volRow.Children.Add(volText);
         prefStack.Children.Add(volRow);
 
-        stack.Children.Add(StalkerTheme.Card(prefStack, "Интерфейс и звуки"));
+        stack.Children.Add(StalkerTheme.Card(prefStack, L.T("Интерфейс и звуки")));
 
         // Save Button & Status
         var saveRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(0, 10, 0, 0) };
-        var saveSettingsBtn = StalkerTheme.StalkerButton("Сохранить настройки", isPrimary: true, minWidth: 160);
+        var saveSettingsBtn = StalkerTheme.StalkerButton(L.T("Сохранить настройки"), isPrimary: true, minWidth: 160);
         saveSettingsBtn.Bind(Button.CommandProperty, new Binding(nameof(SettingsViewModel.SaveSettingsCommand)) { Source = settings });
         saveRow.Children.Add(saveSettingsBtn);
 
@@ -303,7 +286,7 @@ public static class SettingsView
         crash.Bind(Visual.IsVisibleProperty, new Binding(nameof(DiagnosticsViewModel.HasPendingCrash)));
         crash.Children.Add(new TextBlock
         {
-            Text = "Прошлый запуск завершился ошибкой. Сохраните отчёт и приложите его к issue.",
+            Text = L.T("Прошлый запуск завершился ошибкой. Сохраните отчёт и приложите его к issue."),
             Foreground = StalkerTheme.BrushDanger,
             TextWrapping = TextWrapping.Wrap,
         });
@@ -313,25 +296,25 @@ public static class SettingsView
         panel.Children.Add(crash);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var check = StalkerTheme.StalkerButton("Проверить окружение", isPrimary: true, minWidth: 170);
+        var check = StalkerTheme.StalkerButton(L.T("Проверить окружение"), isPrimary: true, minWidth: 170);
         check.Bind(Button.CommandProperty, new Binding(nameof(DiagnosticsViewModel.RunChecksCommand)));
         buttons.Children.Add(check);
 
-        var export = StalkerTheme.StalkerButton("Сохранить отчёт…", isPrimary: false, minWidth: 150);
+        var export = StalkerTheme.StalkerButton(L.T("Сохранить отчёт…"), isPrimary: false, minWidth: 150);
         export.Click += async (_, _) =>
         {
             var topLevel = TopLevel.GetTopLevel(export);
             if (topLevel?.StorageProvider is not { } storage) return;
             var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Отчёт для поддержки",
+                Title = L.T("Отчёт для поддержки"),
                 SuggestedFileName = "save-editor-report.txt.gz",
             });
             if (file?.TryGetLocalPath() is { } path) diagnostics.ExportBundle(path);
         };
         buttons.Children.Add(export);
 
-        var dismiss = StalkerTheme.StalkerButton("Скрыть ошибку", isPrimary: false, minWidth: 130);
+        var dismiss = StalkerTheme.StalkerButton(L.T("Скрыть ошибку"), isPrimary: false, minWidth: 130);
         dismiss.Bind(Button.CommandProperty, new Binding(nameof(DiagnosticsViewModel.DismissCrashCommand)));
         dismiss.Bind(Visual.IsVisibleProperty, new Binding(nameof(DiagnosticsViewModel.HasPendingCrash)));
         buttons.Children.Add(dismiss);
@@ -363,6 +346,6 @@ public static class SettingsView
             }),
         });
 
-        return StalkerTheme.Card(panel, "Диагностика");
+        return StalkerTheme.Card(panel, L.T("Диагностика"));
     }
 }

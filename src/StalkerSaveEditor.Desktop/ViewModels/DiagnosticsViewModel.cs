@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using StalkerSaveEditor.Core.Diagnostics;
@@ -55,7 +56,7 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
     public async Task RunChecksAsync()
     {
         IsChecking = true;
-        Status = "Проверяю…";
+        Status = L.T("Проверяю…");
         try
         {
             _lastChecks = await Task.Run(_runChecks);
@@ -64,8 +65,8 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
             var failed = _lastChecks.Count(check => check.Status == CheckStatus.Fail);
             var warned = _lastChecks.Count(check => check.Status == CheckStatus.Warn);
             Status = failed + warned == 0
-                ? "Всё в порядке."
-                : string.Create(CultureInfo.InvariantCulture, $"Ошибок: {failed}, предупреждений: {warned}.");
+                ? L.T("Всё в порядке.")
+                : L.T("Ошибок: {0}, предупреждений: {1}.", failed, warned);
         }
         finally
         {
@@ -79,12 +80,12 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
         try
         {
             var path = DiagnosticsBundle.Export(destination, _lastChecks.Count == 0 ? null : EnvironmentDoctor.Format(_lastChecks));
-            Status = "Отчёт сохранён: " + path;
+            Status = L.T("Отчёт сохранён: ") + path;
             return path;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            Status = "Не удалось сохранить отчёт: " + exception.Message;
+            Status = L.T("Не удалось сохранить отчёт: ") + exception.Message;
             return null;
         }
     }
@@ -98,7 +99,7 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
     }
 
     internal static EnvironmentCheckRow ToRow(EnvironmentCheck check) => new(
-        check.Status switch { CheckStatus.Ok => "OK", CheckStatus.Warn => "!", _ => "✕" },
+        check.Status switch { CheckStatus.Ok => "OK", CheckStatus.Warn => "!", _ => "×" },
         $"{check.Group} · {check.Name}",
         check.Detail,
         check.Hint);

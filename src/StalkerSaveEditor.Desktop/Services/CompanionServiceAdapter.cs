@@ -105,7 +105,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
             var gameBuild = reply.Text.StartsWith("pong ", StringComparison.Ordinal) ? reply.Text[5..].Trim() : null;
             var bundled = CreateInstaller().BundledModBuild;
             _buildWarnings[game] = bundled is not null && !string.Equals(gameBuild, bundled, StringComparison.Ordinal)
-                ? $"В игре работает мод версии {gameBuild ?? "старее 2026.09.28"}, в редакторе — {bundled}. Нажмите «Установить / обновить» и перезапустите игру."
+                ? L.T("В игре работает мод версии {0}, в редакторе — {1}. Нажмите «Установить / обновить» и перезапустите игру.", gameBuild ?? L.T("старее 2026.09.28"), bundled)
                 : null;
             return sw.Elapsed;
         }
@@ -157,15 +157,15 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
             var wayland = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
             if (string.IsNullOrEmpty(display) && !string.IsNullOrEmpty(wayland))
             {
-                reason = "Горячие клавиши требуют X11 или XWayland. " +
-                         "Сеанс Wayland без XWayland не поддерживается.";
+                reason = L.T("Горячие клавиши требуют X11 или XWayland. ") +
+                         L.T("Сеанс Wayland без XWayland не поддерживается.");
                 return false;
             }
         }
 
         if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
         {
-            reason = "Горячие клавиши поддерживаются только на Windows и Linux (X11/XWayland).";
+            reason = L.T("Горячие клавиши поддерживаются только на Windows и Linux (X11/XWayland).");
             return false;
         }
 
@@ -185,7 +185,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         var gameDir = GetResolvedGameDir(game);
         if (gameDir is null)
         {
-            return (false, "Папка игры не найдена. Укажите путь вручную.");
+            return (false, L.T("Папка игры не найдена. Укажите путь вручную."));
         }
 
         try
@@ -301,11 +301,11 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
 
     private static string ActionDescription(CompanionHotkeyAction action) => action switch
     {
-        CompanionHotkeyAction.Heal => "Быстрое лечение и снятие радиации",
-        CompanionHotkeyAction.RepairEquipped => "Починка экипированного оружия и брони",
-        CompanionHotkeyAction.Mark => "Поставить метку на текущем месте",
-        CompanionHotkeyAction.JumpLast => "Мгновенный прыжок к последней телепорт-метке",
-        CompanionHotkeyAction.QuickSave => "Быстрое сохранение с меткой времени",
+        CompanionHotkeyAction.Heal => L.T("Быстрое лечение и снятие радиации"),
+        CompanionHotkeyAction.RepairEquipped => L.T("Починка экипированного оружия и брони"),
+        CompanionHotkeyAction.Mark => L.T("Поставить метку на текущем месте"),
+        CompanionHotkeyAction.JumpLast => L.T("Мгновенный прыжок к последней телепорт-метке"),
+        CompanionHotkeyAction.QuickSave => L.T("Быстрое сохранение с меткой времени"),
         _ => action.ToString(),
     };
 

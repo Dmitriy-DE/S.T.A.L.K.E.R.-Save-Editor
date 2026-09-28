@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using System.Collections.ObjectModel;
 using System.Globalization;
 
@@ -51,54 +52,54 @@ public sealed class SaveFileSummary
         Money = money;
         CanEditMoney = canEditMoney;
         MoneyDisabledReason = canEditMoney
-            ? "Изменить баланс сталкера"
-            : moneyDisabledReason ?? "Редактирование денег не поддерживается данным форматом";
+            ? L.T("Изменить баланс сталкера")
+            : moneyDisabledReason ?? L.T("Редактирование денег не поддерживается данным форматом");
         FileSizeBytes = fileSizeBytes;
         LastModified = lastModified;
 
-        ActorName = actorName ?? "Дегтярёв / Сталкер";
+        ActorName = actorName ?? L.T("Дегтярёв / Сталкер");
         ActorHealth = actorHealth;
         ActorRank = actorRank;
         ActorReputation = actorReputation;
         GameTime = gameTime;
         TimeFactor = timeFactor;
-        LevelName = levelName ?? "Зона";
+        LevelName = levelName ?? L.T("Зона");
         PlayerFaction = playerFaction;
 
         CanEditFaction = canEditFaction;
         FactionDisabledReason = canEditFaction
-            ? "Редактировать отношения с группировками"
-            : factionDisabledReason ?? "Редактирование отношений фракций не поддерживается данным форматом";
+            ? L.T("Редактировать отношения с группировками")
+            : factionDisabledReason ?? L.T("Редактирование отношений фракций не поддерживается данным форматом");
 
         CanEditUpgrades = canEditUpgrades;
         UpgradesDisabledReason = canEditUpgrades
-            ? "Редактировать апгрейды"
-            : upgradesDisabledReason ?? "Модификации оружия и брони не поддерживаются форматом";
+            ? L.T("Редактировать апгрейды")
+            : upgradesDisabledReason ?? L.T("Модификации оружия и брони не поддерживаются форматом");
 
         CanEditDurability = canEditDurability;
         DurabilityDisabledReason = canEditDurability
-            ? "Редактировать состояние предметов"
-            : durabilityDisabledReason ?? "Редактирование прочности не поддерживается форматом";
+            ? L.T("Редактировать состояние предметов")
+            : durabilityDisabledReason ?? L.T("Редактирование прочности не поддерживается форматом");
 
         CanEditPlacement = canEditPlacement;
         PlacementDisabledReason = canEditPlacement
-            ? "Перемещать предметы"
-            : placementDisabledReason ?? "Перемещение предметов не поддерживается данным форматом";
+            ? L.T("Перемещать предметы")
+            : placementDisabledReason ?? L.T("Перемещение предметов не поддерживается данным форматом");
 
         CanEditStashes = canEditStashes;
         StashesDisabledReason = canEditStashes
-            ? "Переместить хабар из тайников"
-            : stashesDisabledReason ?? "В сохранении нет тайников с предметами или операция не поддерживается";
+            ? L.T("Переместить хабар из тайников")
+            : stashesDisabledReason ?? L.T("В сохранении нет тайников с предметами или операция не поддерживается");
 
         CanAddItems = canAddItems;
         AddItemsDisabledReason = canAddItems
-            ? "Добавить предмет из каталога в инвентарь"
-            : addItemsDisabledReason ?? "Добавление предметов не поддерживается данным форматом";
+            ? L.T("Добавить предмет из каталога в инвентарь")
+            : addItemsDisabledReason ?? L.T("Добавление предметов не поддерживается данным форматом");
 
         CanRemoveItems = canRemoveItems;
         RemoveItemsDisabledReason = canRemoveItems
-            ? "Удалить выбранный предмет из инвентаря"
-            : removeItemsDisabledReason ?? "Удаление предметов не поддерживается данным форматом";
+            ? L.T("Удалить выбранный предмет из инвентаря")
+            : removeItemsDisabledReason ?? L.T("Удаление предметов не поддерживается данным форматом");
 
         CrcOk = crcOk;
 
@@ -154,7 +155,7 @@ public sealed class SaveFileSummary
                 if (StalkerSaveEditor.Core.Inspection.SavePreviewReader.Stalker2Slot(FilePath) is { } slot)
                 {
                     var region = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(slot.RegionSlug.Replace('_', ' '));
-                    return string.Create(CultureInfo.InvariantCulture, $"{region} · {slot.PlayHours:0.#} ч");
+                    return L.T("{0} · {1:0.#} ч", region, slot.PlayHours);
                 }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
@@ -210,9 +211,9 @@ public sealed class SaveFileSummary
 
     public string FileSizeDisplay => FileSizeBytes switch
     {
-        > 1024 * 1024 => $"{(double)FileSizeBytes / (1024 * 1024):F1} МБ",
-        > 1024 => $"{(double)FileSizeBytes / 1024:F0} КБ",
-        _ => $"{FileSizeBytes} Б",
+        > 1024 * 1024 => L.T("{0:F1} МБ", (double)FileSizeBytes / (1024 * 1024)),
+        > 1024 => L.T("{0:F0} КБ", (double)FileSizeBytes / 1024),
+        _ => L.T("{0} Б", FileSizeBytes),
     };
 
     public string LastModifiedDisplay => LastModified.HasValue
@@ -241,18 +242,18 @@ public sealed class SaveFileSummary
 
     public string RankDisplay => ActorRank.HasValue ? ActorRank.Value switch
     {
-        >= 900 => "Мастер",
-        >= 600 => "Ветеран",
-        >= 300 => "Опытный",
-        _ => "Новичок",
-    } : "Опытный";
+        >= 900 => L.T("Мастер"),
+        >= 600 => L.T("Ветеран"),
+        >= 300 => L.T("Опытный"),
+        _ => L.T("Новичок"),
+    } : L.T("Опытный");
 
     public string ReputationDisplay => ActorReputation.HasValue ? ActorReputation.Value switch
     {
-        >= 100 => "Отличная",
-        >= 20 => "Хорошая",
-        >= -20 => "Нейтральная",
-        >= -100 => "Плохая",
-        _ => "Очень плохая",
-    } : "Нейтральная";
+        >= 100 => L.T("Отличная"),
+        >= 20 => L.T("Хорошая"),
+        >= -20 => L.T("Нейтральная"),
+        >= -100 => L.T("Плохая"),
+        _ => L.T("Очень плохая"),
+    } : L.T("Нейтральная");
 }

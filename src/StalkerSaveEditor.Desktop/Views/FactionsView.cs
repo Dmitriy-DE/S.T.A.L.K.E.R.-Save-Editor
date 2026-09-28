@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -26,20 +27,20 @@ public static class FactionsView
         };
         curFactionText.Bind(TextBlock.TextProperty, new Binding("SelectedSave.PlayerFaction")
         {
-            StringFormat = "Текущая группировка игрока: {0}",
-            TargetNullValue = "Одиночки",
+            StringFormat = L.T("Текущая группировка игрока: {0}"),
+            TargetNullValue = L.T("Одиночки"),
         });
         playerFactionStack.Children.Add(curFactionText);
 
         var playerFactionHint = new TextBlock
         {
-            Text = "Группировка определяет начальные отношения и доступ к базам фракций в X-Ray.",
+            Text = L.T("Группировка определяет начальные отношения и доступ к базам фракций в X-Ray."),
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextSecondary,
         };
         playerFactionStack.Children.Add(playerFactionHint);
 
-        stack.Children.Add(StalkerTheme.Card(playerFactionStack, "Группировка игрока"));
+        stack.Children.Add(StalkerTheme.Card(playerFactionStack, L.T("Группировка игрока")));
 
         // Faction Relations Table Card
         var relationsList = new ItemsControl
@@ -53,14 +54,14 @@ public static class FactionsView
             ColumnDefinitions = new ColumnDefinitions("160,100,100,*"),
             Margin = new Thickness(8, 0, 8, 8),
         };
-        tableHeader.Children.Add(new TextBlock { Text = "ГРУППИРОВКА", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted });
-        var col1 = new TextBlock { Text = "ОЧКИ", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
+        tableHeader.Children.Add(new TextBlock { Text = L.T("ГРУППИРОВКА"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted });
+        var col1 = new TextBlock { Text = L.T("ОЧКИ"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         Grid.SetColumn(col1, 1);
         tableHeader.Children.Add(col1);
-        var col2 = new TextBlock { Text = "СТАТУС", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
+        var col2 = new TextBlock { Text = L.T("СТАТУС"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         Grid.SetColumn(col2, 2);
         tableHeader.Children.Add(col2);
-        var col3 = new TextBlock { Text = "БЫСТРЫЕ ДЕЙСТВИЯ", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
+        var col3 = new TextBlock { Text = L.T("БЫСТРЫЕ ДЕЙСТВИЯ"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         Grid.SetColumn(col3, 3);
         tableHeader.Children.Add(col3);
 
@@ -70,7 +71,7 @@ public static class FactionsView
             Children = { tableHeader, relationsList }
         };
 
-        stack.Children.Add(StalkerTheme.Card(tableContainer, "Отношения с группировками"));
+        stack.Children.Add(StalkerTheme.Card(tableContainer, L.T("Отношения с группировками")));
 
         scroll.Content = stack;
         return scroll;
@@ -122,9 +123,9 @@ public static class FactionsView
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         actions.Children.Add(MakeActionBtn("+100", () => vm.AdjustFactionRelation(rel, 100), rel));
         actions.Children.Add(MakeActionBtn("-100", () => vm.AdjustFactionRelation(rel, -100), rel));
-        actions.Children.Add(MakeActionBtn("Друг (+1500)", () => rel.Goodwill = 1500, rel));
-        actions.Children.Add(MakeActionBtn("Нейтрал (0)", () => rel.Goodwill = 0, rel));
-        actions.Children.Add(MakeActionBtn("Враг (-1500)", () => rel.Goodwill = -1500, rel));
+        actions.Children.Add(MakeActionBtn(L.T("Друг (+1500)"), () => rel.Goodwill = 1500, rel));
+        actions.Children.Add(MakeActionBtn(L.T("Нейтрал (0)"), () => rel.Goodwill = 0, rel));
+        actions.Children.Add(MakeActionBtn(L.T("Враг (-1500)"), () => rel.Goodwill = -1500, rel));
 
         Grid.SetColumn(actions, 3);
         grid.Children.Add(actions);

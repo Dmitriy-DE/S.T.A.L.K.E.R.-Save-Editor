@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -20,7 +21,7 @@ public static class BackupsView
         };
 
         // Header and Refresh Button
-        var refreshBtn = StalkerTheme.StalkerButton("Обновить бэкапы", isPrimary: false, minWidth: 140);
+        var refreshBtn = StalkerTheme.StalkerButton(L.T("Обновить бэкапы"), isPrimary: false, minWidth: 140);
         refreshBtn.Click += (_, _) => vm.RefreshBackups();
 
         var topGrid = new Grid
@@ -30,7 +31,7 @@ public static class BackupsView
         };
         var intro = new TextBlock
         {
-            Text = "Резервные копии создаются автоматически перед каждой операцией записи в соответствии с правилами безопасности.",
+            Text = L.T("Резервные копии создаются автоматически перед каждой операцией записи в соответствии с правилами безопасности."),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
@@ -46,17 +47,17 @@ public static class BackupsView
             ColumnDefinitions = new ColumnDefinitions("160,180,110,*,260"),
             Margin = new Thickness(8, 0, 8, 8),
         };
-        tableHeader.Children.Add(new TextBlock { Text = "ДАТА СОЗДАНИЯ", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted });
-        var c1 = new TextBlock { Text = "ИСХОДНЫЙ СЕЙВ", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
+        tableHeader.Children.Add(new TextBlock { Text = L.T("ДАТА СОЗДАНИЯ"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted });
+        var c1 = new TextBlock { Text = L.T("ИСХОДНЫЙ СЕЙВ"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         Grid.SetColumn(c1, 1);
         tableHeader.Children.Add(c1);
-        var c2 = new TextBlock { Text = "СТАТУС", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
+        var c2 = new TextBlock { Text = L.T("СТАТУС"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         Grid.SetColumn(c2, 2);
         tableHeader.Children.Add(c2);
-        var c3 = new TextBlock { Text = "РЕЗУЛЬТАТ", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
+        var c3 = new TextBlock { Text = L.T("РЕЗУЛЬТАТ"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         Grid.SetColumn(c3, 3);
         tableHeader.Children.Add(c3);
-        var c4 = new TextBlock { Text = "ДЕЙСТВИЯ", FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
+        var c4 = new TextBlock { Text = L.T("ДЕЙСТВИЯ"), FontWeight = FontWeight.Bold, FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
         Grid.SetColumn(c4, 4);
         tableHeader.Children.Add(c4);
 
@@ -106,7 +107,7 @@ public static class BackupsView
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         var restoreInPlaceBtn = new Button
         {
-            Content = "Восстановить",
+            Content = L.T("Восстановить"),
             FontSize = 11,
             Padding = new Thickness(8, 4),
             Background = StalkerTheme.BrushBgElevated,
@@ -120,7 +121,7 @@ public static class BackupsView
 
         var restoreAsBtn = new Button
         {
-            Content = "В копию",
+            Content = L.T("В копию"),
             FontSize = 11,
             Padding = new Thickness(8, 4),
             Background = StalkerTheme.BrushBgElevated,

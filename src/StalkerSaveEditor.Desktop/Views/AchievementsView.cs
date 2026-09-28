@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Desktop.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -28,7 +29,7 @@ public sealed class AchievementsView : UserControl
         var headerPanel = new StackPanel { Spacing = 8, Margin = new Thickness(0, 0, 0, 14) };
         headerPanel.Children.Add(new TextBlock
         {
-            Text = "ДОСТИЖЕНИЯ STEAM",
+            Text = L.T("ДОСТИЖЕНИЯ STEAM"),
             FontSize = 18,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
@@ -66,9 +67,9 @@ public sealed class AchievementsView : UserControl
             Width = 260,
             ItemsSource = new[]
             {
-                new ComboBoxItem { Content = "S.T.A.L.K.E.R.: Зов Припяти (41700)", Tag = 41700 },
-                new ComboBoxItem { Content = "S.T.A.L.K.E.R.: Чистое Небо (20510)", Tag = 20510 },
-                new ComboBoxItem { Content = "S.T.A.L.K.E.R.: Тень Чернобыля (4500)", Tag = 4500 },
+                new ComboBoxItem { Content = L.T("S.T.A.L.K.E.R.: Зов Припяти (41700)"), Tag = 41700 },
+                new ComboBoxItem { Content = L.T("S.T.A.L.K.E.R.: Чистое Небо (20510)"), Tag = 20510 },
+                new ComboBoxItem { Content = L.T("S.T.A.L.K.E.R.: Тень Чернобыля (4500)"), Tag = 4500 },
                 new ComboBoxItem { Content = "S.T.A.L.K.E.R. 2: Heart of Chornobyl (1643320)", Tag = 1643320 },
             },
             SelectedIndex = 0,
@@ -87,7 +88,7 @@ public sealed class AchievementsView : UserControl
 
         var searchBox = new TextBox
         {
-            Watermark = "Поиск по названию или описанию...",
+            Watermark = L.T("Поиск по названию или описанию..."),
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorderSubtle,
@@ -96,7 +97,7 @@ public sealed class AchievementsView : UserControl
         Grid.SetColumn(searchBox, 2);
         controlRow.Children.Add(searchBox);
 
-        var refreshBtn = StalkerTheme.StalkerButton("ОБНОВИТЬ");
+        var refreshBtn = StalkerTheme.StalkerButton(L.T("ОБНОВИТЬ"));
         refreshBtn.Bind(Button.CommandProperty, new Binding(nameof(AchievementsViewModel.RefreshCommand)));
         Grid.SetColumn(refreshBtn, 4);
         controlRow.Children.Add(refreshBtn);
@@ -211,7 +212,7 @@ public sealed class AchievementsView : UserControl
                 row.Children.Add(statusBadge);
 
                 // Toggle Button
-                var toggleBtn = StalkerTheme.StalkerButton(item.IsAchieved ? "СНЯТЬ" : "ПОЛУЧИТЬ", isPrimary: !item.IsAchieved);
+                var toggleBtn = StalkerTheme.StalkerButton(item.IsAchieved ? L.T("СНЯТЬ") : L.T("ПОЛУЧИТЬ"), isPrimary: !item.IsAchieved);
                 toggleBtn.VerticalAlignment = VerticalAlignment.Center;
                 toggleBtn.Click += (s, e) =>
                 {
@@ -271,11 +272,11 @@ public sealed class AchievementsView : UserControl
         modalStack.Children.Add(modalMsg);
 
         var modalBtnRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,12,*") };
-        var confirmBtn = StalkerTheme.StalkerButton("ПОДТВЕРДИТЬ", isPrimary: true);
+        var confirmBtn = StalkerTheme.StalkerButton(L.T("ПОДТВЕРДИТЬ"), isPrimary: true);
         confirmBtn.Bind(Button.CommandProperty, new Binding(nameof(AchievementsViewModel.ConfirmToggleCommand)));
         modalBtnRow.Children.Add(confirmBtn);
 
-        var cancelBtn = StalkerTheme.StalkerButton("ОТМЕНА", isPrimary: false);
+        var cancelBtn = StalkerTheme.StalkerButton(L.T("ОТМЕНА"), isPrimary: false);
         cancelBtn.Bind(Button.CommandProperty, new Binding(nameof(AchievementsViewModel.CancelToggleCommand)));
         Grid.SetColumn(cancelBtn, 2);
         modalBtnRow.Children.Add(cancelBtn);

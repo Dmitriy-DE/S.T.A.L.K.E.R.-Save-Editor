@@ -6,18 +6,15 @@ namespace StalkerSaveEditor.Core.Tests.Desktop;
 public sealed class SettingsViewModelTests
 {
     [Fact]
-    public void SettingsViewModel_InitializesWith14LanguagesAnd3Themes()
+    public void SettingsViewModel_InitializesWith15Languages()
     {
         var vm = new SettingsViewModel(
             saveDirectories: ["/path/one", "/path/two"],
             backupDirectory: "/path/backups",
-            currentLanguageCode: "en",
-            currentThemeId: "game");
+            currentLanguageCode: "en");
 
         Assert.Equal(15, vm.Languages.Count); // 14 translated + 1 original ru
         Assert.Equal("en", vm.SelectedLanguage.Code);
-        Assert.Equal(3, vm.Themes.Count);
-        Assert.Equal("game", vm.SelectedTheme.Id);
         Assert.Equal(2, vm.SaveDirectories.Count);
         Assert.Equal("/path/backups", vm.BackupDirectory);
         Assert.True(vm.SoundEnabled);
@@ -56,19 +53,6 @@ public sealed class SettingsViewModelTests
         vm.RemoveSaveDirectory("/path/one");
         Assert.Single(vm.SaveDirectories);
         Assert.DoesNotContain("/path/one", vm.SaveDirectories);
-    }
-
-    [Fact]
-    public void ThemeSelection_UpdatesSelectedTheme()
-    {
-        var vm = new SettingsViewModel(
-            saveDirectories: [],
-            backupDirectory: "/path/backups");
-
-        var darkTheme = Assert.Single(vm.Themes, t => t.Id == "dark");
-        vm.SelectedTheme = darkTheme;
-
-        Assert.Equal("dark", vm.SelectedTheme.Id);
     }
 
     [Fact]

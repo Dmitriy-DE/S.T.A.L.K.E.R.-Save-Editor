@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Desktop host (Windows, Linux, macOS): the window, screenshot modes and the Steam worker entry point.
+       The interface itself lives in StalkerSaveEditor.Desktop, shared with the browser host. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>StalkerSaveEditor</AssemblyName>
+    <RootNamespace>StalkerSaveEditor.Desktop</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
+    <ProjectReference Include="../StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" />
+  </ItemGroup>
+</Project>

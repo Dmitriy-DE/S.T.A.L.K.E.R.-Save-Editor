@@ -59,6 +59,54 @@ def _source_root(work: Path, archive_path: Path) -> Path:
     return candidates[0]
 
 
+def _emscripten_env() -> tuple[dict[str, str], Path]:
+    """emcc of the .NET wasm-tools workload (DOTNET_ROOT or ~/.dotnet), with the variables its config expects."""
+
+    roots = [Path(os.environ[name]) for name in ("DOTNET_ROOT",) if os.environ.get(name)] + [Path.home() / ".dotnet", Path("/usr/lib/dotnet"), Path("/usr/share/dotnet")]
+    for root in roots:
+        sdks = sorted((root / "packs").glob("Microsoft.NET.Runtime.Emscripten.*.Sdk.*/*/tools"))
+        nodes = sorted((root / "packs").glob("Microsoft.NET.Runtime.Emscripten.*.Node.*/*/tools/bin/node"))
+        if sdks and nodes:
+            tools = sdks[-1]
+            env = dict(os.environ)
+            env.update(
+                DOTNET_EMSCRIPTEN_LLVM_ROOT=str(tools / "bin"),
+                DOTNET_EMSCRIPTEN_BINARYEN_ROOT=str(tools),
+                DOTNET_EMSCRIPTEN_NODE_JS=str(nodes[-1]),
+                EM_CACHE=str(Path(tempfile.gettempdir()) / "save-editor-emcache"),
+                EM_FROZEN_CACHE="0",
+            )
+            return env, tools / "emscripten"
+    raise SystemExit("emcc not found: install the wasm-tools workload (dotnet workload install wasm-tools)")
+
+
+def build_wasm(output_dir: Path, archive_path: Path = ARCHIVE) -> Path:
+    """stalker_ooz.a for the browser build (NativeFileReference of StalkerSaveEditor.Browser)."""
+
+    output_dir = output_dir.expanduser().resolve()
+    _check_archive(archive_path)
+    wrapper = Path(__file__).with_name("ooz_native.cpp")
+    env, emscripten = _emscripten_env()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output = output_dir / "stalker_ooz.a"
+    with tempfile.TemporaryDirectory(prefix="save-editor-ooz-wasm-") as temporary:
+        work = Path(temporary)
+        source_root = _source_root(work / "source", archive_path)
+        ooz_root = source_root / "ooz" / "dep" / "ooz"
+        objects = []
+        for source in [wrapper, *(ooz_root / name for name in COMPRESSOR_SOURCES)]:
+            obj = work / (source.stem + ".o")
+            subprocess.run(
+                [sys.executable, str(emscripten / "emcc.py"), "-O2", "-std=c++14", "-fvisibility=hidden",
+                 f"-I{source_root}", f"-I{ooz_root / 'simde'}", "-c", str(source), "-o", str(obj)],
+                check=True, cwd=work, env=env)
+            objects.append(str(obj))
+        output.unlink(missing_ok=True)
+        subprocess.run([sys.executable, str(emscripten / "emar.py"), "rcs", str(output), *objects], check=True, env=env)
+    print(output)
+    return output
+
+
 def build(output_dir: Path, archive_path: Path = ARCHIVE) -> Path:
     output_dir = output_dir.expanduser().resolve()
     _check_archive(archive_path)
@@ -130,8 +178,9 @@ def build(output_dir: Path, archive_path: Path = ARCHIVE) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--wasm", action="store_true", help="build stalker_ooz.a for the browser with the wasm-tools emcc")
     args = parser.parse_args()
-    build(args.output_dir)
+    (build_wasm if args.wasm else build)(args.output_dir)
     return 0
 
 

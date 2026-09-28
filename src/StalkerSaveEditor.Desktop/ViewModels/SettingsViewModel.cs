@@ -20,6 +20,34 @@ public sealed class SettingsViewModel : ObservableViewModel
     private string _settingsStatus = string.Empty;
     private bool _musicEnabled;
     private readonly string? _settingsPath;
+    private AppSettings _stored;
+    private bool _sendReports;
+
+    public bool SendReports
+    {
+        get => _sendReports;
+        set => SetProperty(ref _sendReports, value);
+    }
+
+    /// <summary>The first-run notice about reports is still to be answered.</summary>
+    public bool ReportsNoticeVisible => !_stored.ReportsNoticeShown;
+
+    public DateTime? LastReportUtc => _stored.LastReportUtc;
+
+    /// <summary>Answer to the notice: keep sending (default) or switch it off.</summary>
+    public void AnswerReportsNotice(bool send)
+    {
+        SendReports = send;
+        _stored = ToSettings() with { ReportsNoticeShown = true };
+        TryPersist();
+        OnPropertyChanged(nameof(ReportsNoticeVisible));
+    }
+
+    public void MarkReportSent(DateTime utc)
+    {
+        _stored = ToSettings() with { LastReportUtc = utc };
+        TryPersist();
+    }
 
     /// <summary>Raised after the user saved; the window applies sound settings.</summary>
     public event EventHandler? Saved;
@@ -38,6 +66,8 @@ public sealed class SettingsViewModel : ObservableViewModel
         AppSettings? stored = null)
     {
         _settingsPath = settingsPath;
+        _stored = stored ?? new AppSettings();
+        _sendReports = _stored.SendReports;
         if (stored is not null)
         {
             currentLanguageCode = stored.Language ?? currentLanguageCode;
@@ -194,8 +224,9 @@ public sealed class SettingsViewModel : ObservableViewModel
         }
     }
 
-    public AppSettings ToSettings() => new()
+    public AppSettings ToSettings() => _stored with
     {
+        SendReports = SendReports,
         SaveDirectories = [.. SaveDirectories],
         BackupDirectory = BackupDirectory,
         Language = SelectedLanguage.Code,

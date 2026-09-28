@@ -32,6 +32,24 @@ public sealed class SettingsAndAudioTests : IDisposable
     }
 
     [Fact]
+    public void The_reports_notice_is_answered_once_and_the_answer_is_kept()
+    {
+        var path = Path.Combine(_directory, "settings.json");
+        var settings = new SettingsViewModel(["/a"], "/b", settingsPath: path);
+        Assert.True(settings.ReportsNoticeVisible);
+        Assert.True(settings.SendReports);
+
+        settings.AnswerReportsNotice(send: false);
+        settings.MarkReportSent(new DateTime(2026, 9, 28, 0, 0, 0, DateTimeKind.Utc));
+        var stored = AppSettings.Load(path);
+
+        Assert.True(stored.ReportsNoticeShown);
+        Assert.False(stored.SendReports);
+        Assert.NotNull(stored.LastReportUtc);
+        Assert.False(new SettingsViewModel(["/a"], "/b", settingsPath: path, stored: stored).ReportsNoticeVisible);
+    }
+
+    [Fact]
     public void Damaged_settings_fall_back_to_defaults()
     {
         Directory.CreateDirectory(_directory);

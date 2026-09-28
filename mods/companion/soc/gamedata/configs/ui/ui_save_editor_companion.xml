@@ -23,36 +23,54 @@
 			<text font="letterica16" r="162" g="157" b="144" align="r" vert_align="c"/>
 		</header>
 		<tab_marker x="62" y="116" width="3" height="34" stretch="1"><texture>ui\se_companion\amber</texture></tab_marker>
-		<tab_player x="62" y="116" width="160" height="34" stretch="1">
+		<tab_modes x="62" y="116" width="160" height="34" stretch="1">
+			<texture_e>ui\se_companion\tab_e</texture_e>
+			<texture_h>ui\se_companion\tab_h</texture_h>
+			<texture_t>ui\se_companion\tab_t</texture_t>
+			<text font="letterica18" align="l" x="22">Режимы</text>
+		</tab_modes>
+		<tab_player x="62" y="156" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Персонаж</text>
 		</tab_player>
-		<tab_inventory x="62" y="156" width="160" height="34" stretch="1">
+		<tab_inventory x="62" y="196" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Инвентарь</text>
 		</tab_inventory>
-		<tab_spawn x="62" y="196" width="160" height="34" stretch="1">
+		<tab_spawn x="62" y="236" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Спавн</text>
 		</tab_spawn>
-		<tab_teleport x="62" y="236" width="160" height="34" stretch="1">
+		<tab_npc x="62" y="276" width="160" height="34" stretch="1">
+			<texture_e>ui\se_companion\tab_e</texture_e>
+			<texture_h>ui\se_companion\tab_h</texture_h>
+			<texture_t>ui\se_companion\tab_t</texture_t>
+			<text font="letterica18" align="l" x="22">NPC</text>
+		</tab_npc>
+		<tab_teleport x="62" y="316" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Телепорт</text>
 		</tab_teleport>
-		<tab_world x="62" y="276" width="160" height="34" stretch="1">
+		<tab_world x="62" y="356" width="160" height="34" stretch="1">
 			<texture_e>ui\se_companion\tab_e</texture_e>
 			<texture_h>ui\se_companion\tab_h</texture_h>
 			<texture_t>ui\se_companion\tab_t</texture_t>
 			<text font="letterica18" align="l" x="22">Мир</text>
 		</tab_world>
+		<tab_map x="62" y="396" width="160" height="34" stretch="1">
+			<texture_e>ui\se_companion\tab_e</texture_e>
+			<texture_h>ui\se_companion\tab_h</texture_h>
+			<texture_t>ui\se_companion\tab_t</texture_t>
+			<text font="letterica18" align="l" x="22">Карта</text>
+		</tab_map>
 		<btn_filter_prev x="242" y="116" width="28" height="24" stretch="1">
 			<texture_e>ui\se_companion\btn_e</texture_e>
 			<texture_h>ui\se_companion\btn_h</texture_h>
@@ -66,7 +84,7 @@
 				<d r="113" g="111" b="103"/>
 			</text_color>
 		</btn_filter_prev>
-		<btn_filter x="272" y="116" width="360" height="24" stretch="1">
+		<btn_filter x="272" y="116" width="170" height="24" stretch="1">
 			<texture_e>ui\se_companion\btn_e</texture_e>
 			<texture_h>ui\se_companion\btn_h</texture_h>
 			<texture_t>ui\se_companion\btn_t</texture_t>
@@ -79,7 +97,7 @@
 				<d r="113" g="111" b="103"/>
 			</text_color>
 		</btn_filter>
-		<btn_filter_next x="634" y="116" width="28" height="24" stretch="1">
+		<btn_filter_next x="444" y="116" width="28" height="24" stretch="1">
 			<texture_e>ui\se_companion\btn_e</texture_e>
 			<texture_h>ui\se_companion\btn_h</texture_h>
 			<texture_t>ui\se_companion\btn_t</texture_t>
@@ -92,6 +110,10 @@
 				<d r="113" g="111" b="103"/>
 			</text_color>
 		</btn_filter_next>
+		<search x="478" y="116" width="184" height="23">
+			<texture>ui_linetext_e</texture>
+			<text x="3" font="letterica16" r="240" g="217" b="182"/>
+		</search>
 		<list_panel x="242" y="146" width="420" height="504" stretch="1"><texture>ui\se_companion\panel</texture></list_panel>
 		<list_line_t x="242" y="146" width="420" height="1" stretch="1"><texture>ui\se_companion\line_soft</texture></list_line_t>
 		<list_line_b x="242" y="649" width="420" height="1" stretch="1"><texture>ui\se_companion\line_soft</texture></list_line_b>
@@ -108,14 +130,18 @@
 			<texture>ui_checker</texture>
 			<text font="letterica18" vert_align="c" r="216" g="210" b="190">Бесконечная выносливость</text>
 		</check_stamina>
-		<check_repair x="252" y="268" width="360" height="29">
+		<check_repair x="252" y="232" width="360" height="29">
 			<texture>ui_checker</texture>
 			<text font="letterica18" vert_align="c" r="216" g="210" b="190">Авторемонт надетого</text>
 		</check_repair>
-		<check_ammo x="252" y="304" width="360" height="29">
+		<check_ammo x="252" y="268" width="360" height="29">
 			<texture>ui_checker</texture>
 			<text font="letterica18" vert_align="c" r="216" g="210" b="190">Бесконечные патроны</text>
 		</check_ammo>
+		<check_life x="252" y="304" width="360" height="29">
+			<texture>ui_checker</texture>
+			<text font="letterica18" vert_align="c" r="216" g="210" b="190">Запасная жизнь (один раз)</text>
+		</check_life>
 		<picture_panel x="682" y="116" width="260" height="170" stretch="1"><texture>ui\se_companion\panel</texture></picture_panel>
 		<picture_line x="682" y="285" width="260" height="1" stretch="1"><texture>ui\se_companion\line_soft</texture></picture_line>
 		<picture x="686" y="120" width="252" height="162" stretch="1"/>

@@ -23,12 +23,48 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
     private bool _isChecking;
     private IReadOnlyList<EnvironmentCheck> _lastChecks = [];
 
-    public DiagnosticsViewModel(Func<IReadOnlyList<EnvironmentCheck>>? runChecks = null, string? pendingCrash = null)
+    private readonly Func<byte[], Task<string>>? _upload;
+    private readonly Action<DateTime>? _onSent;
+
+    public DiagnosticsViewModel(
+        Func<IReadOnlyList<EnvironmentCheck>>? runChecks = null,
+        string? pendingCrash = null,
+        Func<byte[], Task<string>>? upload = null,
+        Action<DateTime>? onSent = null)
     {
         _runChecks = runChecks ?? (() => EnvironmentDoctor.Run());
         _pendingCrash = pendingCrash;
+        _upload = upload;
+        _onSent = onSent;
         RunChecksCommand = new RelayCommand(async () => await RunChecksAsync(), () => !IsChecking);
         DismissCrashCommand = new RelayCommand(DismissCrash);
+        SendNowCommand = new RelayCommand(async () => await SendAsync(automatic: false), () => _upload is not null);
+    }
+
+    public RelayCommand SendNowCommand { get; }
+
+    private byte[] Bundle() => DiagnosticsBundle.Create(
+        _lastChecks.Count == 0 ? null : EnvironmentDoctor.Format(_lastChecks),
+        DiagnosticsUploader.Stalker2ModLogs());
+
+    /// <summary>Uploads the redacted bundle; the automatic daily report is silent unless it fails.</summary>
+    public async Task<string?> SendAsync(bool automatic)
+    {
+        if (_upload is null) return null;
+        try
+        {
+            var id = await _upload(Bundle());
+            _onSent?.Invoke(DateTime.UtcNow);
+            AppLog.Info("report sent " + id);
+            if (!automatic) Status = L.T("Отчёт отправлен, номер: {0}", id);
+            return id;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or IOException or System.Text.Json.JsonException)
+        {
+            AppLog.Warn("report not sent", exception);
+            if (!automatic) Status = L.T("Отчёт не отправлен: {0}", exception.Message);
+            return null;
+        }
     }
 
     public ObservableCollection<EnvironmentCheckRow> Checks { get; } = [];
@@ -79,7 +115,10 @@ public sealed class DiagnosticsViewModel : ObservableViewModel
     {
         try
         {
-            var path = DiagnosticsBundle.Export(destination, _lastChecks.Count == 0 ? null : EnvironmentDoctor.Format(_lastChecks));
+            if (Directory.Exists(destination)) throw new IOException(L.T("Указана папка, а не файл."));
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destination))!);
+            File.WriteAllBytes(destination, Bundle());
+            var path = destination;
             Status = L.T("Отчёт сохранён: ") + path;
             return path;
         }

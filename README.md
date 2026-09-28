@@ -38,6 +38,15 @@ proven stay read-only; the **Capabilities** tab shows, per game, what can be wri
 - **Interface** — 14 languages, the games' own menu sounds and optional main-menu music, crash report
   and «Check environment» under Settings → Diagnostics.
 - **Web edition** — the same interface in the browser (WebAssembly); files never leave the browser.
+- **S.T.A.L.K.E.R. 2 companion (experimental)** — a UE4SS mod, installed only on request; it logs
+  everything it does so problems can be fixed.
+
+### Reports
+
+To find bugs, the desktop editor sends its log to the developer once a day and right after a crash
+(the S.T.A.L.K.E.R. 2 mod's log is included). Paths, user names and Steam IDs are removed; saves are
+never sent. Nothing is sent until you have seen the notice on the first start, and it can be switched
+off there or in Settings → Diagnostics.
 
 ## How to Install & Run
 

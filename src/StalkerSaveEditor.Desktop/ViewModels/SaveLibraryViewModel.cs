@@ -88,7 +88,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
         if (discoverLocalSaves) Refresh();
 
-        Diagnostics = new DiagnosticsViewModel(pendingCrash: InteractiveApp ? CrashReporter.Pending() : null);
+        Diagnostics = new DiagnosticsViewModel(
+            pendingCrash: InteractiveApp ? CrashReporter.Pending() : null,
+            upload: InteractiveApp ? bundle => DiagnosticsUploader.SendAsync(bundle) : null,
+            onSent: Settings.MarkReportSent);
+        AcknowledgeReportsCommand = new RelayCommand(() => AnswerReportsNotice(true));
+        DisableReportsCommand = new RelayCommand(() => AnswerReportsNotice(false));
+        SendReportIfDue();
 
         if (InteractiveApp)
         {
@@ -106,6 +112,23 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public static bool InteractiveApp { get; set; }
 
     public DiagnosticsViewModel Diagnostics { get; }
+
+    public RelayCommand AcknowledgeReportsCommand { get; }
+    public RelayCommand DisableReportsCommand { get; }
+
+    private void AnswerReportsNotice(bool send)
+    {
+        Settings.AnswerReportsNotice(send);
+        SendReportIfDue();
+    }
+
+    /// <summary>Daily redacted report (and one after a crash), only after the user has seen the notice.</summary>
+    private void SendReportIfDue()
+    {
+        if (!InteractiveApp || !Settings.SendReports || Settings.ReportsNoticeVisible) return;
+        if (!DiagnosticsUploader.IsDue(Settings.LastReportUtc, DateTime.UtcNow, CrashReporter.Pending() is not null)) return;
+        _ = Task.Run(() => Diagnostics.SendAsync(automatic: true));
+    }
 
     public CompareViewModel Compare { get; }
 

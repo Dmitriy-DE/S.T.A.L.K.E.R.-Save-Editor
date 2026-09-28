@@ -105,7 +105,7 @@ internal static class Program
     }
 
     private const string CompanionUsage =
-        "Usage: companion <status|install|uninstall> <soc|cs|cop|all> [--game-dir DIR] [--mods DIR]";
+        "Usage: companion <status|install|uninstall> <soc|cs|cop|s2|all> [--game-dir DIR] [--mods DIR]  (s2 is experimental and needs UE4SS)";
 
     /// <summary>
     /// Companion mod for the installer and scripts. "all" acts on every game that is found and skips
@@ -130,6 +130,8 @@ internal static class Program
                     throw new ArgumentException(CompanionUsage);
             }
         }
+
+        if (args[2] == "s2") return CompanionS2(args[1], gameDirectory, mods);
 
         CompanionGame[] games = args[2] switch
         {
@@ -173,6 +175,20 @@ internal static class Program
         }
 
         return failed ? 1 : 0;
+    }
+
+    private static int CompanionS2(string command, string? gameDirectory, string mods)
+    {
+        var installer = new Stalker2CompanionInstaller(mods);
+        var status = command switch
+        {
+            "install" => installer.Install(gameDirectory),
+            "uninstall" => Stalker2CompanionInstaller.Uninstall(gameDirectory),
+            _ => Stalker2CompanionInstaller.GetStatus(gameDirectory),
+        };
+        Console.WriteLine("Stalker2 (experimental): " + (status.ModInstalled ? "installed " + status.ModBuild : "not installed") +
+            (status.Issue is null ? string.Empty : " (" + status.Issue + ")"));
+        return status.Issue is null || command == "status" ? 0 : 1;
     }
 
     private static int ReadCommand(string[] args, ReadMode mode)

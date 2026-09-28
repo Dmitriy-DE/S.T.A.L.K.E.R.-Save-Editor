@@ -219,6 +219,8 @@ public sealed class CompanionViewModel : ObservableViewModel
 
     public RelayCommand InstallCheckedCommand { get; private set; } = null!;
 
+    private const string Stalker2ReleaseId = "stalker2";
+
     public async Task RefreshGamesAsync()
     {
         var rows = new List<CompanionGameRow>();
@@ -233,6 +235,23 @@ public sealed class CompanionViewModel : ObservableViewModel
                 CompanionState.Error => L.T("ошибка: ") + (status.ErrorMessage ?? L.T("проверьте файлы")),
                 _ => found ? L.T("мод не установлен") : L.T("игра не найдена"),
             }));
+        }
+
+        if (_service is CompanionServiceAdapter adapter)
+        {
+            var s2 = await Task.Run(adapter.Stalker2Status);
+            rows.Add(new CompanionGameRow(
+                Stalker2ReleaseId,
+                L.T("S.T.A.L.K.E.R. 2 (экспериментально, нужен UE4SS)"),
+                s2.GameFound && s2.LoaderFound,
+                s2.GameDirectory ?? L.T("не найдена"),
+                !s2.GameFound ? L.T("игра не найдена")
+                    : !s2.LoaderFound ? L.T("нет UE4SS: установите его, затем мод")
+                    : s2.Issue is not null ? L.T("ошибка: ") + s2.Issue
+                    : s2.ModInstalled ? L.T("мод установлен ") + s2.ModBuild : L.T("мод не установлен"))
+            {
+                IsChecked = false, // experimental: only when the player asks for it
+            });
         }
 
         Games.Clear();
@@ -257,7 +276,9 @@ public sealed class CompanionViewModel : ObservableViewModel
                 bool ok;
                 try
                 {
-                    ok = await _service.InstallAsync(row.ReleaseId);
+                    ok = row.ReleaseId == Stalker2ReleaseId && _service is CompanionServiceAdapter s2Adapter
+                        ? (await Task.Run(s2Adapter.InstallStalker2)).ModInstalled
+                        : await _service.InstallAsync(row.ReleaseId);
                 }
                 catch (Exception exception) when (exception is not OutOfMemoryException)
                 {

@@ -171,9 +171,13 @@ internal static partial class InstalledGameCatalogBuilder
             lowered.StartsWith("wpn_", StringComparison.Ordinal) || lowered.StartsWith("weapon_", StringComparison.Ordinal)) return "weapon";
         if (className.StartsWith("G_", StringComparison.Ordinal) || StartsWithAny(lowered, "grenade", "rgd", "f1_")) return "grenade";
         if (className is "DETECTOR" or "DEVICE" || StartsWithAny(lowered, "device_", "detector_")) return "device";
-        if (StartsWithAny(lowered, "outfit_", "scientific_", "helm_", "armor_")) return "outfit";
-        if (StartsWithAny(lowered, "af_", "artifact_")) return "artifact";
-        if (StartsWithAny(lowered, "medkit", "bandage", "antirad", "drug_", "food_", "bread", "kolbasa", "vodka", "energy")) return "consumable";
+        // Engine classes first: mods name their suits and food freely (OGSM's cs_heavy_outfit, …).
+        if (className is "E_STLK" or "EQU_STLK" or "E_HLMET" or "EQU_HLMT" || lowered.EndsWith("_outfit", StringComparison.Ordinal) ||
+            StartsWithAny(lowered, "outfit_", "scientific_", "helm_", "armor_")) return "outfit";
+        if (className is "ARTEFACT" or "SCRPTART" || className.StartsWith("AF_", StringComparison.Ordinal) ||
+            StartsWithAny(lowered, "af_", "artifact_")) return "artifact";
+        if (className is "II_FOOD" or "S_FOOD" or "II_MEDKI" or "II_BANDG" or "II_ANTIR" or "II_BOTTL" ||
+            StartsWithAny(lowered, "medkit", "bandage", "antirad", "drug_", "food_", "bread", "kolbasa", "vodka", "energy")) return "consumable";
         if (values.ContainsKey("inv_name") || values.ContainsKey("inv_name_short")) return "item";
         return null;
     }

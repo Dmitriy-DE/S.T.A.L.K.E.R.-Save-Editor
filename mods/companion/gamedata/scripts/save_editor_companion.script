@@ -25,7 +25,7 @@
 
 local PROTOCOL = "v1"
 -- Bump on every change of the mod files: the editor compares it with the build it installs.
-local MOD_BUILD = "2026.09.28"
+local MOD_BUILD = "2026.09.28.2"
 local POLL_MS_DEFAULT = 2000
 local POLL_MS_HOTKEYS = 250
 local MAX_GIVE = 100

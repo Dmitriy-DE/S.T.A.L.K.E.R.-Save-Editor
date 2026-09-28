@@ -177,7 +177,7 @@ public static class DiagnosticsBundle
 {
     private const int MaxBytes = 2 * 1024 * 1024;
 
-    public static byte[] Create(string? environmentReport = null)
+    public static byte[] Create(string? environmentReport = null, IEnumerable<string>? extraLogs = null)
     {
         var builder = new StringBuilder();
         builder.Append("S.T.A.L.K.E.R. Save Editor ").Append(ApplicationVersion.Current).Append(", ")
@@ -195,6 +195,21 @@ public static class DiagnosticsBundle
                 var text = AppLog.Redact(File.ReadAllText(path));
                 var room = MaxBytes - builder.Length;
                 builder.Append("--- ").Append(name).Append(" ---\n").Append(text.Length > room ? text[^room..] : text).Append('\n');
+            }
+            catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        // Other logs worth reading with ours, e.g. the experimental S.T.A.L.K.E.R. 2 mod's; last 256 KB each.
+        foreach (var path in extraLogs ?? [])
+        {
+            if (builder.Length >= MaxBytes || !File.Exists(path)) continue;
+            try
+            {
+                var text = AppLog.Redact(File.ReadAllText(path));
+                var room = Math.Min(MaxBytes - builder.Length, 256 * 1024);
+                builder.Append("--- ").Append(Path.GetFileName(path)).Append(" ---\n").Append(text.Length > room ? text[^room..] : text).Append('\n');
             }
             catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
             {

@@ -797,7 +797,8 @@ public static class XRayTrilogyReader
         string? name = null;
         if (version > 104)
         {
-            name = reader.ReadZeroTerminatedString();
+            // Player-visible text: X-Ray writes it in cp1251 (the Python oracle decodes the same way).
+            name = reader.ReadDisplayString();
             if (name.Length == 0)
             {
                 name = null;
@@ -1168,6 +1169,21 @@ public static class XRayTrilogyReader
             }
 
             var value = Encoding.UTF8.GetString(_data.Slice(Position, terminator));
+            Position += terminator + 1;
+            return value;
+        }
+
+        /// <summary>Zero-terminated player-visible text: strict UTF-8, otherwise cp1251.</summary>
+        public string ReadDisplayString()
+        {
+            var available = Math.Min(Remaining, MaximumStringLength + 1);
+            var terminator = _data.Slice(Position, available).IndexOf((byte)0);
+            if (terminator < 0)
+            {
+                throw Error($"{_label}: zero-terminated string отсутствует или слишком длинная");
+            }
+
+            var value = Content.LtxDocument.Decode(_data.Slice(Position, terminator));
             Position += terminator + 1;
             return value;
         }

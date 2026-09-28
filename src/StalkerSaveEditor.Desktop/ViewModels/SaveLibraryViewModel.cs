@@ -749,13 +749,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 placements.Add(new XRayPlacementChange(item.Handle, item.Placement, item.Placement == "slot" ? (item.BaseSlot ?? 1) : null));
             }
 
-            if (item.CanEditUpgrades && item.HasUpgrades)
+            if (item.UpgradesChanged)
             {
-                var currentInstalled = item.UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).ToList();
-                if (!currentInstalled.SequenceEqual(item.OriginalUpgrades, StringComparer.Ordinal))
-                {
-                    upgrades.Add((ushort)item.Handle, currentInstalled);
-                }
+                upgrades.Add((ushort)item.Handle, item.UpgradesToWrite());
             }
         }
 
@@ -1263,7 +1259,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             (i.CanEditCount && !string.Equals(i.OriginalCount?.ToString(CultureInfo.InvariantCulture), i.CountInput, StringComparison.Ordinal)) ||
             (i.CanEditCondition && i.OriginalCondition.HasValue && Math.Abs(i.ConditionFraction - i.OriginalCondition.Value) > 0.005f) ||
             (i.CanEditPlacement && !string.Equals(i.Placement, i.OriginalPlacement, StringComparison.Ordinal)) ||
-            (i.CanEditUpgrades && i.HasUpgrades && !i.UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).SequenceEqual(i.OriginalUpgrades, StringComparer.Ordinal))))
+            i.UpgradesChanged))
             return true;
 
         if (save.Stashes.Any(s => s.Items.Any(i => i.IsTaken)))

@@ -35,14 +35,17 @@ proven stay read-only; the **Capabilities** tab shows, per game, what can be wri
   explicit confirmation (never retried automatically); view and toggle achievements.
 - **Companion mod** — installs into every SoC/CS/CoP found and gives an in-game menu (Esc → F1) with
   live cheats, teleport marks, weather and more; the app talks to it through a file protocol.
-- **Game Doctor** — checks a manually selected game folder, Steam build ID, unclassified loose files,
-  Companion state, toolkit Game Fix manifests and file hashes. S.T.A.L.K.E.R. 2 custom mods can be
-  moved out of Paks and restored by an explicit action.
+- **Game Doctor** — discovers Steam-manifest installs for all supported targets plus existing
+  non-Steam trilogy locations, then checks the selected folder and build ID. It verifies per-file
+  Companion and toolkit Game Fix ownership hashes, and labels other loose files unclassified rather
+  than guessing they conflict. S.T.A.L.K.E.R. 2 custom mods can be moved out of Paks and restored by
+  an explicit action.
 - **Save Doctor** — read-only structural parsing for a selected save. Quest semantics and repairs are
   reported as unknown until a validated rule exists.
 - **Game Fixes** — explicit catalogue, per-target/build gates, source and maturity details, and
-  guarded install/remove actions through the shared atomic game-file layer. One Clear Sky fix is
-  available as Experimental and is excluded from safe presets; no game-runtime result is claimed.
+  guarded install/remove actions and transactional Essential, Recommended and All safe presets
+  through the shared atomic game-file layer. One Clear Sky fix is available as Experimental and is
+  excluded from safe presets; no game-runtime result is claimed.
 - **Crash Analyzer** — extracts X-Ray fatal fields, Lua errors, script file/line references and common
   engine exceptions from a log selected by the user. Unknown logs receive no fix recommendation.
 - **Interface** — 15 languages, the games' own menu sounds and optional main-menu music, crash report
@@ -115,10 +118,12 @@ dotnet test
 ./tools/check_companion.sh
 
 # Inspect a selected game install, save, or crash log
+stalker-save-editor-cli doctor discover --json
 stalker-save-editor-cli doctor game cs "/path/to/Clear Sky"
 stalker-save-editor-cli doctor save "/path/to/save.sav" --json
 stalker-save-editor-cli crash analyse "/path/to/xray.log" --json
 stalker-save-editor-cli fixes list --json
+stalker-save-editor-cli fixes apply-preset recommended cs "/path/to/Clear Sky" --json
 
 # Verify i18n coverage across all locales
 dotnet run --project src/StalkerSaveEditor.App -- --test-i18n
@@ -159,4 +164,5 @@ In accordance with our [Reliability Charter](docs/roadmap/RL-reliability.md), ev
 - [Game Fix catalogue and safety model](docs/GAME_FIXES.md)
 - [Game Fix research ledger](docs/GAME_FIX_RESEARCH.md)
 - [Game / Save Doctor and Crash Analyzer](docs/GAME_DOCTOR.md)
+- [Profiles, snapshots and rollback status](docs/PROFILES.md)
 - [Safety Rules & Agent Guidelines](AGENTS.md)

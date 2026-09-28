@@ -31,7 +31,9 @@ The current filesystem seam and atomic writer are internal to Core. Providers ar
 
 Configuration editors, profiles and future patch types should add Core providers on this seam rather than writing game files from UI code. They still need their own parsers, target/build gates, manifest ownership, exact conflict behavior, backup format and whole-operation rollback. The existence of a shared writer does not grant a capability to mutate an unverified format.
 
-The shared layer does not currently provide cross-provider transactions, package-installer integration, or stacked transformations. Game Fix version updates are supported only as a per-fix transaction with an increasing numeric version and the same managed file set; bulk presets remain unavailable until every selected fix can be applied and rolled back as one transaction.
+The shared layer does not currently provide cross-provider transactions, package-installer integration, or stacked transformations. Game Fix version updates are supported only as a per-fix transaction with an increasing numeric version and the same managed file set. Essential-only, Recommended and All-safe presets use a Game Fix batch transaction: all selected definitions are preflighted, newly installed fixes are rolled back if a later install fails, and fixes that were already installed are left in place. The shipped safe presets are currently empty because the catalogue contains no Validated definitions.
+
+Game Doctor reads the Companion and Game Fix manifests through their providers to show per-file ownership and hash state. It marks other loose files as unclassified because the toolkit does not include complete retail baselines. The audit is read-only and does not attempt to resolve third-party conflicts.
 
 ## Verification
 

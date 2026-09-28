@@ -92,6 +92,20 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         UpgradeItems = new ObservableCollection<UpgradeItemViewModel>(upgradeViewModels);
     }
 
+    /// <summary>Installed upgrades differ from the save as a set (the save keeps install order, the UI tree order).</summary>
+    public bool UpgradesChanged =>
+        CanEditUpgrades && HasUpgrades &&
+        !UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).ToHashSet(StringComparer.Ordinal).SetEquals(OriginalUpgrades);
+
+    /// <summary>Upgrades to write: the save's own order for kept ones, newly installed ones appended (install order).</summary>
+    public List<string> UpgradesToWrite()
+    {
+        var installed = UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).ToList();
+        var kept = OriginalUpgrades.Where(key => installed.Contains(key, StringComparer.Ordinal)).ToList();
+        kept.AddRange(installed.Where(key => !kept.Contains(key, StringComparer.Ordinal)));
+        return kept;
+    }
+
     public string Name { get; }
     public string TypeKey { get; }
     public string ReleaseId { get; }

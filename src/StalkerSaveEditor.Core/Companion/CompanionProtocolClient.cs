@@ -107,7 +107,8 @@ public sealed class CompanionProtocolClient
                     if (CompanionProtocolReply.TryGetId(replyText, out var replyId) &&
                         string.Equals(replyId, id, StringComparison.Ordinal))
                     {
-                        return CompanionProtocolReply.Parse(replyText);
+                        var reply = CompanionProtocolReply.Parse(replyText);
+                        return reply with { ReplyFileLastWriteTimeUtc = GetReplyLastWriteTimeUtc(replyPath) };
                     }
                 }
 
@@ -215,6 +216,14 @@ public sealed class CompanionProtocolClient
     private static bool IsSingleToken(string value) =>
         !string.IsNullOrWhiteSpace(value) && value.All(character => !char.IsWhiteSpace(character) && !char.IsControl(character));
 
+    private static DateTimeOffset? GetReplyLastWriteTimeUtc(string replyPath)
+    {
+        var replyFile = new FileInfo(replyPath);
+        return replyFile.Exists
+            ? new DateTimeOffset(replyFile.LastWriteTimeUtc, TimeSpan.Zero)
+            : null;
+    }
+
     private static void PublishCommand(string temporaryPath, string commandPath, string line)
     {
         try
@@ -295,6 +304,8 @@ public enum CompanionReplyStatus
 
 public sealed record CompanionProtocolReply(string Id, CompanionReplyStatus Status, string Text)
 {
+    public DateTimeOffset? ReplyFileLastWriteTimeUtc { get; init; }
+
     public string WireStatus => Status switch
     {
         CompanionReplyStatus.Ok => "ok",

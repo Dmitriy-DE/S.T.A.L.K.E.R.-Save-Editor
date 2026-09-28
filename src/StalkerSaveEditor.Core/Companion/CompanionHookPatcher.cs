@@ -9,6 +9,8 @@ internal static partial class CompanionHookPatcher
     private const string UpdateHook = "if save_editor_companion then save_editor_companion.update() end";
     private const string UseItemAnchor = "function actor_binder:use_inventory_item(obj)";
     private const string UseItemHook = "if save_editor_companion then save_editor_companion.on_use(obj) end";
+    private const string UseObjectAnchor = "self.object:set_callback(callback.on_item_drop, self.on_item_drop, self)";
+    private const string UseObjectHook = "if save_editor_companion then self.object:set_callback(callback.use_object, function(_, obj) save_editor_companion.on_use(obj) end) end";
     private const string MenuFunctionAnchor = "function main_menu:OnKeyboard";
     private const string WindowKeyAnchor = "if keyboard_action == WINDOW_KEY_PRESSED then";
     private const string QuitKeyAnchor = "if dik == DIK_Q then";
@@ -17,16 +19,18 @@ internal static partial class CompanionHookPatcher
 
     private static readonly Encoding Latin1 = Encoding.Latin1;
 
-    public static byte[] PatchBindStalker(byte[] original)
+    public static byte[] PatchBindStalker(byte[] original, CompanionGame game)
     {
         var text = Latin1.GetString(original);
         text = InsertAfterAnchorLine(text, UpdateAnchor, UpdateHook, "scripts/bind_stalker.script");
-        text = InsertAfterAnchorLine(
-            text,
-            UseItemAnchor,
-            UseItemHook,
-            "scripts/bind_stalker.script",
-            indentFromFollowingLine: true);
+        text = game == CompanionGame.CallOfPripyat
+            ? InsertAfterAnchorLine(
+                text,
+                UseItemAnchor,
+                UseItemHook,
+                "scripts/bind_stalker.script",
+                indentFromFollowingLine: true)
+            : InsertAfterAnchorLine(text, UseObjectAnchor, UseObjectHook, "scripts/bind_stalker.script");
         return Latin1.GetBytes(text);
     }
 
@@ -57,7 +61,7 @@ internal static partial class CompanionHookPatcher
         return Latin1.GetBytes(text);
     }
 
-    public static byte[] PatchQuestItems(byte[] original)
+    public static byte[] PatchQuestItems(byte[] original, string filePath)
     {
         var text = Latin1.GetString(original);
         var includeCount = Count(text, QuestInclude);
@@ -68,7 +72,7 @@ internal static partial class CompanionHookPatcher
                 return original;
             }
 
-            throw AnchorError("configs/misc/quest_items.ltx", "companion include already exists outside the end of file");
+            throw AnchorError(filePath, "companion include already exists outside the end of file");
         }
 
         var newline = FindNewline(text);
@@ -81,11 +85,13 @@ internal static partial class CompanionHookPatcher
         return Latin1.GetBytes(text);
     }
 
-    public static byte[] RemoveBindStalkerHooks(byte[] installed)
+    public static byte[] RemoveBindStalkerHooks(byte[] installed, CompanionGame game)
     {
         var text = Latin1.GetString(installed);
         text = RemoveAfterAnchorLine(text, UpdateAnchor, UpdateHook, "scripts/bind_stalker.script");
-        text = RemoveAfterAnchorLine(text, UseItemAnchor, UseItemHook, "scripts/bind_stalker.script");
+        text = game == CompanionGame.CallOfPripyat
+            ? RemoveAfterAnchorLine(text, UseItemAnchor, UseItemHook, "scripts/bind_stalker.script")
+            : RemoveAfterAnchorLine(text, UseObjectAnchor, UseObjectHook, "scripts/bind_stalker.script");
         return Latin1.GetBytes(text);
     }
 
@@ -111,12 +117,12 @@ internal static partial class CompanionHookPatcher
         return Latin1.GetBytes(text);
     }
 
-    public static byte[] RemoveQuestInclude(byte[] installed)
+    public static byte[] RemoveQuestInclude(byte[] installed, string filePath)
     {
         var text = Latin1.GetString(installed);
         if (Count(text, QuestInclude) != 1 || !string.Equals(LastNonEmptyLine(text), QuestInclude, StringComparison.Ordinal))
         {
-            throw AnchorError("configs/misc/quest_items.ltx", "installed companion include is missing or ambiguous");
+            throw AnchorError(filePath, "installed companion include is missing or ambiguous");
         }
 
         var lineStart = text.LastIndexOf(QuestInclude, StringComparison.Ordinal);

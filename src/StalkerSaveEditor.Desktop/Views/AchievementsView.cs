@@ -150,7 +150,7 @@ public sealed class AchievementsView : UserControl
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
-            ItemTemplate = new FuncDataTemplate<AchievementItemViewModel>((item, _) =>
+            ItemTemplate = StalkerTheme.Template<AchievementItemViewModel>(item =>
             {
                 var row = new Grid
                 {

@@ -74,9 +74,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         WizardAutoDetectCommand = new RelayCommand(WizardAutoDetect);
         WizardAddDirectoryCommand = new RelayCommand(WizardAddDirectory, () => !string.IsNullOrWhiteSpace(WizardDirectoryInput));
 
+        // Refresh selects a save, which updates the comparison: it must exist first.
+        Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
         if (discoverLocalSaves) Refresh();
 
-        Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
         Diagnostics = new DiagnosticsViewModel(pendingCrash: InteractiveApp ? CrashReporter.Pending() : null);
 
         if (InteractiveApp)
@@ -489,6 +490,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         UpdateCompareSubject();
     }
 
+    /// <summary>Remove + insert: Avalonia's virtualizing list throws on a Replace notification for the selected row.</summary>
+    private void ReplaceSave(int index, SaveFileSummary save)
+    {
+        Saves.RemoveAt(index);
+        Saves.Insert(index, save);
+    }
+
     public bool AddPreviewSave(string path)
     {
         var parsed = TryReadSave(path);
@@ -687,7 +695,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
 
             var index = Saves.IndexOf(selected);
-            if (index >= 0) Saves[index] = refreshed;
+            if (index >= 0) ReplaceSave(index, refreshed);
             else Saves.Add(refreshed);
 
             SelectedSave = refreshed;

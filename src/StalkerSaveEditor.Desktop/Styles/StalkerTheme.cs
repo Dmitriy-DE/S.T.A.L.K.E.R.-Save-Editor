@@ -58,6 +58,14 @@ public static class StalkerTheme
     public static readonly IBrush BrushTextMuted = new SolidColorBrush(TextMuted);
     public static readonly IBrush BrushTextKhaki = new SolidColorBrush(TextKhaki);
 
+    /// <summary>
+    /// Item template that tolerates null: Avalonia rebuilds a recycled row with null content when an
+    /// item is removed, and a template that dereferences it throws out of the collection change.
+    /// </summary>
+    public static Avalonia.Controls.Templates.FuncDataTemplate<T> Template<T>(Func<T, Control> build)
+        where T : class =>
+        new((item, _) => item is null ? new Panel() : build(item), supportsRecycling: false);
+
     public static Border Card(Control content, string? title = null, Thickness? margin = null, Thickness? padding = null)
     {
         var container = new StackPanel { Spacing = 8 };

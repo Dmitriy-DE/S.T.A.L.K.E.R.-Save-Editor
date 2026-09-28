@@ -140,7 +140,7 @@ public static class InventoryView
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
-            ItemTemplate = new FuncDataTemplate<InventoryLineViewModel>((item, _) => MakeItemRow(item)),
+            ItemTemplate = StalkerTheme.Template<InventoryLineViewModel>(item => MakeItemRow(item)),
         };
         itemsList.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.FilteredInventory)));
         itemsList.Bind(ListBox.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedItem))
@@ -339,7 +339,7 @@ public static class InventoryView
         // Upgrades Card
         var upgList = new ItemsControl
         {
-            ItemTemplate = new FuncDataTemplate<UpgradeItemViewModel>((upg, _) =>
+            ItemTemplate = StalkerTheme.Template<UpgradeItemViewModel>(upg =>
             {
                 var chk = new CheckBox
                 {

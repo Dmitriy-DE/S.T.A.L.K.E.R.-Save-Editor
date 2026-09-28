@@ -227,7 +227,7 @@ public sealed class MainWindow : Window
         var saveList = new ListBox
         {
             Background = StalkerTheme.BrushBgPanel,
-            ItemTemplate = new FuncDataTemplate<SaveFileSummary>((item, _) =>
+            ItemTemplate = StalkerTheme.Template<SaveFileSummary>(item =>
             {
                 var stack = new StackPanel { Spacing = 3, Margin = new Thickness(6, 4) };
                 stack.Children.Add(new TextBlock

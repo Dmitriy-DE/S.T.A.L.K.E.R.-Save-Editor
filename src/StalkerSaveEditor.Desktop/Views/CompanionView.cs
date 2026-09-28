@@ -201,7 +201,7 @@ public sealed class CompanionView : UserControl
         });
         var gamesList = new ItemsControl
         {
-            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<CompanionGameRow>((row, _) =>
+            ItemTemplate = StalkerTheme.Template<CompanionGameRow>(row =>
             {
                 var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,220,*"), Margin = new Thickness(0, 2) };
                 if (row is null) return grid;
@@ -344,7 +344,7 @@ public sealed class CompanionView : UserControl
         var hotkeysList = new ItemsControl
         {
             [!ItemsControl.ItemsSourceProperty] = new Binding("Hotkeys"),
-            ItemTemplate = new FuncDataTemplate<CompanionHotkeyItemViewModel>((item, _) =>
+            ItemTemplate = StalkerTheme.Template<CompanionHotkeyItemViewModel>(item =>
             {
                 var rowGrid = new Grid
                 {

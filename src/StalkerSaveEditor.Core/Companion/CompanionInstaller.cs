@@ -346,6 +346,11 @@ public sealed partial class CompanionInstaller
         {
             EnsureSafeWritePath(gameDirectory, entry.Path);
             var target = ResolveGamePath(gameDirectory, entry.Path);
+            if (IsAlreadyUninstalled(target, entry))
+            {
+                continue;
+            }
+
             if (entry.BeforeSha256 is null || !entry.WasPresentBeforeInstall)
             {
                 _fileSystem.DeleteFile(target);
@@ -612,6 +617,18 @@ public sealed partial class CompanionInstaller
         return failures.AsReadOnly();
     }
 
+    /// <summary>
+    /// A file already back in its pre-install state (removed, or restored to the original bytes) is done: this lets an
+    /// uninstall that stopped half-way (a locked file, an I/O error) be run again instead of reporting it as a conflict.
+    /// </summary>
+    private bool IsAlreadyUninstalled(string target, InstallFileManifest entry)
+    {
+        if (!_fileSystem.FileExists(target)) return !entry.WasPresentBeforeInstall || entry.BeforeSha256 is null;
+        return entry.WasPresentBeforeInstall && entry.BeforeSha256 is not null &&
+            !string.Equals(entry.BeforeSha256, entry.AfterSha256, StringComparison.Ordinal) &&
+            string.Equals(Sha256(_fileSystem.ReadAllBytes(target)), entry.BeforeSha256, StringComparison.Ordinal);
+    }
+
     private List<string> PreflightUninstall(string gameDirectory, InstallManifest manifest)
     {
         var conflicts = new List<string>();
@@ -619,6 +636,11 @@ public sealed partial class CompanionInstaller
         {
             EnsureSafeWritePath(gameDirectory, entry.Path);
             var target = ResolveGamePath(gameDirectory, entry.Path);
+            if (IsAlreadyUninstalled(target, entry))
+            {
+                continue;
+            }
+
             if (!_fileSystem.FileExists(target))
             {
                 conflicts.Add($"Missing since install; left untouched: {entry.Path}");

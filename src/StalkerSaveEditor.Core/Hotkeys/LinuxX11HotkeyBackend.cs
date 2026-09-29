@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Core.Diagnostics;
 using System.Runtime.InteropServices;
 using StalkerSaveEditor.Core.Companion;
 
@@ -220,13 +221,32 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
 
     private void SetGrabbed(bool grab)
     {
-        foreach (var (keyCode, modifiers) in _grabbedKeys)
+        // Same guard as the first registration: without our handler Xlib's default one exits the process when another
+        // application took the key while the editor had released it (BadAccess on re-grab).
+        lock (XErrorHandlerGate)
         {
-            if (grab) NativeMethods.XGrabKey(_display, keyCode, modifiers, _rootWindow, ownerEvents: 0, pointerMode: 1, keyboardMode: 1);
-            else NativeMethods.XUngrabKey(_display, keyCode, modifiers, _rootWindow);
-        }
+            _ = Interlocked.Exchange(ref _lastXErrorCode, 0);
+            var previousHandler = NativeMethods.XSetErrorHandler(ErrorHandler);
+            try
+            {
+                foreach (var (keyCode, modifiers) in _grabbedKeys)
+                {
+                    if (grab) NativeMethods.XGrabKey(_display, keyCode, modifiers, _rootWindow, ownerEvents: 0, pointerMode: 1, keyboardMode: 1);
+                    else NativeMethods.XUngrabKey(_display, keyCode, modifiers, _rootWindow);
+                }
 
-        _ = NativeMethods.XSync(_display, discard: 0);
+                _ = NativeMethods.XSync(_display, discard: 0);
+            }
+            finally
+            {
+                _ = NativeMethods.XSetErrorHandler(previousHandler);
+            }
+
+            if (Interlocked.Exchange(ref _lastXErrorCode, 0) is var error and not 0)
+            {
+                AppLog.Warn($"X11 hotkey {(grab ? "re-grab" : "release")} failed (error {error}); another application may hold the key.");
+            }
+        }
     }
 
     /// <summary>The focused window or one of its parents has an X-Ray game's window class (Wine names it after the exe).</summary>

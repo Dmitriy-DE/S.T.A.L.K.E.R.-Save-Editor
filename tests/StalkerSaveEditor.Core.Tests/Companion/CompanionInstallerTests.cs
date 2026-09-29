@@ -395,6 +395,28 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
+    public void Uninstall_that_stopped_half_way_can_be_run_again()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var bindPath = Path.Combine(game.GameDirectory, "gamedata", "scripts", "bind_stalker.script");
+        Directory.CreateDirectory(Path.GetDirectoryName(bindPath)!);
+        var original = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(
+            ReadArchiveFiles(game.GameDirectory, "configs.db")["scripts/bind_stalker.script"]) + "\n-- loose\n");
+        File.WriteAllBytes(bindPath, original);
+        var installer = new CompanionInstaller(ModSourceRoot);
+        installer.Install(CompanionGame.CallOfPripyat, selectedGameDirectory: game.GameDirectory);
+        // Simulate the first attempt dying after two files: the new script removed, the hooked file restored.
+        File.Delete(Path.Combine(game.GameDirectory, "gamedata", "scripts", "save_editor_companion.script"));
+        File.WriteAllBytes(bindPath, original);
+
+        var result = installer.Uninstall(CompanionGame.CallOfPripyat, game.GameDirectory);
+
+        Assert.True(result.Success, string.Join("; ", result.Conflicts));
+        Assert.Equal(original, File.ReadAllBytes(bindPath));
+        Assert.False(Directory.Exists(Path.Combine(game.GameDirectory, ".save-editor-companion")));
+    }
+
+    [Fact]
     public void Recognizes_and_adopts_a_manual_install_before_updating_or_removing_it()
     {
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);

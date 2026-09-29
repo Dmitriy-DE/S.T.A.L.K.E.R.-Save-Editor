@@ -45,6 +45,8 @@ public static class SaveDoctor
                     $"Format {overview.FormatId}; {overview.ItemCount} parsed inventory record(s)."),
                 new("semantic-state", SaveDoctorStatus.Unknown, "Semantic health is not classified.",
                     "No validated quest, object-reference, or progression signatures are registered for this save format."),
+                new("quest-state", SaveDoctorStatus.Unknown, "Quest and task state data is unavailable.",
+                    "The supported save reader does not expose validated quest or task state fields; no states or preventing fixes can be inferred."),
                 new("repair", SaveDoctorStatus.Unknown, "No save repair is available.",
                     "The toolkit has no evidence-backed repair for a detected issue in this save."),
             ];
@@ -56,6 +58,7 @@ public static class SaveDoctor
             [
                 new SaveDoctorCheck("structure", SaveDoctorStatus.Error, "Save structure could not be validated.", exception.Message),
                 new SaveDoctorCheck("semantic-state", SaveDoctorStatus.Unknown, "Semantic health is unknown.", "The save must parse before semantic checks can run."),
+                new SaveDoctorCheck("quest-state", SaveDoctorStatus.Unknown, "Quest and task state data is unavailable.", "The save must parse before quest or task state fields can be inspected."),
                 new SaveDoctorCheck("repair", SaveDoctorStatus.Unknown, "No save was changed.", "Save Doctor is read-only."),
             ]);
         }
@@ -67,6 +70,7 @@ public static class SaveDoctor
         [
             new SaveDoctorCheck("structure", SaveDoctorStatus.Error, "Save structure could not be validated.", detail),
             new SaveDoctorCheck("semantic-state", SaveDoctorStatus.Unknown, "Semantic health is unknown.", "The save must parse before semantic checks can run."),
+            new SaveDoctorCheck("quest-state", SaveDoctorStatus.Unknown, "Quest and task state data is unavailable.", "The save must parse before quest or task state fields can be inspected."),
             new SaveDoctorCheck("repair", SaveDoctorStatus.Unknown, "No save was changed.", "Save Doctor is read-only."),
         ]);
 }

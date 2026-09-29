@@ -114,7 +114,43 @@ internal static class Program
 
     private static int Crash(string[] args)
     {
-        const string usage = "Usage: crash analyse LOG [--game NAME] [--json]";
+        const string usage = "Usage: crash discover [--steam-root PATH] [--json] | crash analyse LOG [--game NAME] [--json]";
+        if (args.Length >= 2 && args[1] == "discover")
+        {
+            var steamRoots = new List<string>();
+            var discoverJson = false;
+            for (var index = 2; index < args.Length; index++)
+            {
+                if (args[index] == "--json") discoverJson = true;
+                else if (args[index] == "--steam-root" && index + 1 < args.Length && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+                    steamRoots.Add(args[++index]);
+                else
+                    throw new ArgumentException(usage);
+            }
+
+            var logs = CrashLogDiscovery.DiscoverRecentLogs(
+                saveDirectoryOptions: new StalkerSaveEditor.Core.Storage.SaveDirectoryDiscoveryOptions
+                {
+                    SteamRoots = steamRoots.Count == 0 ? null : steamRoots,
+                });
+            if (discoverJson)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(logs.ToArray(), CliJsonContext.Default.DiscoveredCrashLogArray));
+            }
+            else if (logs.Count == 0)
+            {
+                Console.WriteLine("No S.T.A.L.K.E.R. trilogy log files were found in discovered game or save-profile locations.");
+            }
+            else
+            {
+                foreach (var log in logs)
+                    Console.WriteLine($"{GameTargetCatalog.Get(log.Game).Title}; build {log.BuildId ?? "unknown"}; " +
+                        $"{log.LastWriteTimeUtc.ToString("O", CultureInfo.InvariantCulture)}; {log.Path}");
+            }
+
+            return 0;
+        }
+
         if (args.Length < 3 || args[1] != "analyse") throw new ArgumentException(usage);
         string? game = null;
         var json = false;
@@ -215,6 +251,25 @@ internal static class Program
                         (check.Detail.Length == 0 ? string.Empty : " — " + check.Detail));
             }
             return saveReport.Status == SaveDoctorStatus.Error ? 1 : 0;
+        }
+
+        if (args.Length >= 2 && args[1] == "quest")
+        {
+            const string questUsage = "Usage: doctor quest SAVE_FILE [--json]";
+            if (args.Length is < 3 or > 4 || args.Length == 4 && args[3] != "--json")
+                throw new ArgumentException(questUsage);
+            var questReport = QuestDoctor.Analyze(File.ReadAllBytes(args[2]));
+            if (args.Length == 4)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(questReport, CliJsonContext.Default.QuestDoctorReport));
+            }
+            else
+            {
+                Console.WriteLine("Quest Doctor: " + questReport.Status);
+                Console.WriteLine("Format: " + (questReport.FormatId ?? "unknown"));
+                Console.WriteLine(questReport.Summary);
+            }
+            return questReport.Status == SaveDoctorStatus.Error ? 1 : 0;
         }
 
         const string usage = "Usage: doctor game <soc|cs|cop|soc-ee|cs-ee|cop-ee|s2> GAME_DIR [--json]";
@@ -1061,7 +1116,9 @@ internal sealed record GameFixPresetAllJsonResult(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = true)]
 [JsonSerializable(typeof(CrashLogAnalysis))]
+[JsonSerializable(typeof(DiscoveredCrashLog[]), TypeInfoPropertyName = "DiscoveredCrashLogArray")]
 [JsonSerializable(typeof(SaveDoctorReport))]
+[JsonSerializable(typeof(QuestDoctorReport))]
 [JsonSerializable(typeof(GameDoctorReport))]
 [JsonSerializable(typeof(GameDoctorInstallation[]), TypeInfoPropertyName = "GameDoctorInstallationArray")]
 [JsonSerializable(typeof(GameFixListJsonEntry[]), TypeInfoPropertyName = "GameFixListJsonEntries")]

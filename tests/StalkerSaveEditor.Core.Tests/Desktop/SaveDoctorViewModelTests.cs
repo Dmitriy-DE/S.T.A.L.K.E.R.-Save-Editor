@@ -16,9 +16,10 @@ public sealed class SaveDoctorViewModelTests
         await viewModel.AnalyzeAsync();
 
         Assert.True(viewModel.HasReport);
-        Assert.Equal(3, viewModel.Checks.Count);
+        Assert.Equal(4, viewModel.Checks.Count);
         Assert.Contains(viewModel.Checks, check => check.Status.ToString() == "Ok");
         Assert.Contains(viewModel.Checks, check => check.Status.ToString() == "Unknown");
+        Assert.Contains(viewModel.Checks, check => check.Status.ToString() == "Unknown" && check.Name.Contains("КВЕСТОВ", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("stalker2", viewModel.Checks[0].Detail, StringComparison.OrdinalIgnoreCase);
     }
 }

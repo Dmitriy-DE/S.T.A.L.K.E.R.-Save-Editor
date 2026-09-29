@@ -17,6 +17,7 @@ public sealed class SaveDoctorTests
         Assert.Equal(format, report.Overview?.FormatId);
         Assert.Contains(report.Checks, check => check.Id == "structure" && check.Status == SaveDoctorStatus.Ok);
         Assert.Contains(report.Checks, check => check.Id == "semantic-state" && check.Status == SaveDoctorStatus.Unknown);
+        Assert.Contains(report.Checks, check => check.Id == "quest-state" && check.Status == SaveDoctorStatus.Unknown && check.Detail.Contains("does not expose", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(report.Checks, check => check.Id == "repair" && check.Status == SaveDoctorStatus.Unknown);
     }
 

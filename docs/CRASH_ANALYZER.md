@@ -1,18 +1,19 @@
 # Crash Analyzer
 
-Crash Analyzer accepts a user-selected log and extracts structured facts. It recognizes X-Ray fatal-error fields, Lua error markers and script stack-frame file/line references, and common engine exception markers. The desktop work in this branch adds no log discovery; the CLI can include an optional game label and emits either readable text or JSON.
+Crash Analyzer extracts structured facts from a selected log and can discover recent trilogy logs automatically. Discovery checks each structurally validated SoC/Clear Sky/CoP installation's `logs`, `_appdata_/logs`, and `_appdata_/log` directories, then checks sibling `logs` directories for existing save locations found by `SaveDirectoryLocator`. On Linux this reuses its Proton-prefix candidates. Results are ordered newest-first and canonicalized through `SaveSlotDiscovery.ResolveLinks`.
 
 ```text
 stalker-save-editor-cli crash analyse "/path/to/xray_*.log" --game "Clear Sky"
 stalker-save-editor-cli crash analyse "/path/to/xray_*.log" --json
+stalker-save-editor-cli crash discover [--steam-root "/path/to/Steam"] [--json]
 ```
 
-The output includes the log file's last-write time in UTC, which is file metadata rather than a timestamp asserted by the game log. The parser does not upload the log, and it does not claim a known fix based on generic text similarity. `knownIssueId` remains null until this repository has a documented, game/build-specific signature with a validated fix. Unknown logs remain `Unknown` and receive no fix recommendation. The analyzer is not yet wired to a selected Game Doctor installation or a diagnostic bundle.
+The output includes the log file's last-write time in UTC, which is file metadata rather than a timestamp asserted by the game log. The parser does not upload the log, and it does not claim a known fix based on generic text similarity. `knownIssueId` remains null until this repository has a documented, game/build-specific signature with a validated fix. Unknown logs remain `Unknown` and receive no fix recommendation. Discovery only lists candidate logs; `crash analyse LOG` remains an explicit local read of the chosen file.
 
-The current catalogue has no validated crash signatures. These parser results are diagnostic evidence only; they do not prove a cause or resolution.
+The current signature table has no entries: none of the shipped fixes has a reproduced crash with an exact game build, script file, line, and message that can be safely matched. These parser results are diagnostic evidence only; they do not prove a cause or resolution.
 
 ## Reliability
 
-- **L1:** synthetic tests cover X-Ray fatal fields, Lua stack frames, unknown logs, and refusal to claim a known fix.
-- **L2:** CLI output is covered with a local fixture log.
+- **L1:** synthetic tests cover X-Ray fatal fields, Lua stack frames, unknown logs, install-local log discovery, Proton save-profile log discovery, and refusal to claim a known fix.
+- **L2:** CLI output and Steam-root-scoped discovery are covered with temporary fixture paths.
 - **L3–L5:** no packaged app or real-game crash reproduction has been validated for this feature.

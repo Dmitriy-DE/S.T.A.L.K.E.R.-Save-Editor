@@ -10,6 +10,7 @@ public static partial class CompanionAppDataRootResolver
     public static string Resolve(string gameDirectory, string fsgameFileName = "fsgame.ltx")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
+        if (fsgameFileName == "fsgame.ltx" && EnhancedEditionRoot(gameDirectory) is { } enhanced) return enhanced;
         ArgumentException.ThrowIfNullOrWhiteSpace(fsgameFileName);
 
         string root;
@@ -46,6 +47,38 @@ public static partial class CompanionAppDataRootResolver
 
         var definitions = ParseDefinitions(text, fsgameFileName);
         return ResolveAlias("$app_data_root$", definitions, root, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static readonly (string Fsgame, string AppId)[] EnhancedEditions =
+    [
+        ("fsgame_soc.ltx", "2427410"),
+        ("fsgame_cs.ltx", "2427420"),
+        ("fsgame_cop.ltx", "2427430"),
+    ];
+
+    /// <summary>
+    /// Enhanced Edition has no fsgame.ltx and no $app_data_root$: the engine uses
+    /// "Saved Games/&lt;install folder name&gt;/STEAM" — under Proton inside steamapps/compatdata/&lt;appid&gt;/pfx.
+    /// </summary>
+    internal static string? EnhancedEditionRoot(string gameDirectory, string? windowsSavedGames = null)
+    {
+        var root = Path.GetFullPath(gameDirectory);
+        if (File.Exists(Path.Combine(root, "fsgame.ltx"))) return null;
+        var edition = EnhancedEditions.FirstOrDefault(entry => File.Exists(Path.Combine(root, entry.Fsgame)));
+        if (edition.Fsgame is null) return null;
+
+        var title = Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (OperatingSystem.IsWindows() || windowsSavedGames is not null)
+        {
+            var savedGames = windowsSavedGames ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Saved Games");
+            return Path.Combine(savedGames, title, "STEAM");
+        }
+
+        // <library>/steamapps/common/<title> → <library>/steamapps/compatdata/<appid>/pfx/drive_c/users/steamuser/Saved Games/<title>/STEAM
+        var steamapps = Path.GetDirectoryName(Path.GetDirectoryName(root));
+        return steamapps is null
+            ? null
+            : Path.Combine(steamapps, "compatdata", edition.AppId, "pfx", "drive_c", "users", "steamuser", "Saved Games", title, "STEAM");
     }
 
     private static Dictionary<string, string[]> ParseDefinitions(string text, string fileName)

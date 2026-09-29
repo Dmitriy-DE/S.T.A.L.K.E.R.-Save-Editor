@@ -23,15 +23,13 @@ public sealed class MainWindow : Window
 
         Title = "S.T.A.L.K.E.R. Save Editor";
         FontFamily = StalkerTheme.BodyFont;
-        Width = 1260;
-        Height = 820;
+        Width = ScreenshotDimension("STALKER_EDITOR_SCREENSHOT_WIDTH", 1260);
+        Height = ScreenshotDimension("STALKER_EDITOR_SCREENSHOT_HEIGHT", 820);
         MinWidth = 940;
         MinHeight = 600;
         Background = StalkerTheme.BrushBgBase;
 
-        var content = BuildContent(_viewModel);
-        AddShortcuts(content, _viewModel);
-        Content = content;
+        Content = BuildRoot(_viewModel);
     }
 
     /// <summary>Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) undo and redo draft edits, Ctrl+S writes the save.</summary>
@@ -53,11 +51,41 @@ public sealed class MainWindow : Window
     public static Control BuildRoot(SaveLibraryViewModel vm)
     {
         ArgumentNullException.ThrowIfNull(vm);
+        ApplyScreenshotOverrides(vm);
         var root = BuildContent(vm);
         root.DataContext = vm;
-        AddShortcuts(root, vm);
-        root.SetValue(Avalonia.Controls.Documents.TextElement.FontFamilyProperty, StalkerTheme.BodyFont);
-        return root;
+        var scaledRoot = new LayoutTransformControl
+        {
+            Child = root,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+        scaledRoot.Bind(LayoutTransformControl.LayoutTransformProperty,
+            new Binding(nameof(SettingsViewModel.UiScaleTransform)) { Source = vm.Settings });
+        scaledRoot.SetValue(Avalonia.Controls.Documents.TextElement.FontFamilyProperty, StalkerTheme.BodyFont);
+        AddShortcuts(scaledRoot, vm);
+        return scaledRoot;
+    }
+
+    private static void ApplyScreenshotOverrides(SaveLibraryViewModel vm)
+    {
+        if (SaveLibraryViewModel.InteractiveApp) return;
+        if (Environment.GetEnvironmentVariable("STALKER_EDITOR_SCREENSHOT_THEME") is { Length: > 0 } theme)
+            vm.Settings.ThemeId = theme;
+        if (Environment.GetEnvironmentVariable("STALKER_EDITOR_SCREENSHOT_ACCENT") is { Length: > 0 } accent)
+            vm.Settings.AccentId = accent;
+        if (int.TryParse(Environment.GetEnvironmentVariable("STALKER_EDITOR_SCREENSHOT_UI_SCALE"), out var scale))
+            vm.Settings.UiScalePercent = scale;
+    }
+
+    private static double ScreenshotDimension(string variable, double fallback)
+    {
+        if (SaveLibraryViewModel.InteractiveApp) return fallback;
+        return double.TryParse(Environment.GetEnvironmentVariable(variable), System.Globalization.NumberStyles.Integer,
+                   System.Globalization.CultureInfo.InvariantCulture, out var value)
+               && value is >= 640 and <= 4096
+            ? value
+            : fallback;
     }
 
     private static Control BuildContent(SaveLibraryViewModel vm)
@@ -80,18 +108,47 @@ public sealed class MainWindow : Window
         Grid.SetRow(updateBanner, 1);
         root.Children.Add(updateBanner);
 
-        // 3. Middle Area: Left Saves Pane (310) + Right Workspace
+        // 3. Middle area: collapsible navigation, contextual save list and active screen.
+        var navigationColumn = new ColumnDefinition(new GridLength(236));
+        var savesColumn = new ColumnDefinition(new GridLength(280));
+        var workspaceColumn = new ColumnDefinition(new GridLength(1, GridUnitType.Star));
         var middle = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("310,*"),
         };
+        middle.ColumnDefinitions.Add(navigationColumn);
+        middle.ColumnDefinitions.Add(savesColumn);
+        middle.ColumnDefinitions.Add(workspaceColumn);
 
-        var savesPane = BuildSavesPane();
+        var sidebar = BuildSidebar(vm, navigationColumn, middle);
+        middle.Children.Add(sidebar);
+
+        var savesPane = BuildSavesPane(vm);
+        Grid.SetColumn(savesPane, 1);
         middle.Children.Add(savesPane);
 
         var workspacePane = BuildWorkspacePane(vm);
-        Grid.SetColumn(workspacePane, 1);
+        Grid.SetColumn(workspacePane, 2);
         middle.Children.Add(workspacePane);
+
+        void UpdateSavesColumn()
+        {
+            var width = middle.Bounds.Width;
+            var savePaneWidth = width < 1100 ? 220 : width >= 1900 ? 300 : 280;
+            savesColumn.Width = vm.IsSaveWorkspace ? new GridLength(savePaneWidth) : new GridLength(0);
+            savesPane.IsVisible = vm.IsSaveWorkspace;
+        }
+
+        vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(SaveLibraryViewModel.SelectedTab) or nameof(SaveLibraryViewModel.IsSaveWorkspace))
+                UpdateSavesColumn();
+        };
+        middle.SizeChanged += (_, args) =>
+        {
+            if (sidebar is SidebarNavigation nav) nav.AdaptToWidth(args.NewSize.Width);
+            UpdateSavesColumn();
+        };
+        UpdateSavesColumn();
 
         Grid.SetRow(middle, 2);
         root.Children.Add(middle);
@@ -109,7 +166,7 @@ public sealed class MainWindow : Window
     {
         var banner = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#1F1C12")),
+            Background = StalkerTheme.BrushBgPanel,
             BorderBrush = StalkerTheme.BrushAccentAmber,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(18, 8, 18, 8),
@@ -141,7 +198,7 @@ public sealed class MainWindow : Window
     {
         var banner = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#2B1A18")),
+            Background = StalkerTheme.BrushBgPanel,
             BorderBrush = StalkerTheme.BrushDanger,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(18, 6, 18, 6),
@@ -168,7 +225,7 @@ public sealed class MainWindow : Window
     {
         var banner = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#1A2B18")),
+            Background = StalkerTheme.BrushBgPanel,
             BorderBrush = StalkerTheme.BrushSuccess,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(18, 6, 18, 6),
@@ -203,6 +260,255 @@ public sealed class MainWindow : Window
 
         banner.Child = grid;
         return banner;
+    }
+
+    private static SidebarNavigation BuildSidebar(SaveLibraryViewModel vm, ColumnDefinition column, Grid host) =>
+        new(vm, column, host);
+
+    private sealed class SidebarNavigation : Border
+    {
+        private readonly ColumnDefinition _column;
+        private readonly List<Control> _expandedOnly = [];
+        private readonly SaveLibraryViewModel _vm;
+        private readonly Button _toggleButton;
+        private readonly TextBlock _toggleGlyph;
+        private double _availableWidth;
+        private bool _expanded = true;
+        private bool _manualChoice;
+
+        public SidebarNavigation(SaveLibraryViewModel vm, ColumnDefinition column, Grid host)
+        {
+            _vm = vm;
+            _column = column;
+            Background = StalkerTheme.BrushBgPanel;
+            BorderBrush = StalkerTheme.BrushBorderSubtle;
+            BorderThickness = new Thickness(0, 0, 1, 0);
+
+            var layout = new DockPanel();
+            var brand = BuildBrand();
+            DockPanel.SetDock(brand, Dock.Top);
+            layout.Children.Add(brand);
+
+            var toggle = new Button
+            {
+                Height = 38,
+                Margin = new Thickness(8, 6),
+                Padding = new Thickness(8, 4),
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                Background = StalkerTheme.BrushBgElevated,
+                Foreground = StalkerTheme.BrushTextSecondary,
+                BorderBrush = StalkerTheme.BrushBorderSubtle,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+            };
+            _toggleButton = toggle;
+            _toggleGlyph = new TextBlock
+            {
+                Text = "‹",
+                FontSize = 20,
+                Foreground = StalkerTheme.BrushAccentAmber,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            toggle.Content = _toggleGlyph;
+            toggle.Click += (_, _) =>
+            {
+                _manualChoice = true;
+                SetExpanded(!_expanded && _availableWidth >= 1100);
+                if (_availableWidth < 1100) SetExpanded(false);
+            };
+            ToolTip.SetTip(toggle, L.T("Свернуть меню"));
+            DockPanel.SetDock(toggle, Dock.Bottom);
+            layout.Children.Add(toggle);
+
+            var navigation = new StackPanel { Spacing = 2, Margin = new Thickness(5, 8) };
+            AddGroup(navigation, L.T("СОХРАНЕНИЯ"),
+            [
+                ("◉", L.T("ОБЗОР"), "overview"),
+                ("▤", L.T("ИНВЕНТАРЬ"), "inventory"),
+                ("⚑", L.T("ФРАКЦИИ"), "factions"),
+                ("◇", L.T("ТАЙНИКИ"), "stashes"),
+                ("⇄", L.T("ПЕРЕХОДЫ"), "transitions"),
+                ("▣", L.T("БЭКАПЫ"), "backups"),
+                ("◷", L.T("ИСТОРИЯ СОХРАНЕНИЙ"), "timeline"),
+            ]);
+            if (!HostPlatform.IsBrowser)
+            {
+                AddItem(navigation, "✚", L.T("ДОКТОР СОХРАНЕНИЯ"), "save-doctor");
+                AddGroup(navigation, L.T("ИГРЫ"),
+                [
+                    ("⚒", L.T("ИСПРАВЛЕНИЯ ИГРЫ"), "game-fixes"),
+                    ("⌖", L.T("ДОКТОР ИГРЫ"), "game-doctor"),
+                    ("⚙", L.T("СРЕДА ИГРЫ"), "toolkit-environment"),
+                    ("●", L.T("КОМПАНЬОН"), "companion"),
+                    ("★", L.T("ДОСТИЖЕНИЯ"), "achievements"),
+                ]);
+                AddGroup(navigation, L.T("ИНСТРУМЕНТЫ"),
+                [
+                    ("☁", L.T("ОБЛАКО"), "cloud"),
+                    ("≡", L.T("ЭНЦИКЛОПЕДИЯ"), "encyclopedia"),
+                    ("✓", L.T("ВОЗМОЖНОСТИ"), "capabilities"),
+                    ("↻", L.T("ОБНОВЛЕНИЯ"), "updates"),
+                    ("⚙", L.T("НАСТРОЙКИ"), "settings"),
+                ]);
+            }
+            else
+            {
+                AddGroup(navigation, L.T("ИНСТРУМЕНТЫ"),
+                [
+                    ("✓", L.T("ВОЗМОЖНОСТИ"), "capabilities"),
+                    ("⚙", L.T("НАСТРОЙКИ"), "settings"),
+                ]);
+            }
+
+            layout.Children.Add(new ScrollViewer
+            {
+                VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                Content = navigation,
+            });
+            Child = layout;
+            host.SizeChanged += (_, args) => AdaptToWidth(args.NewSize.Width);
+            AdaptToWidth(host.Bounds.Width);
+        }
+
+        public void AdaptToWidth(double width)
+        {
+            _availableWidth = width;
+            if (!_manualChoice) SetExpanded(width >= 1600);
+            else if (width < 1100) SetExpanded(false);
+        }
+
+        private void SetExpanded(bool expanded)
+        {
+            _expanded = expanded;
+            _column.Width = new GridLength(expanded ? 236 : 64);
+            foreach (var control in _expandedOnly) control.IsVisible = expanded;
+            _toggleGlyph.Text = expanded ? "‹" : "›";
+            ToolTip.SetTip(_toggleButton, L.T(expanded ? "Свернуть меню" : "Развернуть меню"));
+        }
+
+        private Control BuildBrand()
+        {
+            var brand = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("42,*"),
+                Margin = new Thickness(10, 14, 8, 12),
+            };
+            var mark = new Border
+            {
+                Width = 34,
+                Height = 34,
+                CornerRadius = new CornerRadius(17),
+                BorderBrush = StalkerTheme.BrushAccentAmber,
+                BorderThickness = new Thickness(1),
+                Background = StalkerTheme.BrushBgElevated,
+                Child = new TextBlock
+                {
+                    Text = "☢",
+                    FontSize = 21,
+                    Foreground = StalkerTheme.BrushAccentAmber,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            };
+            brand.Children.Add(mark);
+            var name = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
+            name.Children.Add(new TextBlock
+            {
+                Text = "S.T.A.L.K.E.R.",
+                FontFamily = StalkerTheme.HeadingFont,
+                FontSize = 14,
+                FontWeight = FontWeight.Bold,
+                Foreground = StalkerTheme.BrushTextPrimary,
+                LetterSpacing = 0.7,
+            });
+            name.Children.Add(new TextBlock
+            {
+                Text = L.T("РЕДАКТОР СОХРАНЕНИЙ"),
+                FontSize = 9,
+                Foreground = StalkerTheme.BrushAccentAmber,
+                LetterSpacing = 0.5,
+            });
+            Grid.SetColumn(name, 1);
+            brand.Children.Add(name);
+            _expandedOnly.Add(name);
+            return brand;
+        }
+
+        private void AddGroup(StackPanel parent, string heading, (string Icon, string Label, string Tab)[] items)
+        {
+            var header = new TextBlock
+            {
+                Text = heading,
+                FontFamily = StalkerTheme.HeadingFont,
+                FontSize = 10,
+                FontWeight = FontWeight.Bold,
+                Foreground = StalkerTheme.BrushTextMuted,
+                LetterSpacing = 0.8,
+                Margin = new Thickness(8, 10, 4, 4),
+            };
+            _expandedOnly.Add(header);
+            parent.Children.Add(header);
+            foreach (var item in items) AddItem(parent, item.Icon, item.Label, item.Tab);
+        }
+
+        private void AddItem(StackPanel parent, string icon, string label, string tab)
+        {
+            var content = new Grid { ColumnDefinitions = new ColumnDefinitions("36,*") };
+            var iconText = new TextBlock
+            {
+                Text = icon,
+                FontSize = 17,
+                Foreground = StalkerTheme.BrushAccentAmber,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            content.Children.Add(iconText);
+            var labelText = new TextBlock
+            {
+                Text = label,
+                FontFamily = StalkerTheme.HeadingFont,
+                FontSize = 11,
+                FontWeight = FontWeight.SemiBold,
+                Foreground = StalkerTheme.BrushTextSecondary,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Grid.SetColumn(labelText, 1);
+            content.Children.Add(labelText);
+            _expandedOnly.Add(labelText);
+
+            var button = new Button
+            {
+                Content = content,
+                Height = 36,
+                Margin = new Thickness(1, 1),
+                Padding = new Thickness(4, 3),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Background = StalkerTheme.BrushBgPanel,
+                Foreground = StalkerTheme.BrushTextSecondary,
+                BorderBrush = StalkerTheme.BrushBorderSubtle,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+            };
+            button.Bind(Button.BackgroundProperty, new Binding(nameof(SaveLibraryViewModel.SelectedTab))
+            {
+                Source = _vm,
+                Converter = new ActiveNavigationBrushConverter(active: StalkerTheme.BrushBgHover, inactive: StalkerTheme.BrushBgPanel),
+                ConverterParameter = tab,
+            });
+            button.Bind(Button.BorderBrushProperty, new Binding(nameof(SaveLibraryViewModel.SelectedTab))
+            {
+                Source = _vm,
+                Converter = new ActiveNavigationBrushConverter(active: StalkerTheme.BrushBorderFocus, inactive: StalkerTheme.BrushBorderSubtle),
+                ConverterParameter = tab,
+            });
+            button.Click += (_, _) => _vm.SelectedTab = tab;
+            ToolTip.SetTip(button, label);
+            parent.Children.Add(button);
+        }
+
     }
 
     private static Control BuildTopBar(SaveLibraryViewModel vm)
@@ -304,7 +610,7 @@ public sealed class MainWindow : Window
         return border;
     }
 
-    private static Control BuildSavesPane()
+    private static Control BuildSavesPane(SaveLibraryViewModel vm)
     {
         var dock = new DockPanel();
 
@@ -363,11 +669,12 @@ public sealed class MainWindow : Window
                 return row;
             }),
         };
-        saveList.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.Saves)));
         saveList.Bind(ListBox.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedSave))
         {
+            Source = vm,
             Mode = BindingMode.TwoWay,
         });
+        saveList.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.Saves)) { Source = vm });
         dock.Children.Add(saveList);
 
         return new Border
@@ -386,47 +693,41 @@ public sealed class MainWindow : Window
             RowDefinitions = new RowDefinitions("Auto,*"),
         };
 
-        // Nav Tabs Rail
-        var navBar = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Margin = new Thickness(14, 8, 14, 8),
-        };
-
-        navBar.Children.Add(MakeNavTab(vm, L.T("ОБЗОР"), "overview", nameof(SaveLibraryViewModel.IsOverviewTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("ИНВЕНТАРЬ"), "inventory", nameof(SaveLibraryViewModel.IsInventoryTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("ФРАКЦИИ"), "factions", nameof(SaveLibraryViewModel.IsFactionsTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("ТАЙНИКИ"), "stashes", nameof(SaveLibraryViewModel.IsStashesTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("ПЕРЕХОДЫ"), "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("БЭКАПЫ"), "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("ИСТОРИЯ СОХРАНЕНИЙ"), "timeline", nameof(SaveLibraryViewModel.IsTimelineTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ЭНЦИКЛОПЕДИЯ"), "encyclopedia", nameof(SaveLibraryViewModel.IsEncyclopediaTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР СОХРАНЕНИЯ"), "save-doctor", nameof(SaveLibraryViewModel.IsSaveDoctorTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ИСПРАВЛЕНИЯ ИГРЫ"), "game-fixes", nameof(SaveLibraryViewModel.IsGameFixesTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР ИГРЫ"), "game-doctor", nameof(SaveLibraryViewModel.IsGameDoctorTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("СРЕДА ИГРЫ"), "toolkit-environment", nameof(SaveLibraryViewModel.IsToolkitEnvironmentTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("ВОЗМОЖНОСТИ"), "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("КОМПАНЬОН"), "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ОБЛАКО"), "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОСТИЖЕНИЯ"), "achievements", nameof(SaveLibraryViewModel.IsAchievementsTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ОБНОВЛЕНИЯ"), "updates", nameof(SaveLibraryViewModel.IsUpdatesTab)));
-        navBar.Children.Add(MakeNavTab(vm, L.T("НАСТРОЙКИ"), "settings", nameof(SaveLibraryViewModel.IsSettingsTab)));
-
-        var navBorder = new Border
+        var breadcrumb = new Border
         {
             Background = StalkerTheme.BrushBgPanel,
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(0, 0, 0, 1),
-            // Tabs scroll instead of widening the whole workspace past the window edge.
-            Child = new ScrollViewer
-            {
-                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-                VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
-                Content = navBar,
-            },
+            Padding = new Thickness(16, 9),
         };
-        root.Children.Add(navBorder);
+        var breadcrumbParts = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var group = new TextBlock
+        {
+            Foreground = StalkerTheme.BrushTextMuted,
+            FontFamily = StalkerTheme.HeadingFont,
+            FontSize = 11,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        group.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.CurrentGroupTitle)) { Source = vm });
+        breadcrumbParts.Children.Add(group);
+        breadcrumbParts.Children.Add(new TextBlock
+        {
+            Text = "/",
+            Foreground = StalkerTheme.BrushTextMuted,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var page = new TextBlock
+        {
+            Foreground = StalkerTheme.BrushAccentAmber,
+            FontFamily = StalkerTheme.HeadingFont,
+            FontWeight = FontWeight.Bold,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        page.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.CurrentPageTitle)) { Source = vm });
+        breadcrumbParts.Children.Add(page);
+        breadcrumb.Child = breadcrumbParts;
+        root.Children.Add(breadcrumb);
 
         // Content Area
         var contentGrid = new Grid();
@@ -565,39 +866,11 @@ public sealed class MainWindow : Window
         return root;
     }
 
-    private static Button MakeNavTab(SaveLibraryViewModel vm, string label, string tabName, string isTabProperty)
-    {
-        var btn = new Button
-        {
-            Content = label,
-            FontFamily = StalkerTheme.HeadingFont,
-            FontSize = 13,
-            FontWeight = FontWeight.SemiBold,
-            Padding = new Thickness(14, 7),
-            CornerRadius = new CornerRadius(3),
-            BorderThickness = new Thickness(1),
-        };
-        btn.Bind(Button.BackgroundProperty, new Binding(isTabProperty)
-        {
-            Converter = new BoolToBrushConverter(StalkerTheme.BrushAccentAmber, StalkerTheme.BrushBgElevated),
-        });
-        btn.Bind(Button.ForegroundProperty, new Binding(isTabProperty)
-        {
-            Converter = new BoolToBrushConverter(new SolidColorBrush(Color.Parse("#0C0D0A")), StalkerTheme.BrushTextSecondary),
-        });
-        btn.Bind(Button.BorderBrushProperty, new Binding(isTabProperty)
-        {
-            Converter = new BoolToBrushConverter(StalkerTheme.BrushAccentAmber, StalkerTheme.BrushBorderSubtle),
-        });
-        btn.Click += (_, _) => vm.SelectedTab = tabName;
-        return btn;
-    }
-
     private static Control BuildStatusBar()
     {
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             Margin = new Thickness(14, 6, 14, 6),
         };
 
@@ -614,20 +887,6 @@ public sealed class MainWindow : Window
         ((TextBlock)draftBadge.Child!).Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.DraftStatusText)));
         Grid.SetColumn(draftBadge, 1);
         grid.Children.Add(draftBadge);
-
-        var sha = new TextBlock
-        {
-            FontSize = 10,
-            Foreground = StalkerTheme.BrushTextMuted,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(16, 0, 0, 0),
-        };
-        sha.Bind(TextBlock.TextProperty, new Binding("SelectedSave.SourceSha256")
-        {
-            StringFormat = "SHA: {0}",
-        });
-        Grid.SetColumn(sha, 2);
-        grid.Children.Add(sha);
 
         var border = new Border
         {
@@ -782,10 +1041,10 @@ public sealed class MainWindow : Window
         return card;
     }
 
-    private sealed class BoolToBrushConverter(IBrush trueBrush, IBrush falseBrush) : Avalonia.Data.Converters.IValueConverter
+    private sealed class ActiveNavigationBrushConverter(IBrush active, IBrush inactive) : Avalonia.Data.Converters.IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
-            value is true ? trueBrush : falseBrush;
+            value is string selected && parameter is string tab && selected == tab ? active : inactive;
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
             throw new NotSupportedException();

@@ -174,12 +174,70 @@ public static class SettingsView
         langRow.Children.Add(langCombo);
         prefStack.Children.Add(langRow);
 
-        // Theme
+        // Appearance preferences apply and persist as soon as they change.
         prefStack.Children.Add(new TextBlock
         {
             Text = L.T("Язык применится после перезапуска приложения."),
             Foreground = StalkerTheme.BrushTextMuted,
             FontSize = 11,
+        });
+
+        var themeCombo = new ComboBox
+        {
+            ItemsSource = settings.Themes,
+            SelectedValueBinding = new Binding(nameof(AppearanceOption.Id)),
+            Width = 220,
+            Background = StalkerTheme.BrushBgInput,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            BorderBrush = StalkerTheme.BrushBorder,
+            ItemTemplate = StalkerTheme.Template<AppearanceOption>(option => new TextBlock { Text = option.Name }),
+        };
+        themeCombo.Bind(ComboBox.SelectedValueProperty, new Binding(nameof(SettingsViewModel.ThemeId))
+        {
+            Source = settings,
+            Mode = BindingMode.TwoWay,
+        });
+        prefStack.Children.Add(BuildPreferenceRow(L.T("Тема оформления:"), themeCombo));
+
+        var accentCombo = new ComboBox
+        {
+            ItemsSource = settings.Accents,
+            SelectedValueBinding = new Binding(nameof(AppearanceOption.Id)),
+            Width = 220,
+            Background = StalkerTheme.BrushBgInput,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            BorderBrush = StalkerTheme.BrushBorder,
+            ItemTemplate = StalkerTheme.Template<AppearanceOption>(option => new TextBlock { Text = option.Name }),
+        };
+        accentCombo.Bind(ComboBox.SelectedValueProperty, new Binding(nameof(SettingsViewModel.AccentId))
+        {
+            Source = settings,
+            Mode = BindingMode.TwoWay,
+        });
+        prefStack.Children.Add(BuildPreferenceRow(L.T("Акцентный цвет:"), accentCombo));
+
+        var scaleCombo = new ComboBox
+        {
+            ItemsSource = settings.UiScales,
+            SelectedValueBinding = new Binding(nameof(UiScaleOption.Percent)),
+            Width = 220,
+            Background = StalkerTheme.BrushBgInput,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            BorderBrush = StalkerTheme.BrushBorder,
+            ItemTemplate = StalkerTheme.Template<UiScaleOption>(option => new TextBlock { Text = option.Name }),
+        };
+        scaleCombo.Bind(ComboBox.SelectedValueProperty, new Binding(nameof(SettingsViewModel.UiScalePercent))
+        {
+            Source = settings,
+            Mode = BindingMode.TwoWay,
+        });
+        prefStack.Children.Add(BuildPreferenceRow(L.T("Масштаб интерфейса:"), scaleCombo));
+        prefStack.Children.Add(new TextBlock
+        {
+            Text = L.T("Тема, акцент и масштаб применяются сразу и сохраняются автоматически."),
+            Foreground = StalkerTheme.BrushTextMuted,
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
         });
 
         // Audio
@@ -277,6 +335,26 @@ public static class SettingsView
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         return path is not null && home.Length > 0 && path.StartsWith(home, StringComparison.Ordinal) ? "~" + path[home.Length..] : path ?? string.Empty;
+    }
+
+    private static Grid BuildPreferenceRow(string label, Control control)
+    {
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("160,*"),
+        };
+        row.Children.Add(new TextBlock
+        {
+            Text = label,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        control.HorizontalAlignment = HorizontalAlignment.Left;
+        Grid.SetColumn(control, 1);
+        row.Children.Add(control);
+        return row;
     }
 
     private static Control BuildDiagnostics(DiagnosticsViewModel diagnostics, SettingsViewModel settings)

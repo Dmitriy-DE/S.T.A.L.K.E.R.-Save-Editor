@@ -285,6 +285,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsTimelineTab));
                 OnPropertyChanged(nameof(IsEncyclopediaTab));
                 OnPropertyChanged(nameof(IsToolkitEnvironmentTab));
+                OnPropertyChanged(nameof(IsSaveWorkspace));
+                OnPropertyChanged(nameof(CurrentGroupTitle));
+                OnPropertyChanged(nameof(CurrentPageTitle));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
                 OnPropertyChanged(nameof(ShowFactionsScreen));
@@ -370,6 +373,37 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsTimelineTab => SelectedTab == "timeline";
     public bool IsEncyclopediaTab => SelectedTab == "encyclopedia";
     public bool IsToolkitEnvironmentTab => SelectedTab == "toolkit-environment";
+
+    public bool IsSaveWorkspace => SelectedTab is "overview" or "inventory" or "factions" or "stashes" or "transitions" or "backups" or "timeline" or "save-doctor";
+
+    public string CurrentGroupTitle => SelectedTab switch
+    {
+        "game-fixes" or "game-doctor" or "toolkit-environment" or "companion" or "achievements" => L.T("ИГРЫ"),
+        "encyclopedia" or "capabilities" or "updates" or "settings" or "cloud" => L.T("ИНСТРУМЕНТЫ"),
+        _ => L.T("СОХРАНЕНИЯ"),
+    };
+
+    public string CurrentPageTitle => SelectedTab switch
+    {
+        "inventory" => L.T("ИНВЕНТАРЬ"),
+        "factions" => L.T("ФРАКЦИИ"),
+        "stashes" => L.T("ТАЙНИКИ"),
+        "transitions" => L.T("ПЕРЕХОДЫ"),
+        "backups" => L.T("БЭКАПЫ"),
+        "timeline" => L.T("ИСТОРИЯ СОХРАНЕНИЙ"),
+        "save-doctor" => L.T("ДОКТОР СОХРАНЕНИЯ"),
+        "game-fixes" => L.T("ИСПРАВЛЕНИЯ ИГРЫ"),
+        "game-doctor" => L.T("ДОКТОР ИГРЫ"),
+        "toolkit-environment" => L.T("СРЕДА ИГРЫ"),
+        "companion" => L.T("КОМПАНЬОН"),
+        "achievements" => L.T("ДОСТИЖЕНИЯ"),
+        "cloud" => L.T("ОБЛАКО"),
+        "encyclopedia" => L.T("ЭНЦИКЛОПЕДИЯ"),
+        "capabilities" => L.T("ВОЗМОЖНОСТИ"),
+        "updates" => L.T("ОБНОВЛЕНИЯ"),
+        "settings" => L.T("НАСТРОЙКИ"),
+        _ => L.T("ОБЗОР"),
+    };
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
     public bool ShowInventoryScreen => HasSelection && IsInventoryTab;

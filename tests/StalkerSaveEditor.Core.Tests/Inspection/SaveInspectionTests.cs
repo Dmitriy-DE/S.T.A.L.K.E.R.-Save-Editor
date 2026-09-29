@@ -124,4 +124,31 @@ public sealed class SaveInspectionTests
         stream.Write(new byte[48]);
         return stream.ToArray();
     }
+
+    [Fact]
+    public void Compares_task_states_only_when_both_saves_have_a_task_registry()
+    {
+        var empty = new Dictionary<string, SaveItemTotal>();
+        var before = new SaveOverview("f", "stalker-cop", null, null, null, null, 0, null, empty, new Dictionary<string, StalkerSaveEditor.Core.Formats.XRay.XRayTaskState>
+        {
+            ["zat_b3_task"] = StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.InProgress,
+            ["jup_b1_task"] = StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.InProgress,
+        });
+        var after = before with
+        {
+            Tasks = new Dictionary<string, StalkerSaveEditor.Core.Formats.XRay.XRayTaskState>
+            {
+                ["zat_b3_task"] = StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.Completed,
+                ["jup_b1_task"] = StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.InProgress,
+                ["pri_a1_task"] = StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.InProgress,
+            },
+        };
+
+        var rows = SaveComparer.Compare(before, after);
+
+        Assert.Equal(
+            [new SaveDifference("task", "pri_a1_task", null, "InProgress"), new SaveDifference("task", "zat_b3_task", "InProgress", "Completed")],
+            rows);
+        Assert.Empty(SaveComparer.Compare(before with { Tasks = null }, after));
+    }
 }

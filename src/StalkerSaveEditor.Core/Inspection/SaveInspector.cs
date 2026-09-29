@@ -19,7 +19,8 @@ public sealed record SaveOverview(
     int? Reputation,
     int ItemCount,
     float? AverageCondition,
-    IReadOnlyDictionary<string, SaveItemTotal> ItemTotals);
+    IReadOnlyDictionary<string, SaveItemTotal> ItemTotals,
+    IReadOnlyDictionary<string, XRayTaskState>? Tasks = null);
 
 /// <summary>Reads any supported save into a <see cref="SaveOverview"/> (port of the Python oracle's inspection summary).</summary>
 public static class SaveInspector
@@ -55,7 +56,16 @@ public static class SaveInspector
                 item.TypeKey,
                 catalog?.Items.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
                 Math.Max(1, (int)(item.Count ?? 1)),
-                item.Condition)));
+                item.Condition))) with { Tasks = TaskStates(xray) };
+    }
+
+    /// <summary>PDA task states by task id (a repeated id keeps its latest entry); null when the registry is unreadable.</summary>
+    private static Dictionary<string, XRayTaskState>? TaskStates(XRayTrilogySave save)
+    {
+        if (XRayProgressReader.Read(save) is not { Tasks.Count: > 0 } progress) return null;
+        var states = new Dictionary<string, XRayTaskState>(StringComparer.Ordinal);
+        foreach (var task in progress.Tasks) states[task.Id] = task.State;
+        return states;
     }
 
     private static XRayTrilogySave? TryReadXRay(ReadOnlySpan<byte> data)
@@ -154,6 +164,18 @@ public static class SaveComparer
             var now = after.ItemTotals.GetValueOrDefault(key);
             if ((old?.Count ?? 0) == (now?.Count ?? 0)) continue;
             rows.Add(new SaveDifference("item", (old ?? now)!.Name, old is null ? null : Text(old.Count), now is null ? null : Text(now.Count)));
+        }
+
+        // Tasks only when both saves have a readable registry: a missing registry is "unknown", not "no tasks".
+        if (before.Tasks is { } oldTasks && after.Tasks is { } newTasks)
+        {
+            foreach (var id in oldTasks.Keys.Union(newTasks.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
+            {
+                var old = oldTasks.TryGetValue(id, out var o) ? o : (XRayTaskState?)null;
+                var now = newTasks.TryGetValue(id, out var n) ? n : (XRayTaskState?)null;
+                if (old == now) continue;
+                rows.Add(new SaveDifference("task", id, old?.ToString(), now?.ToString()));
+            }
         }
 
         return rows.AsReadOnly();

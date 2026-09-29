@@ -10,3 +10,6 @@
 /packaging/windows/dist/
 BenchmarkDotNet.Artifacts/
 .wrangler/
+
+__pycache__/
+*.py[cod]

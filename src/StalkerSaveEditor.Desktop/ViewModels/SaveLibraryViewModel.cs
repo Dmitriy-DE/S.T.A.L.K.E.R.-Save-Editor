@@ -1442,6 +1442,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             removeItemsDisabledReason: removeReason)
         {
             Progress = XRayProgressReader.Read(save),
+            Weather = XRayWeatherReader.Read(save),
         };
     }
 

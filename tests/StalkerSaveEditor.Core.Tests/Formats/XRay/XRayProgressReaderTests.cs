@@ -85,3 +85,23 @@ public sealed class XRayProgressReaderTests
         Assert.Null(XRayProgressReader.Parse(data, soc: true, actorId: 5, from: 0));
     }
 }
+
+public sealed class XRayWeatherReaderTests
+{
+    [Theory]
+    [InlineData("\u0001weather_state\0\u0001dynamic_default=clear,cloudy\0", "clear", "cloudy")]
+    [InlineData("Fdynamic_default=thunder,rain\0tail", "thunder", "rain")]
+    public void Reads_current_and_next_weather(string text, string current, string next)
+    {
+        var weather = XRayWeatherReader.Find(text);
+        Assert.NotNull(weather);
+        Assert.Equal("dynamic_default", weather.Graph);
+        Assert.Equal((current, next), (weather.Current, weather.Next));
+    }
+
+    [Theory]
+    [InlineData("dynamic_default=clear\0")]
+    [InlineData("mil_lager=agroprom,military\0")]
+    [InlineData("")]
+    public void Anything_else_is_not_weather(string text) => Assert.Null(XRayWeatherReader.Find(text));
+}

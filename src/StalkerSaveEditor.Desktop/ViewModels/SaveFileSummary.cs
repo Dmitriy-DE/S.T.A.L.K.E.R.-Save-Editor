@@ -191,6 +191,22 @@ public sealed class SaveFileSummary
             progress.Tasks.Count(task => task.State == StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.Failed))
         : "—";
 
+    public StalkerSaveEditor.Core.Formats.XRay.XRayWeather? Weather { get; init; }
+
+    public string WeatherDisplay => Weather is { } weather
+        ? L.T("{0} → {1}", WeatherName(weather.Current), WeatherName(weather.Next))
+        : "—";
+
+    private static string WeatherName(string state) => state switch
+    {
+        "clear" => L.T("ясно"),
+        "cloudy" or "pasmurno" => L.T("облачно"),
+        "rain" => L.T("дождь"),
+        "thunder" or "groza" or "storm" => L.T("гроза"),
+        "foggy" => L.T("туман"),
+        _ => state,
+    };
+
     public string KillsDisplay => Progress is { Statistics.Count: > 0 } progress
         ? L.T("сталкеров {0} · мутантов {1}", progress.Count("stalkerkills"), progress.Count("monsterkills"))
         : "—";

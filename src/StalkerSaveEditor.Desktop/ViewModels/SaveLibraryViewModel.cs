@@ -846,20 +846,66 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         return new AddItemViewModel(catalog, OfficialNames, releaseId, NamesLanguage);
     }
 
-    public void StageItemAddition(string sectionKey, uint quantity)
+    /// <summary>Queues a new item; <paramref name="destination"/> is "inventory" or "stash:&lt;box id&gt;".</summary>
+    public void StageItemAddition(string sectionKey, uint quantity, string destination = "inventory")
     {
         if (SelectedSave is null) return;
         var plan = BuildCurrentEditPlan(SelectedSave);
         var currentAdds = plan.Adds.ToList();
-        currentAdds.Add(new ItemAddRequest(sectionKey, quantity, "inventory"));
+        currentAdds.Add(new ItemAddRequest(sectionKey, quantity, destination));
+        RecordStashPlan(plan, currentAdds, plan.StashPuts);
+        StatusMessage = destination == "inventory"
+            ? L.T("Предмет {0} ({1} шт.) добавлен в очередь на запись.", sectionKey, quantity)
+            : L.T("Предмет {0} ({1} шт.) будет создан в тайнике.", sectionKey, quantity);
+        RefreshStashQueues();
+    }
+
+    /// <summary>Queues (or un-queues) moving an inventory item into a stash box.</summary>
+    public void ToggleStashPut(InventoryLineViewModel item, StashViewModel stash)
+    {
+        if (SelectedSave is null || item.Handle > ushort.MaxValue) return;
+        var plan = BuildCurrentEditPlan(SelectedSave);
+        var handle = (ushort)item.Handle;
+        var puts = plan.StashPuts.Where(put => put.ObjectId != handle).ToList();
+        var removed = puts.Count != plan.StashPuts.Count;
+        if (!removed) puts.Add(new StashPutRequest(handle, stash.Handle));
+        RecordStashPlan(plan, plan.Adds.ToList(), puts);
+        StatusMessage = removed
+            ? L.T("Перенос {0} в тайник отменён.", item.Name)
+            : L.T("{0} будет перенесён в тайник «{1}».", item.Name, stash.Name);
+        RefreshStashQueues();
+    }
+
+    /// <summary>Fills each stash's "will be put / created here" list from the pending plan.</summary>
+    public void RefreshStashQueues()
+    {
+        if (SelectedSave is not { } save) return;
+        var journal = _currentJournal?.Current;
+        foreach (var stash in save.Stashes)
+        {
+            stash.Pending.Clear();
+            foreach (var put in journal?.StashPuts.Where(put => put.BoxId == stash.Handle) ?? [])
+            {
+                var name = save.Inventory.FirstOrDefault(line => line.Handle == put.ObjectId)?.Name ?? $"0x{put.ObjectId:X4}";
+                stash.Pending.Add(L.T("← из рюкзака: {0}", name));
+            }
+            foreach (var add in journal?.Adds.Where(add => add.Destination == "stash:" + stash.Handle.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? [])
+            {
+                stash.Pending.Add(L.T("+ новый: {0} × {1}", add.ItemKey, add.Quantity));
+            }
+        }
+    }
+
+    private void RecordStashPlan(EditPlan plan, IReadOnlyList<ItemAddRequest> adds, IReadOnlyList<StashPutRequest> puts)
+    {
         var nextPlan = new EditPlan(
-            SelectedSave.SourceSha256,
+            SelectedSave!.SourceSha256,
             plan.Money,
             plan.StackCounts,
             plan.DetachHandles,
-            currentAdds,
+            adds,
             plan.StashTakes,
-            plan.StashPuts,
+            puts,
             plan.Upgrades,
             plan.PlayerFaction,
             plan.FactionRelations,
@@ -868,7 +914,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             plan.Placements);
 
         RecordPlan(nextPlan);
-        StatusMessage = L.T("Предмет {0} ({1} шт.) добавлен в очередь на запись.", sectionKey, quantity);
     }
 
     public void RestoreBackup(BackupRecordViewModel backup, bool inPlace)
@@ -1117,6 +1162,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             stashItem.IsTaken = plan.StashTakes.Contains(stashItem.Handle);
         }
+
+        RefreshStashQueues();
 
         foreach (var relation in save.FactionRelations)
         {

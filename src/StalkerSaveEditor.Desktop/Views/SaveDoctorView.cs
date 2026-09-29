@@ -94,10 +94,12 @@ public sealed class SaveDoctorView : UserControl
         status.Bind(TextBlock.TextProperty, new Binding(nameof(SaveDoctorViewModel.Status)) { Source = viewModel });
         report.Children.Add(status);
         var repair = StalkerTheme.StalkerButton(L.T("ИСПРАВИТЬ КВЕСТЫ"), isPrimary: true, minWidth: 180);
-        repair.HorizontalAlignment = HorizontalAlignment.Left;
         repair.Bind(Button.CommandProperty, new Binding(nameof(SaveDoctorViewModel.RepairQuestsCommand)) { Source = viewModel });
         repair.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveDoctorViewModel.CanRepairQuests)) { Source = viewModel });
-        report.Children.Add(repair);
+        var openFix = StalkerTheme.StalkerButton(L.T("УСТАНОВИТЬ ИСПРАВЛЕНИЕ ИГРЫ"), isPrimary: false, minWidth: 220);
+        openFix.Bind(Button.CommandProperty, new Binding(nameof(SaveDoctorViewModel.OpenGameFixCommand)) { Source = viewModel });
+        openFix.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveDoctorViewModel.HasPreventingFix)) { Source = viewModel });
+        report.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { repair, openFix } });
         report.Children.Add(new ItemsControl
         {
             ItemsSource = viewModel.Checks,

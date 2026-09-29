@@ -14,6 +14,7 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
     private bool _isAnalyzing;
     private bool _hasReport;
     private bool _canRepairQuests;
+    private string? _preventingFixId;
     private readonly Func<string> _backupDirectory;
 
     public SaveDoctorViewModel(Func<string>? backupDirectory = null)
@@ -21,7 +22,32 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
         _backupDirectory = backupDirectory ?? (() => AppPaths.Backups);
         AnalyzeCommand = new RelayCommand(async () => await AnalyzeAsync(), CanAnalyze);
         RepairQuestsCommand = new RelayCommand(async () => await RepairQuestsAsync(), () => CanRepairQuests);
+        OpenGameFixCommand = new RelayCommand(() =>
+        {
+            if (PreventingFixId is { } id) OpenGameFixRequested?.Invoke(id);
+        }, () => HasPreventingFix);
     }
+
+    /// <summary>Raised when the user asks to install the Game Fix that prevents a found break.</summary>
+    public event Action<string>? OpenGameFixRequested;
+
+    public RelayCommand OpenGameFixCommand { get; private set; } = null!;
+
+    /// <summary>The Game Fix that prevents the first broken quest, when it has one.</summary>
+    public string? PreventingFixId
+    {
+        get => _preventingFixId;
+        private set
+        {
+            if (SetProperty(ref _preventingFixId, value))
+            {
+                OnPropertyChanged(nameof(HasPreventingFix));
+                OpenGameFixCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool HasPreventingFix => PreventingFixId is not null;
 
     /// <summary>Raised after a repair replaced the save, so the library can reload it.</summary>
     public event Action<string>? SaveRepaired;
@@ -50,6 +76,7 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
                 Checks.Clear();
                 HasReport = false;
                 CanRepairQuests = false;
+                PreventingFixId = null;
                 AnalyzeCommand.NotifyCanExecuteChanged();
             }
         }
@@ -91,6 +118,7 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
         Checks.Clear();
         Status = string.Empty;
         CanRepairQuests = false;
+        PreventingFixId = null;
         try
         {
             var path = SavePath;
@@ -174,6 +202,7 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
         }
 
         CanRepairQuests = quests.States.Any(state => state.State == QuestTaskStatus.Broken);
+        PreventingFixId = quests.States.FirstOrDefault(state => state.State == QuestTaskStatus.Broken && state.PreventingFixId is not null)?.PreventingFixId;
     }
 
     public async Task RepairQuestsAsync()

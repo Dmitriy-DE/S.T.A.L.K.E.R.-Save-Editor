@@ -1,4 +1,4 @@
-# Handoff — state on 2026-09-29
+# Handoff — state on 2026-09-29 (evening)
 
 Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap/STATE.md`.
 
@@ -40,22 +40,24 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
 
 ## Done
 
-- Save editing for SoC/CS/CoP (+EE): money, stacks, condition, placement, upgrades, relations, add/remove items, stashes; S2: money, stacks, condition. Backup + journal + atomic swap + read-back for every write.
+- Save editing for SoC/CS/CoP (+EE): money, stacks, condition, placement, upgrades, relations, add/remove items, stashes (take, put, create in stash); S2: money, stacks, condition. Backup + journal + atomic swap + read-back for every write.
+- Read-only save data: PDA tasks with state and times, kill statistics (SoC/CS), weather (CS/CoP), actor location.
+- Quest Doctor (SoC 4 rules, CS 3 rules): detect a dead NPC whose death flag is missing, repair the save, open the preventing Game Fix. Crash signatures (18 CS from SRP, 6 SoC from ZRP) in Game Doctor.
+- Game Fixes: 64 retail + 54 Enhanced Edition variants. Experimental actor relocation to level-changer destinations (TP).
 - Steam: cloud read/download/upload with confirmation and no retries, achievements.
-- UI: 15 languages, game sounds/music, icons from the installed game, previews, compare, drafts with undo, diagnostics and daily redacted reports (worker `/diagnostics`).
-- Companion mod: full in-game menu for SoC/CS/CoP (L4 in CoP only); S2 UE4SS mod experimental. Hotkeys held only while the game window is focused.
-- Toolkit (Codex, #125–#130): Game Doctor, Game Fix engine shared with the Companion layer, 64 fixes (CS 25, SoC 15, CoP 24; owner's installs: 23/15/10 applicable), presets, Windows installer component, snapshots, profiles, `user.ltx` settings, install audit, crash-log discovery, save timeline, encyclopedia, Live Inspector.
-- PR #132 (open): `XRayTrilogySave.ActorKnownInfo` (actor quest flags from registry chunk 9) and `XRayInfoPortionWriter.AddActorInfo` — verified on real saves in memory.
+- UI: 15 languages, game sounds/music, icons from the installed game, previews, compare, drafts with undo, diagnostics and daily redacted reports. Saves open off the UI thread; ReadyToRun builds (window start ~0.35 s).
+- Companion mod: full in-game menu for SoC/CS/CoP (L4 in CoP only), rebindable hotkeys; S2 UE4SS mod experimental.
+- CI: 3 OS + web; runtime gate on the packaged app; benchmark gate tolerant of slow runners.
 
 ## Not done / next
 
-1. **Quest Doctor + save repair** — rules "known broken quest → missing info portion → add it" from SRP/ZRP/PRP changelogs and the game's task configs; screen with "Repair save" and "Install prevention fix". Start with Clear Sky (Wolf, Wild Napr, Hog …).
-2. **Crash signatures** — SRP history quotes ~40 crash messages (e.g. `wrong target for storyline quest: logic@work5,gar_smart_terrain_6_3` → `cs.quest.dead-wild-napr`). The catalogue is currently empty.
-3. **EE / S2 fixes** — none shipped. External fixes to recommend and detect (do not redistribute): UCoPEEP for CoP EE (Nexus mods/2, Workshop 3487808500), S2 Nexus fixes (e.g. mods/1739). EE payload adaptation of our 64 fixes not done.
-4. **Not verified in any game:** all save writes (L5), fixes, SoC/CS companion menus, 1.1.0 installers on Windows/macOS.
-5. **Known risk:** after any write CS/CoP saves grow ~4× (our LZO compressor vs the game's). Nobody has loaded such a save in the game yet — check first.
-6. S2: adding items, upgrades, relations need before/after save pairs from the owner.
-7. R2/APT secrets for CI publishing (owner). Python repo can be deleted by the owner (`gh auth refresh -s delete_repo`).
+1. **Frontend v2 (Codex)** — handoff in `~/Projects/STALKER_FRONTEND_HANDOFF_V1/00_CSHARP_OVERRIDE.md` (C# override of a ChatGPT design pack): left sidebar, new screens, themes/accent/scale. Claude merges and fixes.
+2. **Owner in game (L5):** a CS/CoP save written by the editor (it grows ~4×), Quest Doctor repair, relocation, fixes, SoC/CS companion.
+3. CoP EE task registry (0/12 saves read); CS weather where the string is absent.
+4. S2 companion inspector/god mode/free camera — needs S2 with mods (owner plays via GFN) → later version.
+5. EE/S2 external fixes (UCoPEEP, Nexus) detection; S2 adding items, upgrades, relations need save pairs.
+6. Content packs (CP-3/4), S2 armour upgrade names (KB-7), game build fingerprint (RL-6), companion Workshop/EE/S2 (MOD-2…5), translation review by native speakers (TR-1).
+7. Owner only: Cloudflare/APT secrets for CI publishing; deleting the archived Python repo.
 
 ## Lessons (do not repeat)
 

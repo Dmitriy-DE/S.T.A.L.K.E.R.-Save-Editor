@@ -145,7 +145,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             // Items, names and icons of the installed games (and their mods) first, then the saves read
             // with them — all off the interface thread.
             var contentLanguage = I18nService.Instance.CurrentLanguage;
-            _ = RefreshInstalledGameContentAsync(contentLanguage);
+            BackgroundTask.Run(RefreshInstalledGameContentAsync(contentLanguage), "game content");
         }
         else if (discoverLocalSaves)
         {

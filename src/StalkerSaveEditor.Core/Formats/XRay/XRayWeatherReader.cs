@@ -30,7 +30,22 @@ public static partial class XRayWeatherReader
         {
             text += "\0" + Encoding.Latin1.GetString(raw.Slice(clientData, actor.ClientDataLength));
         }
-        return Find(text);
+        return Find(text) ?? FindUnique(Encoding.Latin1.GetString(raw));
+    }
+
+    /// <summary>
+    /// Some Clear Sky saves keep the value outside the actor record (another object's script storage). Accept it
+    /// only when the whole save holds exactly one distinct "dynamic_*" weather value, so an ambiguous save stays unknown.
+    /// </summary>
+    internal static XRayWeather? FindUnique(string text)
+    {
+        var found = WeatherValue().Matches(text)
+            .Select(match => (Graph: match.Groups["graph"].Value, Current: match.Groups["current"].Value, Next: match.Groups["next"].Value))
+            .Where(value => value.Graph.StartsWith("dynamic_", StringComparison.Ordinal)
+                && KnownStates.Contains(value.Current) && KnownStates.Contains(value.Next))
+            .Distinct()
+            .ToArray();
+        return found.Length == 1 ? new XRayWeather(found[0].Graph, found[0].Current, found[0].Next) : null;
     }
 
     internal static XRayWeather? Find(string text)

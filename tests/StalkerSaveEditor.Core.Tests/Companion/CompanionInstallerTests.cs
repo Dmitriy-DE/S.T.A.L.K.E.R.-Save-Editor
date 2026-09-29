@@ -72,6 +72,42 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
+    public void Toolkit_snapshot_replays_companion_through_its_installer_and_preserves_unrelated_files()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var installer = new CompanionInstaller(ModSourceRoot);
+        var engine = TestGameFixEngine();
+        var snapshotRoot = Path.Combine(Path.GetTempPath(), "save-editor-companion-snapshot-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+            var userFile = Path.Combine(game.GameDirectory, "gamedata", "scripts", "unrelated_user.script");
+            Directory.CreateDirectory(Path.GetDirectoryName(userFile)!);
+            File.WriteAllText(userFile, "user = before\n");
+            var service = new ToolkitSnapshotService(snapshotRoot, engine,
+                GameFixCatalog.All.ToDictionary(fix => fix.Id, StringComparer.Ordinal), installer);
+
+            var snapshot = service.Create(GameTarget.CallOfPripyat, game.GameDirectory);
+            Assert.True(snapshot.CompanionInstalled);
+            Assert.Contains(snapshot.Files, file => file.Provider == "Companion");
+            Assert.Contains(snapshot.Files, file => file.Provider == "CompanionState");
+
+            installer.Uninstall(CompanionGame.CallOfPripyat, game.GameDirectory);
+            File.WriteAllText(userFile, "user = changed outside toolkit\n");
+            var restored = service.Restore(snapshot.Id);
+
+            Assert.True(restored.Restored, restored.Message);
+            Assert.True(installer.GetStatus(CompanionGame.CallOfPripyat, game.GameDirectory).ModInstalled);
+            Assert.All(installer.GetManagedFileStatus(CompanionGame.CallOfPripyat, game.GameDirectory), file => Assert.True(file.MatchesExpectedHash));
+            Assert.Equal("user = changed outside toolkit\n", File.ReadAllText(userFile));
+        }
+        finally
+        {
+            if (Directory.Exists(snapshotRoot)) Directory.Delete(snapshotRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Companion_refuses_a_path_already_managed_by_game_fix()
     {
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);

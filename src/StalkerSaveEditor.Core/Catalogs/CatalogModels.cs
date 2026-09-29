@@ -23,7 +23,8 @@ public sealed class ItemDefinition
         string? iconTexture,
         string? className = null,
         string? displayNameKey = null,
-        ReadOnlyMemory<byte>? prototype = null)
+        ReadOnlyMemory<byte>? prototype = null,
+        int? cost = null)
     {
         if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Item key must not be empty.", nameof(key));
         if (string.IsNullOrWhiteSpace(source)) throw new ArgumentException("Item source must not be empty.", nameof(source));
@@ -31,6 +32,7 @@ public sealed class ItemDefinition
         ValidateNonNegative(width, nameof(width));
         ValidateNonNegative(height, nameof(height));
         ValidateNonNegative(maxStack, nameof(maxStack));
+        ValidateNonNegative(cost, nameof(cost));
         ValidateNonNegative(iconX, nameof(iconX));
         ValidateNonNegative(iconY, nameof(iconY));
 
@@ -50,6 +52,7 @@ public sealed class ItemDefinition
         ClassName = EmptyToNull(className?.Trim());
         DisplayNameKey = EmptyToNull(displayNameKey?.Trim());
         Prototype = prototype;
+        Cost = cost;
     }
 
     public string Key { get; }
@@ -59,6 +62,9 @@ public sealed class ItemDefinition
     public string? Category { get; }
 
     public double? UnitWeight { get; }
+
+    /// <summary>Game-defined inventory cost, read from this install's LTX or shipped catalog.</summary>
+    public int? Cost { get; }
 
     public int? Width { get; }
 
@@ -100,7 +106,8 @@ public sealed class ItemDefinition
         IconTexture,
         ClassName,
         DisplayNameKey,
-        Prototype);
+        Prototype,
+        Cost);
 
     private static void ValidateNonNegative(int? value, string field)
     {

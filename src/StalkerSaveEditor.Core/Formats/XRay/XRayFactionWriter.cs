@@ -170,7 +170,7 @@ public static class XRayFactionWriter
         }
     }
 
-    private static XRayChunk GetSingleRelationChunk(XRayContainer container)
+    internal static XRayChunk GetSingleRelationChunk(XRayContainer container)
     {
         XRayChunk? found = null;
         foreach (var chunk in container.Chunks)
@@ -191,7 +191,7 @@ public static class XRayFactionWriter
         return found ?? throw Error("Relation chunk 9 is missing.");
     }
 
-    private static byte[] ReplaceChunkData(
+    internal static byte[] ReplaceChunkData(
         XRayContainer container,
         XRayChunk chunk,
         ReadOnlySpan<byte> replacement)

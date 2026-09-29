@@ -75,6 +75,9 @@ public sealed class XRayTrilogySave
 
     public bool FactionRelationsEditable { get; }
 
+    /// <summary>Info portions the actor knows (story and quest flags such as <c>esc_wolf_dead</c>); empty when the registry is not read.</summary>
+    public IReadOnlyList<string> ActorKnownInfo => RelationRegistry?.InfoFor(ActorId)?.Names ?? [];
+
     public float? ActorHealth { get; }
 
     public int? ActorRank { get; }

@@ -7,11 +7,20 @@ internal sealed class XRayRelationRegistry
     private const uint MaximumCount = 1_000_000;
     private const int MaximumStringLength = 1 << 20;
     private readonly IReadOnlyList<RelationRow> _rows;
+    private readonly IReadOnlyList<InfoPortionRow> _infoRows;
 
-    private XRayRelationRegistry(IReadOnlyList<RelationRow> rows)
+    private XRayRelationRegistry(IReadOnlyList<RelationRow> rows, IReadOnlyList<InfoPortionRow> infoRows, int infoSectionEnd)
     {
         _rows = rows;
+        _infoRows = infoRows;
+        InfoSectionEnd = infoSectionEnd;
     }
+
+    /// <summary>Where the info-portion map ends (its object count is the payload's first u32).</summary>
+    public int InfoSectionEnd { get; }
+
+    /// <summary>The info portions (quest and story flags) an object knows, e.g. the actor's.</summary>
+    public InfoPortionRow? InfoFor(ushort objectId) => _infoRows.FirstOrDefault(row => row.ObjectId == objectId);
 
     public static bool TryParse(
         ReadOnlySpan<byte> payload,
@@ -42,20 +51,26 @@ internal sealed class XRayRelationRegistry
     {
         var reader = new RegistryReader(payload);
         var infoPortionCount = reader.ReadCount("InfoPortions");
+        var infoRows = new List<InfoPortionRow>();
         for (var index = 0; index < infoPortionCount; index++)
         {
-            _ = reader.ReadUInt16();
+            var objectId = reader.ReadUInt16();
+            var countOffset = reader.Position;
             var valueCount = reader.ReadCount("InfoPortion vector");
+            var names = new List<string>(checked((int)Math.Min(valueCount, 4096)));
             for (var value = 0; value < valueCount; value++)
             {
-                reader.ReadZeroTerminatedString();
+                names.Add(reader.ReadZeroTerminatedString());
                 if (infoPortionsHaveTimestamp)
                 {
                     _ = reader.ReadUInt64();
                 }
             }
+
+            infoRows.Add(new InfoPortionRow(objectId, countOffset, reader.Position, infoPortionsHaveTimestamp, Array.AsReadOnly(names.ToArray())));
         }
 
+        var infoSectionEnd = reader.Position;
         var relationCount = reader.ReadCount("relation");
         var rows = new List<RelationRow>(checked((int)relationCount));
         var characterIds = new HashSet<ushort>();
@@ -106,7 +121,7 @@ internal sealed class XRayRelationRegistry
                 Array.AsReadOnly(communities.ToArray())));
         }
 
-        return new XRayRelationRegistry(Array.AsReadOnly(rows.ToArray()));
+        return new XRayRelationRegistry(Array.AsReadOnly(rows.ToArray()), Array.AsReadOnly(infoRows.ToArray()), infoSectionEnd);
     }
 
     public RelationRow? ForCharacter(ushort characterId)
@@ -258,7 +273,7 @@ internal sealed class XRayRelationRegistry
             return count;
         }
 
-        public void ReadZeroTerminatedString()
+        public string ReadZeroTerminatedString()
         {
             var terminator = _payload[Position..].IndexOf((byte)0);
             if (terminator < 0 || terminator > MaximumStringLength)
@@ -266,7 +281,9 @@ internal sealed class XRayRelationRegistry
                 throw Error("строка InfoPortion не найдена или слишком длинная");
             }
 
+            var text = System.Text.Encoding.Latin1.GetString(_payload.Slice(Position, terminator));
             Position += terminator + 1;
+            return text;
         }
 
         private void Ensure(int size)
@@ -278,3 +295,6 @@ internal sealed class XRayRelationRegistry
         }
     }
 }
+
+/// <summary>One object's info-portion vector: where its count and its end are in the registry payload.</summary>
+internal sealed record InfoPortionRow(ushort ObjectId, int CountOffset, int EndOffset, bool HasTimestamps, IReadOnlyList<string> Names);

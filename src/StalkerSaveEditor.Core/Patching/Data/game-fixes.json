@@ -1,0 +1,3099 @@
+{
+  "definitions": [
+    {
+      "id": "cs.quest.dead-wild-napr",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Stop Flea Market quests after Wild Napr dies",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/creatures/spawn_sections_garbage.ltx",
+          "expectedText": "character_profile     = gar_digger_quester\r\n",
+          "replacementText": "character_profile     = gar_digger_quester\r\non_death             = %+gar_flea_market_stop_quest_line%\r\n",
+          "expectedFileSha256": "029ddb9331d44c8c0d6aaf3a5791bbb53f7e738c8efba7fc121a30a90a0a5078",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5; the target is limited to the verified Clear Sky Steam build.",
+      "problem": "Wild Napr can die while offline without stopping his storyline tasks; later tasks can target a missing logic@work5 and crash.",
+      "description": "Adds the NPC death info-portion used by Clear Sky's task definitions to stop the Flea Market quest line. Only deaths processed after this change are covered; existing affected saves were not verified.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the effective spawn_sections_garbage.ltx from Steam build 11450472 and one unique CRLF text anchor.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.flood-underground-duty-goodwill",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Award Flood the Underground task goodwill to Duty",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom_underground/agru_quest_line.ltx",
+          "expectedText": "give_inited_task(storyline:agru_leader_dolg_task:csky)",
+          "replacementText": "give_inited_task(storyline:agru_leader_dolg_task:dolg)",
+          "expectedFileSha256": "340e9b8ca484acfc466ee65f8d135b7045b5dd3e43d64b3bf21f765f6bea9f97",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The task-giver is a Duty commander, but the task record assigns the Clear Sky faction, so the wrong faction receives goodwill.",
+      "description": "Changes only the faction argument for the task issued after the Agroprom Underground sequence.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.wolf-offline-cancellation",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Close Wolf's rescue tasks after failure or offline death",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/creatures/spawn_sections_escape.ltx",
+          "expectedText": "character_profile     = esc_wolf\r\n",
+          "replacementText": "character_profile     = esc_wolf\r\non_death             = %+esc_wolf_dead%\r\n",
+          "expectedFileSha256": "47c254c9974ac2d4295e1be66e7d7281e121feb98b45415a73944894c512cd89",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_quest_additional_line.ltx",
+          "expectedText": "on_info = {+esc_wolf_brother_2} sr_idle@3 %=give_inited_task(storyline:esc_additional_quest_4b:stalker)%\r\n",
+          "replacementText": "on_info = {+esc_wolf_brother_2} sr_idle@3 %=give_inited_task(storyline:esc_additional_quest_4b:stalker)%\r\non_info2 = {+esc_wolf_brother_fail} sr_idle@4, {=gulag_enemy_actor(esc_smart_terrain_2_12)} sr_idle@4\r\n",
+          "expectedFileSha256": "28f3a7ed34a4c43a1760f31b984befecf2526fcd8343699f27830c6e189bef78",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_quest_additional_line.ltx",
+          "expectedText": "on_info = {+esc_wolf_brother_3} sr_idle@4 %=give_inited_task(storyline:esc_additional_quest_4c:stalker)%\r\n",
+          "replacementText": "on_info = {+esc_wolf_brother_3} sr_idle@4 %=give_inited_task(storyline:esc_additional_quest_4c:stalker)%\r\non_info2 = {+esc_wolf_brother_fail} sr_idle@4, {=gulag_enemy_actor(esc_smart_terrain_2_12)} sr_idle@4, {+esc_wolf_dead} sr_idle@4\r\n",
+          "expectedFileSha256": "28f3a7ed34a4c43a1760f31b984befecf2526fcd8343699f27830c6e189bef78",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_quest_additional_line_2.ltx",
+          "expectedText": "on_info = {+esc_wolf_novice_2} sr_idle@3 %=give_inited_task(storyline:esc_additional_quest_5b:stalker)%\r\n",
+          "replacementText": "on_info = {+esc_wolf_novice_2} sr_idle@3 %=give_inited_task(storyline:esc_additional_quest_5b:stalker)%\r\non_info2 = {+esc_stalker_novice_fail} sr_idle@4, {=gulag_enemy_actor(esc_smart_terrain_2_12)} sr_idle@4\r\n",
+          "expectedFileSha256": "2108c3cda393b6b2c8dceab17be512f222bb701abbd4ff43396f6325c57e3ba9",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_quest_additional_line_2.ltx",
+          "expectedText": "on_info = {+esc_wolf_novice_3} sr_idle@4 %=give_inited_task(storyline:esc_additional_quest_5c:stalker)%\r\n",
+          "replacementText": "on_info = {+esc_wolf_novice_3} sr_idle@4 %=give_inited_task(storyline:esc_additional_quest_5c:stalker)%\r\non_info2 = {+esc_stalker_novice_fail} sr_idle@4, {=gulag_enemy_actor(esc_smart_terrain_2_12)} sr_idle@4, {+esc_wolf_dead} sr_idle@4\r\n",
+          "expectedFileSha256": "2108c3cda393b6b2c8dceab17be512f222bb701abbd4ff43396f6325c57e3ba9",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "Wolf's death can go unnoticed while offline, leaving his reward and rescue tasks active without a completion path.",
+      "description": "Adds Wolf's death info-portion to his spawn record and follows the SRP quest-state exits for the related rescue tasks.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.snork-aggression-key",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore the dead-camp snork's aggression flag",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_dead_camp_snork.ltx",
+          "expectedText": "agressive = true\r\n",
+          "replacementText": "aggressive = true\r\n",
+          "expectedFileSha256": "a8a717e6f22fb20bff8a1c9315d2148ef33c3960e4d8a3fccb7ec82aabf1dd6c",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The encounter uses the misspelled `agressive` key, which the game does not recognize.",
+      "description": "Corrects the single LTX key spelling in the Garbage dead-camp snork logic.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.agroprom-bloodsucker-aggression",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore aggression for the Agroprom lair bloodsucker",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_bloodsucker_home.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_additional_quest_2_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_additional_quest_2_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "bd610d34287611dc520094f7e389d2e8a20afbb2be794737039ca09378c595ac",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The lair logic uses the legacy `aggressive_home` token instead of the parameter recognized by the current mob-home scheme.",
+      "description": "Updates the single Agroprom additional-task bloodsucker logic flag from SRP.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.agroprom-dogs-aggression",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore aggression for the Agroprom dog packs",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_1.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_2.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_3.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_4.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_5.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_1\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_6.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_7.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_8.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_9.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_dog_10.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_dogs_home_2\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The ten scripted Agroprom dog logic files use the legacy mob-home aggression token, so their assigned attack behavior is not enabled as intended.",
+      "description": "Corrects the one flag in each of the ten Agroprom dog logic files, matching SRP's explicit aggression parameter.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.agroprom-scientist-bloodsucker-aggression",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore aggression for the scientists' bloodsuckers",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_scientists_bloodsucker_logic.ltx",
+          "expectedText": "[mob_home]\r\npath_home = agr_scientists_bloodsucker_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = agr_scientists_bloodsucker_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "5aa2ec88ca0a55e4bf261106c0b5d79d99d9c8842cbf7e219b07843215077b7d",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_scientists_bloodsucker_logic.ltx",
+          "expectedText": "[mob_home@2]\r\npath_home = agr_scientists_bloodsucker_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@2]\r\npath_home = agr_scientists_bloodsucker_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "5aa2ec88ca0a55e4bf261106c0b5d79d99d9c8842cbf7e219b07843215077b7d",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "Both scripted mob-home states use the legacy aggression token rather than the current scheme parameter.",
+      "description": "Corrects only the two explicit Agroprom scientist bloodsucker states from SRP.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.agroprom-snork-wave-aggression",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore aggression for the Agroprom snork wave",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_snork_attack.ltx",
+          "expectedText": "[mob_home@1]\r\npath_home = jump_snork_1\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@1]\r\npath_home = jump_snork_1\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive = true\r\n",
+          "expectedFileSha256": "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_snork_attack.ltx",
+          "expectedText": "[mob_home@2]\r\npath_home = jump_snork_2\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@2]\r\npath_home = jump_snork_2\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive = true\r\n",
+          "expectedFileSha256": "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_snork_attack.ltx",
+          "expectedText": "[mob_home@3]\r\npath_home = jump_snork_3\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@3]\r\npath_home = jump_snork_3\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive = true\r\n",
+          "expectedFileSha256": "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_snork_attack.ltx",
+          "expectedText": "[mob_home@4]\r\npath_home = jump_snork_4\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@4]\r\npath_home = jump_snork_4\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive = true\r\n",
+          "expectedFileSha256": "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_snork_attack.ltx",
+          "expectedText": "[mob_home@5]\r\npath_home = jump_snork_5\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@5]\r\npath_home = jump_snork_5\r\nout_restr = agr_smart_terrain_4_6_def\r\naggressive = true\r\n",
+          "expectedFileSha256": "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "All five snork mob-home states use the legacy aggression token, so the scripted wave does not use its intended aggressive behavior.",
+      "description": "Corrects each distinct snork waypoint state exactly as SRP does.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.escape-rescue-dog-aggression",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore aggression for the Escape rescue dogs",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog01]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog01]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog01a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog01a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog02]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog02]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog02a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog02a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog03]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog03]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog03a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog03a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog04]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog04]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog04a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog04a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog05]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home@dog05]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_smart_terrain_5_12_works.ltx",
+          "expectedText": "[mob_home@dog05a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home",
+          "replacementText": "[mob_home@dog05a]\r\npath_home = agr_stalker_novice_quest_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true",
+          "expectedFileSha256": "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The ten dog mob-home states used by the Escape rescue logic carry the legacy aggression token instead of the current scheme parameter.",
+      "description": "Corrects only the ten named dog states in the rescue encounter file.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.military-dog-aggression",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore aggression for the Military dog packs",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/military/mil_dog_1.ltx",
+          "expectedText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/military/mil_dog_2.ltx",
+          "expectedText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/military/mil_dog_3.ltx",
+          "expectedText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/military/mil_dog_4.ltx",
+          "expectedText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/military/mil_dog_5.ltx",
+          "expectedText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive_home\r\n",
+          "replacementText": "[mob_home]\r\npath_home = mil_dogs_home\r\nhome_min_radius = 10\r\nhome_max_radius = 30\r\naggressive = true\r\n",
+          "expectedFileSha256": "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The five Military dog logic files also carry the legacy aggression token, leaving their scripted home behavior without the intended aggression flag.",
+      "description": "Updates the five identical retail script variants to the explicit parameter used by SRP.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.red-forest-bloodsucker-aggression",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore aggression for the Red Forest bloodsucker groups",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_hunter.ltx",
+          "expectedText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_4_2\r\nhome_min_radius = 30\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_4_2\r\nhome_min_radius = 30\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "e0cb97dba52afeb5e10d647a2699b1f7a2998b824786a16b9f8b19a3467f4321",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner.ltx",
+          "expectedText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_1_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_1_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner.ltx",
+          "expectedText": "[mob_home]\r\npath_home = red_bloodsucker_swarm_1_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home]\r\npath_home = red_bloodsucker_swarm_1_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner.ltx",
+          "expectedText": "[mob_home@2]\r\npath_home = red_bloodsucker_swarm_1_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home@2]\r\npath_home = red_bloodsucker_swarm_1_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner2.ltx",
+          "expectedText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_2_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_2_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner2.ltx",
+          "expectedText": "[mob_home]\r\npath_home = red_bloodsucker_swarm_2_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home]\r\npath_home = red_bloodsucker_swarm_2_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner2.ltx",
+          "expectedText": "[mob_home@2]\r\npath_home = red_bloodsucker_swarm_2_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home@2]\r\npath_home = red_bloodsucker_swarm_2_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner3.ltx",
+          "expectedText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_3_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home@sound]\r\npath_home = red_bloodsucker_swarm_3_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner3.ltx",
+          "expectedText": "[mob_home]\r\npath_home = red_bloodsucker_swarm_3_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home]\r\npath_home = red_bloodsucker_swarm_3_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_bloodsucker_runner3.ltx",
+          "expectedText": "[mob_home@2]\r\npath_home = red_bloodsucker_swarm_3_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive_home = true\r\n",
+          "replacementText": "[mob_home@2]\r\npath_home = red_bloodsucker_swarm_3_1\r\nhome_min_radius = 50\r\nhome_max_radius = 50\r\naggressive = true\r\n",
+          "expectedFileSha256": "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The scripted Red Forest bloodsucker home states use the legacy aggression key where SRP specifies the current `aggressive` parameter.",
+      "description": "Corrects the active hunter state and all nine runner states while preserving their waypoints and radii.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.limansk-sniper-look-path",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Use the sniper's look waypoint in Limansk",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_final_sniper.ltx",
+          "expectedText": "path_look = lim_final_sniper_attack_walk\r\n",
+          "replacementText": "path_look = lim_final_sniper_attack_look\r\n",
+          "expectedFileSha256": "4e270b8d37fc42d852ac54ad8a8a198ce1c2c21580923ff7bf3b4bf846519063",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The waiting sniper uses its walking waypoint as the look target, so its scripted facing direction is wrong.",
+      "description": "Changes only the look-path reference in the wait state to the dedicated look waypoint already used by the same encounter.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.skip-destroyed-limansk-minigun-task",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Do not issue the destroyed Limansk minigun task",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_destroy_bandit_minigun_task_zone.ltx",
+          "expectedText": "on_info = {+lim_destroy_bandit_minigun_task} nil %=give_inited_task(storyline:lim_destroy_bandit_minigun:csky)%",
+          "replacementText": "on_info = {+lim_destroy_bandit_minigun_task -lim_bandit_house_go -lim_csky_in_ambush} nil %=give_inited_task(storyline:lim_destroy_bandit_minigun:csky)%, {+lim_bandit_house_go} nil, {+lim_csky_in_ambush} nil",
+          "expectedFileSha256": "1dbed3607167b8b394260fb49b6675b77caeeb164aa0212addd4e94e38e3e6dd",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The Limansk task zone can issue the machine-gun nest task after the bandit-house or ambush state has already advanced.",
+      "description": "Adds the two exact progression guards from SRP to the task trigger.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.unique-limansk-commander-task",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Issue the return-to-commander task only once",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_final_squad_commander_restr.ltx",
+          "expectedText": "on_actor_outside = sr_idle@check %=give_inited_task(storyline:lim_electro_fence_actor_come_back:csky)%\r\n",
+          "replacementText": "on_actor_outside = {-lim_electro_fence_actor_come} sr_idle@check %=give_inited_task(storyline:lim_electro_fence_actor_come_back:csky)%\r\n",
+          "expectedFileSha256": "17813d31590b60d3a4751c6ee33409c7fa25ff21b24a70b38f4c7f591bafab6f",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "Leaving and re-entering the space restrictor can issue repeated copies of the Limansk return-to-commander task.",
+      "description": "Adds the upstream info-portion guard to the single task-issue transition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.agroprom-task-repeat-6-4",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Stop the Agroprom 6-4 eliminate-task trigger after issuance",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_stalker_base_addition_tasks.ltx",
+          "expectedText": "on_info = {+agr_smart_terrain_6_4_simulation_task =smart_captured_by_faction(agr_smart_terrain_6_4:bandit)} sr_idle@line_1 %=give_inited_task(eliminate_smart:agr_smart_terrain_6_4:stalker)%\r\n",
+          "replacementText": "on_info = {+agr_smart_terrain_6_4_simulation_task =smart_captured_by_faction(agr_smart_terrain_6_4:bandit)} nil %=give_inited_task(eliminate_smart:agr_smart_terrain_6_4:stalker)%\r\n",
+          "expectedFileSha256": "b5274333b2bf90fd17397de02cf74bf5878e6bf91cc35fc1b95fbbc16894aa56",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The scripted task trigger returns to its active polling state after issuing the same eliminate task.",
+      "description": "Replaces the repeating state transition with the upstream terminal transition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.agroprom-task-repeat-2-3",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Stop the Agroprom 2-3 eliminate-task trigger after issuance",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_stalker_base_addition_tasks_2.ltx",
+          "expectedText": "on_info = {+agr_smart_terrain_2_3_simulation_task =smart_captured_by_faction(agr_smart_terrain_2_3:bandit)} sr_idle@line_1 %=give_inited_task(eliminate_smart:agr_smart_terrain_2_3:stalker)%\r\n",
+          "replacementText": "on_info = {+agr_smart_terrain_2_3_simulation_task =smart_captured_by_faction(agr_smart_terrain_2_3:bandit)} nil %=give_inited_task(eliminate_smart:agr_smart_terrain_2_3:stalker)%\r\n",
+          "expectedFileSha256": "b8939cbf64ae3649f76bb1280a8d7827dc8e0bc1f68bc9f9cf1cc687034820f2",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The scripted task trigger returns to its active polling state after issuing the same eliminate task.",
+      "description": "Replaces the repeating state transition with the upstream terminal transition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.agroprom-task-repeat-4-2",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Stop the Agroprom 4-2 eliminate-task trigger after issuance",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/agroprom/agr_stalker_base_addition_tasks_3.ltx",
+          "expectedText": "on_info = {+agr_smart_terrain_4_2_simulation_task -agr_smart_terrain_4_2_simulation_task_complete =smart_squad_population(monster:agr_smart_terrain_4_2:2)} sr_idle@line_1 %=create_squad(agr_smart_terrain_4_2_snorks_4_lair:agr_smart_terrain_4_2)% \r\n",
+          "replacementText": "on_info = {+agr_smart_terrain_4_2_simulation_task !smart_squad_population(monster:agr_smart_terrain_4_2:2)} nil %=give_inited_task(eliminate_smart:agr_smart_terrain_4_2:stalker)%\r\non_info2 = {+agr_smart_terrain_4_2_simulation_task =smart_squad_population(monster:agr_smart_terrain_4_2:2)} nil %=create_squad(agr_smart_terrain_4_2_snorks_4_lair:agr_smart_terrain_4_2) =give_inited_task(eliminate_smart:agr_smart_terrain_4_2:stalker)%\r\n",
+          "expectedFileSha256": "379b7ab1fec9744bf6eb390683fb59dfb71aade6d8395894bc6351b7cf8e4a21",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The scripted Agroprom 4-2 snork task uses a two-state loop that can issue the same task repeatedly and couples task issuance to squad spawning.",
+      "description": "Uses SRP's two mutually exclusive terminal transitions: issue the task when the squad is absent, or create it and issue the task when the expected squad is present.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.cancel-strelok-teleport-tasks",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Cancel the Strelok teleport tasks when their target is gone",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/misc/tm_stancia_2.ltx",
+          "expectedText": "condlist_0 = {+stc_additional_q1} complete\r\n",
+          "replacementText": "condlist_0 = {+stc_additional_q1} complete\r\ncondlist_1 = {+stc_strelok_dead} reversed\r\ncondlist_2 = {+stc_strelok_gone} reversed\r\n",
+          "expectedFileSha256": "bf9741c7462e5243c805d043ad4cedb7614621464afd71103c93e8c43bf41945",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/tm_stancia_2.ltx",
+          "expectedText": "condlist_0 = {+stc_second_teleport_actor_out} complete\r\n",
+          "replacementText": "condlist_0 = {+stc_second_teleport_actor_out} complete\r\ncondlist_1 = {+stc_strelok_dead} reversed\r\ncondlist_2 = {+stc_strelok_gone} reversed\r\n",
+          "expectedFileSha256": "bf9741c7462e5243c805d043ad4cedb7614621464afd71103c93e8c43bf41945",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The two additional tasks to follow Strelok toward the generators remain active if he dies or leaves before their completion conditions occur.",
+      "description": "Adds the SRP reversed conditions for both task records without changing their completion conditions.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.hospital-sniper-objective-reversal",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Do not complete Hospital defense objectives when they reverse",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/misc/tm_hospital.ltx",
+          "expectedText": "on_reversed = %+hosp_task_sniper_back_rush_1_complete%\r\n",
+          "replacementText": ";on_reversed = %+hosp_task_sniper_back_rush_1_complete%\r\n",
+          "expectedFileSha256": "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/tm_hospital.ltx",
+          "expectedText": "on_reversed = %+hosp_task_sniper_back_rush_2_complete%\r\n",
+          "replacementText": ";on_reversed = %+hosp_task_sniper_back_rush_2_complete%\r\n",
+          "expectedFileSha256": "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/tm_hospital.ltx",
+          "expectedText": "on_reversed = %+hosp_task_sniper_back_rush_3_complete%\r\n",
+          "replacementText": ";on_reversed = %+hosp_task_sniper_back_rush_3_complete%\r\n",
+          "expectedFileSha256": "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/tm_hospital.ltx",
+          "expectedText": "on_reversed = %+hosp_task_sniper_back_rush_4_complete%\r\n",
+          "replacementText": ";on_reversed = %+hosp_task_sniper_back_rush_4_complete%\r\n",
+          "expectedFileSha256": "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "Each sniper-defense task marks its completion info-portion both on normal completion and on reversal, allowing a failed objective to unlock later steps as though it had succeeded.",
+      "description": "Comments out only the four erroneous reversal actions, matching SRP's quest-table correction.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.limansk-sniper-heal-once",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Restore the Limansk sniper's health once on retreat",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_smart_terrain_6_minigun2.ltx",
+          "expectedText": "on_info = {=health_le(0.7) =dist_to_actor_ge(15)} remark@medic_work2\r\n",
+          "replacementText": "on_info = {=health_le(0.7) =dist_to_actor_ge(15)} remark@medic_work2 %=restore_health%\r\n",
+          "expectedFileSha256": "84765c428e7be0801ca65ff5431f80748b98afd2d0cfd18915729bd7ec04b646",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_smart_terrain_6_minigun2.ltx",
+          "expectedText": "on_info = %=restore_health%",
+          "replacementText": "",
+          "expectedFileSha256": "84765c428e7be0801ca65ff5431f80748b98afd2d0cfd18915729bd7ec04b646",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The scripted medic transition restores health on the subsequent logic update rather than once when entering the retreat state.",
+      "description": "Moves the one-shot restore action to the guarded transition and removes the repeated state action, as documented beside the upstream change.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.ai.hospital-minigunner-danger-keys",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Correct the hospital minigunner danger-distance keys",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/katacomb_hospital/kat_hosp_z1_minigunner.ltx",
+          "expectedText": "ignore_ distance_grenade = 0\r\n",
+          "replacementText": "ignore_distance_grenade = 0\r\n",
+          "expectedFileSha256": "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/katacomb_hospital/kat_hosp_z1_minigunner.ltx",
+          "expectedText": "ignore_ distance_corpse = 0\r\n",
+          "replacementText": "ignore_distance_corpse = 0\r\n",
+          "expectedFileSha256": "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/katacomb_hospital/kat_hosp_z1_minigunner.ltx",
+          "expectedText": "ignore_ distance_hit = 0\r\n",
+          "replacementText": "ignore_distance_hit = 0\r\n",
+          "expectedFileSha256": "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/katacomb_hospital/kat_hosp_z1_minigunner.ltx",
+          "expectedText": "ignore_ distance_sound = 0",
+          "replacementText": "ignore_distance_sound = 0",
+          "expectedFileSha256": "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "Four danger settings contain a space inside the key name and are therefore ignored by the LTX reader.",
+      "description": "Corrects the four key names while preserving their values.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.logic.yantar-zombie-28-section",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Make Yantar zombie 28 logic section parseable",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/yantar/yan_zombie_28.ltx",
+          "expectedText": "[logic]r\r\n",
+          "replacementText": "[logic]\r\n",
+          "expectedFileSha256": "a6bfc074d97529a14b85b3b224019156c8f58229e67a68ce284a8790da286bba",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The file starts with `[logic]r`, which does not name the logic section expected by the script reader.",
+      "description": "Removes the stray trailing character in the section header.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.dialog.escape-2-level-changers",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Keep Escape level changers closed during the PDA assembly",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_pda_dialog_2.ltx",
+          "expectedText": "on_info = {=actor_in_zone(esc_stalkers_dialog_zone_2)} %=play_sound(esc_stalker_assemble_2_1:stalker:esc_leader_stalkerbase_name)% sr_idle@4s\r\n",
+          "replacementText": "on_info = {=actor_in_zone(esc_stalkers_dialog_zone_2)} %=play_sound(esc_stalker_assemble_2_1:stalker:esc_leader_stalkerbase_name) =disable_level_changer(443:tips_wait_conversation_finish) =disable_level_changer(445:tips_wait_conversation_finish)% sr_idle@4s\r\n",
+          "expectedFileSha256": "d00c93511a0e2ca00e8e8855a1241f6ea2d25ec6dccf7ee3de2d0bfa0f9e741b",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_pda_dialog_2.ltx",
+          "expectedText": "[sr_idle@7]\r\n",
+          "replacementText": "[sr_idle@7]\r\non_signal = sound_end | nil %=enable_level_changer(443) =enable_level_changer(445)%\r\n",
+          "expectedFileSha256": "d00c93511a0e2ca00e8e8855a1241f6ea2d25ec6dccf7ee3de2d0bfa0f9e741b",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The Escape PDA conversation can be interrupted by entering its active level changers before the sound sequence ends.",
+      "description": "Disables the two involved changers for the conversation and restores them at the sound-end signal.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.dialog.escape-4-level-changer",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Keep the Escape level changer closed during the PDA assembly",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_pda_dialog_4.ltx",
+          "expectedText": "on_info = {=actor_in_zone(esc_stalkers_dialog_zone_4)} %=play_sound(esc_stalker_assemble_4_1:stalker:esc_leader_stalkerbase_name)% sr_idle@12s\r\n",
+          "replacementText": "on_info = {=actor_in_zone(esc_stalkers_dialog_zone_4)} %=play_sound(esc_stalker_assemble_4_1:stalker:esc_leader_stalkerbase_name) =disable_level_changer(444:tips_wait_conversation_finish)% sr_idle@12s\r\n",
+          "expectedFileSha256": "581337fc5d515a26e952b9050ebc424d3e9b6a491b2acd79952d34c67f020bc4",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/escape/esc_pda_dialog_4.ltx",
+          "expectedText": "[sr_idle@14]\r\n",
+          "replacementText": "[sr_idle@14]\r\non_signal = sound_end | nil %=enable_level_changer(444)%\r\n",
+          "expectedFileSha256": "581337fc5d515a26e952b9050ebc424d3e9b6a491b2acd79952d34c67f020bc4",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "The Escape PDA conversation can be interrupted by entering its active level changer before the sound sequence ends.",
+      "description": "Disables the involved changer for the conversation and restores it at the sound-end signal.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "cs.quest.verified-hospital-sniper-danger-keys",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Correct the hospital sniper danger-distance key",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/katacomb_hospital/kat_hosp_z1_sniper.ltx",
+          "expectedText": "[danger_condition]\r\nignore_distance_corpse = 0\r\nignore_distance_sound = 0\r\nignore_ distance_grenade = 0\r\n",
+          "replacementText": "[danger_condition]\r\nignore_distance_corpse = 0\r\nignore_distance_sound = 0\r\nignore_distance_grenade = 0\r\n",
+          "expectedFileSha256": "23b04b5f51ed63021974f5374d86be1cf0585faee1dda424cc10d1b7d23ece57",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/katacomb_hospital/kat_hosp_z1_sniper.ltx",
+          "expectedText": "[danger_condition@2]\r\nignore_distance = 0\r\nignore_distance_corpse = 0\r\nignore_distance_sound = 0\r\nignore_ distance_grenade = 0\r\n",
+          "replacementText": "[danger_condition@2]\r\nignore_distance = 0\r\nignore_distance_corpse = 0\r\nignore_distance_sound = 0\r\nignore_distance_grenade = 0\r\n",
+          "expectedFileSha256": "23b04b5f51ed63021974f5374d86be1cf0585faee1dda424cc10d1b7d23ece57",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from SRP v1.1.5 at Decane/SRP commit dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc.",
+      "problem": "A misspelled danger-distance key is ignored by the LTX reader.",
+      "description": "Corrects both occurrences of the grenade-distance key in the scripted hospital sniper behavior.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450472, exact archived source-file SHA-256 per operation, and unique exact text anchors.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://github.com/Decane/SRP/blob/dbf6a4bf954ef2de1861ec46eb0eb5aed3b3a5cc/SRP%20v1.1.5%20-%20Readme.txt"
+      ]
+    },
+    {
+      "id": "soc.dialog.wounded-enemy-crash",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Prevent wounded-enemy dialog crashes",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/dialog_manager.ltx",
+          "expectedText": "dm_intro_help_12\r\n",
+          "replacementText": "dm_intro_help_16\r\ndm_intro_help_15\r\ndm_intro_help_14\r\ndm_intro_help_13\r\ndm_intro_help_12\r\n",
+          "expectedFileSha256": "d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/dialog_manager.ltx",
+          "expectedText": "[dm_intro_help_2]\r\n",
+          "replacementText": "[dm_intro_help_13]\r\nwounded = true\r\nnpc_community = killer\r\ncategory = intro\r\n\r\n[dm_intro_help_14]\r\nwounded = true\r\nnpc_community = bandit\r\ncategory = intro\r\n\r\n[dm_intro_help_15]\r\nwounded = true\r\nnpc_community = monolith\r\ncategory = intro\r\n\r\n[dm_intro_help_16]\r\nwounded = true\r\nnpc_community = military\r\ncategory = intro\r\n\r\n[dm_intro_help_2]\r\n",
+          "expectedFileSha256": "d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/eng/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Can you spare a medkit?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>It hurts! Stop the pain!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>By the Monolith, help this brother!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Comrade! I need help...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "163ce72636007fde27f468d3868fcdc6e665a39bb70e573a168fbbd6d7ba858e",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The wounded-NPC dialog manager can select a help line for normally hostile communities without a matching dialog section.",
+      "description": "Adds the four community-specific dialog-manager entries and their English strings from ZRP; it does not replace the dialog manager or Lua scripts.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.dialog.yurik-options-out-of-order",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Keep Yurik's dialog options available",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/gameplay/dialogs_garbage.xml",
+          "expectedText": "<dont_has_info>gar_add_fake_spot3</dont_has_info>",
+          "replacementText": "<dont_has_info>gar_add_fake_spot1</dont_has_info>",
+          "expectedFileSha256": "baf38c4e00959e211c1ca708ebe40e949c37ac4833b154bdff04fbdf1cad0254",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "One Yurik conversation branch is gated by the wrong info-portion, so taking options in another order can make the remaining conversation disappear.",
+      "description": "Changes only the faulty guard in the garbage novice dialog to the info-portion used by that branch.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.quest.kruglov-rescue-dialog-recovery",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Recover Kruglov's stalled rescue conversation",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/gameplay/dialogs_bar.xml",
+          "expectedText": "<text>bar_ecolog_crush_professor_start_91</text>\r\n",
+          "replacementText": "<text>bar_ecolog_crush_professor_start_91</text>\r\n                <action>xr_gulag.resetJob</action>\r\n",
+          "expectedFileSha256": "0556ce86262eed32d68c602d2f731c0be57ef7355d699492907fee4d3f0cc159",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "If Kruglov stalls during the Rostok rescue, talking to him again does not reset the assigned gulag job.",
+      "description": "Adds the upstream job reset action to the existing rescue follow-up phrase.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.quest.skull-lukash-task-after-attack",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Let Skull complete the Lukash elimination task after the attack starts",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/gameplay/dialogs_military.xml",
+          "expectedText": "            <phrase id=\"2\">\r\n                <text />\r\n                <dont_has_info>mil_dolg_auto_attack</dont_has_info>\r\n                <dont_has_info>mil_dolg_gulag_free</dont_has_info>\r\n                <has_info>mil_sniper_dead</has_info>\r\n                <has_info>mil_lukash_dead</has_info>\r\n                <next>200</next>\r\n            </phrase>",
+          "replacementText": "            <phrase id=\"2\">\r\n                <text />\r\n                <!-- <dont_has_info>mil_dolg_auto_attack</dont_has_info> -->\r\n                <has_info>mil_dolg_final_task</has_info>\r\n                <dont_has_info>mil_dolg_gulag_free</dont_has_info>\r\n                <has_info>mil_sniper_dead</has_info>\r\n                <has_info>mil_lukash_dead</has_info>\r\n                <next>200</next>\r\n            </phrase>",
+          "expectedFileSha256": "58d97d0348e275a10a9a0973c7fa3db361abde8632e981bb0cc4a8e2e2ced73c",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The silent Skull-dialog completion branch is disabled as soon as the delayed Freedom-base attack begins, even when the task has already reached its completion state.",
+      "description": "Replaces only the obsolete no-auto-attack guard with the task-issued info-portion check documented by ZRP.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.quest.yantar-secret-tunnel-marker",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Hide the Yantar tunnel exit until the route is discovered",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/gameplay/tasks_yantar.xml",
+          "expectedText": "\t\t<objective>\r\n\t\t\t<text>yan_secret_tonnel</text>\r\n\t\t\t<map_location_type>green_location</map_location_type>\r\n\t\t\t<object_story_id>yan_secret_exit</object_story_id>\r\n\t\t\t<infoportion_complete>yantar_tunnel_finish</infoportion_complete>\r\n\t\t</objective>",
+          "replacementText": "\t\t<objective>\r\n\t\t\t<text>yan_kill_brain_task_2</text>\r\n\t\t\t<infoportion_complete>yantar_tunnel_start</infoportion_complete>\r\n\t\t</objective>\r\n\t\t<objective>\r\n\t\t\t<text>yan_secret_tonnel</text>\r\n\t\t\t<map_location_type hint=\"yan_secret_tonnel\">green_location</map_location_type>\r\n\t\t\t<object_story_id>yan_secret_exit</object_story_id>\r\n\t\t\t<map_location_hidden>1</map_location_hidden> \r\n\t\t\t<infoportion_complete>yantar_tunnel_finish</infoportion_complete>\r\n\t\t</objective>",
+          "expectedFileSha256": "9135738b924d78f0e14052d31abb533a472d905f9c987e4beb421bdad5c64b2b",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The secret tunnel exit marker is visible on the PDA before the player learns about the route.",
+      "description": "Adds the tunnel-start task gate and the engine's hidden-marker flag while preserving the existing completion condition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.quest.dark-valley-sacrifice-guard-release",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Release Dark Valley executioners when the victim is already dead",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/scripts/val_sacrifice_guard1.ltx",
+          "expectedText": "on_info                     = {+val_sacrifice_victim_phrase1_end} remark@val_sacrifice_guard1_phrase1\r\n",
+          "replacementText": "on_info                     = {+val_sacrifice_victim_phrase1_end} remark@val_sacrifice_guard1_phrase1\r\non_info2                    = {+val_sacrifice_victim_dead} %+val_sacrifice_finish%\r\n",
+          "expectedFileSha256": "c48d1832d9a63e18f1ff4478dee9c15f73eed8a40629fb6e4e897ab051df6ff8",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/scripts/val_sacrifice_guard2.ltx",
+          "expectedText": "on_info                     = {+val_sacrifice_guard1_phrase1_end} remark@val_sacrifice_guard2_phrase1\r\n",
+          "replacementText": "on_info                     = {+val_sacrifice_guard1_phrase1_end} remark@val_sacrifice_guard2_phrase1\r\non_info2                    = {+val_sacrifice_victim_dead} %+val_sacrifice_finish%\r\n",
+          "expectedFileSha256": "7c73df7da02df7f9d98980c40c6eea110b194d4dba36a0e8948f2d1f77f202cb",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The sacrifice guards have no exit from their active role when the victim dies before their scripted sequence finishes.",
+      "description": "Adds the existing victim-dead info-portion exit to both executioner states; it does not change the sacrifice spawn or victim state.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.quest.petruha-report-once",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Prevent Petruha's team from repeating its report",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/gulag_escape.ltx",
+          "expectedText": "on_info = {+esc_petruha_die -esc_petruha_report2 -esc_report_send} remark@esc_assault_home1\r\n",
+          "replacementText": "on_info = {+esc_petruha_die -esc_petruha_report2 -esc_report_send} remark@esc_assault_home2\r\n",
+          "expectedFileSha256": "b84dc3809d329bb5eafb391ee9e09c5f3fd8e96465ac01e2e8bf4b772883ab5d",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_escape.ltx",
+          "expectedText": "[remark@esc_assault_home22]\r\npath_walk = escape_factory_return_path\r\nanim = guard_rac\r\nsnd = esc_petruha_raport\r\non_signal = sound_end| kamp@esc_assault_home1 %+esc_report_send%\r\n",
+          "replacementText": "[remark@esc_assault_home22]\r\npath_walk = escape_factory_return_path\r\nanim = guard_rac\r\nsnd = esc_petruha_raport\r\non_signal = sound_end| kamp@esc_assault_home2 %+esc_report_send%\r\n",
+          "expectedFileSha256": "b84dc3809d329bb5eafb391ee9e09c5f3fd8e96465ac01e2e8bf4b772883ab5d",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "Petruha's backup team can return to the wrong camp state after reporting that he died, causing the report logic to run again.",
+      "description": "Corrects the two state transitions that must stay within the second camp's report path and preserve its sent-info guard.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.logic.freedom-trader-armory-meet-schemes",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Restore Freedom trader and armory guard interactions",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "[meet@mil_freedrader]\r\n",
+          "replacementText": "[meet@mil_freedom_trader]\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "meet_sate_wpn = 2|backoff@threat_back\r\n",
+          "replacementText": "meet_state_wpn = 2|backoff@threat_back\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "meet = on_meet@mil_freedom_guard1\r\n",
+          "replacementText": "meet = meet@mil_freedom_guard1\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "[on_meet@mil_freedom_guard1]\r\n",
+          "replacementText": "[meet@mil_freedom_guard1]\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "[on_meet@mil_freedom_max]\r\n",
+          "replacementText": "[meet@mil_freedom_max]\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "meet = on_meet@mil_freedom_max\r\n",
+          "replacementText": "meet = meet@mil_freedom_max\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "[on_meet@mil_freedom_stalker4]\r\n",
+          "replacementText": "[meet@mil_freedom_stalker4]\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "meet = on_meet@mil_freedom_stalker4\r\n",
+          "replacementText": "meet = meet@mil_freedom_stalker4\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "[on_meet@mil_freedom_stalker5]\r\n",
+          "replacementText": "[meet@mil_freedom_stalker5]\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom1.ltx",
+          "expectedText": "meet = on_meet@mil_freedom_stalker5\r\n",
+          "replacementText": "meet = meet@mil_freedom_stalker5\r\n",
+          "expectedFileSha256": "42aa4baf3831d03d243434cc59555c0ae95fd6ecf26fb8176dcdac690956e44a",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The trader's meet section name does not match its reference, the armory guard's weapon-state key is misspelled, and several Army Warehouses meet schemes use the unsupported on_meet name.",
+      "description": "Applies the named ZRP section and key corrections in this file only; it leaves the trader's schedules, rewards, and faction behavior unchanged.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.logic.freedom-blockpost-meet-scheme",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Restore the Freedom blockpost commander meet scheme",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_fblockpost.ltx",
+          "expectedText": "meet = on_meet@mil_fblockpost_commander\r\n",
+          "replacementText": "meet = meet@mil_fblockpost_commander\r\n",
+          "expectedFileSha256": "b9c839fdad4df50ef67014671b0fc0d17a3f6ce447be3d955da66924212a23a0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_fblockpost.ltx",
+          "expectedText": "[on_meet@mil_fblockpost_commander]\r\n",
+          "replacementText": "[meet@mil_fblockpost_commander]\r\n",
+          "expectedFileSha256": "b9c839fdad4df50ef67014671b0fc0d17a3f6ce447be3d955da66924212a23a0",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The commander references an on_meet scheme that is not recognized as the meet scheme declared by the game logic.",
+      "description": "Renames the referenced scheme and its matching section without changing any dialogue conditions.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.logic.freedom-max-attack-meet-scheme",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Restore the Freedom attack leader's meet scheme",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom3.ltx",
+          "expectedText": "meet = on_meet@mil_freedom_max_attack\r\n",
+          "replacementText": "meet = meet@mil_freedom_max_attack\r\n",
+          "expectedFileSha256": "f8e90b693208e888efab1dbf3c2c23aa3f68bd21a504721aaf5e97410c3c73a3",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_mil_freedom3.ltx",
+          "expectedText": "[on_meet@mil_freedom_max_attack]\r\n",
+          "replacementText": "[meet@mil_freedom_max_attack]\r\n",
+          "expectedFileSha256": "f8e90b693208e888efab1dbf3c2c23aa3f68bd21a504721aaf5e97410c3c73a3",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The leader of the Army Warehouses attack references an on_meet section instead of the supported meet scheme.",
+      "description": "Renames only the matching section and reference documented in the ZRP Army Warehouses logic fix.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.logic.red-forest-combat-and-death-schemes",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Repair the Red Forest fight and death scheme references",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_svoboda]\r\nactive = walker@rad_svoboda\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_svoboda]\r\nactive = walker@rad_svoboda\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_svoboda1]\r\nactive = walker@rad_svoboda1\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_svoboda1]\r\nactive = walker@rad_svoboda1\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_svoboda2]\r\nactive = walker@rad_svoboda2\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_svoboda2]\r\nactive = walker@rad_svoboda2\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_svoboda3]\r\nactive = walker@rad_svoboda3\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_svoboda3]\r\nactive = walker@rad_svoboda3\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_svoboda4]\r\nactive = walker@rad_svoboda4\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_svoboda4]\r\nactive = walker@rad_svoboda4\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_svoboda5]\r\nactive = walker@rad_svoboda5\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_svoboda5]\r\nactive = walker@rad_svoboda5\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_dolg]\r\nactive = walker@rad_dolg\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_dolg]\r\nactive = walker@rad_dolg\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_dolg1]\r\nactive = walker@rad_dolg1\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_dolg1]\r\nactive = walker@rad_dolg1\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_dolg2]\r\nactive = walker@rad_dolg2\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_dolg2]\r\nactive = walker@rad_dolg2\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_dolg3]\r\nactive = walker@rad_dolg3\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_dolg3]\r\nactive = walker@rad_dolg3\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_dolg4]\r\nactive = walker@rad_dolg4\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_dolg4]\r\nactive = walker@rad_dolg4\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[logic@rad_dolg5]\r\nactive = walker@rad_dolg5\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
+          "replacementText": "[logic@rad_dolg5]\r\nactive = walker@rad_dolg5\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/gulag_radar.ltx",
+          "expectedText": "[rad_monolith]\r\n",
+          "replacementText": "[combat@rad_monolith]\r\n",
+          "expectedFileSha256": "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The Radar faction jobs route NPC deaths through a hit scheme, and the Monolith combat block uses a section name that is not a combat scheme.",
+      "description": "Points each faction job's death callback at the shipped death section and names the Monolith block as a combat scheme, with all anchors limited to those exact logic sections.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.config.red-forest-stash-item-assignment",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Repair the Red Forest Kolobok stash item list",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/treasure_manager.ltx",
+          "expectedText": "items =  = af_fuzz_kolobok, ammo_m209, 5\r\n",
+          "replacementText": "items = af_fuzz_kolobok, ammo_m209, 5\r\n",
+          "expectedFileSha256": "3a69d02dd81698a17b1da180e8834b49f70f27b638de9557cd040270d16c0d96",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "One stash's item list contains an extra assignment operator, making its LTX item sequence malformed.",
+      "description": "Removes only the duplicate equals sign from the affected stash entry.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.config.bar-ecologist-guard-class",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Correct the Bar ecologist guard class reference",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/gameplay/character_desc_bar.xml",
+          "expectedText": "<class>bar_Ecolog_guard</class>",
+          "replacementText": "<class>bar_ecolog_guard</class>",
+          "expectedFileSha256": "b51c145ebec57935914472ea8f5b6dd4c476d980d458711ef6acf4d5f8d5ae27",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The Bar ecologist guard points to a class name with incorrect capitalization, so the reference does not resolve to the defined NPC class.",
+      "description": "Corrects the one character-class token in the retail description file.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.quest.freedom-reward-relation-syntax",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Correct malformed Freedom task relationship entries",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/task_manager.ltx",
+          "expectedText": "reward_relation = dolg, -100, freedom +150\r\n",
+          "replacementText": "reward_relation = dolg, -100, freedom, +150\r\n",
+          "expectedFileSha256": "88baa94bf4254bb59f6c68d5d7aa416b4557446bee53243114298758ab44145b",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/misc/task_manager.ltx",
+          "expectedText": "reward_relation = freedom +50\r\n",
+          "replacementText": "reward_relation = freedom, +50\r\n",
+          "expectedFileSha256": "88baa94bf4254bb59f6c68d5d7aa416b4557446bee53243114298758ab44145b",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "Two Freedom quest reward entries omit the separator before the faction relation value, so the intended relationship reward is malformed.",
+      "description": "Adds the missing delimiter to only the two documented reward entries; other reward and balance values stay untouched.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "soc.logic.bar-danger-hit-distance-key",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Correct the Bar gulag hit-distance key",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/gulag_bar.ltx",
+          "expectedText": "ignore_distance_danger_hit     = 0\r\n",
+          "replacementText": "ignore_distance_hit     = 0\r\n",
+          "expectedFileSha256": "358b61119988508e038cddc1d3314e8bfb46002cacf0ae28dfdad1e918c66fb2",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
+      "problem": "The ecologist job uses an unrecognized danger-distance key, so its configured hit-response distance is ignored.",
+      "description": "Renames the key to the supported ignore_distance_hit field in its one affected section.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11567845, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ]
+    },
+    {
+      "id": "cop.weapon.f1-blast-radius",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Match F1 blast radius to its documented effect",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/weapons/w_f1.ltx",
+          "expectedText": "blast\t\t\t\t\t= 3",
+          "replacementText": "blast\t\t\t\t\t= 5",
+          "expectedFileSha256": "510a6432c214b863e2a04a5be54e8a4fad8fea47d61be8464e32329a282fb913",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_f1.ltx",
+          "expectedText": "blast_r\t\t\t\t\t= 5",
+          "replacementText": "blast_r\t\t\t\t\t= 7",
+          "expectedFileSha256": "510a6432c214b863e2a04a5be54e8a4fad8fea47d61be8464e32329a282fb913",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The community patch changes the F1 blast strength and radius to match the grenade's intended explosive effect; this is a gameplay balance change.",
+      "description": "Applies only the two blast values from the upstream weapon file. It is Community-only and excluded from presets.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.weapon.rgd5-blast-radius",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Match RGD-5 blast strength to its documented effect",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/weapons/w_rgd5.ltx",
+          "expectedText": "blast\t\t\t\t\t= 1.5",
+          "replacementText": "blast\t\t\t\t\t= 2.5",
+          "expectedFileSha256": "ca2cc2e0d9c6c7330e234be07a218449f903b18d70f40c48d908c83926903fe7",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The community patch raises the RGD-5 blast value; this changes weapon balance rather than repairing a demonstrated progression or stability fault.",
+      "description": "Applies only the single upstream blast value and remains Community-only, outside presets.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.weapon.spas12-sight-alignment",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Align the SPAS-12 ironsight and scope offsets",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/weapons/w_spas12.ltx",
+          "expectedText": "aim_hud_offset_pos\t\t\t\t= -0.098000,0.051000,0.000000",
+          "replacementText": "aim_hud_offset_pos\t\t\t\t= -0.097600, 0.090200, 0.050000",
+          "expectedFileSha256": "c4ae9a3eaf0a397a8599fc37ca0b445842427c628aeb89eabd4cf0accb7039bf",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_spas12.ltx",
+          "expectedText": "aim_hud_offset_rot\t\t\t\t= 0.017500,0.025000,-0.022500",
+          "replacementText": "aim_hud_offset_rot\t\t\t\t=  0.051000, 0.025000,-0.022500",
+          "expectedFileSha256": "c4ae9a3eaf0a397a8599fc37ca0b445842427c628aeb89eabd4cf0accb7039bf",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_spas12.ltx",
+          "expectedText": "aim_hud_offset_pos_16x9\t\t\t\t= -0.107500,0.119000,0.000000",
+          "replacementText": "aim_hud_offset_pos_16x9\t\t\t= -0.106600, 0.158000, 0.050000",
+          "expectedFileSha256": "c4ae9a3eaf0a397a8599fc37ca0b445842427c628aeb89eabd4cf0accb7039bf",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_spas12.ltx",
+          "expectedText": "aim_hud_offset_rot_16x9\t\t\t\t= 0.052500,0.045000,-0.045000",
+          "replacementText": "aim_hud_offset_rot_16x9\t\t\t=  0.087000, 0.046500,-0.045000",
+          "expectedFileSha256": "c4ae9a3eaf0a397a8599fc37ca0b445842427c628aeb89eabd4cf0accb7039bf",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The upstream patch moves the SPAS-12 aiming offsets in both aspect-ratio layouts; the retail positions leave the sight picture misaligned.",
+      "description": "Changes only the four aiming position and rotation values. It does not copy the upstream file's unrelated whitespace edits.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.weapon.val-sight-alignment",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Align and de-duplicate the AS Val sight offsets",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/weapons/w_val.ltx",
+          "expectedText": "aim_hud_offset_pos_16x9\t\t\t\t= -0.110000,0.048500,-0.018000",
+          "replacementText": "aim_hud_offset_pos_16x9\t\t= -0.137500, 0.079800,-0.020000",
+          "expectedFileSha256": "386df00dfdbc4a9ae14aa56dc66a5348b0a1e863dfbc34d7b2f32f7a39eb8e6f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_val.ltx",
+          "expectedText": "aim_hud_offset_rot_16x9\t\t\t\t= 0.017500,0.005000,-0.027500",
+          "replacementText": "aim_hud_offset_rot_16x9\t\t=  0.017800, 0.020850,-0.040000",
+          "expectedFileSha256": "386df00dfdbc4a9ae14aa56dc66a5348b0a1e863dfbc34d7b2f32f7a39eb8e6f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_val.ltx",
+          "expectedText": "aim_hud_offset_pos\t\t\t\t= -0.109500,0.041000,-0.035500",
+          "replacementText": "aim_hud_offset_pos\t\t= -0.108900, 0.044200,-0.035500",
+          "expectedFileSha256": "386df00dfdbc4a9ae14aa56dc66a5348b0a1e863dfbc34d7b2f32f7a39eb8e6f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_val.ltx",
+          "expectedText": "aim_hud_offset_rot\t\t\t\t= -0.017500,-0.042500,-0.022500",
+          "replacementText": "aim_hud_offset_rot\t\t= -0.018500,-0.043200,-0.022500",
+          "expectedFileSha256": "386df00dfdbc4a9ae14aa56dc66a5348b0a1e863dfbc34d7b2f32f7a39eb8e6f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_val.ltx",
+          "expectedText": "aim_hud_offset_pos_16x9\t\t\t\t= -0.143000,0.068500,-0.018000\r\n",
+          "replacementText": "",
+          "expectedFileSha256": "386df00dfdbc4a9ae14aa56dc66a5348b0a1e863dfbc34d7b2f32f7a39eb8e6f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_val.ltx",
+          "expectedText": "aim_hud_offset_rot_16x9\t\t\t\t= 0.012500,0.020000,-0.010000\r\n",
+          "replacementText": "",
+          "expectedFileSha256": "386df00dfdbc4a9ae14aa56dc66a5348b0a1e863dfbc34d7b2f32f7a39eb8e6f",
+          "codePage": 28591
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The retail HUD section contains two competing 16:9 aiming offset pairs, while the patch supplies one corrected pair and adjusts the standard layout.",
+      "description": "Replaces the two standard layout values, replaces the first 16:9 pair, and removes only the duplicate second pair.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.dialog.correct-anomaly-name",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Use the correct name for the Claw anomaly field",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_dialog_manager.xml",
+          "expectedText": "<string id=\"dm_anomalies_9\">\r\n\t\t<text>Если интересуют гравитационные артефакты, то надо в аномалии «Клык» искать. Это место не заметить сложно - там аномалиями сильно землю покорёжило, часть холма просто начисто снесло. А в пещерах, которые в холме открылись, сразу же снорки обосновались, но наружу они редко выходят.</text>",
+          "replacementText": "<string id=\"dm_anomalies_9\">\r\n\t\t<text>Если интересуют гравитационные артефакты, то надо в аномалии «Коготь» искать. Это место не заметить сложно - там аномалиями сильно землю покорёжило, часть холма просто начисто снесло. А в пещерах, которые в холме открылись, сразу же снорки обосновались, но наружу они редко выходят.</text>",
+          "expectedFileSha256": "b3f1e7b732759d67b3794ebd6571f85022f0c7a575e92fb52092af89e69abd26",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Skadovsk dialogue labels the gravitational anomaly field as Claw's namesake `Fang`, while the game location is Claw.",
+      "description": "Corrects one Russian dialogue string ID; no quest state, map marker or world data changes.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.quest.memory-module-unlock-attribution",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Avoid crediting Novikov when Azot unlocks the memory module",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_items_quest.xml",
+          "expectedText": "<string id=\"st_jup_b10_ufo_memory_2_desc\">\r\n\t\t<text>Модуль памяти, извлечённый из беспилотного разведывательного аппарата. Новиков разблокировал модуль, открыв доступ к информации, которая была собрана разведчиком: среди прочего в ней содержатся пеленги на три радиомаяка.</text>",
+          "replacementText": "<string id=\"st_jup_b10_ufo_memory_2_desc\">\r\n\t\t<text>Модуль памяти, извлечённый из беспилотного разведывательного аппарата. Какой-то специалист разблокировал модуль, открыв доступ к информации, которая была собрана разведчиком: среди прочего в ней содержатся пеленги на три радиомаяка.</text>",
+          "expectedFileSha256": "a087421f6d795211e7c1bd5e5783999e1971560f5036b3ed01cef2294f4455a6",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The quest item description credits Novikov even when Azot performs the module unlock, so the text contradicts the player's route.",
+      "description": "Replaces the fixed name with the source patch's neutral attribution in this single item description.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.dialog.gonta-after-soroka-recovered",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Remove the stale Magpie reference from Gonta's chimera invitation",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_dialogs_zaton.xml",
+          "expectedText": "<string id=\"zat_b106_stalker_gonta_start_12\">\r\n\t\t<text>Постой!.. Мы выследили химеру, дело срочное. Краб ещё не отошёл, Данилы всё нет, а вдвоём на неё идти - ну глупо будет. Ты мужик что надо, Сороку вот нашел. Айда с нами, на химеру поохотиться?</text>",
+          "replacementText": "<string id=\"zat_b106_stalker_gonta_start_12\">\r\n\t\t<text>Постой!.. Мы выследили химеру, дело срочное. Краб ещё не отошёл, Данилы всё нет, а вдвоём на неё идти - ну глупо будет. Ты мужик что надо, айда с нами, на химеру поохотиться?</text>",
+          "expectedFileSha256": "ba45d77dc2d8531a303f3defa54218d3e97aa59a72c9419209d3a62268413bba",
+          "codePage": 1251
+        },
+        {
+          "relativePath": "gamedata/configs/text/rus/st_dialogs_zaton.xml",
+          "expectedText": "<string id=\"zat_b106_stalker_gonta_start_13\">\r\n\t\t<text>Постой!.. Мы выследили химеру, дело срочное. Краб ещё не отошёл, да и Данила... эх!.. Но вдвоём-то на неё идти глупо будет! Ты мужик что надо, Сороку вот нашел. Айда с нами, на химеру поохотиться?</text>",
+          "replacementText": "<string id=\"zat_b106_stalker_gonta_start_13\">\r\n\t\t<text>Постой!.. Мы выследили химеру, дело срочное. Краб ещё не отошёл, да и Данила... эх!.. Но вдвоём-то на неё идти глупо будет! Ты мужик что надо, айда с нами, на химеру поохотиться?</text>",
+          "expectedFileSha256": "ba45d77dc2d8531a303f3defa54218d3e97aa59a72c9419209d3a62268413bba",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "Gonta's invitation still praises the player for finding Soroka after that story point has already been resolved, producing a contradictory repeat dialogue.",
+      "description": "Removes only the stale clause from the two corresponding dialogue choices.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.prp.crow-counter-guard",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Guard crow cleanup against duplicate decrements",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/bind_crow.script",
+          "expectedText": "function crow_binder:net_destroy()\r\n    self.object:set_callback(callback.death, nil)\r\n    bind_crow.crow_storage[self.object:id()] = nil\r\n\tbind_crow.crow_counter = bind_crow.crow_counter - 1\r\n",
+          "replacementText": "function crow_binder:net_destroy()\r\n    self.object:set_callback(callback.death, nil)\r\n    if (bind_crow.crow_storage[self.object:id()] ~= nil) then --*Crow FIX*\r\n        bind_crow.crow_storage[self.object:id()] = nil\r\n        bind_crow.crow_counter = bind_crow.crow_counter - 1\r\n        if (bind_crow.crow_counter < 0) then --*Crow FIX*\r\n            bind_crow.crow_counter = 0 --*Crow FIX*\r\n        end --*Crow FIX*\r\n    end --*Crow FIX*\r\n",
+          "expectedFileSha256": "45ffda2c2d293192bcb86dde3d79336eebda0b9ed5b0f073467bab43f88d4688",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/bind_crow.script",
+          "expectedText": "function crow_binder:death_callback(victim, who)\r\n    self.body_timer = time_global()\r\n    bind_crow.crow_storage[self.object:id()] = nil\r\n\tbind_crow.crow_counter = bind_crow.crow_counter - 1\r\n",
+          "replacementText": "function crow_binder:death_callback(victim, who)\r\n    self.body_timer = time_global()\r\n    if (bind_crow.crow_storage[self.object:id()] ~= nil) then --*Crow FIX*\r\n        bind_crow.crow_storage[self.object:id()] = nil\r\n        bind_crow.crow_counter = bind_crow.crow_counter - 1\r\n        if (bind_crow.crow_counter < 0) then --*Crow FIX*\r\n            bind_crow.crow_counter = 0 --*Crow FIX*\r\n        end --*Crow FIX*\r\n    end --*Crow FIX*\r\n",
+          "expectedFileSha256": "45ffda2c2d293192bcb86dde3d79336eebda0b9ed5b0f073467bab43f88d4688",
+          "codePage": 28591
+        }
+      ],
+      "source": "PRP v1.2 (Pripyat Reclamation Patch); targeted operation verified against Call of Pripyat Steam build 11450453.",
+      "problem": "Repeated network-object cleanup can decrement the crow counter after the crow was already removed.",
+      "description": "Removes a crow ID only while it is registered and clamps the counter at zero, using the PRP fix in both cleanup paths.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of each effective retail file from Steam build 11450453 and unique exact text anchors; PRP v1.2 archive SHA-256 d4c5b8c3836b7d51b0b175aeb1d5e18896f99dc27f5a7e79955f72638358d598.",
+      "references": [
+        "https://www.moddb.com/mods/pripyat-reclamation-patch",
+        "https://www.mediafire.com/folder/lo9xufb1io6av/PRP"
+      ]
+    },
+    {
+      "id": "cop.prp.x8-burer-health-guard",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Remove the X8 burer hit-triggered full heal",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/labx8/lx8_burers.ltx",
+          "expectedText": "on_hit = hit_1\r\n",
+          "replacementText": "",
+          "expectedFileSha256": "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/labx8/lx8_burers.ltx",
+          "expectedText": "[hit_1]\r\non_info = {=hit_by_actor !actor_in_zone(lx8_sr_burer_out_restr)} %=restore_health% \r\n",
+          "replacementText": "",
+          "expectedFileSha256": "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/labx8/lx8_burers.ltx",
+          "expectedText": "on_hit = hit_2\r\n",
+          "replacementText": "",
+          "expectedFileSha256": "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/labx8/lx8_burers.ltx",
+          "expectedText": "[hit_2]\r\non_info = {=hit_by_actor !actor_in_zone(lx8_sr_burer_out_restr)} %=restore_health% \r\n",
+          "replacementText": "",
+          "expectedFileSha256": "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/labx8/lx8_burers.ltx",
+          "expectedText": "on_hit = hit_3\r\n",
+          "replacementText": "",
+          "expectedFileSha256": "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/labx8/lx8_burers.ltx",
+          "expectedText": "[hit_3]\r\non_info = {=hit_by_actor !actor_in_zone(lx8_sr_burer_out_restr)} %=restore_health% ",
+          "replacementText": "",
+          "expectedFileSha256": "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+          "codePage": 28591
+        }
+      ],
+      "source": "PRP v1.2 (Pripyat Reclamation Patch); targeted operation verified against Call of Pripyat Steam build 11450453.",
+      "problem": "Each X8 burer restores its full health when hit while the actor is outside the lab's outer restriction.",
+      "description": "Removes the three matching on-hit callbacks and their restore-health states from the X8 burer logic file.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of each effective retail file from Steam build 11450453 and unique exact text anchors; PRP v1.2 archive SHA-256 d4c5b8c3836b7d51b0b175aeb1d5e18896f99dc27f5a7e79955f72638358d598.",
+      "references": [
+        "https://www.moddb.com/mods/pripyat-reclamation-patch",
+        "https://www.mediafire.com/folder/lo9xufb1io6av/PRP"
+      ]
+    },
+    {
+      "id": "cop.prp.jupiter-scanner-task-guard",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Require the Jupiter scanner task before placing the extra scanners",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/jupiter/jup_b32_sr_scanners.ltx",
+          "expectedText": "on_info5 = {=actor_in_zone(jup_b32_sr_scanner_place_4) -jup_b32_scanner_4_placed} sr_idle@place %=run_tutorial(jup_b32_scanner)%\r\n",
+          "replacementText": "on_info5 = {=actor_in_zone(jup_b32_sr_scanner_place_4) -jup_b32_scanner_4_placed +jup_b32_task_addon_start} sr_idle@place %=run_tutorial(jup_b32_scanner)%\r\n",
+          "expectedFileSha256": "5e76767ec1a869adc6ea143c58e0a1302de2e7a343d35ce7e67aa51adbaa0a4c",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/jupiter/jup_b32_sr_scanners.ltx",
+          "expectedText": "on_info6 = {=actor_in_zone(jup_b32_sr_scanner_place_5) -jup_b32_scanner_5_placed} sr_idle@place %=run_tutorial(jup_b32_scanner)%\r\n",
+          "replacementText": "on_info6 = {=actor_in_zone(jup_b32_sr_scanner_place_5) -jup_b32_scanner_5_placed +jup_b32_task_addon_start} sr_idle@place %=run_tutorial(jup_b32_scanner)%\r\n",
+          "expectedFileSha256": "5e76767ec1a869adc6ea143c58e0a1302de2e7a343d35ce7e67aa51adbaa0a4c",
+          "codePage": 28591
+        }
+      ],
+      "source": "PRP v1.2 (Pripyat Reclamation Patch); targeted operation verified against Call of Pripyat Steam build 11450453.",
+      "problem": "The fourth and fifth Jupiter scanner fields can prompt placement before the scanner task has started.",
+      "description": "Adds the task-start info-portion to only the two additional scanner triggers.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of each effective retail file from Steam build 11450453 and unique exact text anchors; PRP v1.2 archive SHA-256 d4c5b8c3836b7d51b0b175aeb1d5e18896f99dc27f5a7e79955f72638358d598.",
+      "references": [
+        "https://www.moddb.com/mods/pripyat-reclamation-patch",
+        "https://www.mediafire.com/folder/lo9xufb1io6av/PRP"
+      ]
+    },
+    {
+      "id": "cop.prp.altered-insulator-door-gate",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Gate the altered-insulator door on task state and artifact possession",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/jupiter/jup_b1_door.ltx",
+          "expectedText": "on_info = {=actor_in_zone(jup_b1_open_door_zone)} ph_door@close\r\n",
+          "replacementText": "on_info = {=actor_in_zone(jup_b1_open_door_zone) +jup_b1_start =actor_has_item(jup_b1_half_artifact)} ph_door@close\r\n",
+          "expectedFileSha256": "dc98e408ef1804f2bbf7337b18d60b989ec03452410af7a830e0f9ae9cf93597",
+          "codePage": 28591
+        }
+      ],
+      "source": "PRP v1.2 (Pripyat Reclamation Patch); targeted operation verified against Call of Pripyat Steam build 11450453.",
+      "problem": "The door's zone trigger enters its open state without checking the associated task or the half-artifact.",
+      "description": "Adds the existing task-start flag and required artifact predicate to the single door transition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of each effective retail file from Steam build 11450453 and unique exact text anchors; PRP v1.2 archive SHA-256 d4c5b8c3836b7d51b0b175aeb1d5e18896f99dc27f5a7e79955f72638358d598.",
+      "references": [
+        "https://www.moddb.com/mods/pripyat-reclamation-patch",
+        "https://www.mediafire.com/folder/lo9xufb1io6av/PRP"
+      ]
+    },
+    {
+      "id": "cop.prp.knife-hit-reach",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct the knife's second hit distance and radius",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/weapons/w_knife.ltx",
+          "expectedText": "spash2_dist\t\t\t\t= 1\r\n",
+          "replacementText": "spash2_dist\t\t\t\t= 1.2\r\n",
+          "expectedFileSha256": "67149d44252f315b85c370a2e99ba6958dc4499a5ecb70971958e0291ec3c687",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/weapons/w_knife.ltx",
+          "expectedText": "spash2_radius\t\t\t= 0.25\r\n",
+          "replacementText": "spash2_radius\t\t\t= 0.5\r\n",
+          "expectedFileSha256": "67149d44252f315b85c370a2e99ba6958dc4499a5ecb70971958e0291ec3c687",
+          "codePage": 28591
+        }
+      ],
+      "source": "PRP v1.2 (Pripyat Reclamation Patch); targeted operation verified against Call of Pripyat Steam build 11450453.",
+      "problem": "The second knife hit volume is shorter and narrower than the first hit volume.",
+      "description": "Changes only the two secondary-hit distance and radius values from the PRP fix.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of each effective retail file from Steam build 11450453 and unique exact text anchors; PRP v1.2 archive SHA-256 d4c5b8c3836b7d51b0b175aeb1d5e18896f99dc27f5a7e79955f72638358d598.",
+      "references": [
+        "https://www.moddb.com/mods/pripyat-reclamation-patch",
+        "https://www.mediafire.com/folder/lo9xufb1io6av/PRP"
+      ]
+    },
+    {
+      "id": "cop.prp.sky-stretching-fix",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct sky stretching in the R2 and R3 sky shaders",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/shaders/r2/sky2.vs",
+          "expectedText": "\tfloat4\ttpos\t    = mul\t(1000, v.p);\r\n",
+          "replacementText": "\t//float4\ttpos\t    = mul\t(1000, v.p);\r\n\tfloat4 tpos = float4(1000*v.p.x, 500*v.p.y, 1000*v.p.z, 1000*v.p.w);\r\n",
+          "expectedFileSha256": "b69fda89f3ae26fd4371af7a43730f3924a4bfbd4975544a5824d03d5eafc4a9",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/shaders/r3/sky2.vs",
+          "expectedText": "\tfloat4\ttpos\t    = mul\t(1000, v.p);\r\n",
+          "replacementText": "\tfloat4 tpos = float4(1000*v.p.x, 500*v.p.y, 1000*v.p.z, 1000*v.p.w);\r\n",
+          "expectedFileSha256": "7da9bfc937424b420078f3d57af97ae790dd3b4c4340d7c997b70bd6d1634df1",
+          "codePage": 28591
+        }
+      ],
+      "source": "PRP v1.2 (Pripyat Reclamation Patch); targeted operation verified against Call of Pripyat Steam build 11450453.",
+      "problem": "The retail sky vertex shaders uniformly scale the vertical position, producing the stretched-sky defect addressed by PRP.",
+      "description": "Replaces only the sky-position transform in the DirectX 9 (R2) and DirectX 10 (R3) shader sources.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of each effective retail file from Steam build 11450453 and unique exact text anchors; PRP v1.2 archive SHA-256 d4c5b8c3836b7d51b0b175aeb1d5e18896f99dc27f5a7e79955f72638358d598.",
+      "references": [
+        "https://www.moddb.com/mods/pripyat-reclamation-patch",
+        "https://www.mediafire.com/folder/lo9xufb1io6av/PRP"
+      ]
+    },
+    {
+      "id": "cop.localization.dialog-text-corrections",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct selected Russian dialogue spelling",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_dialogs.xml",
+          "expectedText": "<string id=\"about_quests_dialog_bandit_33\">\r\n\t\t<text>Было дело, один пацанчик тёр... Типа шел это он за сталкером, развести того на хабар, а тут - оба-на! - стрельба. Он, короче, пригляделся, а там военные с наёмниками жару один другому дают. Ну, пацанчик залёг от греха, а пока переждал разборку, сталкер уже ноги сделал. От такая засада!</text>",
+          "replacementText": "<string id=\"about_quests_dialog_bandit_33\">\r\n\t\t<text>Было дело, один пацанчик тёр... Типа шёл это он за сталкером, развести того на хабар, а тут - оба-на! - стрельба. Он, короче, пригляделся, а там военные с наёмниками жару один другому дают. Ну, пацанчик залёг от греха, а пока переждал разборку, сталкер уже ноги сделал. От такая засада!</text>",
+          "expectedFileSha256": "0eaa898c8989f733ed5220e4bdd426e99ff5c5e383a988d82339a733b629dfb6",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Russian dialogue pack contains a spelling error in a player-facing line.",
+      "description": "Corrects the exact source-backed verb spelling for one stable dialogue ID.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.jupiter-dialog-spelling",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct selected Jupiter dialogue spelling",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_dialogs_jupiter.xml",
+          "expectedText": "<string id=\"jup_a12_merc_done_dialog_11\">\r\n\t\t<text>Все, сталкер, мы свою долю честно отработали. Пора линять.</text>",
+          "replacementText": "<string id=\"jup_a12_merc_done_dialog_11\">\r\n\t\t<text>Всё, сталкер, мы свою долю честно отработали. Пора линять.</text>",
+          "expectedFileSha256": "8ca2c1c549a090da1d2853c8c8cdb35ca51f22689fb244c1b35a5e3712bda824",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Russian Jupiter dialogue contains a common homophone spelling error.",
+      "description": "Corrects the exact `всё` spelling in one source-backed dialogue ID.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.pripyat-dialog-spelling",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct selected Pripyat reward dialogue spelling",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_dialogs_pripyat.xml",
+          "expectedText": "<string id=\"jup_b15_zulus_b301_reward_dialog_0\">\r\n\t\t<text>Погоди... Вот, возми. Самый надёжный пулемет в Зоне!</text>",
+          "replacementText": "<string id=\"jup_b15_zulus_b301_reward_dialog_0\">\r\n\t\t<text>Погоди... Вот, возьми. Самый надёжный пулемёт в Зоне!</text>",
+          "expectedFileSha256": "68223ab2ef5f636b5612391b23d542d23200c8eaf6a92d5d99ba83231138d901",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Zulu reward line contains a typo in the imperative verb and omits the standard ё in пулемёт.",
+      "description": "Corrects one source-backed dialogue entry without changing the reward or its trigger.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.jupiter-quest-text",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct selected Jupiter quest text spelling",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_quests_jupiter.xml",
+          "expectedText": "<string id=\"jup_a12_free_prisoner_ransom_name\">\r\n\t\t<text>Заложник: договорится о выкупе Митяя</text>",
+          "replacementText": "<string id=\"jup_a12_free_prisoner_ransom_name\">\r\n\t\t<text>Заложник: договориться о выкупе Митяя</text>",
+          "expectedFileSha256": "e0dcbca0d5c9cf7cb46d2e686781e177cb7a254987dfcb3898100d832d7e95c1",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The hostage objective uses the wrong infinitive form in its Russian title.",
+      "description": "Corrects the verb in the single exact quest title string.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.pripyat-quest-text",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Clarify selected Pripyat quest text",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_quests_pripyat.xml",
+          "expectedText": "<string id=\"pri_a18_go_post_text\">\r\n\t\t<text>Необходимо уничтожить всех «монолитовцев» засевших в здании. Их скопления представляют угрозу для лагеря военных.</text>",
+          "replacementText": "<string id=\"pri_a18_go_post_text\">\r\n\t\t<text>Необходимо уничтожить всех «монолитовцев», засевших в здании. Они представляют угрозу для лагеря военных.</text>",
+          "expectedFileSha256": "b853efbd3e40f08fe080eafa19b8c39c728b8a3324cfb256b8c5da8ea5d0d419",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The military outpost objective has a missing comma and an awkward plural reference in Russian.",
+      "description": "Corrects only the objective sentence in its stable quest string ID.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.zaton-quest-text",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct selected Zaton quest text spelling",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_quests_zaton.xml",
+          "expectedText": "<string id=\"zat_b30_sultan_task_1_text\">\r\n\t\t<text>Торговец Сыч считает, что Борода не выполняет условия сделки, и советует обратится за помощью к местному авторитету - Султану.</text>",
+          "replacementText": "<string id=\"zat_b30_sultan_task_1_text\">\r\n\t\t<text>Торговец Сыч считает, что Борода не выполняет условия сделки, и советует обратиться за помощью к местному авторитету - Султану.</text>",
+          "expectedFileSha256": "da514789a7528e8c55d8fe2aba29b33356312bfe509cb2aa12d0cd96a537524c",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The first Sultan job uses a misspelled Russian verb in its objective description.",
+      "description": "Corrects only the source-backed verb in one quest string ID.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.weapon-description-correction",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct selected ammunition description wording",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_items_weapons.xml",
+          "expectedText": "<string id=\"ammo-5.45x39-ap_descr\">\r\n\t\t<text>Армейский патрон калибра 5,45x39 мм 7Н22 с бронебойной пулей используется в автоматических винтовках многих стран - участниц Варшавского договора. Внутри пули находится бронебойный сердечник из твёрдого сплава. Эффективен против бронежилетов.</text>",
+          "replacementText": "<string id=\"ammo-5.45x39-ap_descr\">\r\n\t\t<text>Армейский патрон калибра 5,45x39 мм 7Н22 с бронебойной пулей используется в автоматических винтовках стран Варшавского договора. Внутри пули находится бронебойный сердечник из твёрдого сплава. Эффективен против бронежилетов.</text>",
+          "expectedFileSha256": "7cf12ef1cf26c5cff85d8bc9dcdbeb859f6c1ff82e0f1b69c9bba0519a1c60f7",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The 5.45×39 mm description redundantly calls out the Warsaw Pact countries as many countries and participants.",
+      "description": "Uses the shorter source-backed wording in one item description; ammunition properties are unchanged.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.upgrade-description-typo",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Correct selected weapon upgrade description typo",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_items_weapons_upgrades.xml",
+          "expectedText": "<string id=\"st_up_arm_c11_name\">\r\n\t\t<text>Установка более лёгких синтетических и пластиковый частей</text>",
+          "replacementText": "<string id=\"st_up_arm_c11_name\">\r\n\t\t<text>Установка более лёгких синтетических и пластиковых частей</text>",
+          "expectedFileSha256": "5810320de93400c35fdeae59ff0e4485ff4339f971813fd336abef2b3686c718",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Russian upgrade text has an incorrect grammatical ending in its armor modification name.",
+      "description": "Corrects that one exact text string; it does not change the upgrade effect or prerequisites.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.sleep-warning-capitalization",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Normalize capitalization in a sleep warning",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/ui_st_screen.xml",
+          "expectedText": "<string id=\"sleep_warning_all_pleasures\">\r\n\t\t<text>Вы не можете спать! У Вас опасное кровотечение и высокий уровень облучённости организма. Используйте медикаменты или обратитесь к медику.</text>",
+          "replacementText": "<string id=\"sleep_warning_all_pleasures\">\r\n\t\t<text>Вы не можете спать! У вас опасное кровотечение и высокий уровень облучённости организма. Используйте медикаменты или обратитесь к медику.</text>",
+          "expectedFileSha256": "3e5f4c531e93be7d58a4e77ee7bbb94ccb27dc3c78af9befcd27ae3059c5a75f",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Russian UI message inconsistently capitalizes the polite pronoun in the sleep warning text.",
+      "description": "Applies the source patch's lowercase form to one stable warning string ID.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.inventory-label-punctuation",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Add the missing punctuation to the health sensor label",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/ui_st_inventory.xml",
+          "expectedText": "<string id=\"st_ui_health_sensor\">\r\n\t\t<text>Состояние здоровья</text>",
+          "replacementText": "<string id=\"st_ui_health_sensor\">\r\n\t\t<text>Состояние здоровья:</text>",
+          "expectedFileSha256": "c75fde55e5ce16dced6adbd8d5ad0ab18fd5292e6e52cad08e132e2bdf99a24b",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Russian inventory label lacks the colon used to introduce its value.",
+      "description": "Adds only the punctuation included by the source correction.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    },
+    {
+      "id": "cop.localization.achievement-pronoun-case",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Normalize capitalization in an achievement description",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Community",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/text/rus/st_achievement.xml",
+          "expectedText": "<string id=\"st_achievement_10_descr\">\r\n\t\t<text>Какое унижение для противника! Убитый десять раз, он ни разу не смог Вас достать. Впрочем, ему лучше воспринимать это не как излишнюю жестокость, а как хороший стимул для тренировок.</text>",
+          "replacementText": "<string id=\"st_achievement_10_descr\">\r\n\t\t<text>Какое унижение для противника! Убитый десять раз, он ни разу не смог вас достать. Впрочем, ему лучше воспринимать это не как излишнюю жестокость, а как хороший стимул для тренировок.</text>",
+          "expectedFileSha256": "92ed1796d73d17ba18954a251de3034b3286a6b9860f54200c59983d1d1afcb0",
+          "codePage": 1251
+        }
+      ],
+      "source": "Adapted as narrow exact-text patches from stalker-cop-patch commit 3835ee1b7829fe7c7712af1a7ff97e85e46a906c; retail source is Steam build 11450453.",
+      "problem": "The Russian achievement text capitalizes a second-person pronoun inconsistently.",
+      "description": "Corrects only the pronoun in one achievement description; scoring and unlock conditions remain unchanged.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Steam build 11450453, exact SHA-256 of each effective file extracted from the local retail archives, and unique exact text anchors.",
+      "references": [
+        "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
+      ]
+    }
+  ],
+  "enhancedEditionSha256": {
+    "cs.quest.dead-wild-napr": [
+      "029ddb9331d44c8c0d6aaf3a5791bbb53f7e738c8efba7fc121a30a90a0a5078"
+    ],
+    "cs.quest.flood-underground-duty-goodwill": [
+      "340e9b8ca484acfc466ee65f8d135b7045b5dd3e43d64b3bf21f765f6bea9f97"
+    ],
+    "cs.quest.wolf-offline-cancellation": [
+      "47c254c9974ac2d4295e1be66e7d7281e121feb98b45415a73944894c512cd89",
+      "28f3a7ed34a4c43a1760f31b984befecf2526fcd8343699f27830c6e189bef78",
+      "28f3a7ed34a4c43a1760f31b984befecf2526fcd8343699f27830c6e189bef78",
+      "2108c3cda393b6b2c8dceab17be512f222bb701abbd4ff43396f6325c57e3ba9",
+      "2108c3cda393b6b2c8dceab17be512f222bb701abbd4ff43396f6325c57e3ba9"
+    ],
+    "cs.ai.agroprom-bloodsucker-aggression": [
+      "bd610d34287611dc520094f7e389d2e8a20afbb2be794737039ca09378c595ac"
+    ],
+    "cs.ai.agroprom-dogs-aggression": [
+      "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+      "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+      "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+      "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+      "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548",
+      "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+      "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+      "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+      "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1",
+      "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1"
+    ],
+    "cs.ai.agroprom-scientist-bloodsucker-aggression": [
+      "5aa2ec88ca0a55e4bf261106c0b5d79d99d9c8842cbf7e219b07843215077b7d",
+      "5aa2ec88ca0a55e4bf261106c0b5d79d99d9c8842cbf7e219b07843215077b7d"
+    ],
+    "cs.ai.agroprom-snork-wave-aggression": [
+      "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+      "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+      "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+      "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6",
+      "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6"
+    ],
+    "cs.ai.escape-rescue-dog-aggression": [
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751",
+      "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751"
+    ],
+    "cs.ai.military-dog-aggression": [
+      "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+      "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+      "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+      "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df",
+      "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df"
+    ],
+    "cs.ai.red-forest-bloodsucker-aggression": [
+      "e0cb97dba52afeb5e10d647a2699b1f7a2998b824786a16b9f8b19a3467f4321",
+      "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009",
+      "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009",
+      "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009",
+      "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a",
+      "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a",
+      "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a",
+      "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190",
+      "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190",
+      "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190"
+    ],
+    "cs.ai.limansk-sniper-look-path": [
+      "4e270b8d37fc42d852ac54ad8a8a198ce1c2c21580923ff7bf3b4bf846519063"
+    ],
+    "cs.quest.skip-destroyed-limansk-minigun-task": [
+      "1dbed3607167b8b394260fb49b6675b77caeeb164aa0212addd4e94e38e3e6dd"
+    ],
+    "cs.quest.agroprom-task-repeat-6-4": [
+      "b5274333b2bf90fd17397de02cf74bf5878e6bf91cc35fc1b95fbbc16894aa56"
+    ],
+    "cs.quest.agroprom-task-repeat-2-3": [
+      "b8939cbf64ae3649f76bb1280a8d7827dc8e0bc1f68bc9f9cf1cc687034820f2"
+    ],
+    "cs.quest.agroprom-task-repeat-4-2": [
+      "379b7ab1fec9744bf6eb390683fb59dfb71aade6d8395894bc6351b7cf8e4a21"
+    ],
+    "cs.quest.cancel-strelok-teleport-tasks": [
+      "bf9741c7462e5243c805d043ad4cedb7614621464afd71103c93e8c43bf41945",
+      "bf9741c7462e5243c805d043ad4cedb7614621464afd71103c93e8c43bf41945"
+    ],
+    "cs.quest.hospital-sniper-objective-reversal": [
+      "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1",
+      "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1",
+      "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1",
+      "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1"
+    ],
+    "cs.ai.limansk-sniper-heal-once": [
+      "84765c428e7be0801ca65ff5431f80748b98afd2d0cfd18915729bd7ec04b646",
+      "84765c428e7be0801ca65ff5431f80748b98afd2d0cfd18915729bd7ec04b646"
+    ],
+    "cs.ai.hospital-minigunner-danger-keys": [
+      "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8",
+      "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8",
+      "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8",
+      "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8"
+    ],
+    "cs.logic.yantar-zombie-28-section": [
+      "a6bfc074d97529a14b85b3b224019156c8f58229e67a68ce284a8790da286bba"
+    ],
+    "cs.dialog.escape-2-level-changers": [
+      "d00c93511a0e2ca00e8e8855a1241f6ea2d25ec6dccf7ee3de2d0bfa0f9e741b",
+      "d00c93511a0e2ca00e8e8855a1241f6ea2d25ec6dccf7ee3de2d0bfa0f9e741b"
+    ],
+    "cs.dialog.escape-4-level-changer": [
+      "581337fc5d515a26e952b9050ebc424d3e9b6a491b2acd79952d34c67f020bc4",
+      "581337fc5d515a26e952b9050ebc424d3e9b6a491b2acd79952d34c67f020bc4"
+    ],
+    "cs.quest.verified-hospital-sniper-danger-keys": [
+      "23b04b5f51ed63021974f5374d86be1cf0585faee1dda424cc10d1b7d23ece57",
+      "23b04b5f51ed63021974f5374d86be1cf0585faee1dda424cc10d1b7d23ece57"
+    ],
+    "soc.dialog.wounded-enemy-crash": [
+      "d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4",
+      "d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4",
+      "fb4941ba935dffed1d778d0c05fa4691d3d9f42474a6eeede153f87d133c8a66"
+    ],
+    "soc.dialog.yurik-options-out-of-order": [
+      "baf38c4e00959e211c1ca708ebe40e949c37ac4833b154bdff04fbdf1cad0254"
+    ],
+    "soc.quest.kruglov-rescue-dialog-recovery": [
+      "0556ce86262eed32d68c602d2f731c0be57ef7355d699492907fee4d3f0cc159"
+    ],
+    "soc.quest.skull-lukash-task-after-attack": [
+      "efe60029e645d562a861216dde2cb14d927904e18d94f01e8753ee832597d277"
+    ],
+    "soc.quest.dark-valley-sacrifice-guard-release": [
+      "c48d1832d9a63e18f1ff4478dee9c15f73eed8a40629fb6e4e897ab051df6ff8",
+      "7c73df7da02df7f9d98980c40c6eea110b194d4dba36a0e8948f2d1f77f202cb"
+    ],
+    "soc.quest.petruha-report-once": [
+      "fe2a019ffc6b7ffc0032f38637e1eafa158c0e1b03d87d9526a8485f785b7bbd",
+      "fe2a019ffc6b7ffc0032f38637e1eafa158c0e1b03d87d9526a8485f785b7bbd"
+    ],
+    "soc.logic.freedom-blockpost-meet-scheme": [
+      "b9c839fdad4df50ef67014671b0fc0d17a3f6ce447be3d955da66924212a23a0",
+      "b9c839fdad4df50ef67014671b0fc0d17a3f6ce447be3d955da66924212a23a0"
+    ],
+    "soc.logic.freedom-max-attack-meet-scheme": [
+      "7617744e6db4987a9d838dae49921302ff888572d08ad4ac18a83a8b2bf5c10e",
+      "7617744e6db4987a9d838dae49921302ff888572d08ad4ac18a83a8b2bf5c10e"
+    ],
+    "soc.config.red-forest-stash-item-assignment": [
+      "b94cdc40ce24ad485385fb42a6e7bfb29952c8e0de436c03d9631e27ead46030"
+    ],
+    "soc.config.bar-ecologist-guard-class": [
+      "16a768ad21c6a9bcf88cbdc2a673d90b036c2efd7d7cc6e599714e46583e0852"
+    ],
+    "soc.quest.freedom-reward-relation-syntax": [
+      "5b380fa000e24bf63a0eec2ec08adef7dd464b37ead701702072233127984517",
+      "5b380fa000e24bf63a0eec2ec08adef7dd464b37ead701702072233127984517"
+    ],
+    "soc.logic.bar-danger-hit-distance-key": [
+      "4100f7eba42bd5a365512ccd850b6f4c75bf2e4e09405c5c5788c23d08f4f5c8"
+    ],
+    "cop.weapon.f1-blast-radius": [
+      "c93d36c703d237fb4cd7a20dce5bb0674577c170037d6dd0041de22c87081839",
+      "c93d36c703d237fb4cd7a20dce5bb0674577c170037d6dd0041de22c87081839"
+    ],
+    "cop.weapon.rgd5-blast-radius": [
+      "16cf2042c43b10aeeb6e0714c288c7a1a07faefd8cf644139e4ac4e99a3480b4"
+    ],
+    "cop.weapon.spas12-sight-alignment": [
+      "a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba",
+      "a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba",
+      "a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba",
+      "a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba"
+    ],
+    "cop.weapon.val-sight-alignment": [
+      "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5",
+      "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5",
+      "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5",
+      "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5",
+      "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5",
+      "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5"
+    ],
+    "cop.dialog.correct-anomaly-name": [
+      "b3f1e7b732759d67b3794ebd6571f85022f0c7a575e92fb52092af89e69abd26"
+    ],
+    "cop.quest.memory-module-unlock-attribution": [
+      "a087421f6d795211e7c1bd5e5783999e1971560f5036b3ed01cef2294f4455a6"
+    ],
+    "cop.dialog.gonta-after-soroka-recovered": [
+      "4f052af9f6c394f531719cf8440fd036006e8a8ce451baab2d0f765267a3bc7c",
+      "4f052af9f6c394f531719cf8440fd036006e8a8ce451baab2d0f765267a3bc7c"
+    ],
+    "cop.prp.x8-burer-health-guard": [
+      "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+      "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+      "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+      "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+      "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de",
+      "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de"
+    ],
+    "cop.prp.altered-insulator-door-gate": [
+      "dc98e408ef1804f2bbf7337b18d60b989ec03452410af7a830e0f9ae9cf93597"
+    ],
+    "cop.localization.dialog-text-corrections": [
+      "0eaa898c8989f733ed5220e4bdd426e99ff5c5e383a988d82339a733b629dfb6"
+    ],
+    "cop.localization.jupiter-dialog-spelling": [
+      "8ca2c1c549a090da1d2853c8c8cdb35ca51f22689fb244c1b35a5e3712bda824"
+    ],
+    "cop.localization.pripyat-dialog-spelling": [
+      "68223ab2ef5f636b5612391b23d542d23200c8eaf6a92d5d99ba83231138d901"
+    ],
+    "cop.localization.jupiter-quest-text": [
+      "e0dcbca0d5c9cf7cb46d2e686781e177cb7a254987dfcb3898100d832d7e95c1"
+    ],
+    "cop.localization.pripyat-quest-text": [
+      "b853efbd3e40f08fe080eafa19b8c39c728b8a3324cfb256b8c5da8ea5d0d419"
+    ],
+    "cop.localization.zaton-quest-text": [
+      "da514789a7528e8c55d8fe2aba29b33356312bfe509cb2aa12d0cd96a537524c"
+    ],
+    "cop.localization.weapon-description-correction": [
+      "bf593d4984ef5cf992aafff0d8bfb0ea170bda24f5c95955bb89dd20d31c1f4a"
+    ],
+    "cop.localization.upgrade-description-typo": [
+      "2a7b5c1d0a2fed55cb1fbbd75df4fd569e24d08f697a74acbe93882d0927c735"
+    ],
+    "cop.localization.inventory-label-punctuation": [
+      "8109799a001a8dbf499579f5f348452a117f4ddfef04e6e2972c7778d9786edd"
+    ],
+    "cop.localization.achievement-pronoun-case": [
+      "6ad4cbf0c85de94cf4519fc21c13ca6ce6115b29ed47be32e93b89ddc7f77b53"
+    ]
+  }
+}

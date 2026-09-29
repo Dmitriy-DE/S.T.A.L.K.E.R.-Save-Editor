@@ -171,6 +171,51 @@ public sealed class GameDoctorTests
         Assert.Equal(GameTarget.ClearSky, installations[0].Target);
     }
 
+    [Theory]
+    [InlineData(GameTarget.ShadowOfChernobylEnhancedEdition, 2_427_410, "SoC EE", "fsgame_soc.ltx", "24067120")]
+    [InlineData(GameTarget.ClearSkyEnhancedEdition, 2_427_420, "Clear Sky EE", "fsgame_cs.ltx", "24067129")]
+    [InlineData(GameTarget.CallOfPripyatEnhancedEdition, 2_427_430, "CoP EE", "fsgame_cop.ltx", "24067133")]
+    public void Discovery_accepts_target_specific_enhanced_xray_markers(
+        GameTarget target,
+        int appId,
+        string installDirectory,
+        string markerName,
+        string buildId)
+    {
+        using var fixture = new GameFixture();
+        var steamRoot = Path.Combine(fixture.BaseRoot, "steam");
+        CreateSteamInstall(steamRoot, appId, installDirectory, buildId, xray: true, markerName: markerName);
+
+        var installations = GameDoctor.DiscoverInstallations([steamRoot]);
+
+        var installation = Assert.Single(installations);
+        Assert.Equal(target, installation.Target);
+        Assert.Equal(buildId, installation.BuildId);
+        Assert.Equal(
+            StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(Path.Combine(steamRoot, "steamapps", "common", installDirectory)),
+            installation.Directory);
+    }
+
+    [Theory]
+    [InlineData(GameTarget.ClearSkyEnhancedEdition, 2_427_420, "Clear Sky EE", "fsgame_cop.ltx")]
+    [InlineData(GameTarget.CallOfPripyatEnhancedEdition, 2_427_430, "CoP EE", "fsgame_cs.ltx")]
+    public void Discovery_rejects_another_enhanced_games_xray_marker(
+        GameTarget target,
+        int appId,
+        string installDirectory,
+        string markerName)
+    {
+        using var fixture = new GameFixture();
+        var steamRoot = Path.Combine(fixture.BaseRoot, "steam");
+        CreateSteamInstall(steamRoot, appId, installDirectory, buildId: "24000000", xray: true, markerName: markerName);
+
+        var installations = GameDoctor.DiscoverInstallations([steamRoot]);
+
+        Assert.Empty(installations);
+        var report = GameDoctor.Analyze(target, Path.Combine(steamRoot, "steamapps", "common", installDirectory));
+        Assert.Contains(report.Checks, check => check.Id == "installation" && check.Status == GameDoctorStatus.Error);
+    }
+
     [Fact]
     public void Discovery_keeps_distinct_manifest_targets_even_when_they_share_a_directory()
     {
@@ -214,13 +259,19 @@ public sealed class GameDoctorTests
         Assert.Empty(installations);
     }
 
-    private static void CreateSteamInstall(string steamRoot, int appId, string installDirectory, string buildId, bool xray)
+    private static void CreateSteamInstall(
+        string steamRoot,
+        int appId,
+        string installDirectory,
+        string buildId,
+        bool xray,
+        string markerName = "fsgame.ltx")
     {
         var gameDirectory = Path.Combine(steamRoot, "steamapps", "common", installDirectory);
         if (xray)
         {
             Directory.CreateDirectory(gameDirectory);
-            File.WriteAllText(Path.Combine(gameDirectory, "fsgame.ltx"), "marker");
+            File.WriteAllText(Path.Combine(gameDirectory, markerName), "marker");
         }
         else
         {

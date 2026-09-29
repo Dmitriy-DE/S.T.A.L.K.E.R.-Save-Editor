@@ -186,6 +186,14 @@ internal static class Program
         if (analysis.Line is not null) Console.WriteLine("Line: " + analysis.Line.Value.ToString(CultureInfo.InvariantCulture));
         if (analysis.Exception is not null) Console.WriteLine("Context: " + analysis.Exception);
         Console.WriteLine("Known issue: " + (analysis.KnownIssueId ?? "no validated signature match"));
+        if (analysis.KnownIssue is { } issue)
+        {
+            Console.WriteLine("  " + issue.Title + ": " + issue.Explanation);
+            Console.WriteLine("  Advice: " + issue.Advice +
+                (issue.FixId is null ? string.Empty : "; game fix " + issue.FixId) +
+                (issue.QuestRuleId is null ? string.Empty : "; Quest Doctor rule " + issue.QuestRuleId));
+            Console.WriteLine("  Source: " + issue.Source);
+        }
         return 0;
     }
 

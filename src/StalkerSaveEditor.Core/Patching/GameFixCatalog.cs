@@ -780,10 +780,13 @@ public static class GameFixCatalog
     public const string PreviousDatasetVersion = "2026.09.1";
     public const GameFixPreset DefaultPreset = GameFixPreset.Recommended;
 
-    public static IReadOnlyList<GameFixDefinition> All => Definitions;
+    private static IReadOnlyList<GameFixDefinition>? _all;
+
+    /// <summary>Retail definitions followed by their Enhanced Edition variants.</summary>
+    public static IReadOnlyList<GameFixDefinition> All => _all ??= [.. Definitions, .. EnhancedEditionVariants()];
 
     public static IReadOnlyList<GameFixDefinition> ForGame(GameTarget game) =>
-        Definitions.Where(definition => definition.Game == game).ToArray();
+        All.Where(definition => definition.Game == game).ToArray();
 
     public static IReadOnlyDictionary<GameFixCategory, int> CategoryCounts(GameTarget game) =>
         Enum.GetValues<GameFixCategory>().ToDictionary(
@@ -846,6 +849,105 @@ public static class GameFixCatalog
             $"[logic@{section}]\r\nactive = {activeScheme}\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = hit@rad_svoboda\r\n",
             $"[logic@{section}]\r\nactive = {activeScheme}\r\ncombat_ignore=combat_ignore\r\non_hit = hit@rad_svoboda\r\non_death = death@rad_svoboda\r\n",
             "f4f86dab8e31df2b46e0589854e3cbb2f60ace2c15eaab895acebfad7af62fc0");
+
+    // Enhanced Edition (Steam builds of 2026) ships the same config text for these fixes: every anchor was found
+    // exactly once in the EE configs.db/resources archives, and the per-operation SHA-256 below is the EE file's.
+    // Fixes missing here are already fixed in EE, or their file or anchor no longer exists.
+    private static readonly Dictionary<string, string[]> EnhancedEditionSha256 = new Dictionary<string, string[]>(StringComparer.Ordinal)
+    {
+        ["cs.quest.dead-wild-napr"] = ["029ddb9331d44c8c0d6aaf3a5791bbb53f7e738c8efba7fc121a30a90a0a5078"],
+        ["cs.quest.flood-underground-duty-goodwill"] = ["340e9b8ca484acfc466ee65f8d135b7045b5dd3e43d64b3bf21f765f6bea9f97"],
+        ["cs.quest.wolf-offline-cancellation"] = ["47c254c9974ac2d4295e1be66e7d7281e121feb98b45415a73944894c512cd89", "28f3a7ed34a4c43a1760f31b984befecf2526fcd8343699f27830c6e189bef78", "28f3a7ed34a4c43a1760f31b984befecf2526fcd8343699f27830c6e189bef78", "2108c3cda393b6b2c8dceab17be512f222bb701abbd4ff43396f6325c57e3ba9", "2108c3cda393b6b2c8dceab17be512f222bb701abbd4ff43396f6325c57e3ba9"],
+        ["cs.ai.agroprom-bloodsucker-aggression"] = ["bd610d34287611dc520094f7e389d2e8a20afbb2be794737039ca09378c595ac"],
+        ["cs.ai.agroprom-dogs-aggression"] = ["5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548", "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548", "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548", "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548", "5d3392c551545e5ab0663775c66f741ae39240b738d55fc96b3c3f57fa1bd548", "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1", "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1", "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1", "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1", "6799a99678673bf028b8d5ef059c5d657645f9b94c5427977dc089e6d973b9e1"],
+        ["cs.ai.agroprom-scientist-bloodsucker-aggression"] = ["5aa2ec88ca0a55e4bf261106c0b5d79d99d9c8842cbf7e219b07843215077b7d", "5aa2ec88ca0a55e4bf261106c0b5d79d99d9c8842cbf7e219b07843215077b7d"],
+        ["cs.ai.agroprom-snork-wave-aggression"] = ["4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6", "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6", "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6", "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6", "4192b01cbf0e784ebd2ba280af91e8acff5dfeb445ba8725c6a5df56cb4d50e6"],
+        ["cs.ai.escape-rescue-dog-aggression"] = ["ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751", "ecf9d3417029c1a615d2aed4b3960d5b58b2732e6388d1b840b40e2b48a46751"],
+        ["cs.ai.military-dog-aggression"] = ["3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df", "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df", "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df", "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df", "3232772b9d9ba01a959f8a194df2fca3c2ed22a3a69c9bf3d7ade233086f49df"],
+        ["cs.ai.red-forest-bloodsucker-aggression"] = ["e0cb97dba52afeb5e10d647a2699b1f7a2998b824786a16b9f8b19a3467f4321", "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009", "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009", "7166c3563f623486a943ecac0d3a1e524ce32b7dbe27c6846d43a98994d4d009", "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a", "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a", "968e71e4eb431746140906913adaa0f87d604f83518abda08fb3e76c3074209a", "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190", "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190", "7aada22f069f3f255a260b9587de29f0a707439aecd53806014ca4a95f608190"],
+        ["cs.ai.limansk-sniper-look-path"] = ["4e270b8d37fc42d852ac54ad8a8a198ce1c2c21580923ff7bf3b4bf846519063"],
+        ["cs.quest.skip-destroyed-limansk-minigun-task"] = ["1dbed3607167b8b394260fb49b6675b77caeeb164aa0212addd4e94e38e3e6dd"],
+        ["cs.quest.agroprom-task-repeat-6-4"] = ["b5274333b2bf90fd17397de02cf74bf5878e6bf91cc35fc1b95fbbc16894aa56"],
+        ["cs.quest.agroprom-task-repeat-2-3"] = ["b8939cbf64ae3649f76bb1280a8d7827dc8e0bc1f68bc9f9cf1cc687034820f2"],
+        ["cs.quest.agroprom-task-repeat-4-2"] = ["379b7ab1fec9744bf6eb390683fb59dfb71aade6d8395894bc6351b7cf8e4a21"],
+        ["cs.quest.cancel-strelok-teleport-tasks"] = ["bf9741c7462e5243c805d043ad4cedb7614621464afd71103c93e8c43bf41945", "bf9741c7462e5243c805d043ad4cedb7614621464afd71103c93e8c43bf41945"],
+        ["cs.quest.hospital-sniper-objective-reversal"] = ["35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1", "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1", "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1", "35d683dcd5015d08a7df6f2b2d62e6a4976642d4edaae34b89edb1c2d9ccd5c1"],
+        ["cs.ai.limansk-sniper-heal-once"] = ["84765c428e7be0801ca65ff5431f80748b98afd2d0cfd18915729bd7ec04b646", "84765c428e7be0801ca65ff5431f80748b98afd2d0cfd18915729bd7ec04b646"],
+        ["cs.ai.hospital-minigunner-danger-keys"] = ["6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8", "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8", "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8", "6e4c3319b2a2c82ce9657a927ced06890dfda023e3b2cc085ff12e86d4afeef8"],
+        ["cs.logic.yantar-zombie-28-section"] = ["a6bfc074d97529a14b85b3b224019156c8f58229e67a68ce284a8790da286bba"],
+        ["cs.dialog.escape-2-level-changers"] = ["d00c93511a0e2ca00e8e8855a1241f6ea2d25ec6dccf7ee3de2d0bfa0f9e741b", "d00c93511a0e2ca00e8e8855a1241f6ea2d25ec6dccf7ee3de2d0bfa0f9e741b"],
+        ["cs.dialog.escape-4-level-changer"] = ["581337fc5d515a26e952b9050ebc424d3e9b6a491b2acd79952d34c67f020bc4", "581337fc5d515a26e952b9050ebc424d3e9b6a491b2acd79952d34c67f020bc4"],
+        ["cs.quest.verified-hospital-sniper-danger-keys"] = ["23b04b5f51ed63021974f5374d86be1cf0585faee1dda424cc10d1b7d23ece57", "23b04b5f51ed63021974f5374d86be1cf0585faee1dda424cc10d1b7d23ece57"],
+        ["soc.dialog.wounded-enemy-crash"] = ["d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4", "d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4", "fb4941ba935dffed1d778d0c05fa4691d3d9f42474a6eeede153f87d133c8a66"],
+        ["soc.dialog.yurik-options-out-of-order"] = ["baf38c4e00959e211c1ca708ebe40e949c37ac4833b154bdff04fbdf1cad0254"],
+        ["soc.quest.kruglov-rescue-dialog-recovery"] = ["0556ce86262eed32d68c602d2f731c0be57ef7355d699492907fee4d3f0cc159"],
+        ["soc.quest.skull-lukash-task-after-attack"] = ["efe60029e645d562a861216dde2cb14d927904e18d94f01e8753ee832597d277"],
+        ["soc.quest.dark-valley-sacrifice-guard-release"] = ["c48d1832d9a63e18f1ff4478dee9c15f73eed8a40629fb6e4e897ab051df6ff8", "7c73df7da02df7f9d98980c40c6eea110b194d4dba36a0e8948f2d1f77f202cb"],
+        ["soc.quest.petruha-report-once"] = ["fe2a019ffc6b7ffc0032f38637e1eafa158c0e1b03d87d9526a8485f785b7bbd", "fe2a019ffc6b7ffc0032f38637e1eafa158c0e1b03d87d9526a8485f785b7bbd"],
+        ["soc.logic.freedom-blockpost-meet-scheme"] = ["b9c839fdad4df50ef67014671b0fc0d17a3f6ce447be3d955da66924212a23a0", "b9c839fdad4df50ef67014671b0fc0d17a3f6ce447be3d955da66924212a23a0"],
+        ["soc.logic.freedom-max-attack-meet-scheme"] = ["7617744e6db4987a9d838dae49921302ff888572d08ad4ac18a83a8b2bf5c10e", "7617744e6db4987a9d838dae49921302ff888572d08ad4ac18a83a8b2bf5c10e"],
+        ["soc.config.red-forest-stash-item-assignment"] = ["b94cdc40ce24ad485385fb42a6e7bfb29952c8e0de436c03d9631e27ead46030"],
+        ["soc.config.bar-ecologist-guard-class"] = ["16a768ad21c6a9bcf88cbdc2a673d90b036c2efd7d7cc6e599714e46583e0852"],
+        ["soc.quest.freedom-reward-relation-syntax"] = ["5b380fa000e24bf63a0eec2ec08adef7dd464b37ead701702072233127984517", "5b380fa000e24bf63a0eec2ec08adef7dd464b37ead701702072233127984517"],
+        ["soc.logic.bar-danger-hit-distance-key"] = ["4100f7eba42bd5a365512ccd850b6f4c75bf2e4e09405c5c5788c23d08f4f5c8"],
+        ["cop.weapon.f1-blast-radius"] = ["c93d36c703d237fb4cd7a20dce5bb0674577c170037d6dd0041de22c87081839", "c93d36c703d237fb4cd7a20dce5bb0674577c170037d6dd0041de22c87081839"],
+        ["cop.weapon.rgd5-blast-radius"] = ["16cf2042c43b10aeeb6e0714c288c7a1a07faefd8cf644139e4ac4e99a3480b4"],
+        ["cop.weapon.spas12-sight-alignment"] = ["a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba", "a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba", "a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba", "a69baaf1b51f72e7b1a26424f8600b0e180e94c2b34428c3b022b3835245b0ba"],
+        ["cop.weapon.val-sight-alignment"] = ["222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5", "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5", "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5", "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5", "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5", "222750d3dda53395d31d5793d00438aa026773d188d00825bc3f238f9d062ce5"],
+        ["cop.dialog.correct-anomaly-name"] = ["b3f1e7b732759d67b3794ebd6571f85022f0c7a575e92fb52092af89e69abd26"],
+        ["cop.quest.memory-module-unlock-attribution"] = ["a087421f6d795211e7c1bd5e5783999e1971560f5036b3ed01cef2294f4455a6"],
+        ["cop.dialog.gonta-after-soroka-recovered"] = ["4f052af9f6c394f531719cf8440fd036006e8a8ce451baab2d0f765267a3bc7c", "4f052af9f6c394f531719cf8440fd036006e8a8ce451baab2d0f765267a3bc7c"],
+        ["cop.prp.x8-burer-health-guard"] = ["acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de", "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de", "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de", "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de", "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de", "acac8a1b517981293b6764cd5462317fea4afb54aa37c6adf959198297ede8de"],
+        ["cop.prp.altered-insulator-door-gate"] = ["dc98e408ef1804f2bbf7337b18d60b989ec03452410af7a830e0f9ae9cf93597"],
+        ["cop.localization.dialog-text-corrections"] = ["0eaa898c8989f733ed5220e4bdd426e99ff5c5e383a988d82339a733b629dfb6"],
+        ["cop.localization.jupiter-dialog-spelling"] = ["8ca2c1c549a090da1d2853c8c8cdb35ca51f22689fb244c1b35a5e3712bda824"],
+        ["cop.localization.pripyat-dialog-spelling"] = ["68223ab2ef5f636b5612391b23d542d23200c8eaf6a92d5d99ba83231138d901"],
+        ["cop.localization.jupiter-quest-text"] = ["e0dcbca0d5c9cf7cb46d2e686781e177cb7a254987dfcb3898100d832d7e95c1"],
+        ["cop.localization.pripyat-quest-text"] = ["b853efbd3e40f08fe080eafa19b8c39c728b8a3324cfb256b8c5da8ea5d0d419"],
+        ["cop.localization.zaton-quest-text"] = ["da514789a7528e8c55d8fe2aba29b33356312bfe509cb2aa12d0cd96a537524c"],
+        ["cop.localization.weapon-description-correction"] = ["bf593d4984ef5cf992aafff0d8bfb0ea170bda24f5c95955bb89dd20d31c1f4a"],
+        ["cop.localization.upgrade-description-typo"] = ["2a7b5c1d0a2fed55cb1fbbd75df4fd569e24d08f697a74acbe93882d0927c735"],
+        ["cop.localization.inventory-label-punctuation"] = ["8109799a001a8dbf499579f5f348452a117f4ddfef04e6e2972c7778d9786edd"],
+        ["cop.localization.achievement-pronoun-case"] = ["6ad4cbf0c85de94cf4519fc21c13ca6ce6115b29ed47be32e93b89ddc7f77b53"],
+    };
+
+    private static GameTarget EnhancedEditionOf(GameTarget game) => game switch
+    {
+        GameTarget.ShadowOfChernobyl => GameTarget.ShadowOfChernobylEnhancedEdition,
+        GameTarget.ClearSky => GameTarget.ClearSkyEnhancedEdition,
+        GameTarget.CallOfPripyat => GameTarget.CallOfPripyatEnhancedEdition,
+        _ => throw new ArgumentOutOfRangeException(nameof(game)),
+    };
+
+    private static string EnhancedEditionBuild(GameTarget game) => game switch
+    {
+        GameTarget.ShadowOfChernobyl => "24067120",
+        GameTarget.ClearSky => "24067129",
+        GameTarget.CallOfPripyat => "24067133",
+        _ => throw new ArgumentOutOfRangeException(nameof(game)),
+    };
+
+    private static IEnumerable<GameFixDefinition> EnhancedEditionVariants()
+    {
+        foreach (var fix in Definitions)
+        {
+            if (!EnhancedEditionSha256.TryGetValue(fix.Id, out var hashes)) continue;
+            if (hashes.Length != fix.TextPatches.Count)
+                throw new InvalidOperationException("EE hash count does not match the operations of " + fix.Id);
+            var build = EnhancedEditionBuild(fix.Game);
+            yield return fix with
+            {
+                Id = fix.Id + ".ee",
+                Game = EnhancedEditionOf(fix.Game),
+                SupportedSteamBuildIds = [build],
+                TextPatches = fix.TextPatches.Select((operation, index) => operation with { ExpectedFileSha256 = hashes[index] }).ToArray(),
+                Source = fix.Source + " Enhanced Edition variant: same anchors, EE file hashes.",
+                DetectionMethod = $"Steam build {build}, exact archived EE source-file SHA-256 per operation, and unique exact text anchors.",
+                DependsOn = fix.DependsOn.Select(id => id + ".ee").ToArray(),
+                ConflictsWith = fix.ConflictsWith.Select(id => id + ".ee").ToArray(),
+            };
+        }
+    }
 
     private static GameFixDefinition SrpFix(
         string id,

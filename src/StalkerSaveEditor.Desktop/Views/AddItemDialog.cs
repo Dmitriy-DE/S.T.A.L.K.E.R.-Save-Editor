@@ -12,7 +12,7 @@ namespace StalkerSaveEditor.Desktop.Views;
 
 public sealed class AddItemDialog : Window
 {
-    public AddItemDialog(AddItemViewModel addVm, SaveLibraryViewModel parentVm)
+    public AddItemDialog(AddItemViewModel addVm, SaveLibraryViewModel parentVm, string destination = "inventory")
     {
         Title = L.T("Добавить предмет в инвентарь");
         Width = 520;
@@ -121,7 +121,7 @@ public sealed class AddItemDialog : Window
         {
             if (addVm.SelectedItem is not null)
             {
-                parentVm.StageItemAddition(addVm.SelectedItem.Key, addVm.Quantity);
+                parentVm.StageItemAddition(addVm.SelectedItem.Key, addVm.Quantity, destination);
                 Close();
             }
         };

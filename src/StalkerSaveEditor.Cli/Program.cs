@@ -268,6 +268,14 @@ internal static class Program
                 Console.WriteLine("Quest Doctor: " + questReport.Status);
                 Console.WriteLine("Format: " + (questReport.FormatId ?? "unknown"));
                 Console.WriteLine(questReport.Summary);
+                foreach (var state in questReport.States)
+                {
+                    Console.WriteLine($"  [{state.State}] {state.TaskId}: {state.Title}");
+                    if (state.State == "broken")
+                    {
+                        Console.WriteLine($"    missing info portion: {state.MissingInfoPortion}; preventing fix: {state.PreventingFixId ?? "none"}");
+                    }
+                }
             }
             return questReport.Status == SaveDoctorStatus.Error ? 1 : 0;
         }

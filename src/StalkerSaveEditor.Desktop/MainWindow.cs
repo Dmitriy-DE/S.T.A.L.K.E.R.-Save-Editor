@@ -614,59 +614,161 @@ public sealed class MainWindow : Window
     {
         var dock = new DockPanel();
 
-        var header = new TextBlock
+        var heading = new TextBlock
         {
             Text = L.T("БИБЛИОТЕКА СОХРАНЕНИЙ"),
             FontSize = 11,
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
             LetterSpacing = 1.1,
-            Margin = new Thickness(14, 12, 14, 8),
+            VerticalAlignment = VerticalAlignment.Center,
         };
+
+        var count = new TextBlock
+        {
+            FontSize = 10,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushTextSecondary,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        count.Bind(TextBlock.TextProperty, new Binding("Saves.Count") { Source = vm });
+
+        var countBadge = new Border
+        {
+            Background = StalkerTheme.BrushBgElevated,
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            MinWidth = 28,
+            Padding = new Thickness(6, 3),
+            Child = count,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var refreshButton = StalkerTheme.StalkerButton("↻", isPrimary: false, minWidth: 34);
+        refreshButton.Margin = new Thickness(6, 0, 0, 0);
+        ToolTip.SetTip(refreshButton, L.T("Обновить"));
+        Avalonia.Automation.AutomationProperties.SetName(refreshButton, L.T("Обновить"));
+        refreshButton.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.RefreshCommand)) { Source = vm });
+
+        var headerActions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 0,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { countBadge, refreshButton },
+        };
+        var header = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(14, 12, 10, 8),
+            Children = { heading, headerActions },
+        };
+        Grid.SetColumn(headerActions, 1);
         DockPanel.SetDock(header, Dock.Top);
         dock.Children.Add(header);
 
         var saveList = new ListBox
         {
             Background = StalkerTheme.BrushBgPanel,
-            ItemTemplate = StalkerTheme.Template<SaveFileSummary>(item =>
+            // Keep row values on the data context so this template is ready for later recycling.
+            ItemTemplate = StalkerTheme.Template<SaveFileSummary>(_ =>
             {
-                var stack = new StackPanel { Spacing = 3, Margin = new Thickness(6, 4) };
-                stack.Children.Add(new TextBlock
+                var row = new Grid
                 {
-                    Text = item.DisplayName,
+                    ColumnDefinitions = new ColumnDefinitions("72,*"),
+                    ColumnSpacing = 10,
+                };
+
+                var previewFallback = new Grid
+                {
+                    Width = 72,
+                    Height = 54,
+                };
+                var previewFrame = new Border
+                {
+                    Background = StalkerTheme.BrushBgBase,
+                    BorderBrush = StalkerTheme.BrushBorderSubtle,
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(3),
+                    Child = previewFallback,
+                };
+                previewFallback.Children.Add(new TextBlock
+                {
+                    Text = "◇",
+                    FontSize = 20,
+                    Foreground = StalkerTheme.BrushAccentDim,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                var preview = new Image { Stretch = Stretch.UniformToFill };
+                preview.Bind(Image.SourceProperty, new Binding(nameof(SaveFileSummary.Preview)));
+                preview.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveFileSummary.HasPreview)));
+                previewFallback.Children.Add(preview);
+                row.Children.Add(previewFrame);
+
+                var details = new Grid
+                {
+                    RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
+                    RowSpacing = 2,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                var name = new TextBlock
+                {
+                    FontSize = 13,
                     FontWeight = FontWeight.SemiBold,
                     Foreground = StalkerTheme.BrushTextPrimary,
-                    FontSize = 13,
-                });
-
-                var subRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-                subRow.Children.Add(new TextBlock
-                {
-                    Text = item.SlotTitle,
                     TextTrimming = TextTrimming.CharacterEllipsis,
+                };
+                name.Bind(TextBlock.TextProperty, new Binding(nameof(SaveFileSummary.DisplayName)));
+                name.Bind(ToolTip.TipProperty, new Binding(nameof(SaveFileSummary.DisplayName)));
+                details.Children.Add(name);
+
+                var release = new TextBlock
+                {
+                    FontSize = 10,
+                    Foreground = StalkerTheme.BrushAccentDim,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                };
+                release.Bind(TextBlock.TextProperty, new Binding(nameof(SaveFileSummary.ReleaseName)));
+                Grid.SetRow(release, 1);
+                details.Children.Add(release);
+
+                var metadata = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
+                var slot = new TextBlock
+                {
                     FontSize = 10,
                     Foreground = StalkerTheme.BrushTextSecondary,
-                });
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                };
+                slot.Bind(TextBlock.TextProperty, new Binding(nameof(SaveFileSummary.SlotTitle)));
+                metadata.Children.Add(slot);
+
                 var sizeText = new TextBlock
                 {
-                    Text = item.FileSizeDisplay,
                     FontSize = 10,
                     Foreground = StalkerTheme.BrushTextMuted,
+                    HorizontalAlignment = HorizontalAlignment.Right,
                 };
+                sizeText.Bind(TextBlock.TextProperty, new Binding(nameof(SaveFileSummary.FileSizeDisplay)));
                 Grid.SetColumn(sizeText, 1);
-                subRow.Children.Add(sizeText);
-                stack.Children.Add(subRow);
+                metadata.Children.Add(sizeText);
+                Grid.SetRow(metadata, 2);
+                details.Children.Add(metadata);
 
-                var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
-                if (item.Preview is { } preview)
+                Grid.SetColumn(details, 1);
+                row.Children.Add(details);
+                return new Border
                 {
-                    row.Children.Add(new Image { Source = preview, Width = 72, Height = 54, Stretch = Stretch.UniformToFill, Margin = new Thickness(0, 0, 8, 0) });
-                }
-
-                Grid.SetColumn(stack, 1);
-                row.Children.Add(stack);
-                return row;
+                    Background = Avalonia.Media.Brushes.Transparent,
+                    BorderBrush = StalkerTheme.BrushBorderSubtle,
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(5, 3),
+                    Child = row,
+                };
             }),
         };
         saveList.Bind(ListBox.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedSave))

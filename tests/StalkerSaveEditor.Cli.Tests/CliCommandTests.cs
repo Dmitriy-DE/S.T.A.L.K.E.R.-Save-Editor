@@ -265,7 +265,7 @@ public sealed class CliCommandTests
     }
 
     [Fact]
-    public void Fixes_apply_recommended_preset_fails_closed_when_retail_files_are_missing()
+    public void Fixes_apply_recommended_preset_fails_closed_and_records_a_safety_snapshot()
     {
         var library = Path.Combine(Path.GetTempPath(), "sse-fix-preset-cli-" + Guid.NewGuid().ToString("N"));
         var root = Path.Combine(library, "steamapps", "common", "STALKER Clear Sky");
@@ -285,7 +285,12 @@ public sealed class CliCommandTests
 
             Assert.Equal(2, result.ExitCode);
             Assert.False(string.IsNullOrWhiteSpace(result.Error));
+            Assert.Contains("Safety snapshot", result.Error, StringComparison.OrdinalIgnoreCase);
             Assert.False(Directory.Exists(Path.Combine(root, ".save-editor-game-fixes")));
+            var targetIdentity = SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(root));
+            Assert.Contains(new ToolkitSnapshotService().List(), snapshot =>
+                string.Equals(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(snapshot.GameDirectory)), targetIdentity,
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
         }
         finally
         {

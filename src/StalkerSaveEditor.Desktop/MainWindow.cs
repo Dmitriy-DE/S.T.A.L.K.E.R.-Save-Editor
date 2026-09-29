@@ -400,6 +400,7 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, L.T("ТАЙНИКИ"), "stashes", nameof(SaveLibraryViewModel.IsStashesTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("ПЕРЕХОДЫ"), "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("БЭКАПЫ"), "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("СРЕДА ИГРЫ"), "toolkit-environment", nameof(SaveLibraryViewModel.IsToolkitEnvironmentTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР СОХРАНЕНИЯ"), "save-doctor", nameof(SaveLibraryViewModel.IsSaveDoctorTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ИСПРАВЛЕНИЯ ИГРЫ"), "game-fixes", nameof(SaveLibraryViewModel.IsGameFixesTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР ИГРЫ"), "game-doctor", nameof(SaveLibraryViewModel.IsGameDoctorTab)));
@@ -533,6 +534,10 @@ public sealed class MainWindow : Window
             var gameDoctor = new GameDoctorView(vm.GameDoctor);
             gameDoctor.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGameDoctorScreen)) { Source = vm });
             screens.Children.Add(gameDoctor);
+
+            var toolkitEnvironment = new ToolkitEnvironmentView(vm.ToolkitEnvironment);
+            toolkitEnvironment.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowToolkitEnvironmentScreen)) { Source = vm });
+            screens.Children.Add(toolkitEnvironment);
         }
         // 10. Updates
         var updates = new UpdatesView { DataContext = vm.Updates };

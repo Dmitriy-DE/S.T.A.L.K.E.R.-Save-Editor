@@ -112,6 +112,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         DisableReportsCommand = new RelayCommand(() => AnswerReportsNotice(false));
         SendReportIfDue();
 
+        ToolkitEnvironment = new ToolkitEnvironmentViewModel(() => (GameFixes.SelectedTarget.Target, GameFixes.GameDirectory));
+        GameFixes.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is null or nameof(GameFixesViewModel.SelectedTarget) or nameof(GameFixesViewModel.GameDirectory) or nameof(GameFixesViewModel.Status))
+                ToolkitEnvironment.Refresh();
+        };
+
         if (discoverLocalSaves && InteractiveApp)
         {
             // Items, names and icons of the installed games (and their mods) first, then the saves read
@@ -194,6 +201,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public GameDoctorViewModel GameDoctor { get; } = new();
     public SaveDoctorViewModel SaveDoctor { get; } = new();
     public GameFixesViewModel GameFixes { get; } = new();
+    public ToolkitEnvironmentViewModel ToolkitEnvironment { get; }
     public UpdatesViewModel Updates { get; } = new();
 
     /// <summary>
@@ -228,6 +236,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsSaveDoctorTab));
                 OnPropertyChanged(nameof(IsGameFixesTab));
                 OnPropertyChanged(nameof(IsUpdatesTab));
+                OnPropertyChanged(nameof(IsToolkitEnvironmentTab));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
                 OnPropertyChanged(nameof(ShowFactionsScreen));
@@ -243,6 +252,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowSaveDoctorScreen));
                 OnPropertyChanged(nameof(ShowGameFixesScreen));
                 OnPropertyChanged(nameof(ShowUpdatesScreen));
+                OnPropertyChanged(nameof(ShowToolkitEnvironmentScreen));
                 OnPropertyChanged(nameof(IsFirstRunWizardVisible));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
             }
@@ -264,7 +274,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsToolkitEnvironmentTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -307,6 +317,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsSaveDoctorTab => SelectedTab == "save-doctor";
     public bool IsGameFixesTab => SelectedTab == "game-fixes";
     public bool IsUpdatesTab => SelectedTab == "updates";
+    public bool IsToolkitEnvironmentTab => SelectedTab == "toolkit-environment";
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
     public bool ShowInventoryScreen => HasSelection && IsInventoryTab;
@@ -318,12 +329,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
     public bool ShowCloudScreen => IsCloudTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsFirstRunWizardVisible;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsToolkitEnvironmentTab && !IsFirstRunWizardVisible;
     public bool ShowAchievementsScreen => IsAchievementsTab;
     public bool ShowGameDoctorScreen => IsGameDoctorTab;
     public bool ShowSaveDoctorScreen => IsSaveDoctorTab;
     public bool ShowGameFixesScreen => IsGameFixesTab;
     public bool ShowUpdatesScreen => IsUpdatesTab;
+    public bool ShowToolkitEnvironmentScreen => IsToolkitEnvironmentTab;
 
 
     public SaveFileSummary? SelectedSave

@@ -175,6 +175,80 @@ public sealed partial class CompanionInstaller
             .ToArray();
     }
 
+    /// <summary>
+    /// Reinstates the exact manifest and backup set captured by a toolkit snapshot after the
+    /// regular installer has safely replayed the current Companion payload.
+    /// </summary>
+    internal void RestoreManagedSnapshot(
+        CompanionGame game,
+        string selectedGameDirectory,
+        IReadOnlyDictionary<string, byte[]> stateFiles)
+    {
+        ArgumentNullException.ThrowIfNull(stateFiles);
+        var definition = CompanionGameDefinition.For(game);
+        var gameDirectory = ResolveRequiredGameDirectory(definition, selectedGameDirectory, steamRoots: []);
+        var statePrefix = ManifestDirectoryName + "/";
+        var normalizedFiles = stateFiles.ToDictionary(pair => NormalizeRelative(pair.Key), pair => pair.Value, StringComparer.Ordinal);
+        if (!normalizedFiles.TryGetValue(statePrefix + ManifestFileName, out var manifestBytes))
+            throw new InvalidDataException("Companion snapshot has no install manifest.");
+
+        var currentManifestPath = GetManifestPath(gameDirectory);
+        if (!_fileSystem.FileExists(currentManifestPath))
+            throw new CompanionInstallerException("Companion must be installed by its provider before restoring its saved ownership data.", currentManifestPath);
+        _ = ReadManifest(currentManifestPath, definition);
+
+        var manifest = JsonSerializer.Deserialize(manifestBytes, CompanionManifestJsonContext.Default.InstallManifest)
+            ?? throw new InvalidDataException("Saved Companion manifest is empty.");
+        ValidateSnapshotManifest(manifest, definition);
+        var expectedBackups = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in manifest.Files)
+        {
+            if (!FileMatches(gameDirectory, entry.Path, entry.AfterSha256))
+                throw new InvalidOperationException($"Installed Companion payload does not match saved manifest path {entry.Path}.");
+            if (entry.BackupPath is null) continue;
+            var relativeBackup = statePrefix + NormalizeRelative(entry.BackupPath);
+            if (!normalizedFiles.TryGetValue(relativeBackup, out var backupBytes) || Sha256(backupBytes) != entry.BeforeSha256)
+                throw new InvalidDataException($"Saved Companion backup is missing or corrupt: {entry.BackupPath}");
+            expectedBackups.Add(relativeBackup);
+        }
+
+        var actualBackups = normalizedFiles.Keys.Where(path => path.StartsWith(statePrefix + "backups/", StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal);
+        if (!actualBackups.SetEquals(expectedBackups) || normalizedFiles.Keys.Any(path => path != statePrefix + ManifestFileName && !actualBackups.Contains(path)))
+            throw new InvalidDataException("Companion snapshot contains unreferenced or unsupported provider state.");
+
+        foreach (var relative in expectedBackups.Order(StringComparer.Ordinal))
+        {
+            var backupRelative = relative[statePrefix.Length..];
+            EnsureSafeWritePath(gameDirectory, Path.Combine(ManifestDirectoryName, backupRelative));
+            var backupPath = ResolveStatePath(gameDirectory, backupRelative);
+            _fileSystem.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+            AtomicWrite(backupPath, normalizedFiles[relative], overwrite: true);
+        }
+
+        EnsureSafeWritePath(gameDirectory, Path.Combine(ManifestDirectoryName, ManifestFileName));
+        AtomicWrite(currentManifestPath, manifestBytes, overwrite: true);
+    }
+
+    private static void ValidateSnapshotManifest(InstallManifest manifest, CompanionGameDefinition definition)
+    {
+        if (manifest.SchemaVersion != ManifestSchemaVersion || !string.Equals(manifest.Game, definition.Id, StringComparison.Ordinal) ||
+            manifest.Files is null || manifest.Files.Count == 0 || string.IsNullOrWhiteSpace(manifest.Version))
+            throw new InvalidDataException("Saved Companion manifest schema, game, version or file list is invalid.");
+        foreach (var entry in manifest.Files)
+        {
+            _ = ResolveGameRelative(entry.Path);
+            if (!IsSha256(entry.AfterSha256) ||
+                entry.BeforeSha256 is not null && !IsSha256(entry.BeforeSha256) ||
+                entry.BeforeSha256 is null && entry.BackupPath is not null ||
+                entry.BeforeSha256 is not null && string.IsNullOrWhiteSpace(entry.BackupPath) ||
+                entry.WasPresentBeforeInstall && entry.BeforeSha256 is null)
+                throw new InvalidDataException($"Saved Companion manifest entry is invalid: {entry.Path}");
+            if (entry.BackupPath is not null) _ = ResolveStateRelative(entry.BackupPath);
+        }
+        if (manifest.Files.Select(file => NormalizeRelative(file.Path)).Distinct(StringComparer.Ordinal).Count() != manifest.Files.Count)
+            throw new InvalidDataException("Saved Companion manifest contains duplicate file paths.");
+    }
+
     public CompanionInstallerResult Install(
         CompanionGame game,
         string? selectedGameDirectory = null,

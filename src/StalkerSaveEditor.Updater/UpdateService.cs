@@ -653,7 +653,7 @@ public sealed class UpdateService : IDisposable
             throw new UpdateManifestException("artifact.sha256 must be lowercase SHA-256.");
         }
 
-        if (file is "." or ".." || file.Contains('/') || file.Contains('\\'))
+        if (file is "." or ".." || file.IndexOfAny(['/', '\\', ':']) >= 0 || file.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
             throw new UpdateManifestException("artifact.file must be a plain filename.");
         }

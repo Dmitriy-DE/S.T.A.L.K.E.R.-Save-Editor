@@ -740,8 +740,10 @@ public sealed partial class GameFixEngine
     {
         var comparer = PathComparer;
         var grouped = new Dictionary<string, (string Path, byte[] Before, string Text, Encoding Encoding, bool TargetExistedBefore, string? SourceFingerprint)>(comparer);
-        foreach (var (operation, relativePath) in operations)
+        foreach (var (operation, rawRelativePath) in operations)
         {
+            // One key per file: "a\\b" and "a/b" must share the cumulative text, not overwrite each other.
+            var relativePath = NormalizeRelativePath(rawRelativePath);
             var path = ResolveGamePath(root, relativePath);
             var encoding = GetTextEncoding(operation.CodePage);
             if (!grouped.TryGetValue(relativePath, out var entry))

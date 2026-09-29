@@ -101,9 +101,8 @@ public sealed class CompanionProtocolClient
             while (elapsed.Elapsed < _timeout)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (File.Exists(replyPath))
+                if (File.Exists(replyPath) && TryReadReplyText(replyPath, out var replyText))
                 {
-                    var replyText = File.ReadAllText(replyPath, ProtocolEncoding);
                     if (CompanionProtocolReply.TryGetId(replyText, out var replyId) &&
                         string.Equals(replyId, id, StringComparison.Ordinal))
                     {
@@ -222,6 +221,26 @@ public sealed class CompanionProtocolClient
         return replyFile.Exists
             ? new DateTimeOffset(replyFile.LastWriteTimeUtc, TimeSpan.Zero)
             : null;
+    }
+
+    internal static FileStream OpenReplyReadStream(string replyPath) =>
+        new(replyPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+    private static bool TryReadReplyText(string replyPath, out string replyText)
+    {
+        try
+        {
+            using var stream = OpenReplyReadStream(replyPath);
+            using var reader = new StreamReader(stream, ProtocolEncoding);
+            replyText = reader.ReadToEnd();
+            return true;
+        }
+        catch (IOException)
+        {
+            // The game removes and renames the output file while rotating replies.
+            replyText = string.Empty;
+            return false;
+        }
     }
 
     private static void PublishCommand(string temporaryPath, string commandPath, string line)

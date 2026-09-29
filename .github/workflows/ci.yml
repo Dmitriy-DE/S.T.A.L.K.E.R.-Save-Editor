@@ -60,6 +60,22 @@ jobs:
       - name: Render read-only UI screenshot
         run: dotnet src/StalkerSaveEditor.App/bin/Release/net10.0/StalkerSaveEditor.dll --screenshot artifacts/ui/${{ runner.os }}.png --fixture tests/Fixtures/xray-call-of-pripyat.sav
 
+      - name: App self-checks (translations, embedded sounds)
+        run: |
+          dotnet src/StalkerSaveEditor.App/bin/Release/net10.0/StalkerSaveEditor.dll --test-i18n
+          dotnet src/StalkerSaveEditor.App/bin/Release/net10.0/StalkerSaveEditor.dll --test-audio
+
+      - name: Runtime gate on the packaged app (as the release builds it)
+        if: runner.os == 'Linux'
+        run: |
+          ./packaging/publish_app.sh linux-x64 artifacts/packaged 0.0.0-ci
+          artifacts/packaged/StalkerSaveEditor --test-i18n
+          artifacts/packaged/StalkerSaveEditor --test-audio
+          artifacts/packaged/StalkerSaveEditor --screenshot artifacts/ui/packaged-linux.png --fixture tests/Fixtures/xray-call-of-pripyat.sav
+          test -s artifacts/ui/packaged-linux.png
+          test "$(artifacts/packaged/stalker-save-editor-cli version)" = "0.0.0-ci"
+          artifacts/packaged/stalker-save-editor-cli doctor quest tests/Fixtures/writer-factions/cs-source.sav
+
       - name: Upload UI screenshot
         if: always()
         uses: actions/upload-artifact@v4

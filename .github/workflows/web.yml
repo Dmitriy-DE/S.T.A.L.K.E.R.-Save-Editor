@@ -28,6 +28,16 @@ jobs:
         run: python tools/build_ooz_native.py --wasm --output-dir artifacts/native-wasm
       - name: Publish the web edition
         run: dotnet publish src/StalkerSaveEditor.Browser -c Release -o artifacts/web
+      - name: Runtime gate on the published web edition
+        run: |
+          W=artifacts/web/wwwroot
+          for f in index.html main.js download.js; do test -s "$W/$f" || { echo "missing $f"; exit 1; }; done
+          JS=$(cd "$W" && ls _framework/dotnet*.js | head -1)
+          test -n "$JS"
+          ls "$W"/_framework/dotnet.native*.wasm >/dev/null
+          python3 -m http.server 8765 --directory "$W" >/dev/null 2>&1 &
+          sleep 2
+          for f in index.html main.js "$JS"; do test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/$f)" = 200; done
       - uses: actions/upload-artifact@v4
         with:
           name: web

@@ -77,7 +77,9 @@ public sealed class CompareViewModel : ObservableViewModel
 
             foreach (var difference in SaveComparer.Compare(before, after))
             {
-                Rows.Add(new CompareRow(Label(difference), difference.Before ?? "—", difference.After ?? "—"));
+                Rows.Add(difference.Kind == "task"
+                    ? new CompareRow(L.T("Задание: {0}", difference.Label), TaskState(difference.Before), TaskState(difference.After))
+                    : new CompareRow(Label(difference), difference.Before ?? "—", difference.After ?? "—"));
             }
 
             Status = Rows.Count == 0 ? L.T("Различий нет.") : L.T("Различий: {0}. Слева — «{1}», справа — выбранный сейв.", Rows.Count, _selected.Title);
@@ -87,6 +89,16 @@ public sealed class CompareViewModel : ObservableViewModel
             Status = L.T("Не удалось прочитать: ") + exception.Message;
         }
     }
+
+    private static string TaskState(string? state) => state switch
+    {
+        null => L.T("нет"),
+        "InProgress" => L.T("выполняется"),
+        "Completed" => L.T("выполнено"),
+        "Failed" => L.T("провалено"),
+        "Skipped" => L.T("пропущено"),
+        _ => "—",
+    };
 
     private static string Label(SaveDifference difference) => difference.Kind switch
     {

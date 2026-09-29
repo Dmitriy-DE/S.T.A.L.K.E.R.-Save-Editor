@@ -46,6 +46,13 @@ internal static partial class CompanionHookPatcher
             functionStart,
             "scripts/ui_main_menu.script");
         var windowEnd = FindMatchingEnd(text, windowStart, "scripts/ui_main_menu.script");
+        if (!QuitKeyRegex().IsMatch(text.AsSpan(windowStart, windowEnd - windowStart)))
+        {
+            // Shadow of Chornobyl EE handles Q in an elseif branch: hook the first line of the key-press block.
+            text = InsertAfterLine(text, windowStart, MenuHook, "scripts/ui_main_menu.script");
+            return Latin1.GetBytes(text);
+        }
+
         var quitStart = FindRegexUnique(
             text.AsSpan(windowStart, windowEnd - windowStart),
             QuitKeyRegex(),
@@ -107,6 +114,12 @@ internal static partial class CompanionHookPatcher
             functionStart,
             "scripts/ui_main_menu.script");
         var windowEnd = FindMatchingEnd(text, windowStart, "scripts/ui_main_menu.script");
+        if (!QuitKeyRegex().IsMatch(text.AsSpan(windowStart, windowEnd - windowStart)))
+        {
+            text = RemoveAfterLine(text, windowStart, MenuHook, "scripts/ui_main_menu.script");
+            return Latin1.GetBytes(text);
+        }
+
         var quitStart = FindRegexUnique(
             text.AsSpan(windowStart, windowEnd - windowStart),
             QuitKeyRegex(),
@@ -204,6 +217,16 @@ internal static partial class CompanionHookPatcher
 
         throw AnchorError(file, "could not determine indentation for the first function body line");
     }
+
+    /// <summary>Inserts the hook after the line that starts at <paramref name="lineMatchIndex"/> (a regex match of that line).</summary>
+    private static string InsertAfterLine(string text, int lineMatchIndex, string hook, string file) =>
+        InsertAfterAnchorLine(text, LineAt(text, lineMatchIndex), hook, file, indentFromFollowingLine: true);
+
+    private static string RemoveAfterLine(string text, int lineMatchIndex, string hook, string file) =>
+        RemoveAfterAnchorLine(text, LineAt(text, lineMatchIndex), hook, file);
+
+    private static string LineAt(string text, int index) =>
+        text[index..FindLineContentEnd(text, index)].TrimEnd();
 
     private static string RemoveAfterAnchorLine(string text, string anchor, string hook, string file)
     {

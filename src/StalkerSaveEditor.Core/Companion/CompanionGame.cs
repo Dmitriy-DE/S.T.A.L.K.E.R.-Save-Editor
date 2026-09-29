@@ -47,22 +47,22 @@ internal sealed record CompanionGameDefinition(
             "soc",
             4_500,
             "soc",
-            ["STALKER Shadow of Chernobyl", "STALKER Shadow of Chornobyl"],
+            ["STALKER Shadow of Chernobyl", "STALKER Shadow of Chornobyl", "STALKER Shadow of Chornobyl - EE"],
             ["fsgame_soc.ltx", "fsgame.ltx"]),
         CompanionGame.ClearSky => new(
             game,
             "cs",
             20_510,
             "cs",
-            ["STALKER Clear Sky"],
-            ["fsgame.ltx"]),
+            ["STALKER Clear Sky", "STALKER Clear Sky - EE"],
+            ["fsgame.ltx", "fsgame_cs.ltx"]),
         CompanionGame.CallOfPripyat => new(
             game,
             "cop",
             41_700,
             "cop",
-            ["Stalker Call of Pripyat", "STALKER Call of Pripyat"],
-            ["fsgame.ltx"]),
+            ["Stalker Call of Pripyat", "STALKER Call of Pripyat", "STALKER Call of Prypiat - EE"],
+            ["fsgame.ltx", "fsgame_cop.ltx"]),
         _ => throw new ArgumentOutOfRangeException(nameof(game)),
     };
 }

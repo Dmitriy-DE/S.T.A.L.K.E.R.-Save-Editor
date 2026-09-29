@@ -153,7 +153,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
 
         // Silent background update check; only the real interactive app goes online (not screenshots or tests).
-        if (InteractiveApp) _ = Task.Run(() => Updates.CheckAsync(silent: true));
+        // Started on the UI thread: the view model raises CanExecuteChanged, which Avalonia buttons accept only there.
+        if (InteractiveApp) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = Updates.CheckAsync(silent: true));
     }
 
     /// <summary>Set by <c>Program</c> for the interactive app only: network checks and the previous run's crash.</summary>
@@ -177,7 +178,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var last = Settings.LastReportUtc;
         var unreportedCrash = CrashReporter.PendingSinceUtc() is { } crashed && (last is null || crashed > last);
         if (!DiagnosticsUploader.IsDue(last, DateTime.UtcNow, unreportedCrash)) return;
-        _ = Task.Run(() => Diagnostics.SendAsync(automatic: true));
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = Diagnostics.SendAsync(automatic: true));
     }
 
     public CompareViewModel Compare { get; }

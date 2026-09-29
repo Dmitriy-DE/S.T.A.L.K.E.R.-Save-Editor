@@ -12,7 +12,7 @@ public static class AppPaths
     public static string DataDirectory =>
         Environment.GetEnvironmentVariable("STALKER_SAVE_EDITOR_DATA") is { Length: > 0 } custom
             ? custom
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StalkerSaveEditor");
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "StalkerSaveEditor");
 
     public static string Logs => Path.Combine(DataDirectory, "logs");
 

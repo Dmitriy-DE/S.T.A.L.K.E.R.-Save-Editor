@@ -13,7 +13,7 @@ public sealed class RelayCommand(Action execute, Func<bool>? canExecute = null) 
 
     public void Execute(object? parameter) => _execute();
 
-    public void NotifyCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+    public void NotifyCanExecuteChanged() => CommandNotifier.Raise(this, CanExecuteChanged);
 }
 
 public sealed class RelayCommand<T>(Action<T?> execute, Func<T?, bool>? canExecute = null) : ICommand
@@ -36,5 +36,20 @@ public sealed class RelayCommand<T>(Action<T?> execute, Func<T?, bool>? canExecu
         else if (parameter is null && default(T) is null) _execute(default);
     }
 
-    public void NotifyCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+    public void NotifyCanExecuteChanged() => CommandNotifier.Raise(this, CanExecuteChanged);
+}
+
+/// <summary>
+/// Buttons read their Command on CanExecuteChanged, which Avalonia allows only on the UI thread; a notification
+/// raised from a worker thread is posted there instead of crashing the app.
+/// </summary>
+internal static class CommandNotifier
+{
+    public static void Raise(object sender, EventHandler? handler)
+    {
+        if (handler is null) return;
+        var dispatcher = Avalonia.Threading.Dispatcher.UIThread;
+        if (dispatcher.CheckAccess()) handler(sender, EventArgs.Empty);
+        else dispatcher.Post(() => handler(sender, EventArgs.Empty));
+    }
 }

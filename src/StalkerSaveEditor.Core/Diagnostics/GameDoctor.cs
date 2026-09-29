@@ -85,6 +85,9 @@ public static class GameTargetCatalog
 public static class GameDoctor
 {
     private const int MaxLooseFiles = 2_000;
+    private static readonly string[] ShadowOfChernobylMarkers = ["fsgame.ltx", "fsgame_soc.ltx"];
+    private static readonly string[] ClearSkyMarkers = ["fsgame.ltx", "fsgame_cs.ltx"];
+    private static readonly string[] CallOfPripyatMarkers = ["fsgame.ltx", "fsgame_cop.ltx"];
 
     public static GameDoctorReport Analyze(GameTarget target, string gameDirectory)
     {
@@ -261,9 +264,19 @@ public static class GameDoctor
     private static bool HasExpectedMarker(GameTarget target, string gameDirectory)
     {
         var descriptor = GameTargetCatalog.Get(target);
-        return descriptor.IsXRay
-            ? File.Exists(Path.Combine(gameDirectory, "fsgame.ltx")) || File.Exists(Path.Combine(gameDirectory, "fsgame_soc.ltx"))
-            : Directory.Exists(Path.Combine(gameDirectory, "Stalker2", "Content", "Paks"));
+        if (!descriptor.IsXRay)
+        {
+            return Directory.Exists(Path.Combine(gameDirectory, "Stalker2", "Content", "Paks"));
+        }
+
+        var markers = target switch
+        {
+            GameTarget.ShadowOfChernobyl or GameTarget.ShadowOfChernobylEnhancedEdition => ShadowOfChernobylMarkers,
+            GameTarget.ClearSky or GameTarget.ClearSkyEnhancedEdition => ClearSkyMarkers,
+            GameTarget.CallOfPripyat or GameTarget.CallOfPripyatEnhancedEdition => CallOfPripyatMarkers,
+            _ => [],
+        };
+        return markers.Any(marker => File.Exists(Path.Combine(gameDirectory, marker)));
     }
 
     private static bool IsUnderSteamCommon(string library, string gameDirectory)

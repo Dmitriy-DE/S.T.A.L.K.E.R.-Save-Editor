@@ -1,10 +1,10 @@
 # Game Doctor
 
-Game Doctor is a read-only audit of one explicitly selected installation. Its discovery flow finds Steam-manifest installs for all seven targets and uses the existing GOG/Heroic/retail locator for the original trilogy. A directory marker alone cannot reliably distinguish original X-Ray games from their Enhanced Editions, so discovery uses each Steam app ID and still requires the expected structural marker. Other storefronts and custom layouts can be entered manually.
+Game Doctor is a read-only audit of one explicitly selected installation. Its discovery flow finds Steam-manifest installs for all seven targets and uses the existing GOG/Heroic/retail locator for the original trilogy. A directory marker alone cannot reliably distinguish original X-Ray games from their Enhanced Editions, so discovery uses each Steam app ID and requires a matching structural marker: `fsgame.ltx` or the target-specific `fsgame_soc.ltx`, `fsgame_cs.ltx`, or `fsgame_cop.ltx`. Other storefronts and custom layouts can be entered manually.
 
 ## Current checks
 
-- Confirms that the selected directory exists and has the expected X-Ray `fsgame.ltx` marker or S.T.A.L.K.E.R. 2 `Stalker2/Content/Paks` directory.
+- Confirms that the selected directory exists and has the matching X-Ray game marker or S.T.A.L.K.E.R. 2 `Stalker2/Content/Paks` directory.
 - Reads a matching Steam `appmanifest_*.acf` build ID when the selected path is exactly the manifest's install directory.
 - Lists up to 2,000 loose files under X-Ray `gamedata/` or S2 `Stalker2/Content/Paks/~mods/`.
 - Verifies the existing Companion manifest and installed file hashes for the original trilogy when Companion files or a manifest are present.

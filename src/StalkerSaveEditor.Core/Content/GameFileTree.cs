@@ -60,10 +60,11 @@ internal sealed class GameFileTree
         CompanionGame game,
         string gameDirectory,
         Func<string, bool> wanted,
-        IGameFileSystem? fileSystem = null)
+        IGameFileSystem? fileSystem = null,
+        IReadOnlyList<string>? fsgameFileNames = null)
     {
         fileSystem ??= new PhysicalGameFileSystem();
-        var search = CompanionArchiveLocator.Discover(fileSystem, gameDirectory, ["fsgame.ltx"], game);
+        var search = CompanionArchiveLocator.Discover(fileSystem, gameDirectory, fsgameFileNames ?? ["fsgame.ltx"], game);
         var issues = new List<string>(search.Issues);
         var files = new Dictionary<string, GameFile>(StringComparer.OrdinalIgnoreCase);
         var stamp = new StringBuilder();

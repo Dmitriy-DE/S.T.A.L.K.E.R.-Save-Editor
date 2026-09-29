@@ -16,6 +16,25 @@ public static class CrashLogDiscovery
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
 
+    /// <summary>The newest *.log in the game's own log folders, analyzed from its last 256 KiB; null when there is none.</summary>
+    public static CrashLogAnalysis? AnalyzeLatestInGameDirectory(string gameDirectory, string? game = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
+        var newest = new[] { "logs", Path.Combine("_appdata_", "logs"), Path.Combine("_appdata_", "log") }
+            .Select(folder => Path.Combine(gameDirectory, folder))
+            .Where(Directory.Exists)
+            .SelectMany(folder => new DirectoryInfo(folder).EnumerateFiles("*.log"))
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .FirstOrDefault();
+        if (newest is null) return null;
+
+        const int tail = 256 * 1024;
+        using var stream = newest.OpenRead();
+        if (stream.Length > tail) stream.Seek(-tail, SeekOrigin.End);
+        using var reader = new StreamReader(stream, System.Text.Encoding.Latin1);
+        return CrashLogAnalyzer.Analyze(reader.ReadToEnd(), game, new DateTimeOffset(newest.LastWriteTimeUtc, TimeSpan.Zero));
+    }
+
     public static IReadOnlyList<DiscoveredCrashLog> DiscoverRecentLogs(
         IReadOnlyList<GameDoctorInstallation>? installations = null,
         SaveDirectoryDiscoveryOptions? saveDirectoryOptions = null,

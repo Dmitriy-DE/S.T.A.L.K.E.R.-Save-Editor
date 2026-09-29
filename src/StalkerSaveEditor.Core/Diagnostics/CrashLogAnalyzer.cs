@@ -22,11 +22,15 @@ public sealed record CrashLogAnalysis(
     DateTimeOffset? FileLastWriteTimeUtc,
     string? Exception,
     string? KnownIssueId,
-    IReadOnlyList<string> Evidence);
+    IReadOnlyList<string> Evidence)
+{
+    /// <summary>The documented crash this log matches, when one does.</summary>
+    public CrashSignature? KnownIssue { get; init; }
+}
 
 /// <summary>
-/// Parses explicit log text without treating generic engine messages as known bugs. KnownIssueId remains
-/// null until a signature has a documented, game/build-specific reproduction and fix.
+/// Parses explicit log text without treating generic engine messages as known bugs. KnownIssueId is set only
+/// when the log contains a message quoted by <see cref="CrashSignatureCatalog"/>.
 /// </summary>
 public static partial class CrashLogAnalyzer
 {
@@ -73,6 +77,7 @@ public static partial class CrashLogAnalyzer
             .Take(32)
             .ToArray();
 
+        var known = CrashSignatureCatalog.Match(text, game);
         return new CrashLogAnalysis(
             string.IsNullOrWhiteSpace(game) ? null : game.Trim(),
             kind,
@@ -81,8 +86,11 @@ public static partial class CrashLogAnalyzer
             line,
             fileLastWriteTimeUtc,
             exception,
-            KnownIssueId: null,
-            Array.AsReadOnly(evidence));
+            KnownIssueId: known?.Id,
+            Array.AsReadOnly(evidence))
+        {
+            KnownIssue = known,
+        };
     }
 
     private static string? FindValue(IEnumerable<string> lines, string field)
@@ -105,6 +113,11 @@ public static partial class CrashLogAnalyzer
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
+            if (trimmed.Contains("[LUA][ERROR]", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed.TrimStart('!', ' ');
+            }
+
             if (trimmed.Length == 0 || LuaMarkerRegex().IsMatch(trimmed) || trimmed.StartsWith("stack traceback", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -130,7 +143,7 @@ public static partial class CrashLogAnalyzer
     [GeneratedRegex(@"(?im)^\s*(?:FATAL ERROR|\[error\]\s*(?:Expression|Function|File|Line|Description)\s*:)", RegexOptions.CultureInvariant)]
     private static partial Regex FatalMarkerRegex();
 
-    [GeneratedRegex(@"(?im)(?:\[LUA\]\s*SCRIPT\s*ERROR|LUA\s+error\s*:|lua\s+error\s*:)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?im)(?:\[LUA\]\s*SCRIPT\s*ERROR|\[LUA\]\s*\[ERROR\]|LUA\s+error\s*:|lua\s+error\s*:)", RegexOptions.CultureInvariant)]
     private static partial Regex LuaMarkerRegex();
 
     [GeneratedRegex(@"(?im)(?:EXCEPTION_ACCESS_VIOLATION|Unhandled Exception|DEVICE_REMOVED)", RegexOptions.CultureInvariant)]

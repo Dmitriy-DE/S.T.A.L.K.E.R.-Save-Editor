@@ -90,7 +90,7 @@ public static class OverviewView
         var statsGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
-            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
         };
 
         statsGrid.Children.Add(MakeMetricCell(L.T("ДЕНЬГИ"), "SelectedSave.MoneyDisplay", 0, 0, StalkerTheme.BrushAccentAmber));
@@ -102,6 +102,12 @@ public static class OverviewView
         statsGrid.Children.Add(MakeMetricCell(L.T("ЗДОРОВЬЕ"), "SelectedSave.HealthDisplay", 1, 1, StalkerTheme.BrushSuccess));
         statsGrid.Children.Add(MakeMetricCell(L.T("РАНГ"), "SelectedSave.RankDisplay", 2, 1, StalkerTheme.BrushAccentDim));
         statsGrid.Children.Add(MakeMetricCell(L.T("РЕПУТАЦИЯ"), "SelectedSave.ReputationDisplay", 3, 1, StalkerTheme.BrushTextSecondary));
+        var tasksCell = MakeMetricCell(L.T("ЗАДАНИЯ"), "SelectedSave.TasksDisplay", 0, 2, StalkerTheme.BrushTextPrimary);
+        Grid.SetColumnSpan(tasksCell, 2);
+        statsGrid.Children.Add(tasksCell);
+        var killsCell = MakeMetricCell(L.T("УБИТО"), "SelectedSave.KillsDisplay", 2, 2, StalkerTheme.BrushTextPrimary);
+        Grid.SetColumnSpan(killsCell, 2);
+        statsGrid.Children.Add(killsCell);
 
         stack.Children.Add(StalkerTheme.Card(statsGrid, L.T("Параметры сталкера")));
 

@@ -1439,7 +1439,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             placementDisabledReason: placementReason,
             stashesDisabledReason: stashesReason,
             addItemsDisabledReason: addReason,
-            removeItemsDisabledReason: removeReason);
+            removeItemsDisabledReason: removeReason)
+        {
+            Progress = XRayProgressReader.Read(save),
+        };
     }
 
     private static SaveFileSummary FromStalker2(

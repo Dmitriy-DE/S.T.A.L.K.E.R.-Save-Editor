@@ -48,7 +48,7 @@ public sealed class CompanionServiceTests
         var command = await WaitForCommand(game.AppDataRoot);
         Assert.Equal("ping", command.Command);
         File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(
+        PublishReply(
             Path.Combine(game.AppDataRoot, "save_editor_out.txt"),
             $"v1 {command.Id} ok pong {installer.BundledModBuild}\n");
 
@@ -83,7 +83,7 @@ public sealed class CompanionServiceTests
         var statusTask = service.GetStatusAsync();
         var command = await WaitForCommand(game.AppDataRoot);
         File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(Path.Combine(game.AppDataRoot, "save_editor_out.txt"), $"v1 {command.Id} ok {reply}\n");
+        PublishReply(Path.Combine(game.AppDataRoot, "save_editor_out.txt"), $"v1 {command.Id} ok {reply}\n");
 
         var status = await statusTask;
 
@@ -106,7 +106,7 @@ public sealed class CompanionServiceTests
         var statusTask = service.GetStatusAsync();
         var command = await WaitForCommand(game.AppDataRoot);
         File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(
+        PublishReply(
             Path.Combine(game.AppDataRoot, "save_editor_out.txt"),
             $"v1 {command.Id} unsupported unknown command\n");
 
@@ -168,6 +168,14 @@ public sealed class CompanionServiceTests
         return (fields[1], string.Join(' ', fields.Skip(2)));
     }
 
+    private static void PublishReply(string replyPath, string text)
+    {
+        var temporaryPath = Path.Combine(Path.GetDirectoryName(replyPath)!, "save_editor_out.tmp");
+        File.WriteAllText(temporaryPath, text);
+        File.Delete(replyPath);
+        File.Move(temporaryPath, replyPath);
+    }
+
     private static async Task<CompanionProtocolReply> ReplyToAction(
         Task<CompanionProtocolReply> pendingReply,
         string appDataRoot,
@@ -176,7 +184,7 @@ public sealed class CompanionServiceTests
         var command = await WaitForCommand(appDataRoot);
         Assert.Equal(expectedCommand, command.Command);
         File.Delete(Path.Combine(appDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(
+        PublishReply(
             Path.Combine(appDataRoot, "save_editor_out.txt"),
             $"v1 {command.Id} ok accepted\n");
         return await pendingReply;

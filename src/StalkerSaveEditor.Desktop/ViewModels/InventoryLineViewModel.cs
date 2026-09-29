@@ -85,12 +85,85 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         {
             if (upgradeViewModels.All(u => u.Key != key))
             {
-                var upgVm = new UpgradeItemViewModel(key, key, L.T("Установленный апгрейд"), isInstalled: true, canEditUpgrades, UpgradesDisabledReason);
+                var upgVm = new UpgradeItemViewModel(key, UpgradeName(key), L.T("Установленный апгрейд"), isInstalled: true, canEditUpgrades, UpgradesDisabledReason);
                 upgVm.PropertyChanged += (_, _) => OnPropertyChanged(nameof(UpgradeItems));
                 upgradeViewModels.Add(upgVm);
             }
         }
         UpgradeItems = new ObservableCollection<UpgradeItemViewModel>(upgradeViewModels);
+    }
+
+    private static string WeaponUpgradeName(StalkerSaveEditor.Core.Catalogs.Stalker2WeaponUpgrade upgrade)
+    {
+        var part = upgrade.Part switch
+        {
+            "Barrel" => L.T("Ствол"),
+            "Handguard" => L.T("Цевьё"),
+            "Body" => L.T("Ствольная коробка"),
+            "PistolGrip" => L.T("Рукоять"),
+            "Stock" => L.T("Приклад"),
+            _ => upgrade.Part,
+        };
+        var effect = upgrade.Effect switch
+        {
+            "Recoil" => L.T("отдача"),
+            "AimingSpeed" => L.T("скорость прицеливания"),
+            "AimingAccuracy" => L.T("точность прицеливания"),
+            "MaxSpread" => L.T("максимальный разброс"),
+            "SpreadReduction" => L.T("снижение разброса"),
+            "SlowingSpread" => L.T("разброс при стрельбе очередью"),
+            "AttachmentSystem" => L.T("крепление обвеса"),
+            "MovementAiming" => L.T("прицеливание в движении"),
+            "ArmorPiercing" => L.T("бронебойность"),
+            "Depreciation" => L.T("износ"),
+            "ShootingDepreciation" => L.T("износ при стрельбе"),
+            "Falloff" => L.T("падение урона с расстоянием"),
+            "Range" => L.T("дальность"),
+            "DropDamage" => L.T("урон"),
+            "Readiness" => L.T("скорость готовности"),
+            "Velocity" => L.T("скорость пули"),
+            "CaliberChange" => L.T("смена калибра"),
+            "AimingReturn" => L.T("возврат прицела"),
+            "WeaponGrip" => L.T("хват"),
+            "Autosh" => L.T("автоматический огонь"),
+            _ => upgrade.Effect,
+        };
+        return $"{part}: {effect}";
+    }
+
+    /// <summary>S2 armour upgrades read as "effect · tier" (from the localization key); anything else keeps its key.</summary>
+    internal static string UpgradeName(string key)
+    {
+        if (StalkerSaveEditor.Core.Catalogs.Stalker2ArmorUpgrades.FindWeapon(key) is { } weapon) return WeaponUpgradeName(weapon);
+        if (StalkerSaveEditor.Core.Catalogs.Stalker2ArmorUpgrades.Find(key) is not { } upgrade) return key;
+        var effect = upgrade.Effect switch
+        {
+            "rad" => L.T("Радиационная защита"),
+            "psy" => L.T("Пси-защита"),
+            "rad_psy" => L.T("Защита от радиации и пси"),
+            "fire" => L.T("Термозащита"),
+            "chem" => L.T("Химзащита"),
+            "electr" => L.T("Электрозащита"),
+            "fire_chem" => L.T("Термо- и химзащита"),
+            "fire_electr" => L.T("Термо- и электрозащита"),
+            "electr_chem" => L.T("Электро- и химзащита"),
+            "el_chem_fire" => L.T("Защита от аномалий"),
+            "bp" => L.T("Пулестойкость"),
+            "exo_bp" => L.T("Пулестойкость экзоскелета"),
+            "durable" => L.T("Прочность"),
+            "exo_durable" => L.T("Прочность экзоскелета"),
+            "weight" => L.T("Переносимый вес"),
+            "pockets" => L.T("Карманы"),
+            "backpack" => L.T("Рюкзак"),
+            "container" => L.T("Контейнеры для артефактов"),
+            "container_radconsume" => L.T("Контейнеры: поглощение радиации"),
+            "stamina" => L.T("Выносливость"),
+            "exo_stamina" => L.T("Выносливость экзоскелета"),
+            "exo_sprint" => L.T("Бег в экзоскелете"),
+            "exo_hands" => L.T("Сервоприводы рук"),
+            _ => upgrade.Effect,
+        };
+        return L.T("{0} · ур. {1}", effect, upgrade.Tier);
     }
 
     /// <summary>Installed upgrades differ from the save as a set (the save keeps install order, the UI tree order).</summary>

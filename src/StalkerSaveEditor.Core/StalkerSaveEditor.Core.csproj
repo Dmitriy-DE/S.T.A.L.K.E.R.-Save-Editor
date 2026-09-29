@@ -8,5 +8,6 @@
     <EmbeddedResource Include="Catalogs/Data/catalogs.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.catalogs.json" />
     <EmbeddedResource Include="Catalogs/Data/catalog_names.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.catalog_names.json" />
     <EmbeddedResource Include="Catalogs/Data/s2_items.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.s2_items.json" />
+    <EmbeddedResource Include="Catalogs/Data/s2_upgrades.json" LogicalName="StalkerSaveEditor.Core.Catalogs.Data.s2_upgrades.json" />
   </ItemGroup>
 </Project>

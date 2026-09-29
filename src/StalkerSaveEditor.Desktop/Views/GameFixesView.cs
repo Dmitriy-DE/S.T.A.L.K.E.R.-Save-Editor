@@ -125,6 +125,14 @@ public sealed class GameFixesView : UserControl
         };
         preset.Bind(TextBlock.TextProperty, new Binding(nameof(GameFixesViewModel.PresetStatus)) { Source = viewModel });
         statusPanel.Children.Add(preset);
+        var presetChanges = new TextBlock
+        {
+            FontSize = 12,
+            Foreground = StalkerTheme.BrushAccentAmber,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        presetChanges.Bind(TextBlock.TextProperty, new Binding(nameof(GameFixesViewModel.PresetChangeStatus)) { Source = viewModel });
+        statusPanel.Children.Add(presetChanges);
         var operationStatus = new TextBlock
         {
             FontSize = 12,

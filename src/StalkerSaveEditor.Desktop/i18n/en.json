@@ -775,6 +775,7 @@
  "НЕТ ПРОВЕРЕННЫХ ИСПРАВЛЕНИЙ ДЛЯ ЭТОЙ ВЕРСИИ.": "No verified fixes are available for this build.",
  "НИИЧАЗ": "SIRCAA",
  "НОВОЕ": "NEW",
+ "НОВЫЕ ИСПРАВЛЕНИЯ В ПРЕСЕТЕ: {0} → {1} (каталог {2} → {3})": "NEW FIXES IN PRESET: {0} → {1} (catalogue {2} → {3})",
  "Надето": "Worn",
  "Назад": "Back",
  "Название": "Name",

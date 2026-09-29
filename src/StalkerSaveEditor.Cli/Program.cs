@@ -63,7 +63,7 @@ internal static class Program
         {
             return RunCommand(args);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or
             ArgumentException or InvalidOperationException or FormatException or NotSupportedException or
             KeyNotFoundException or OverflowException)
         {
@@ -248,7 +248,7 @@ internal static class Program
 
     private static int Fixes(string[] args)
     {
-        const string usage = "Usage: fixes list [--game TARGET] [--json] | fixes status TARGET GAME_DIR [--json] | fixes apply-preset <essential|recommended|all-safe> TARGET GAME_DIR [--json] | fixes install ID GAME_DIR | fixes update ID GAME_DIR | fixes remove ID GAME_DIR";
+        const string usage = "Usage: fixes list [--game TARGET] [--json] | fixes status TARGET GAME_DIR [--json] | fixes apply-preset <essential|recommended|all-safe> TARGET GAME_DIR [--json] | fixes apply-preset <essential|recommended|all-safe> all [--steam-root PATH] [--json] | fixes install ID GAME_DIR | fixes update ID GAME_DIR | fixes remove ID GAME_DIR";
         if (args.Length >= 2 && args[1] == "list")
         {
             GameTarget? selectedTarget = null;
@@ -293,6 +293,10 @@ internal static class Program
             var report = GameDoctor.Analyze(target, args[3]);
             var catalogue = GameFixCatalog.ForGame(target);
             var recommended = GameFixCatalog.ForPreset(target, GameFixPreset.Recommended);
+            var compatibleRecommended = recommended.Count > 0 && report.SteamBuildId is { } buildId &&
+                recommended.All(definition => definition.SupportedSteamBuildIds.Contains(buildId, StringComparer.Ordinal))
+                ? recommended
+                : [];
             var result = new GameFixStatusJsonResult(
                 GameTargetCatalog.Get(target).Id,
                 report.SteamBuildId,
@@ -305,18 +309,20 @@ internal static class Program
                     definition.SupportedSteamBuildIds,
                     report.InstalledFixes.FirstOrDefault(fix => fix.Id == definition.Id)?.State ?? GameFixState.NotInstalled))
                     .ToArray(),
-                recommended.Select(definition => definition.Id).ToArray(),
+                compatibleRecommended.Select(definition => definition.Id).ToArray(),
                 GameFixCatalog.DatasetVersion,
                 catalogue.Count == 0
                     ? "No evidence-validated game-file fixes are currently catalogued."
                     : recommended.Count == 0
                         ? "Catalogued fixes are experimental or research-only and are not included in safe presets."
+                        : compatibleRecommended.Count == 0
+                            ? "The detected build is not supported by the complete safe preset."
                         : null);
             if (args.Length == 5)
                 Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Default.GameFixStatusJsonResult));
             else
                 Console.WriteLine($"{GameTargetCatalog.Get(target).Title}; Steam build {report.SteamBuildId ?? "unknown"}; " +
-                    $"{catalogue.Count} catalogued; {recommended.Count} safe recommendations; " +
+                    $"{catalogue.Count} catalogued; {compatibleRecommended.Count} compatible safe recommendations; " +
                     $"{report.InstalledFixes.Count} installed; " +
                     $"{catalogue.Count(definition => definition.Maturity == GameFixMaturity.Experimental)} experimental.");
             return 0;
@@ -324,17 +330,13 @@ internal static class Program
 
         if (args.Length >= 2 && args[1] == "apply-preset")
         {
+            var preset = ParseFixPreset(args.Length > 2 ? args[2] : string.Empty);
+            if (args.Length >= 4 && args[3].Equals("all", StringComparison.OrdinalIgnoreCase))
+                return ApplyPresetToDiscoveredInstallations(args, preset, usage);
+
             if (args.Length is < 5 or > 6 || !GameTargetCatalog.TryParse(args[3], out var target) ||
                 args.Length == 6 && args[5] != "--json")
                 throw new ArgumentException(usage);
-
-            var preset = args[2].ToLowerInvariant() switch
-            {
-                "essential" or "essential-only" => GameFixPreset.EssentialOnly,
-                "recommended" => GameFixPreset.Recommended,
-                "all-safe" or "all-safe-fixes" => GameFixPreset.AllSafeFixes,
-                _ => throw new ArgumentException("Preset must be essential, recommended, or all-safe. Custom selections use individual fix install/remove commands."),
-            };
             var result = new GameFixEngine().ApplyPreset(target, preset, args[4]);
             if (args.Length == 6)
             {
@@ -379,6 +381,88 @@ internal static class Program
         }
 
         throw new ArgumentException(usage);
+    }
+
+    private static GameFixPreset ParseFixPreset(string value) => value.ToLowerInvariant() switch
+    {
+        "essential" or "essential-only" => GameFixPreset.EssentialOnly,
+        "recommended" => GameFixPreset.Recommended,
+        "all-safe" or "all-safe-fixes" => GameFixPreset.AllSafeFixes,
+        _ => throw new ArgumentException("Preset must be essential, recommended, or all-safe. Custom selections use individual fix install/remove commands."),
+    };
+
+    private static int ApplyPresetToDiscoveredInstallations(string[] args, GameFixPreset preset, string usage)
+    {
+        var json = false;
+        var steamRoots = new List<string>();
+        for (var index = 4; index < args.Length; index++)
+        {
+            if (args[index] == "--json") json = true;
+            else if (args[index] == "--steam-root" && index + 1 < args.Length && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+                steamRoots.Add(args[++index]);
+            else
+                throw new ArgumentException(usage);
+        }
+
+        var installations = GameDoctor.DiscoverInstallations(steamRoots.Count == 0 ? null : steamRoots);
+        var results = new List<GameFixPresetInstallationJsonResult>();
+        foreach (var installation in installations)
+        {
+            var selected = GameFixCatalog.ForPreset(installation.Target, preset);
+            if (selected.Count == 0) continue;
+            var gameId = GameTargetCatalog.Get(installation.Target).Id;
+            if (installation.BuildId is not { } buildId ||
+                selected.Any(definition => !definition.SupportedSteamBuildIds.Contains(buildId, StringComparer.Ordinal)))
+            {
+                results.Add(new GameFixPresetInstallationJsonResult(
+                    gameId, installation.BuildId, selected.Count, [], [],
+                    "The discovered build is not supported by every selected fix."));
+                continue;
+            }
+
+            try
+            {
+                var applied = new GameFixEngine().ApplyPreset(installation.Target, preset, installation.Directory);
+                results.Add(new GameFixPresetInstallationJsonResult(
+                    gameId,
+                    installation.BuildId,
+                    applied.SelectedFixCount,
+                    applied.InstalledFixIds.ToArray(),
+                    applied.AlreadyInstalledFixIds.ToArray(),
+                    null));
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or
+                ArgumentException or InvalidOperationException or FormatException or NotSupportedException or
+                InvalidDataException or OverflowException)
+            {
+                results.Add(new GameFixPresetInstallationJsonResult(
+                    gameId, installation.BuildId, selected.Count, [], [], exception.Message));
+            }
+        }
+
+        var response = new GameFixPresetAllJsonResult(preset, GameFixCatalog.DatasetVersion, results.ToArray());
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(response, CliJsonContext.Default.GameFixPresetAllJsonResult));
+        }
+        else if (results.Count == 0)
+        {
+            Console.WriteLine("No compatible game installations with fixes in this preset were found; no files changed.");
+        }
+        else
+        {
+            foreach (var result in results)
+            {
+                if (result.Error is { } error)
+                    Console.WriteLine($"{result.Game}: skipped or failed — {error}");
+                else
+                    Console.WriteLine($"{result.Game}: installed {result.InstalledFixIds.Length} of {result.SelectedFixCount}; " +
+                        $"{result.AlreadyInstalledFixIds.Length} already current.");
+            }
+        }
+
+        return results.Any(result => result.Error is not null &&
+            result.Error != "The discovered build is not supported by every selected fix.") ? 1 : 0;
     }
 
     private static int S2Mods(string[] args)
@@ -960,6 +1044,19 @@ internal sealed record GameFixPresetJsonResult(
     string[] AlreadyInstalledFixIds,
     bool Changed);
 
+internal sealed record GameFixPresetInstallationJsonResult(
+    string Game,
+    string? BuildId,
+    int SelectedFixCount,
+    string[] InstalledFixIds,
+    string[] AlreadyInstalledFixIds,
+    string? Error);
+
+internal sealed record GameFixPresetAllJsonResult(
+    GameFixPreset Preset,
+    string CatalogueVersion,
+    GameFixPresetInstallationJsonResult[] Installations);
+
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = true)]
@@ -970,6 +1067,7 @@ internal sealed record GameFixPresetJsonResult(
 [JsonSerializable(typeof(GameFixListJsonEntry[]), TypeInfoPropertyName = "GameFixListJsonEntries")]
 [JsonSerializable(typeof(GameFixStatusJsonResult))]
 [JsonSerializable(typeof(GameFixPresetJsonResult))]
+[JsonSerializable(typeof(GameFixPresetAllJsonResult))]
 internal partial class CliJsonContext : JsonSerializerContext
 {
 }

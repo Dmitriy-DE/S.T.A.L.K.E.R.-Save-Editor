@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 using StalkerSaveEditor.Cli;
+using StalkerSaveEditor.Core.Patching;
+using StalkerSaveEditor.Core.Storage;
 using StalkerSaveEditor.Core.Formats.Stalker2;
 using StalkerSaveEditor.Core.Formats.XRay;
 using Xunit;
@@ -78,7 +80,9 @@ public sealed class CliCommandTests
             Assert.Contains("\"target\": \"ClearSky\"", result.Output, StringComparison.Ordinal);
             Assert.Contains("\"source\": \"Steam\"", result.Output, StringComparison.Ordinal);
             Assert.Contains("\"buildId\": \"11450472\"", result.Output, StringComparison.Ordinal);
-            Assert.Contains(System.Text.Json.JsonEncodedText.Encode(StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(game))).ToString(), result.Output, StringComparison.Ordinal);
+            using var response = JsonDocument.Parse(result.Output);
+            var discovered = Assert.Single(response.RootElement.EnumerateArray());
+            Assert.Equal(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(game)), discovered.GetProperty("directory").GetString());
         }
         finally
         {
@@ -149,6 +153,7 @@ public sealed class CliCommandTests
             Assert.Equal("11450472", statusRoot.GetProperty("buildId").GetString());
             Assert.Equal(25, statusRoot.GetProperty("availableFixes").GetArrayLength());
             var recommended = statusRoot.GetProperty("recommendedFixIds").EnumerateArray().Select(id => id.GetString()).ToArray();
+            Assert.Equal(23, recommended.Length);
             Assert.NotEmpty(recommended);
             Assert.All(recommended, id => Assert.Contains(statusRoot.GetProperty("availableFixes").EnumerateArray(), fix => fix.GetProperty("id").GetString() == id));
             Assert.Null(statusRoot.GetProperty("catalogueNote").GetString());
@@ -157,6 +162,55 @@ public sealed class CliCommandTests
         finally
         {
             Directory.Delete(library, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fixes_apply_preset_all_discovers_from_the_supplied_steam_root_and_returns_structured_json()
+    {
+        var steamRoot = Path.Combine(Path.GetTempPath(), "sse-fix-discovery-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(steamRoot);
+        try
+        {
+            var result = Run("fixes", "apply-preset", "recommended", "all", "--steam-root", steamRoot, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            using var response = JsonDocument.Parse(result.Output);
+            Assert.Equal("Recommended", response.RootElement.GetProperty("preset").GetString());
+            Assert.Equal(GameFixCatalog.DatasetVersion, response.RootElement.GetProperty("catalogueVersion").GetString());
+            Assert.Empty(response.RootElement.GetProperty("installations").EnumerateArray());
+        }
+        finally
+        {
+            Directory.Delete(steamRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fixes_apply_preset_all_skips_an_unsupported_discovered_build_without_writing()
+    {
+        var steamRoot = Path.Combine(Path.GetTempPath(), "sse-fix-build-gate-" + Guid.NewGuid().ToString("N"));
+        var library = Path.Combine(steamRoot, "steamapps");
+        var gameDirectory = Path.Combine(library, "common", "Call of Pripyat");
+        Directory.CreateDirectory(gameDirectory);
+        File.WriteAllText(Path.Combine(gameDirectory, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(Path.Combine(library, "appmanifest_41700.acf"), "\"AppState\" { \"appid\" \"41700\" \"buildid\" \"19000000\" \"installdir\" \"Call of Pripyat\" }");
+        try
+        {
+            var result = Run("fixes", "apply-preset", "recommended", "all", "--steam-root", steamRoot, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            using var response = JsonDocument.Parse(result.Output);
+            var install = Assert.Single(response.RootElement.GetProperty("installations").EnumerateArray());
+            Assert.Equal("cop", install.GetProperty("game").GetString());
+            Assert.Equal("19000000", install.GetProperty("buildId").GetString());
+            Assert.Equal(10, install.GetProperty("selectedFixCount").GetInt32());
+            Assert.Empty(install.GetProperty("installedFixIds").EnumerateArray());
+            Assert.False(Directory.Exists(Path.Combine(gameDirectory, ".save-editor-game-fixes")));
+        }
+        finally
+        {
+            Directory.Delete(steamRoot, recursive: true);
         }
     }
 

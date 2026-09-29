@@ -23,6 +23,20 @@ public sealed class GameFixesViewModelTests
     }
 
     [Fact]
+    public void Shows_recommended_preset_growth_and_catalogue_versions()
+    {
+        var viewModel = new GameFixesViewModel();
+        viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cop");
+
+        Assert.Contains("5 → 10", viewModel.PresetChangeStatus, StringComparison.Ordinal);
+        Assert.Contains(GameFixCatalog.PreviousDatasetVersion, viewModel.PresetChangeStatus, StringComparison.Ordinal);
+        Assert.Contains(GameFixCatalog.DatasetVersion, viewModel.PresetChangeStatus, StringComparison.Ordinal);
+
+        viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cs");
+        Assert.Empty(viewModel.PresetChangeStatus);
+    }
+
+    [Fact]
     public async Task Enables_install_only_after_matching_build_was_checked()
     {
         using var install = new SteamInstallFixture("11450472");

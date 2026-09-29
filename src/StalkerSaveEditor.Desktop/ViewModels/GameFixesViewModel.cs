@@ -183,6 +183,21 @@ public sealed class GameFixesViewModel : ObservableViewModel
     }
 
     public string PresetStatus => L.T("РЕКОМЕНДУЕМЫЙ ПРЕСЕТ ВКЛЮЧАЕТ ОБЯЗАТЕЛЬНЫЕ И РЕКОМЕНДУЕМЫЕ; ИЗМЕНЕНИЯ ТОЛЬКО ПО ЯВНОЙ КОМАНДЕ.");
+    public string PresetChangeStatus
+    {
+        get
+        {
+            var previous = GameFixCatalog.PreviousPresetCount(SelectedTarget.Target, GameFixPreset.Recommended);
+            var current = GameFixCatalog.ForPreset(SelectedTarget.Target, GameFixPreset.Recommended).Count;
+            return current <= previous
+                ? string.Empty
+                : L.T("НОВЫЕ ИСПРАВЛЕНИЯ В ПРЕСЕТЕ: {0} → {1} (каталог {2} → {3})",
+                    previous,
+                    current,
+                    GameFixCatalog.PreviousDatasetVersion,
+                    GameFixCatalog.DatasetVersion);
+        }
+    }
     public string SelectedTitle => SelectedFix?.Title ?? L.T("ВЫБЕРИТЕ ИСПРАВЛЕНИЕ");
     public string SelectedId => SelectedFix?.Id ?? string.Empty;
     public string SelectedProblem => SelectedFix?.Problem ?? string.Empty;
@@ -377,6 +392,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
         SelectedFix = Fixes.FirstOrDefault(entry => entry.Id == selectedId) ?? Fixes.FirstOrDefault();
         OnPropertyChanged(nameof(CatalogueStatus));
         OnPropertyChanged(nameof(PresetStatus));
+        OnPropertyChanged(nameof(PresetChangeStatus));
     }
 
     private void RefreshFixStates(string? selectedId = null)

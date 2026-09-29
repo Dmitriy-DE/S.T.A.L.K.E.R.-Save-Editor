@@ -413,7 +413,7 @@ public sealed class CompanionView : UserControl
 
         toggleRow.Children.Add(new TextBlock
         {
-            Text = L.T("Ctrl+H  Лечить   |   Ctrl+R  Починить   |   Ctrl+M  Метка   |   Ctrl+J  Прыжок   |   Ctrl+S  Сохранить"),
+            [!TextBlock.TextProperty] = new Binding("HotkeySummary"),
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextMuted,
             VerticalAlignment = VerticalAlignment.Center,
@@ -441,8 +441,15 @@ public sealed class CompanionView : UserControl
                 Grid.SetColumn(actionTb, 0);
                 rowGrid.Children.Add(actionTb);
 
-                var keyBox = StalkerTheme.Badge(item.Key, StalkerTheme.BrushBgInput, StalkerTheme.BrushAccentAmber, 12);
-                keyBox.HorizontalAlignment = HorizontalAlignment.Left;
+                var keyBox = new TextBox
+                {
+                    [!TextBox.TextProperty] = new Binding("Key") { Source = item, Mode = BindingMode.TwoWay },
+                    Background = StalkerTheme.BrushBgInput,
+                    Foreground = StalkerTheme.BrushAccentAmber,
+                    FontSize = 12,
+                    Width = 110,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                };
                 Grid.SetColumn(keyBox, 1);
                 rowGrid.Children.Add(keyBox);
 
@@ -462,6 +469,12 @@ public sealed class CompanionView : UserControl
         };
 
         hotkeysStack.Children.Add(hotkeysList);
+
+        var saveKeys = StalkerTheme.StalkerButton(L.T("СОХРАНИТЬ КЛАВИШИ"), isPrimary: true, minWidth: 170);
+        saveKeys.Bind(Button.CommandProperty, new Binding("SaveHotkeysCommand"));
+        var resetKeys = StalkerTheme.StalkerButton(L.T("ПО УМОЛЧАНИЮ"), isPrimary: false, minWidth: 140);
+        resetKeys.Bind(Button.CommandProperty, new Binding("ResetHotkeysCommand"));
+        hotkeysStack.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { saveKeys, resetKeys } });
         mainStack.Children.Add(StalkerTheme.Card(hotkeysStack));
 
         // 5. Status Message Banner

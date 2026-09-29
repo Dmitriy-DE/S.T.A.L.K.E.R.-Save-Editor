@@ -379,7 +379,7 @@ function handlers.hotkeys(args)
 	end
 	if news_manager ~= nil and news_manager.send_tip ~= nil and db.actor ~= nil then
 		pcall(function()
-			news_manager.send_tip(db.actor, "ХОТКЕИ: " .. (hotkeys_active and "ВКЛЮЧЕНЫ [Ctrl+H/R/M/J/S]" or "ВЫКЛЮЧЕНЫ"), nil, nil, 3000)
+			news_manager.send_tip(db.actor, "ХОТКЕИ: " .. (hotkeys_active and "ВКЛЮЧЕНЫ" or "ВЫКЛЮЧЕНЫ"), nil, nil, 3000)
 		end)
 	end
 	return "ok", "hotkeys=" .. (hotkeys_active and "on" or "off")

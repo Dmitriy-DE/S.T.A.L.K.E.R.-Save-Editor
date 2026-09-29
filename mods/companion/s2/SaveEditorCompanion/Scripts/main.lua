@@ -172,6 +172,48 @@ function handlers.teleport(args)
 	return "ok", string.format("teleported via command to %.2f, %.2f, %.2f", x, y, z)
 end
 
+-- Native GSC debug commands of S2 (the same ones UETools / Stalker2Control type into the console).
+local function on_off(value)
+	if value == "on" then return true end
+	if value == "off" then return false end
+	return nil
+end
+
+function handlers.god(args)
+	local on = on_off(args[1])
+	if on == nil then
+		return "error", "usage: god on|off"
+	end
+	execute_console_command("XSetGodMode " .. (on and "true" or "false"))
+	return "ok", "god mode " .. args[1]
+end
+
+function handlers.noclip(args)
+	local on = on_off(args[1])
+	if on == nil then
+		return "error", "usage: noclip on|off"
+	end
+	execute_console_command(on and "XSetNoClipGSC 1" or "XSetNoClipGSC 0")
+	return "ok", "free flight " .. args[1]
+end
+
+function handlers.timespeed(args)
+	local speed = tonumber(args[1])
+	if speed == nil or speed < 0 or speed > 100 then
+		return "error", "usage: timespeed <0..100> (0 = normal)"
+	end
+	execute_console_command("XSetTimeSpeed " .. tostring(speed))
+	return "ok", "time speed " .. tostring(speed)
+end
+
+function handlers.weather(args)
+	if args[1] == nil then
+		return "error", "usage: weather <preset>"
+	end
+	execute_console_command("XForceWeather " .. args[1])
+	return "ok", "weather " .. args[1]
+end
+
 local function process_command_line(line)
 	local tokens = {}
 	for token in string.gmatch(line, "%S+") do

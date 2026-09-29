@@ -46,6 +46,13 @@ reply:   v1 <id> <status> <text>
 | `jump_last` | — | `at <name>` or `jumping to <name>@<level>` |
 | `quicksave` | `[<name>]` | save name; defaults to `se_quick` |
 | `hotkeys` | `on` or `off` | `hotkeys=on` or `hotkeys=off`; selects 250 ms or 2 s polling |
+| `god` (S2 only) | `on` or `off` | `god mode on/off` — runs the game's `XSetGodMode` |
+| `noclip` (S2 only) | `on` or `off` | `free flight on/off` — `XSetNoClipGSC` |
+| `timespeed` (S2 only) | `0..100` (0 = normal) | `time speed <n>` — `XSetTimeSpeed` |
+
+S2 commands call the game's built-in GSC debug commands through `KismetSystemLibrary.ExecuteConsoleCommand`
+(the same names UETools and the MIT tool Rianvy/Stalker2Control type into the console). Trilogy mods reply
+`unsupported`. In S2 `weather <preset>` runs `XForceWeather`.
 
 Teleport points are the player's own: `info` returns the current position,
 the editor stores it as a named bookmark and replays it with `teleport`.

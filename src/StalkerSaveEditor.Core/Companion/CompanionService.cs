@@ -191,6 +191,16 @@ public sealed class CompanionService : ICompanionService
         CancellationToken cancellationToken = default) =>
         SendInstalledCommand("quicksave", cancellationToken, name is null ? [] : [name]);
 
+    /// <summary>S2 only: the game's own debug commands (XSetGodMode, XSetNoClipGSC, XSetTimeSpeed). Trilogy mods reply "unsupported".</summary>
+    public Task<CompanionProtocolReply> SetGodModeAsync(bool enabled, CancellationToken cancellationToken = default) =>
+        SendInstalledCommand("god", cancellationToken, [enabled ? "on" : "off"]);
+
+    public Task<CompanionProtocolReply> SetFreeFlightAsync(bool enabled, CancellationToken cancellationToken = default) =>
+        SendInstalledCommand("noclip", cancellationToken, [enabled ? "on" : "off"]);
+
+    public Task<CompanionProtocolReply> SetTimeSpeedAsync(float speed, CancellationToken cancellationToken = default) =>
+        SendInstalledCommand("timespeed", cancellationToken, [speed.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+
     public Task<CompanionProtocolReply> SetHotkeyPollingAsync(
         bool enabled,
         CancellationToken cancellationToken = default) =>

@@ -192,6 +192,10 @@ public sealed class CompanionProtocolClientTests
     [InlineData("weather", "rain|later")]
     [InlineData("mark", "unexpected")]
     [InlineData("hotkeys", "maybe")]
+    [InlineData("god", "yes")]
+    [InlineData("noclip", "on|fast")]
+    [InlineData("timespeed", "101")]
+    [InlineData("timespeed", "-1")]
     public async Task Rejects_arguments_outside_the_protocol_table_before_writing(string command, string arguments)
     {
         using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");

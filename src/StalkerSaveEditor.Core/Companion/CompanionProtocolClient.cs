@@ -184,6 +184,24 @@ public sealed class CompanionProtocolClient
                 }
 
                 break;
+            case "god":
+            case "noclip":
+                RequireArgumentCount(command, arguments, 1, 1);
+                if (arguments[0] is not ("on" or "off"))
+                {
+                    throw new ArgumentException($"{command} accepts only 'on' or 'off'.", nameof(arguments));
+                }
+
+                break;
+            case "timespeed":
+                RequireArgumentCount(command, arguments, 1, 1);
+                if (!float.TryParse(arguments[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var speed) ||
+                    !float.IsFinite(speed) || speed is < 0 or > 100)
+                {
+                    throw new ArgumentException("Time speed must be a number from 0 to 100.", nameof(arguments));
+                }
+
+                break;
             case "quicksave":
                 RequireArgumentCount(command, arguments, 0, 1);
                 break;

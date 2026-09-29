@@ -44,10 +44,18 @@ proven stay read-only; the **Capabilities** tab shows, per game, what can be wri
   reported as unknown until a validated rule exists.
 - **Game Fixes** — explicit catalogue, per-target/build gates, source and maturity details, and
   guarded install/remove actions and transactional Essential, Recommended and All safe presets
-  through the shared atomic game-file layer. One Clear Sky fix is available as Experimental and is
-  excluded from safe presets; no game-runtime result is claimed.
+  through the shared atomic game-file layer. The current Recommended preset contains 23 Clear Sky,
+  15 SoC 1.0006, and 10 CoP fixes; no game-runtime result is claimed.
 - **Crash Analyzer** — extracts X-Ray fatal fields, Lua errors, script file/line references and common
-  engine exceptions from a log selected by the user. Unknown logs receive no fix recommendation.
+  engine exceptions from a selected log and discovers recent logs from supported installs. Unknown
+  logs receive no fix recommendation.
+- **Save Timeline and Encyclopedia** — orders discovered saves by real modification time and opens the
+  existing adjacent compare; browses items from the installed game catalogue and uses the existing
+  save-edit or Companion item-give actions when available.
+- **Toolkit Environment** — content-addressed snapshots of provider-managed files, named Game Fix /
+  Companion / config profiles, a bounded `user.ltx` editor, and a read-only install audit. Unknown or
+  manifestless files remain untouched; vanilla status is limited to exact-build hashes already known
+  to the fix catalogue, while all other loose files remain unknown.
 - **Interface** — 15 languages, the games' own menu sounds and optional main-menu music, crash report
   and «Check environment» under Settings → Diagnostics.
 - **Web edition** — the same interface in the browser (WebAssembly) at
@@ -70,7 +78,7 @@ Download the latest release package for your operating system from [Releases](ht
 
 | Platform | Download | How to install |
 |---|---|---|
-| **Windows** | [Setup](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor/releases/latest/download/SaveEditor-windows-x86_64-setup.exe) | Run it. Components: the editor, the command-line tool, the companion mod for every S.T.A.L.K.E.R. game found. |
+| **Windows** | [Setup](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor/releases/latest/download/SaveEditor-windows-x86_64-setup.exe) | Run it. Components include the editor, command-line tool, and companion mod. Game Fixes are optional; Setup can apply a selected safe preset through the CLI to compatible installations. |
 | **Windows** | [Portable zip](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor/releases/latest/download/SaveEditor-windows-x86_64.zip) | Unpack anywhere and run `StalkerSaveEditor.exe`. |
 | **Linux** | [.deb](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor/releases/latest/download/stalker-save-editor_amd64.deb) | `sudo apt install ./stalker-save-editor_amd64.deb` — commands `stalker-save-editor` and `stalker-save-editor-cli`. |
 | **Linux** | AppImage (on the [release page](https://github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor/releases/latest)) | `chmod +x` and run. |
@@ -122,6 +130,8 @@ stalker-save-editor-cli doctor discover --json
 stalker-save-editor-cli doctor game cs "/path/to/Clear Sky"
 stalker-save-editor-cli doctor save "/path/to/save.sav" --json
 stalker-save-editor-cli crash analyse "/path/to/xray.log" --json
+stalker-save-editor-cli crash discover --json
+stalker-save-editor-cli doctor quest "/path/to/save.sav" --json
 stalker-save-editor-cli fixes list --json
 stalker-save-editor-cli fixes apply-preset recommended cs "/path/to/Clear Sky" --json
 

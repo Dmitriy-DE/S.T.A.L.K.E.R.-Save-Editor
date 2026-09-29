@@ -11,6 +11,7 @@ namespace StalkerSaveEditor.Desktop.Services;
 /// </summary>
 public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposable
 {
+    public bool SupportsLiveProtocol => true;
     private readonly string _modSourceRoot;
 
     // Per-game state: client + hotkey service created lazily when a game dir is known.
@@ -126,6 +127,58 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
                 ActionDescription(b.Action)))
             .ToList();
         return Task.FromResult(result);
+    }
+
+    public async Task<CompanionInspectionResult> InspectAsync(string gameReleaseId, CancellationToken ct = default)
+    {
+        var status = await GetStatusAsync(gameReleaseId, ct).ConfigureAwait(false);
+        if (status.State is not (CompanionState.Installed or CompanionState.Active))
+            return new CompanionInspectionResult(false, string.Empty, string.Empty, status.ErrorMessage ?? "Companion is not installed for this game.");
+        var gameDirectory = GetResolvedGameDir(ParseGame(gameReleaseId));
+        if (gameDirectory is null)
+            return new CompanionInspectionResult(false, string.Empty, string.Empty, "The game directory could not be resolved.");
+
+        try
+        {
+            var client = new CompanionProtocolClient(gameDirectory);
+            var info = await client.SendAsync("info", cancellationToken: ct).ConfigureAwait(false);
+            if (info.Status != CompanionReplyStatus.Ok)
+                return new CompanionInspectionResult(false, string.Empty, string.Empty, info.Text);
+            var inventory = await client.SendAsync("list_inventory", cancellationToken: ct).ConfigureAwait(false);
+            if (inventory.Status != CompanionReplyStatus.Ok)
+                return new CompanionInspectionResult(false, info.Text, string.Empty, inventory.Text);
+            return new CompanionInspectionResult(true, info.Text, inventory.Text, "Live Companion data received.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return new CompanionInspectionResult(false, string.Empty, string.Empty, exception.Message);
+        }
+    }
+
+    public async Task<CompanionActionResult> GiveItemAsync(
+        string gameReleaseId,
+        string section,
+        int count = 1,
+        CancellationToken ct = default)
+    {
+        var status = await GetStatusAsync(gameReleaseId, ct).ConfigureAwait(false);
+        if (status.State is not (CompanionState.Installed or CompanionState.Active))
+            return new CompanionActionResult(false, status.ErrorMessage ?? "Companion is not installed for this game.");
+        var gameDirectory = GetResolvedGameDir(ParseGame(gameReleaseId));
+        if (gameDirectory is null)
+            return new CompanionActionResult(false, "The game directory could not be resolved.");
+        try
+        {
+            var reply = await new CompanionProtocolClient(gameDirectory).SendAsync(
+                "give",
+                [section, count.ToString(System.Globalization.CultureInfo.InvariantCulture)],
+                ct).ConfigureAwait(false);
+            return new CompanionActionResult(reply.Status == CompanionReplyStatus.Ok, reply.Text);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return new CompanionActionResult(false, exception.Message);
+        }
     }
 
 

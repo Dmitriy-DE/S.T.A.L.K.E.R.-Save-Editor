@@ -128,7 +128,8 @@ public static class CatalogBundleReader
                 OptionalInt(rawItem, "icon_y", releaseId),
                 OptionalString(rawItem, "icon_texture", releaseId),
                 OptionalString(rawItem, "class_name", releaseId),
-                OptionalString(rawItem, "display_name_key", releaseId)));
+                OptionalString(rawItem, "display_name_key", releaseId),
+                cost: OptionalInt(rawItem, "cost", releaseId)));
         }
 
         return new ItemCatalog(releaseId, items);

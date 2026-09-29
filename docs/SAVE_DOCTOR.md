@@ -9,7 +9,7 @@ The service uses the same supported format readers as Save Editor. A successful 
 
 Semantic quest reachability and missing-object references remain unknown outside the Quest Doctor rules below.
 
-Quest Doctor (Clear Sky only) checks a small list of known breaks:
+Quest Doctor (Shadow of Chernobyl and Clear Sky) checks a small list of known breaks:
 
     stalker-save-editor-cli doctor quest "/path/to/save.sav" [--json]
     stalker-save-editor-cli doctor quest-repair "/path/to/save.sav" [--output PATH] [--backup-dir DIR]
@@ -22,7 +22,12 @@ Each rule pairs a creature in the save's ALife registry with an actor info porti
 | `cs.wolf-dead` | `esc_wolf` | `esc_wolf_dead` | only the Game Fix `cs.quest.wolf-offline-cancellation` (vanilla never reads the flag); the report says so |
 | `cs.hog-dead` | `mil_hog` | `mil_hog_death` | vanilla `mil_quest_line.ltx` after the talk with Forester; once `forester_talked_2` is set the line has branched, so the rule reports **unknown / too late** and offers no repair |
 
-All three come from the SRP v1.1.5 history and were checked against the retail Steam `configs.db` + patches.
+| `soc.mole-dead` | `agr_krot` | `agr_krot_dead` | vanilla `tasks_agroprom.xml` fails "meet Mole's group" |
+| `soc.prisoner-dead` | `val_prisoner_captive` | `val_prisoner_dead` | vanilla `tasks_darkvalley.xml` fails "help the prisoner" |
+| `soc.courier-dead` | `mil_freedom_member0001` | `mil_courier_dead` | vanilla `tasks_military.xml` completes "kill the courier" |
+| `soc.informer-dead` | `mil_ara` | `mil_ara_dead` | vanilla `tasks_military.xml` completes the informer step |
+
+The Clear Sky rules come from the SRP v1.1.5 history and were checked against the retail Steam `configs.db` + patches. The Shadow of Chernobyl rules come from the retail `all.spawn` (each NPC's own `[death] on_info`) and the retail task XML; ZRP 1.09 has no save-flag fixes for these. Call of Pripyat has no rules: its story scripts check whether the NPC object is alive, and the few `[death]` flags that tasks read are set only when the actor is the killer, so an offline death does not leave a missing flag.
 
 **Repair.** The desktop Save Doctor shows the rules and, when at least one is broken, a *Fix quests* button. It adds only the missing info portions through `XRayInfoPortionWriter.AddActorInfo` (SoC/CS store the save's game time with each flag) and replaces the save through the normal journaled backup + source-SHA check + read-back (`QuestDoctor.VerifyRepair` re-runs the rules on the written bytes). The CLI `doctor quest-repair` writes a new file next to the save (never over it) with a backup. Other formats and games report no states.
 

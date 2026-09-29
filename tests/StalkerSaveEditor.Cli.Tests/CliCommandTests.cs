@@ -150,7 +150,7 @@ public sealed class CliCommandTests
         Assert.Equal("stalker2", root.GetProperty("formatId").GetString());
         Assert.False(root.GetProperty("questStatesAvailable").GetBoolean());
         Assert.Empty(root.GetProperty("states").EnumerateArray());
-        Assert.Contains("only for Clear Sky", root.GetProperty("summary").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Shadow of Chernobyl and Clear Sky", root.GetProperty("summary").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

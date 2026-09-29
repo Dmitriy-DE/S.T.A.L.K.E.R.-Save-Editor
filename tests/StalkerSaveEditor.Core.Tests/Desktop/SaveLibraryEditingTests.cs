@@ -253,6 +253,42 @@ public sealed class SaveLibraryEditingTests
     }
 
     [Fact]
+    public void Puts_a_backpack_item_in_a_stash_with_readback_and_queues_new_items_for_a_stash()
+    {
+        using var directory = new TemporaryDirectory();
+        var saveDirectory = Path.Combine(directory.Path, "saves");
+        Directory.CreateDirectory(saveDirectory);
+        var path = Path.Combine(saveDirectory, "stashes.sav");
+        File.WriteAllBytes(path, ReadFixture(Path.Combine("xray-stashes", "xray-stash-cop-source.sav")));
+        var viewModel = new SaveLibraryViewModel(
+            discoverLocalSaves: false,
+            backupDirectoryProvider: () => Path.Combine(directory.Path, "backups"),
+            draftsDirectory: Path.Combine(directory.Path, "drafts"));
+        Assert.True(viewModel.AddPreviewSave(path));
+        var stash = viewModel.SelectedSave!.Stashes.Single(s => s.Handle == 16);
+        var backpackItem = viewModel.SelectedSave.Inventory.Single(line => line.Handle == 13398);
+
+        viewModel.ToggleStashPut(backpackItem, stash);
+        Assert.Single(stash.Pending);
+        viewModel.ToggleStashPut(backpackItem, stash);
+        Assert.Empty(stash.Pending);
+        viewModel.ToggleStashPut(backpackItem, stash);
+        Assert.True(viewModel.CanSave);
+
+        viewModel.SaveCommand.Execute(null);
+
+        Assert.True(!viewModel.StatusMessage.Contains("Не удалось", StringComparison.Ordinal), viewModel.StatusMessage);
+        var saved = XRayTrilogyReader.FromBytes(File.ReadAllBytes(path));
+        Assert.Contains(saved.Stashes.Single(s => s.Handle == 16).Items, item => item.Handle == 13398);
+        Assert.DoesNotContain(saved.Inventory, item => item.Handle == 13398);
+        Assert.False(viewModel.CanSave);
+
+        var reopened = viewModel.SelectedSave!.Stashes.Single(s => s.Handle == 16);
+        viewModel.StageItemAddition("ammo_9x18_fmj", 3, "stash:16");
+        Assert.Equal("+ новый: ammo_9x18_fmj × 3", Assert.Single(reopened.Pending));
+    }
+
+    [Fact]
     public void Saves_a_staged_item_addition_through_backup_and_readback()
     {
         using var directory = new TemporaryDirectory();

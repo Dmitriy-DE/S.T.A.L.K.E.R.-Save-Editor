@@ -233,6 +233,22 @@ public static class EditService
                     throw new InvalidDataException($"The replaced save stack 0x{handle:X4} does not match the requested value.");
                 }
             }
+
+            foreach (var put in plan.StashPuts)
+            {
+                if (parsed.Stashes.FirstOrDefault(stash => stash.Handle == put.BoxId)?.Items.Any(item => item.Handle == put.ObjectId) != true)
+                {
+                    throw new InvalidDataException($"The replaced save does not hold item 0x{put.ObjectId:X4} in stash 0x{put.BoxId:X4}.");
+                }
+            }
+
+            foreach (var take in plan.StashTakes)
+            {
+                if (parsed.Inventory.All(item => item.Handle != take))
+                {
+                    throw new InvalidDataException($"The replaced save does not hold item 0x{take:X4} in the inventory.");
+                }
+            }
             return;
         }
 

@@ -130,6 +130,19 @@ public sealed class XRayStashTests
 
     [Theory]
     [MemberData(nameof(PythonOracleVectors))]
+    public void Read_back_accepts_a_written_put_and_rejects_one_that_did_not_happen(StashVector vector)
+    {
+        var source = ReadFixture(vector.Source);
+        var plan = new EditPlan(Sha256(source), stashPuts: [new StashPutRequest(vector.BackpackItemId, vector.BoxId)]);
+
+        var prepared = XRayStashWriter.Prepare(source, plan);
+
+        EditService.VerifyReadBack(prepared.Data.Span, vector.ReleaseId, plan);
+        Assert.Throws<InvalidDataException>(() => EditService.VerifyReadBack(source, vector.ReleaseId, plan));
+    }
+
+    [Theory]
+    [MemberData(nameof(PythonOracleVectors))]
     public void Adding_an_item_directly_to_a_box_uses_the_box_as_parent(StashVector vector)
     {
         var source = ReadFixture(vector.Source);

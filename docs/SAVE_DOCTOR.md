@@ -37,3 +37,7 @@ The Clear Sky rules come from the SRP v1.1.5 history and were checked against th
 - **L4 (read-only):** 62 real CS saves parsed; Wolf and Wild Napr alive in all, Hog present and alive in 9 — no real broken save has been seen yet.
 - **L2:** desktop view-model, Quest Doctor CLI JSON, and Save Doctor CLI paths are covered by tests.
 - **L5:** no in-game load of a repaired save and no reproduced broken quest yet.
+
+## Crash signatures
+
+`CrashSignatureCatalog` holds crash messages quoted verbatim by the SRP v1.1.5 history (18, Clear Sky) and ZRP 1.09 `CrashesStillInTheGame.txt` (6, Shadow of Chernobyl). `CrashLogAnalyzer` sets `KnownIssueId`/`KnownIssue` when a log contains one, with advice: repair the save (Quest Doctor rule), install a Game Fix, reload, an earlier save (damaged save), or a community patch when we ship no fix. Game Doctor shows the newest log in the game's `logs`/`_appdata_/logs` folder; the CLI prints the match for `crash analyse`. Call of Pripyat has no signatures yet. Verified on quoted messages (L1) and on the owner's three retail logs, none of which contain a crash (L4, read-only).

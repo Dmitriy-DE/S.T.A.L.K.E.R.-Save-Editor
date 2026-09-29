@@ -76,6 +76,20 @@ public sealed class XRayProgressReaderTests
     }
 
     [Fact]
+    public void Reads_enhanced_edition_tasks_with_a_trailing_byte_and_trailer()
+    {
+        var b = new Bytes().Raw(20).U32(1).U16(0).U32(1);
+        b.Str("zat_a2_reach_base").I32(1).I32(0).U64(10).U64(0).U64(0).U64(0).Str("name").Str("text")
+            .U32(0).U32(0).U32(0).U32(0).Str("ui_icon").Str("").Str("storyline_task_location").U16(7056).U32(1).U8(0);
+        b.Str("zat_a2_reach_base").U32(0);
+
+        var progress = XRayProgressReader.Parse(b.ToArray(), soc: false, actorId: 0, from: 0);
+
+        Assert.NotNull(progress);
+        Assert.Equal(XRayTaskState.InProgress, Assert.Single(progress.Tasks).State);
+    }
+
+    [Fact]
     public void Truncated_or_foreign_data_reads_as_nothing()
     {
         var data = Statistics(new Bytes().Raw(30)).ToArray();

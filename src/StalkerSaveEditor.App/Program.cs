@@ -115,7 +115,7 @@ internal static class Program
 
         ViewModels.SaveLibraryViewModel.InteractiveApp = true;
         Core.Diagnostics.CrashReporter.Install();
-        Core.Diagnostics.AppLog.Info("start " + Core.ApplicationVersion.Current);
+        Core.Diagnostics.AppLog.Info($"start {Core.ApplicationVersion.Current} on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}, .NET {Environment.Version}, UI culture {System.Globalization.CultureInfo.CurrentUICulture.Name}");
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .StartWithClassicDesktopLifetime(args);

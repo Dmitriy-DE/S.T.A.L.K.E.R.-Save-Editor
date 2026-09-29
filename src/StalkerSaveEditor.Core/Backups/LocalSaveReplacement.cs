@@ -51,6 +51,26 @@ public static class LocalSaveReplacement
         Action<ReadOnlyMemory<byte>> verifyReadback,
         ILocalSaveFileSystem? fileSystem = null)
     {
+        try
+        {
+            var receipt = ReplaceLocalCore(sourcePath, prepared, backupDirectory, verifyReadback, fileSystem);
+            Diagnostics.AppLog.Info($"save written {Path.GetFileName(sourcePath)}: {prepared.SourceSha256[..12]} -> {prepared.OutputSha256[..12]}, read-back ok");
+            return receipt;
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.AppLog.Error($"save write failed {Path.GetFileName(sourcePath ?? string.Empty)}", exception);
+            throw;
+        }
+    }
+
+    private static LocalSaveReplacementReceipt ReplaceLocalCore(
+        string sourcePath,
+        PreparedEdit prepared,
+        string backupDirectory,
+        Action<ReadOnlyMemory<byte>> verifyReadback,
+        ILocalSaveFileSystem? fileSystem)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(prepared);
         ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);

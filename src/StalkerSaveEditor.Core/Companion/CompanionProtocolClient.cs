@@ -107,6 +107,11 @@ public sealed class CompanionProtocolClient
                         string.Equals(replyId, id, StringComparison.Ordinal))
                     {
                         var reply = CompanionProtocolReply.Parse(replyText);
+                        if (command != "ping")
+                        {
+                            Diagnostics.AppLog.Info($"companion {formattedCommand} -> {reply.Status} in {elapsed.ElapsedMilliseconds} ms");
+                        }
+
                         return reply with { ReplyFileLastWriteTimeUtc = GetReplyLastWriteTimeUtc(replyPath) };
                     }
                 }
@@ -117,6 +122,7 @@ public sealed class CompanionProtocolClient
             }
 
             CancelCommandIfStillOwned(commandPath, id);
+            if (command != "ping") Diagnostics.AppLog.Warn($"companion {formattedCommand} timed out after {_timeout.TotalSeconds:0} s (game not running or mod not loaded)");
             throw new CompanionProtocolTimeoutException(id, _timeout);
         }
         finally

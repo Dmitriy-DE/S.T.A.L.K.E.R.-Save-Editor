@@ -180,6 +180,20 @@ public sealed class SaveFileSummary
     public int? ActorRank { get; }
     public int? ActorReputation { get; }
     public ulong? GameTime { get; }
+
+    /// <summary>PDA tasks and actor statistics (X-Ray only); null when the registries could not be read.</summary>
+    public StalkerSaveEditor.Core.Formats.XRay.XRayProgress? Progress { get; init; }
+
+    public string TasksDisplay => Progress is { Tasks.Count: > 0 } progress
+        ? L.T("{0} выполнено · {1} активно · {2} провалено",
+            progress.Tasks.Count(task => task.State == StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.Completed),
+            progress.Tasks.Count(task => task.State == StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.InProgress),
+            progress.Tasks.Count(task => task.State == StalkerSaveEditor.Core.Formats.XRay.XRayTaskState.Failed))
+        : "—";
+
+    public string KillsDisplay => Progress is { Statistics.Count: > 0 } progress
+        ? L.T("сталкеров {0} · мутантов {1}", progress.Count("stalkerkills"), progress.Count("monsterkills"))
+        : "—";
     public float? TimeFactor { get; }
     public string? PlayerFaction { get; }
 

@@ -5,6 +5,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
@@ -13,40 +14,101 @@ namespace StalkerSaveEditor.Desktop.Views;
 
 public static class InventoryView
 {
+    private static readonly BooleanNotConverter Not = new();
+
     public static Control Build(SaveLibraryViewModel vm)
     {
         var root = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"),
             Margin = new Thickness(12),
+            RowSpacing = 8,
+            DataContext = vm,
         };
 
-        // 1. Money & Quick Actions Bar
-        var moneyPanel = new StackPanel
+        var moneyPanel = BuildMoneyPanel(vm);
+        root.Children.Add(moneyPanel);
+
+        var filterPanel = BuildFilterPanel(vm);
+        Grid.SetRow(filterPanel, 1);
+        root.Children.Add(filterPanel);
+
+        var workspace = BuildWorkspace(vm);
+        var addPanel = new Border
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            VerticalAlignment = VerticalAlignment.Center,
+            Background = StalkerTheme.BrushBgPanel,
+            BorderBrush = StalkerTheme.BrushBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            IsVisible = false,
         };
-        moneyPanel.Children.Add(new TextBlock
+        Control actionBar = null!;
+
+        var screenLayer = new Grid { Children = { workspace, addPanel } };
+        void CloseAddPanel()
+        {
+            addPanel.Child = null;
+            addPanel.IsVisible = false;
+            workspace.IsVisible = true;
+            moneyPanel.IsVisible = true;
+            filterPanel.IsVisible = true;
+            actionBar.IsVisible = true;
+        }
+
+        void OpenAddPanel()
+        {
+            var addVm = vm.CreateAddItemDialog();
+            var content = AddItemDialog.BuildContent(addVm, vm, "inventory", CloseAddPanel);
+            addPanel.Child = StalkerTheme.Card(content, L.T("Добавить предмет"));
+            addPanel.IsVisible = true;
+            workspace.IsVisible = false;
+            moneyPanel.IsVisible = false;
+            filterPanel.IsVisible = false;
+            actionBar.IsVisible = false;
+        }
+
+        actionBar = BuildActionBar(vm, OpenAddPanel);
+        Grid.SetRow(screenLayer, 2);
+        root.Children.Add(screenLayer);
+
+        Grid.SetRow(actionBar, 3);
+        root.Children.Add(actionBar);
+        return root;
+    }
+
+    private static Control BuildMoneyPanel(SaveLibraryViewModel vm)
+    {
+        var row = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, VerticalAlignment = VerticalAlignment.Center };
+        row.Children.Add(new TextBlock
         {
             Text = L.T("ДЕНЬГИ:"),
             FontWeight = FontWeight.Bold,
             Foreground = StalkerTheme.BrushAccentAmber,
             VerticalAlignment = VerticalAlignment.Center,
-            FontSize = 13,
+            FontSize = 12,
         });
+
+        var currentMoney = new TextBlock
+        {
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        currentMoney.Bind(TextBlock.TextProperty, new Binding("SelectedSave.MoneyDisplay"));
+        row.Children.Add(currentMoney);
 
         var moneyBox = new TextBox
         {
-            Width = 130,
-            Height = 32,
+            Width = 118,
+            MinHeight = 34,
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
             Watermark = "RU",
             VerticalContentAlignment = VerticalAlignment.Center,
         };
+        Avalonia.Automation.AutomationProperties.SetName(moneyBox, L.T("Деньги в сохранении"));
         moneyBox.Bind(TextBox.TextProperty, new Binding(nameof(SaveLibraryViewModel.MoneyInput))
         {
             Mode = BindingMode.TwoWay,
@@ -54,412 +116,761 @@ public static class InventoryView
         });
         moneyBox.Bind(TextBox.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.CanEditMoney)));
         moneyBox.Bind(ToolTip.TipProperty, new Binding("SelectedSave.MoneyDisabledReason"));
-        moneyPanel.Children.Add(moneyBox);
+        row.Children.Add(moneyBox);
 
-        moneyPanel.Children.Add(MakeQuickMoneyButton(vm, "+10 000", "10000"));
-        moneyPanel.Children.Add(MakeQuickMoneyButton(vm, "+50 000", "50000"));
-        moneyPanel.Children.Add(MakeQuickMoneyButton(vm, "+100 000", "100000"));
+        row.Children.Add(MakeQuickMoneyButton(vm, "+10 000", "10000"));
+        row.Children.Add(MakeQuickMoneyButton(vm, "+50 000", "50000"));
+        row.Children.Add(MakeQuickMoneyButton(vm, "+100 000", "100000"));
 
-        var addBtn = StalkerTheme.StalkerButton(L.T("+ Добавить предмет"), isPrimary: true, minWidth: 150);
-        addBtn.HorizontalAlignment = HorizontalAlignment.Right;
-        addBtn.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanAddItems"));
-        addBtn.Bind(ToolTip.TipProperty, new Binding("SelectedSave.AddItemsDisabledReason"));
-        addBtn.Click += (_, _) =>
+        var reason = DisabledReason("SelectedSave.MoneyDisabledReason", nameof(SaveLibraryViewModel.CanEditMoney));
+        reason.Margin = new Thickness(0, 2, 0, 0);
+        var content = new StackPanel { Spacing = 3, Children = { row, reason } };
+        return StalkerTheme.Card(content, L.T("Баланс сохранения"), margin: new Thickness(0));
+    }
+
+    private static Control BuildFilterPanel(SaveLibraryViewModel vm)
+    {
+        var root = new Grid
         {
-            if (vm.SelectedSave is not { CanAddItems: true }) return;
-            var addVm = vm.CreateAddItemDialog();
-            var dialog = new AddItemDialog(addVm, vm);
-            if (Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
-                desktop.MainWindow is not null)
-            {
-                dialog.ShowDialog(desktop.MainWindow);
-            }
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            RowSpacing = 6,
         };
 
-        var topBar = new Grid
+        var searchRow = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Margin = new Thickness(0, 0, 0, 10),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+            ColumnSpacing = 6,
         };
-        topBar.Children.Add(moneyPanel);
-        Grid.SetColumn(addBtn, 1);
-        topBar.Children.Add(addBtn);
-        root.Children.Add(topBar);
-
-        // 2. Category Filter & Search Bar
-        // Wraps on narrow windows (and in the browser) instead of running under the search box.
-        var filterBar = new WrapPanel
-        {
-            Orientation = Orientation.Horizontal,
-            ItemSpacing = 6,
-            LineSpacing = 6,
-            Margin = new Thickness(0, 0, 8, 10),
-        };
-
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("ВСЕ"), "all"));
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("ОРУЖИЕ"), "weapon"));
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("БОЕПРИПАСЫ"), "ammo"));
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("СНАРЯЖЕНИЕ"), "armor"));
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("РАСХОДНИКИ"), "consumable"));
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("АРТЕФАКТЫ"), "artifact"));
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("КЛЮЧИ"), "quest"));
-        filterBar.Children.Add(MakeCategoryChip(vm, L.T("ПРОЧЕЕ"), "other"));
-
         var searchBox = new TextBox
         {
-            Width = 200,
-            Height = 30,
+            MinHeight = 34,
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
             Watermark = L.T("Поиск предметов…"),
             VerticalContentAlignment = VerticalAlignment.Center,
         };
+        Avalonia.Automation.AutomationProperties.SetName(searchBox, L.T("Поиск предметов"));
         searchBox.Bind(TextBox.TextProperty, new Binding(nameof(SaveLibraryViewModel.InventorySearchText))
         {
+            Source = vm,
             Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
         });
+        searchRow.Children.Add(searchBox);
 
-        var filterRow = new DockPanel();
-        DockPanel.SetDock(searchBox, Dock.Right);
-        filterRow.Children.Add(searchBox);
-        filterRow.Children.Add(filterBar);
+        var clearSearch = StalkerTheme.StalkerButton(L.T("Очистить"), isPrimary: false, minWidth: 82);
+        clearSearch.Bind(Button.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.InventorySearchText))
+        {
+            Source = vm,
+            Converter = new StringHasValueConverter(),
+        });
+        clearSearch.Bind(ToolTip.TipProperty, new Binding(nameof(SaveLibraryViewModel.InventorySearchText)) { Source = vm });
+        clearSearch.Click += (_, _) => vm.InventorySearchText = string.Empty;
+        Grid.SetColumn(clearSearch, 1);
+        searchRow.Children.Add(clearSearch);
 
-        Grid.SetRow(filterRow, 1);
-        root.Children.Add(filterRow);
+        var count = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushTextSecondary,
+            VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 110,
+            TextAlignment = TextAlignment.Right,
+        };
+        count.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.FilteredInventory.Count))
+        {
+            Source = vm,
+            StringFormat = L.T("Найдено: {0}"),
+        });
+        Grid.SetColumn(count, 2);
+        searchRow.Children.Add(count);
+        root.Children.Add(searchRow);
 
-        // 3. Workspace: Items List (Left) + Item Inspector (Right)
+        var options = new (string Label, string Category)[]
+        {
+            (L.T("ВСЕ"), "all"),
+            (L.T("ОРУЖИЕ"), "weapon"),
+            (L.T("БОЕПРИПАСЫ"), "ammo"),
+            (L.T("СНАРЯЖЕНИЕ"), "armor"),
+            (L.T("РАСХОДНИКИ"), "consumable"),
+            (L.T("АРТЕФАКТЫ"), "artifact"),
+            (L.T("КЛЮЧИ"), "quest"),
+            (L.T("ПРОЧЕЕ"), "other"),
+        };
+        var categoryButtons = options
+            .Select(option => (Button: MakeCategoryChip(vm, option.Label, option.Category), option.Category))
+            .ToArray();
+        var categoryBar = new WrapPanel { ItemSpacing = 6, LineSpacing = 6 };
+        foreach (var (button, _) in categoryButtons) categoryBar.Children.Add(button);
+        Grid.SetRow(categoryBar, 1);
+        root.Children.Add(categoryBar);
+
+        void UpdateCategoryState()
+        {
+            foreach (var (button, category) in categoryButtons)
+            {
+                var selected = string.Equals(vm.SelectedCategory, category, StringComparison.Ordinal);
+                button.Background = selected ? StalkerTheme.BrushAccentAmber : StalkerTheme.BrushBgElevated;
+                button.Foreground = selected ? StalkerTheme.BrushAccentForeground : StalkerTheme.BrushTextSecondary;
+                button.BorderBrush = selected ? StalkerTheme.BrushBorderFocus : StalkerTheme.BrushBorderSubtle;
+            }
+        }
+        vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(SaveLibraryViewModel.SelectedCategory)) UpdateCategoryState();
+        };
+        UpdateCategoryState();
+        return root;
+    }
+
+    private static Grid BuildWorkspace(SaveLibraryViewModel vm)
+    {
         var workspace = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,340"),
-            Margin = new Thickness(0, 4, 0, 0),
+            ColumnSpacing = 10,
+            RowDefinitions = new RowDefinitions("*"),
         };
 
-        var itemsList = new ListBox
+        var itemsPane = BuildItemsPane(vm);
+        var inspector = BuildItemInspector(vm);
+        itemsPane.MinHeight = 220;
+        inspector.MinHeight = 220;
+        workspace.Children.Add(itemsPane);
+        Grid.SetColumn(inspector, 1);
+        workspace.Children.Add(inspector);
+
+        var stacked = false;
+        workspace.SizeChanged += (_, args) =>
+        {
+            var shouldStack = args.NewSize.Width < 760;
+            if (shouldStack == stacked) return;
+            stacked = shouldStack;
+            workspace.ColumnDefinitions.Clear();
+            workspace.RowDefinitions.Clear();
+            if (stacked)
+            {
+                workspace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                workspace.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                workspace.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                workspace.RowSpacing = 8;
+                Grid.SetColumn(inspector, 0);
+                Grid.SetRow(inspector, 1);
+            }
+            else
+            {
+                workspace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                workspace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(340) });
+                workspace.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                workspace.RowSpacing = 0;
+                Grid.SetColumn(inspector, 1);
+                Grid.SetRow(inspector, 0);
+            }
+        };
+        return workspace;
+    }
+
+    private static Control BuildItemsPane(SaveLibraryViewModel vm)
+    {
+        var list = new ListBox
         {
             Background = StalkerTheme.BrushBgPanel,
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
-            ItemTemplate = StalkerTheme.Template<InventoryLineViewModel>(item => MakeItemRow(item)),
+            ItemTemplate = StalkerTheme.Template<InventoryLineViewModel>(_ => MakeItemRow()),
         };
-        itemsList.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.FilteredInventory)));
-        itemsList.Bind(ListBox.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedItem))
+        Avalonia.Automation.AutomationProperties.SetName(list, L.T("Предметы в инвентаре"));
+        list.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.FilteredInventory)) { Source = vm });
+        list.Bind(ListBox.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedItem))
         {
+            Source = vm,
             Mode = BindingMode.TwoWay,
         });
-        workspace.Children.Add(itemsList);
 
-        var inspector = BuildItemInspector(vm);
-        Grid.SetColumn(inspector, 1);
-        workspace.Children.Add(inspector);
+        var noInventory = BuildEmptyState(L.T("◇"), L.T("Инвентарь пуст"), L.T("В этом сохранении нет предметов."));
+        var noResults = (Border)BuildEmptyState(L.T("⌕"), L.T("Предметы не найдены"), L.T("Измените поиск или категорию."));
+        var reset = StalkerTheme.StalkerButton(L.T("Сбросить фильтры"), isPrimary: false, minWidth: 150);
+        reset.Click += (_, _) =>
+        {
+            vm.InventorySearchText = string.Empty;
+            vm.SelectedCategory = "all";
+        };
+        ((StackPanel)noResults.Child!).Children.Add(reset);
 
-        Grid.SetRow(workspace, 2);
-        root.Children.Add(workspace);
+        var body = new Grid { Children = { list, noInventory, noResults } };
+        void UpdateEmptyStates()
+        {
+            var hasInventory = vm.SelectedSave is { Inventory.Count: > 0 };
+            var hasFilteredItems = vm.FilteredInventory.Count > 0;
+            list.IsVisible = hasFilteredItems;
+            noInventory.IsVisible = !hasInventory;
+            noResults.IsVisible = hasInventory && !hasFilteredItems;
+        }
+        vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(SaveLibraryViewModel.SelectedSave)) UpdateEmptyStates();
+        };
+        vm.FilteredInventory.CollectionChanged += (_, _) => UpdateEmptyStates();
+        UpdateEmptyStates();
 
-        return root;
+        var content = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowSpacing = 6,
+            Children =
+            {
+                SectionHeader(L.T("Предметы"), nameof(SaveLibraryViewModel.FilteredInventory.Count), vm, "{0}"),
+                body,
+            },
+        };
+        Grid.SetRow(body, 1);
+
+        return new Border
+        {
+            Background = StalkerTheme.BrushBgPanel,
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8),
+            Child = content,
+        };
     }
 
-    private static Control MakeItemRow(InventoryLineViewModel item)
+    private static Control MakeItemRow()
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
-            Margin = new Thickness(6, 4),
+            ColumnDefinitions = new ColumnDefinitions("44,*,Auto"),
+            ColumnSpacing = 8,
+            Margin = new Thickness(4, 3),
+            MinHeight = 48,
         };
 
-        // Icon from the installed game or the shipped pack; an empty box keeps the rows aligned.
-        var icon = new Image
+        var iconFrame = new Border
         {
-            Width = 64,
-            Height = 32,
-            Stretch = Stretch.Uniform,
-            Margin = new Thickness(0, 0, 8, 0),
+            Width = 40,
+            Height = 40,
+            Background = StalkerTheme.BrushBgBase,
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Child = new Grid(),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        ItemIconService.Show(icon, item.ReleaseId, item.IconKey);
-        row.Children.Add(icon);
-
-        // Title and key
-        var nameStack = new StackPanel { Spacing = 2 };
-        nameStack.Children.Add(new TextBlock
+        var iconHost = (Grid)iconFrame.Child!;
+        iconHost.Children.Add(new TextBlock
         {
-            Text = item.Name,
-            FontWeight = FontWeight.Medium,
-            Foreground = StalkerTheme.BrushTextPrimary,
-            FontSize = 13,
+            Text = "◇",
+            FontSize = 18,
+            Foreground = StalkerTheme.BrushAccentDim,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
         });
-        nameStack.Children.Add(new TextBlock
+        var icon = new Image { Stretch = Stretch.Uniform, Margin = new Thickness(2) };
+        icon.DataContextChanged += (_, _) =>
         {
-            Text = item.TypeKey,
-            FontSize = 10,
-            Foreground = StalkerTheme.BrushTextMuted,
-        });
-        Grid.SetColumn(nameStack, 1);
-        row.Children.Add(nameStack);
+            if (icon.DataContext is InventoryLineViewModel item)
+                ItemIconService.Show(icon, item.ReleaseId, item.IconKey);
+            else
+                icon.Source = null;
+        };
+        iconHost.Children.Add(icon);
+        row.Children.Add(iconFrame);
 
-        // Placement, condition and count follow the edits made in the card on the right.
-        var badge = StalkerTheme.Badge(string.Empty, StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentAmber, 10);
-        badge.Margin = new Thickness(8, 0);
-        badge.Bind(Visual.IsVisibleProperty, new Binding(nameof(InventoryLineViewModel.ShowPlacementBadge)));
-        ((TextBlock)badge.Child!).Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.PlacementDisplay)));
-        Grid.SetColumn(badge, 2);
-        row.Children.Add(badge);
-
-        var condBlock = new TextBlock
+        var labels = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+        var name = new TextBlock
         {
             FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        name.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.Name)));
+        name.Bind(ToolTip.TipProperty, new Binding(nameof(InventoryLineViewModel.Name)));
+        labels.Children.Add(name);
+        var key = new TextBlock
+        {
+            FontSize = 10,
+            Foreground = StalkerTheme.BrushTextMuted,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        key.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.TypeKey)));
+        labels.Children.Add(key);
+        Grid.SetColumn(labels, 1);
+        row.Children.Add(labels);
+
+        var values = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var placement = StalkerTheme.Badge(string.Empty, StalkerTheme.BrushBgElevated, StalkerTheme.BrushAccentAmber, 10);
+        placement.Bind(Visual.IsVisibleProperty, new Binding(nameof(InventoryLineViewModel.ShowPlacementBadge)));
+        ((TextBlock)placement.Child!).Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.PlacementDisplay)));
+        values.Children.Add(placement);
+
+        var condition = new TextBlock
+        {
+            FontSize = 11,
             FontWeight = FontWeight.Bold,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(8, 0),
         };
-        condBlock.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.ConditionDisplay)));
-        condBlock.Bind(TextBlock.ForegroundProperty, new Binding(nameof(InventoryLineViewModel.ConditionColor)) { Converter = StalkerTheme.ColorToBrush });
-        Grid.SetColumn(condBlock, 3);
-        row.Children.Add(condBlock);
+        condition.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.ConditionDisplay)));
+        condition.Bind(TextBlock.ForegroundProperty, new Binding(nameof(InventoryLineViewModel.ConditionColor)) { Converter = StalkerTheme.ColorToBrush });
+        values.Children.Add(condition);
 
-        var countBlock = new TextBlock
+        var count = new TextBlock
         {
-            Foreground = StalkerTheme.BrushAccentDim,
-            FontSize = 13,
+            Foreground = StalkerTheme.BrushTextSecondary,
+            FontSize = 11,
             FontWeight = FontWeight.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(8, 0),
         };
-        countBlock.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.CountDisplay)));
-        Grid.SetColumn(countBlock, 4);
-        row.Children.Add(countBlock);
-
+        count.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.CountDisplay)));
+        values.Children.Add(count);
+        Grid.SetColumn(values, 2);
+        row.Children.Add(values);
         return row;
     }
 
     private static Control BuildItemInspector(SaveLibraryViewModel vm)
     {
-        var scroll = new ScrollViewer { Padding = new Thickness(12, 0, 0, 0) };
-        var inspectorStack = new StackPanel { Spacing = 14 };
+        var noSelection = BuildEmptyState(L.T("◇"), L.T("Предмет не выбран"), L.T("Выберите предмет для редактирования характеристик"));
+        var details = new StackPanel { Spacing = 8 };
 
-        // Empty state
-        var noSelect = new TextBlock
-        {
-            Text = L.T("Выберите предмет для редактирования характеристик"),
-            Foreground = StalkerTheme.BrushTextMuted,
-            TextWrapping = TextWrapping.Wrap,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(20),
-        };
-        noSelect.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem") { Converter = new NullToBoolConverter(invert: true) });
-
-        var content = new StackPanel { Spacing = 12 };
-        content.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem") { Converter = new NullToBoolConverter(invert: false) });
-
-        // Item Header Card
-        var headerCard = new StackPanel { Spacing = 4 };
+        var header = new StackPanel { Spacing = 3 };
         var title = new TextBlock
         {
-            FontSize = 16,
-            FontWeight = FontWeight.Bold,
+            FontFamily = StalkerTheme.HeadingFont,
+            FontSize = 18,
             Foreground = StalkerTheme.BrushAccentAmber,
             TextWrapping = TextWrapping.Wrap,
         };
         title.Bind(TextBlock.TextProperty, new Binding("SelectedItem.Name"));
-        headerCard.Children.Add(title);
+        header.Children.Add(title);
+        var type = new TextBlock { FontSize = 11, Foreground = StalkerTheme.BrushTextMuted, TextWrapping = TextWrapping.Wrap };
+        type.Bind(TextBlock.TextProperty, new Binding("SelectedItem.TypeKey"));
+        header.Children.Add(type);
+        details.Children.Add(StalkerTheme.Card(header, L.T("Выбранный предмет"), margin: new Thickness(0)));
 
-        var key = new TextBlock { FontSize = 11, Foreground = StalkerTheme.BrushTextMuted };
-        key.Bind(TextBlock.TextProperty, new Binding("SelectedItem.TypeKey"));
-        headerCard.Children.Add(key);
-        content.Children.Add(StalkerTheme.Card(headerCard, L.T("Выбранный предмет")));
+        details.Children.Add(BuildConditionCard(vm));
+        details.Children.Add(BuildCountCard());
+        details.Children.Add(BuildPlacementCard());
+        details.Children.Add(BuildUpgradesCard());
 
-        // Durability Card
-        var durStack = new StackPanel { Spacing = 6 };
-        var durLabel = new TextBlock { Text = L.T("Состояние / Прочность:"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 };
-        durStack.Children.Add(durLabel);
-
-        var sliderRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        var durSlider = new Slider
+        var scroll = new ScrollViewer
         {
-            Minimum = 0,
-            Maximum = 100,
-            Margin = new Thickness(0, 0, 8, 0),
+            Content = details,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         };
-        durSlider.Bind(Slider.ValueProperty, new Binding("SelectedItem.ConditionPercent") { Mode = BindingMode.TwoWay });
-        durSlider.Bind(Slider.IsEnabledProperty, new Binding("SelectedItem.CanEditCondition"));
-        durSlider.Bind(ToolTip.TipProperty, new Binding("SelectedItem.ConditionDisabledReason"));
-        sliderRow.Children.Add(durSlider);
+        var selected = new Grid();
+        selected.Children.Add(scroll);
+        selected.Children.Add(noSelection);
+        scroll.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.SelectedItem))
+        {
+            Source = vm,
+            Converter = new NullToBoolConverter(invert: false),
+        });
+        noSelection.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.SelectedItem))
+        {
+            Source = vm,
+            Converter = new NullToBoolConverter(invert: true),
+        });
+        return new Border
+        {
+            Background = StalkerTheme.BrushBgPanel,
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8),
+            Child = selected,
+        };
+    }
 
-        var durPercentText = new TextBlock
+    private static Control BuildConditionCard(SaveLibraryViewModel vm)
+    {
+        var value = new TextBlock
         {
             FontSize = 13,
             FontWeight = FontWeight.Bold,
-            Foreground = StalkerTheme.BrushSuccess,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        durPercentText.Bind(TextBlock.TextProperty, new Binding("SelectedItem.ConditionDisplay"));
-        Grid.SetColumn(durPercentText, 1);
-        sliderRow.Children.Add(durPercentText);
-        durStack.Children.Add(sliderRow);
+        value.Bind(TextBlock.TextProperty, new Binding("SelectedItem.ConditionDisplay"));
+        value.Bind(TextBlock.ForegroundProperty, new Binding("SelectedItem.ConditionColor") { Converter = StalkerTheme.ColorToBrush });
 
-        var quickCondRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        quickCondRow.Children.Add(MakeQuickCondButton(vm, "100%", "100"));
-        quickCondRow.Children.Add(MakeQuickCondButton(vm, "75%", "75"));
-        quickCondRow.Children.Add(MakeQuickCondButton(vm, "50%", "50"));
-        durStack.Children.Add(quickCondRow);
+        var heading = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Children =
+            {
+                new TextBlock { Text = L.T("Состояние / прочность"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 },
+                value,
+            },
+        };
+        Grid.SetColumn(value, 1);
 
-        content.Children.Add(StalkerTheme.Card(durStack, L.T("Прочность")));
+        var slider = new Slider { Minimum = 0, Maximum = 100, Margin = new Thickness(0, 6) };
+        slider.Bind(Slider.ValueProperty, new Binding("SelectedItem.ConditionPercent") { Mode = BindingMode.TwoWay });
+        slider.Bind(Slider.IsEnabledProperty, new Binding("SelectedItem.CanEditCondition"));
+        slider.Bind(ToolTip.TipProperty, new Binding("SelectedItem.ConditionDisabledReason"));
+        slider.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem.OriginalCondition") { Converter = new NullToBoolConverter(invert: false) });
 
-        // Count Card
-        var countStack = new StackPanel { Spacing = 6 };
-        countStack.Children.Add(new TextBlock { Text = L.T("Количество в стаке:"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 });
+        var reason = DisabledReason("SelectedItem.ConditionDisabledReason", "SelectedItem.CanEditCondition");
+        var quick = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        quick.Children.Add(MakeQuickCondButton(vm, "100%", "100"));
+        quick.Children.Add(MakeQuickCondButton(vm, "75%", "75"));
+        quick.Children.Add(MakeQuickCondButton(vm, "50%", "50"));
+        quick.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem.OriginalCondition") { Converter = new NullToBoolConverter(invert: false) });
+
+        var content = new StackPanel { Spacing = 5, Children = { heading, slider, quick, reason } };
+        return StalkerTheme.Card(content, L.T("Прочность"), margin: new Thickness(0));
+    }
+
+    private static Control BuildCountCard()
+    {
         var countBox = new TextBox
         {
-            Width = 100,
-            HorizontalAlignment = HorizontalAlignment.Left,
+            MinHeight = 34,
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
+            VerticalContentAlignment = VerticalAlignment.Center,
         };
         countBox.Bind(TextBox.TextProperty, new Binding("SelectedItem.CountInput") { Mode = BindingMode.TwoWay });
         countBox.Bind(TextBox.IsEnabledProperty, new Binding("SelectedItem.CanEditCount"));
         countBox.Bind(ToolTip.TipProperty, new Binding("SelectedItem.CountDisabledReason"));
-        countStack.Children.Add(countBox);
-        content.Children.Add(StalkerTheme.Card(countStack, L.T("Количество")));
+        countBox.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem.CanEditCount"));
 
-        // Placement Card
-        var placeStack = new StackPanel { Spacing = 8 };
-        placeStack.Children.Add(new TextBlock { Text = L.T("Размещение:"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 });
-        var placeButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        placeButtons.Children.Add(MakePlacementButton(vm, L.T("Слот"), "slot"));
-        placeButtons.Children.Add(MakePlacementButton(vm, L.T("Пояс"), "belt"));
-        placeButtons.Children.Add(MakePlacementButton(vm, L.T("Рюкзак"), "ruck"));
-        placeStack.Children.Add(placeButtons);
-        content.Children.Add(StalkerTheme.Card(placeStack, L.T("Размещение")));
-
-        // Upgrades Card
-        var upgList = new ItemsControl
+        var readOnlyValue = new TextBlock
         {
-            ItemTemplate = StalkerTheme.Template<UpgradeItemViewModel>(upg =>
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = StalkerTheme.BrushTextPrimary,
+            VerticalAlignment = VerticalAlignment.Center,
+            MinHeight = 34,
+        };
+        readOnlyValue.Bind(TextBlock.TextProperty, new Binding("SelectedItem.OriginalCountDisplay"));
+        readOnlyValue.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem.CanEditCount") { Converter = Not });
+
+        var content = new StackPanel
+        {
+            Spacing = 5,
+            Children =
             {
-                var chk = new CheckBox
+                new TextBlock { Text = L.T("Количество в пачке"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 },
+                countBox,
+                readOnlyValue,
+                DisabledReason("SelectedItem.CountDisabledReason", "SelectedItem.CanEditCount"),
+            },
+        };
+        return StalkerTheme.Card(content, L.T("Количество"), margin: new Thickness(0));
+    }
+
+    private static Control BuildPlacementCard()
+    {
+        var current = new TextBlock { FontSize = 12, Foreground = StalkerTheme.BrushTextPrimary };
+        current.Bind(TextBlock.TextProperty, new Binding("SelectedItem.PlacementDisplay"));
+        var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        options.Children.Add(MakePlacementButton(L.T("Слот"), "slot"));
+        options.Children.Add(MakePlacementButton(L.T("Пояс"), "belt"));
+        options.Children.Add(MakePlacementButton(L.T("Рюкзак"), "ruck"));
+
+        var content = new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                new TextBlock { Text = L.T("Текущее размещение"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 },
+                current,
+                options,
+                DisabledReason("SelectedItem.PlacementDisabledReason", "SelectedItem.CanEditPlacement"),
+            },
+        };
+        return StalkerTheme.Card(content, L.T("Размещение"), margin: new Thickness(0));
+    }
+
+    private static Control BuildUpgradesCard()
+    {
+        var list = new ItemsControl
+        {
+            ItemTemplate = StalkerTheme.Template<UpgradeItemViewModel>(_ =>
+            {
+                var checkbox = new CheckBox
                 {
-                    Content = upg.DisplayName,
                     Foreground = StalkerTheme.BrushTextPrimary,
                     FontSize = 12,
                     Margin = new Thickness(0, 2),
                 };
-                chk.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(UpgradeItemViewModel.IsInstalled)) { Mode = BindingMode.TwoWay });
-                chk.Bind(CheckBox.IsEnabledProperty, new Binding(nameof(UpgradeItemViewModel.CanEdit)));
-                chk.Bind(ToolTip.TipProperty, new Binding(nameof(UpgradeItemViewModel.DisabledReason)));
-                return chk;
+                checkbox.Bind(CheckBox.ContentProperty, new Binding(nameof(UpgradeItemViewModel.DisplayName)));
+                checkbox.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(UpgradeItemViewModel.IsInstalled)) { Mode = BindingMode.TwoWay });
+                checkbox.Bind(CheckBox.IsEnabledProperty, new Binding(nameof(UpgradeItemViewModel.CanEdit)));
+                checkbox.Bind(ToolTip.TipProperty, new Binding(nameof(UpgradeItemViewModel.DisabledReason)));
+                return checkbox;
             }),
         };
-        upgList.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedItem.UpgradeItems"));
-        content.Children.Add(StalkerTheme.Card(upgList, L.T("Апгрейды")));
+        list.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedItem.UpgradeItems"));
 
-        // Action Buttons
-        var deleteBtn = StalkerTheme.StalkerButton(L.T("Удалить предмет"), isPrimary: false);
-        deleteBtn.Foreground = StalkerTheme.BrushDanger;
-        deleteBtn.BorderBrush = StalkerTheme.BrushDanger;
-        deleteBtn.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanRemoveItems"));
-        deleteBtn.Bind(ToolTip.TipProperty, new Binding("SelectedSave.RemoveItemsDisabledReason"));
-        deleteBtn.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.RemoveSelectedItemCommand)));
-        content.Children.Add(deleteBtn);
+        var none = new TextBlock { Text = "—", Foreground = StalkerTheme.BrushTextMuted, FontSize = 12 };
+        none.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem.HasUpgrades") { Converter = Not });
+        var content = new StackPanel
+        {
+            Spacing = 5,
+            Children =
+            {
+                list,
+                none,
+                DisabledReason("SelectedItem.UpgradesDisabledReason", "SelectedItem.CanEditUpgrades"),
+            },
+        };
+        return StalkerTheme.Card(content, L.T("Модификации"), margin: new Thickness(0));
+    }
 
-        inspectorStack.Children.Add(noSelect);
-        inspectorStack.Children.Add(content);
-        scroll.Content = inspectorStack;
-        return scroll;
+    private static Control BuildActionBar(SaveLibraryViewModel vm, Action openAddPanel)
+    {
+        var status = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+        var draft = new TextBlock
+        {
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = StalkerTheme.BrushTextPrimary,
+        };
+        draft.Bind(TextBlock.TextProperty, new Binding(nameof(SaveLibraryViewModel.DraftStatusText)) { Source = vm });
+        status.Children.Add(draft);
+        var hint = new TextBlock
+        {
+            Text = L.T("Правки остаются в черновике до нажатия «Сохранить»."),
+            FontSize = 10,
+            Foreground = StalkerTheme.BrushTextMuted,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        status.Children.Add(hint);
+
+        var remove = StalkerTheme.StalkerButton(L.T("Удалить предмет"), isPrimary: false, minWidth: 136);
+        remove.Foreground = StalkerTheme.BrushDanger;
+        remove.BorderBrush = StalkerTheme.BrushDanger;
+        remove.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanRemoveItems") { Source = vm });
+        remove.Bind(ToolTip.TipProperty, new Binding("SelectedSave.RemoveItemsDisabledReason") { Source = vm });
+        remove.Bind(Button.CommandProperty, new Binding(nameof(SaveLibraryViewModel.RemoveSelectedItemCommand)) { Source = vm });
+
+        var add = StalkerTheme.StalkerButton(L.T("+ Добавить предмет"), isPrimary: true, minWidth: 158);
+        Avalonia.Automation.AutomationProperties.SetName(add, L.T("Добавить предмет"));
+        add.Bind(Button.IsEnabledProperty, new Binding("SelectedSave.CanAddItems") { Source = vm });
+        add.Bind(ToolTip.TipProperty, new Binding("SelectedSave.AddItemsDisabledReason") { Source = vm });
+        add.Click += (_, _) =>
+        {
+            if (vm.SelectedSave is { CanAddItems: true }) openAddPanel();
+        };
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        buttons.Children.Add(remove);
+        buttons.Children.Add(add);
+        var capabilityReasons = new StackPanel
+        {
+            Spacing = 2,
+            MaxWidth = 330,
+            Children =
+            {
+                DisabledReason("SelectedSave.RemoveItemsDisabledReason", "SelectedSave.CanRemoveItems"),
+                DisabledReason("SelectedSave.AddItemsDisabledReason", "SelectedSave.CanAddItems"),
+            },
+        };
+        var actions = new StackPanel
+        {
+            Spacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Children = { buttons, capabilityReasons },
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 10,
+            MinHeight = 50,
+            Children = { status, actions },
+        };
+        Grid.SetColumn(actions, 1);
+        return new Border
+        {
+            Background = StalkerTheme.BrushBgPanel,
+            BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10, 6),
+            Child = grid,
+        };
+    }
+
+    private static Control BuildEmptyState(string icon, string title, string message)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(20),
+        };
+        stack.Children.Add(new TextBlock
+        {
+            Text = icon,
+            FontSize = 28,
+            Foreground = StalkerTheme.BrushTextMuted,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontFamily = StalkerTheme.HeadingFont,
+            FontSize = 14,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushTextSecondary,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = message,
+            FontSize = 12,
+            Foreground = StalkerTheme.BrushTextMuted,
+            TextWrapping = TextWrapping.Wrap,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            MaxWidth = 280,
+        });
+        return new Border
+        {
+            Background = StalkerTheme.BrushBgPanel,
+            Child = stack,
+        };
+    }
+
+    private static Control SectionHeader(string title, string countPath, SaveLibraryViewModel vm, string format)
+    {
+        var count = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushTextSecondary,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        count.Bind(TextBlock.TextProperty, new Binding(countPath) { Source = vm, StringFormat = format });
+        var header = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(4, 0, 4, 2),
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = title.ToUpperInvariant(),
+                    FontFamily = StalkerTheme.HeadingFont,
+                    FontSize = 12,
+                    FontWeight = FontWeight.Bold,
+                    LetterSpacing = 0.8,
+                    Foreground = StalkerTheme.BrushAccentAmber,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+                count,
+            },
+        };
+        Grid.SetColumn(count, 1);
+        return header;
     }
 
     private static Button MakeCategoryChip(SaveLibraryViewModel vm, string label, string category)
     {
-        var btn = new Button
+        var button = new Button
         {
             Content = label,
-            FontSize = 11,
+            FontSize = 10,
             FontWeight = FontWeight.SemiBold,
-            Padding = new Thickness(8, 4),
-            Background = vm.SelectedCategory == category ? StalkerTheme.BrushAccentAmber : StalkerTheme.BrushBgElevated,
-            Foreground = vm.SelectedCategory == category ? new SolidColorBrush(Color.Parse("#0C0D0A")) : StalkerTheme.BrushTextSecondary,
+            Padding = new Thickness(9, 6),
+            Background = StalkerTheme.BrushBgElevated,
+            Foreground = StalkerTheme.BrushTextSecondary,
             BorderBrush = StalkerTheme.BrushBorderSubtle,
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(3),
+            MinHeight = 30,
         };
-        btn.Click += (_, _) => vm.SelectedCategory = category;
-        return btn;
+        Avalonia.Automation.AutomationProperties.SetName(button, label);
+        button.Click += (_, _) => vm.SelectedCategory = category;
+        return button;
     }
 
     private static Button MakeQuickMoneyButton(SaveLibraryViewModel vm, string label, string amount)
     {
-        var btn = new Button
-        {
-            Content = label,
-            FontSize = 11,
-            Padding = new Thickness(8, 5),
-            Background = StalkerTheme.BrushBgElevated,
-            Foreground = StalkerTheme.BrushTextPrimary,
-            BorderBrush = StalkerTheme.BrushBorder,
-            CornerRadius = new CornerRadius(3),
-        };
-        btn.Bind(Button.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.CanEditMoney)));
-        btn.Bind(ToolTip.TipProperty, new Binding("SelectedSave.MoneyDisabledReason"));
-        btn.Click += (_, _) =>
+        var button = StalkerTheme.StalkerButton(label, isPrimary: false, minWidth: 74);
+        button.Bind(Button.IsEnabledProperty, new Binding(nameof(SaveLibraryViewModel.CanEditMoney)) { Source = vm });
+        button.Bind(ToolTip.TipProperty, new Binding("SelectedSave.MoneyDisabledReason") { Source = vm });
+        button.Click += (_, _) =>
         {
             if (vm.CanEditMoney) vm.AddMoney(amount);
         };
-        return btn;
+        return button;
     }
 
     private static Button MakeQuickCondButton(SaveLibraryViewModel vm, string label, string percent)
     {
-        var btn = new Button
-        {
-            Content = label,
-            FontSize = 11,
-            Padding = new Thickness(8, 3),
-            Background = StalkerTheme.BrushBgElevated,
-            Foreground = StalkerTheme.BrushTextPrimary,
-            BorderBrush = StalkerTheme.BrushBorder,
-            CornerRadius = new CornerRadius(3),
-        };
-        btn.Bind(Button.IsEnabledProperty, new Binding("SelectedItem.CanEditCondition"));
-        btn.Bind(ToolTip.TipProperty, new Binding("SelectedItem.ConditionDisabledReason"));
-        btn.Click += (_, _) =>
+        var button = StalkerTheme.StalkerButton(label, isPrimary: false, minWidth: 52);
+        button.Bind(Button.IsEnabledProperty, new Binding("SelectedItem.CanEditCondition") { Source = vm });
+        button.Bind(ToolTip.TipProperty, new Binding("SelectedItem.ConditionDisabledReason") { Source = vm });
+        button.Click += (_, _) =>
         {
             if (vm.SelectedItem is { CanEditCondition: true }) vm.SetItemCondition(percent);
         };
-        return btn;
+        return button;
     }
 
-    private static Button MakePlacementButton(SaveLibraryViewModel vm, string label, string target)
+    private static Button MakePlacementButton(string label, string target)
     {
-        var btn = new Button
+        var button = StalkerTheme.StalkerButton(label, isPrimary: false, minWidth: 58);
+        button.Bind(Button.IsEnabledProperty, new Binding("SelectedItem.CanEditPlacement"));
+        button.Bind(ToolTip.TipProperty, new Binding("SelectedItem.PlacementDisabledReason"));
+        button.Click += (_, _) =>
         {
-            Content = label,
-            FontSize = 11,
-            Padding = new Thickness(10, 4),
-            Background = StalkerTheme.BrushBgElevated,
-            Foreground = StalkerTheme.BrushTextPrimary,
-            BorderBrush = StalkerTheme.BrushBorder,
-            CornerRadius = new CornerRadius(3),
-        };
-        btn.Bind(Button.IsEnabledProperty, new Binding("SelectedItem.CanEditPlacement"));
-        btn.Bind(ToolTip.TipProperty, new Binding("SelectedItem.PlacementDisabledReason"));
-        btn.Click += (_, _) =>
-        {
-            if (vm.SelectedItem is { CanEditPlacement: true })
-            {
+            if (button.DataContext is SaveLibraryViewModel { SelectedItem: { CanEditPlacement: true } } vm)
                 vm.SelectedItem.Placement = target;
-            }
         };
-        return btn;
+        return button;
+    }
+
+    private static TextBlock DisabledReason(string reasonPath, string canEditPath)
+    {
+        var text = new TextBlock
+        {
+            FontSize = 10,
+            Foreground = StalkerTheme.BrushTextMuted,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        text.Bind(TextBlock.TextProperty, new Binding(reasonPath));
+        text.Bind(Visual.IsVisibleProperty, new Binding(canEditPath) { Converter = Not });
+        return text;
     }
 
     private sealed class NullToBoolConverter(bool invert) : Avalonia.Data.Converters.IValueConverter
     {
-        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
             invert ? value is null : value is not null;
 
-        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class BooleanNotConverter : Avalonia.Data.Converters.IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value is bool enabled && !enabled;
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class StringHasValueConverter : Avalonia.Data.Converters.IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+            value is string { Length: > 0 };
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
             throw new NotSupportedException();
     }
 }

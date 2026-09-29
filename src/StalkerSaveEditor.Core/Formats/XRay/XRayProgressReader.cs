@@ -91,15 +91,19 @@ public static class XRayProgressReader
         for (var start = statisticsStart - 10; start >= from; start--)
         {
             if (!ActorRegistryPrefix(data, start, actorId)) continue;
-            var reader = new Reader(data, start);
-            try
+            // Enhanced Edition CoP appends one byte to every task record.
+            foreach (var trailingByte in soc ? [false] : new[] { false, true })
             {
-                var tasks = ReadTasks(ref reader, soc, actorId);
-                var gap = statisticsStart - reader.Position;
-                if (gap is >= 0 and <= 128) return new XRayProgress(tasks, statistics);
-            }
-            catch (FormatException)
-            {
+                var reader = new Reader(data, start);
+                try
+                {
+                    var tasks = ReadTasks(ref reader, soc, actorId, trailingByte);
+                    var gap = statisticsStart - reader.Position;
+                    if (gap is >= 0 and <= 128) return new XRayProgress(tasks, statistics);
+                }
+                catch (FormatException)
+                {
+                }
             }
         }
 
@@ -112,7 +116,7 @@ public static class XRayProgressReader
         return count is > 0 and <= 16 && BinaryPrimitives.ReadUInt16LittleEndian(data[(start + 4)..]) == actorId;
     }
 
-    private static List<XRayTask> ReadTasks(ref Reader reader, bool soc, ushort actorId)
+    private static List<XRayTask> ReadTasks(ref Reader reader, bool soc, ushort actorId, bool trailingByte)
     {
         var result = new List<XRayTask>();
         var objects = reader.Count();
@@ -123,6 +127,7 @@ public static class XRayProgressReader
             for (var k = 0; k < keys; k++)
             {
                 var task = soc ? ReadSocTask(ref reader) : ReadCsTask(ref reader);
+                if (trailingByte) _ = reader.U8();
                 if (owner == actorId) result.Add(task);
             }
         }

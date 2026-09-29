@@ -27,6 +27,12 @@ public static class GameContentRegistry
         return false;
     }
 
+    public static bool TryGetContent(string releaseId, out GameContent content) =>
+        Loaded.TryGetValue(releaseId.Replace("-ee", string.Empty, StringComparison.Ordinal), out content!);
+
+    public static IReadOnlyList<GameContent> GetLoadedContents() =>
+        Loaded.Values.OrderBy(content => content.Status.ReleaseId, StringComparer.Ordinal).ToArray();
+
     /// <summary>Finds installed games and reads (or re-uses cached) content; failures are logged, never thrown.</summary>
     public static void LoadInstalled(string? modsRoot = null, string uiLanguage = "ru")
     {

@@ -64,6 +64,9 @@ public enum GameFixSaveCompatibility
 public sealed record TextPatchOperation(string RelativePath, string ExpectedText, string ReplacementText)
 {
     public string? ExpectedFileSha256 { get; init; }
+
+    /// <summary>Single-byte encoding for the target text; Latin-1 preserves legacy byte-oriented patches.</summary>
+    public int CodePage { get; init; } = 28591;
 }
 
 public sealed record GameFixDefinition(
@@ -90,6 +93,8 @@ public sealed record GameFixDefinition(
 }
 
 public sealed record GameFixInstallResult(bool Changed, GameFixState State, IReadOnlyList<string> Files);
+
+public sealed record GameFixUninstallCheck(bool CanUninstall, string? Reason, IReadOnlyList<string> Files);
 
 public sealed record GameFixPresetResult(
     GameFixPreset Preset,
@@ -569,8 +574,60 @@ public sealed partial class GameFixEngine
         return Uninstall(definition.Id, definition.Game, gameDirectory);
     }
 
+    public GameFixInstallResult Uninstall(string fixId, GameTarget expectedGame, string gameDirectory) =>
+        Uninstall(fixId, (GameTarget?)expectedGame, gameDirectory);
+
     /// <summary>Removes a manifest-owned fix without requiring its definition to remain in the shipped catalogue.</summary>
     public GameFixInstallResult Uninstall(string fixId, string gameDirectory) => Uninstall(fixId, expectedGame: null, gameDirectory);
+
+    /// <summary>Checks the same ownership, current-file and backup hashes as uninstall without changing files.</summary>
+    public GameFixUninstallCheck CheckUninstall(string fixId, GameTarget expectedGame, string gameDirectory)
+    {
+        try
+        {
+            if (!IdPattern.IsMatch(fixId)) throw new ArgumentException("Fix ID must be a lowercase stable identifier.", nameof(fixId));
+            var root = NormalizeRoot(gameDirectory);
+            var manifestPath = GetManifestPath(root, fixId);
+            CheckExistingPathForLinks(root, manifestPath);
+            if (!_fileSystem.FileExists(manifestPath))
+                return new GameFixUninstallCheck(false, "The provider manifest is missing.", []);
+
+            var manifest = ReadManifest(manifestPath, fixId);
+            ValidateManifestTarget(manifest, expectedGame);
+            if (!manifest.Installed)
+                return new GameFixUninstallCheck(false, "The manifest does not record an active fix.", []);
+
+            var dependents = ReadActiveManifests(root)
+                .Where(candidate => candidate.FixId != fixId && candidate.DependsOn.Contains(fixId, StringComparer.Ordinal))
+                .Select(candidate => candidate.FixId)
+                .ToArray();
+            if (dependents.Length > 0)
+                return new GameFixUninstallCheck(false, "Remove dependent fixes first: " + string.Join(", ", dependents), []);
+
+            foreach (var file in manifest.Files)
+            {
+                var path = ResolveGamePath(root, file.RelativePath);
+                CheckExistingPathForLinks(root, path);
+                if (!_fileSystem.FileExists(path))
+                    return new GameFixUninstallCheck(false, "A managed game file is missing: " + file.RelativePath, []);
+                if (!MatchesHash(path, file.AfterSha256))
+                    return new GameFixUninstallCheck(false, "A managed game file changed after installation: " + file.RelativePath, []);
+
+                var backupPath = ResolveStatePath(GetFixDirectory(root, fixId), file.BackupPath);
+                CheckExistingPathForLinks(root, backupPath);
+                if (!_fileSystem.FileExists(backupPath))
+                    return new GameFixUninstallCheck(false, "A recovery file is missing: " + file.RelativePath, []);
+                if (!MatchesHash(backupPath, file.BeforeSha256))
+                    return new GameFixUninstallCheck(false, "A recovery file failed its hash check: " + file.RelativePath, []);
+            }
+
+            return new GameFixUninstallCheck(true, null, manifest.Files.Select(file => file.RelativePath).ToArray());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or InvalidOperationException or JsonException)
+        {
+            return new GameFixUninstallCheck(false, exception.Message, []);
+        }
+    }
 
     private GameFixInstallResult Uninstall(string fixId, GameTarget? expectedGame, string gameDirectory)
     {
@@ -670,16 +727,24 @@ public sealed partial class GameFixEngine
         IReadOnlyList<(TextPatchOperation Operation, string RelativePath)> operations)
     {
         var comparer = PathComparer;
-        var grouped = new Dictionary<string, (string Path, byte[] Before, string Text, bool HasBom, bool TargetExistedBefore, string? SourceFingerprint)>(comparer);
+        var grouped = new Dictionary<string, (string Path, byte[] Before, string Text, Encoding Encoding, bool TargetExistedBefore, string? SourceFingerprint)>(comparer);
         foreach (var (operation, relativePath) in operations)
         {
             var path = ResolveGamePath(root, relativePath);
+            var encoding = GetTextEncoding(operation.CodePage);
             if (!grouped.TryGetValue(relativePath, out var entry))
             {
                 var source = ReadTargetSource(game, root, relativePath, path);
-                entry = (path, source.Bytes, Encoding.Latin1.GetString(source.Bytes), HasBom: false,
+                entry = (path, source.Bytes, encoding.GetString(source.Bytes), encoding,
                     source.TargetExistedBefore, source.SourceFingerprint);
             }
+            else if (entry.Encoding.CodePage != encoding.CodePage)
+            {
+                throw new ArgumentException("All text patches for one file must use the same code page.", nameof(operations));
+            }
+
+            if (entry.TargetExistedBefore && !_allowSyntheticDefinitions && operation.ExpectedFileSha256 is null)
+                throw new InvalidDataException($"An existing loose game-data file has no verified source hash; refusing to patch a user override: {relativePath}.");
 
             if (operation.ExpectedFileSha256 is { } expectedFileSha256 &&
                 !string.Equals(Hash(entry.Before), expectedFileSha256, StringComparison.Ordinal))
@@ -689,12 +754,12 @@ public sealed partial class GameFixEngine
             if (first < 0 || entry.Text.IndexOf(operation.ExpectedText, first + operation.ExpectedText.Length, StringComparison.Ordinal) >= 0)
                 throw new InvalidDataException($"Expected exactly one text anchor in {relativePath}; found zero or multiple matches.");
             var patched = entry.Text[..first] + operation.ReplacementText + entry.Text[(first + operation.ExpectedText.Length)..];
-            grouped[relativePath] = (entry.Path, entry.Before, patched, entry.HasBom, entry.TargetExistedBefore, entry.SourceFingerprint);
+            grouped[relativePath] = (entry.Path, entry.Before, patched, entry.Encoding, entry.TargetExistedBefore, entry.SourceFingerprint);
         }
 
         return grouped.Select(pair =>
         {
-            var afterBytes = Encoding.Latin1.GetBytes(pair.Value.Text);
+            var afterBytes = pair.Value.Encoding.GetBytes(pair.Value.Text);
             if (afterBytes.AsSpan().SequenceEqual(pair.Value.Before))
                 throw new InvalidDataException("Text patch produced no change: " + pair.Key);
             return new PreparedFileChange(
@@ -940,9 +1005,18 @@ public sealed partial class GameFixEngine
             _ = NormalizeRelativePath(operation.RelativePath);
             if (string.IsNullOrEmpty(operation.ExpectedText) || operation.ReplacementText is null || operation.ExpectedText == operation.ReplacementText)
                 throw new ArgumentException("Text patches need a nonempty anchor and a distinct replacement.", nameof(definition));
-            if (operation.ExpectedText.Any(character => character > byte.MaxValue || character == '\0') ||
-                operation.ReplacementText.Any(character => character > byte.MaxValue || character == '\0'))
-                throw new ArgumentException("Text patch anchors and replacements must fit in a single-byte game text encoding.", nameof(definition));
+            if (operation.ExpectedText.Contains('\0') || operation.ReplacementText.Contains('\0'))
+                throw new ArgumentException("Text patch anchors and replacements cannot contain NUL characters.", nameof(definition));
+            try
+            {
+                var encoding = GetTextEncoding(operation.CodePage);
+                _ = encoding.GetBytes(operation.ExpectedText);
+                _ = encoding.GetBytes(operation.ReplacementText);
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or EncoderFallbackException)
+            {
+                throw new ArgumentException("Text patch anchors and replacements must be representable in the selected single-byte game text encoding.", nameof(definition), exception);
+            }
             if (operation.ExpectedFileSha256 is not null && !IsSha256(operation.ExpectedFileSha256))
                 throw new ArgumentException("Expected source-file SHA-256 values must be lowercase hexadecimal.", nameof(definition));
         }
@@ -1026,6 +1100,18 @@ public sealed partial class GameFixEngine
         : path + Path.DirectorySeparatorChar;
 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+    private static Encoding GetTextEncoding(int codePage)
+    {
+        if (codePage == Encoding.Latin1.CodePage)
+            return Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+        if (codePage != 1251)
+            throw new NotSupportedException($"Text patch code page {codePage} is not supported.");
+
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+    }
+
     private bool MatchesHash(string path, string expected) => _fileSystem.FileExists(path) &&
         string.Equals(Hash(_fileSystem.ReadAllBytes(path)), expected, StringComparison.Ordinal);
     private static bool IsSha256(string? value) => value is { Length: 64 } &&

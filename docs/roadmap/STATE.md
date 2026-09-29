@@ -69,3 +69,36 @@ This work is isolated on codex/stalker-toolkit-game-doctor, based on the fetched
 Verification levels are recorded per feature in docs/GAME_DOCTOR.md, docs/SAVE_DOCTOR.md,
 docs/CRASH_ANALYZER.md, docs/GAME_FIXES.md, docs/GAME_FIX_RESEARCH.md, and
 docs/PATCHING_ARCHITECTURE.md. Synthetic tests do not establish retail or in-game correctness.
+
+## Toolkit follow-up (2026-09-29)
+
+This checkout continues from `988279b8a79e883774a3bbbe09c33f58db89768e` on
+`codex/toolkit-part-2`; the preceding Game Doctor section records the earlier baseline.
+
+- **Game Fixes:** catalogue `2026.09.2` includes 25 Clear Sky 1.5.10, 15 SoC 1.0006, and 24
+  CoP 1.6.02 definitions, including six narrow fixes ported from PRP v1.2. Safe presets use only
+  Essential and Recommended entries. CoP Recommended grows from 5 to 10 fixes. SoC 1.0004,
+  Clear Sky EE, CoP EE, and S2 remain without fix recommendations because matching retail baselines
+  or applicability evidence are unavailable. SoC EE build `24067120` was checked separately: 12
+  SoC fixes are applicable (one partly pre-existing), and three conflict. The Windows installer has
+  an optional preset component and delegates application to the CLI. The desktop reports the
+  catalogue version delta.
+- **Crash and quest diagnostics:** recent trilogy logs can be discovered from validated installs
+  and existing save-location candidates, including Proton candidates. Quest Doctor reports task
+  state as unavailable because supported readers do not expose validated quest fields. There are
+  no known crash signatures or automatic repairs.
+- **Toolkit Environment:** content-addressed snapshots cover only Game Fix, Companion, and
+  explicitly managed `user.ltx` state. Profiles replay through the existing providers and create a
+  recovery snapshot first. The `user.ltx` editor is allow-listed and preserves unrelated bytes.
+  Install audit marks provider-backed files as managed, exact known retail hashes for the detected
+  Steam build as vanilla, and other loose files as unknown. It can clean a stale Game Fix only when
+  the provider verifies the current and backup hashes, target, dependencies, and exclusive ownership;
+  manifestless state remains for review.
+- **Save library:** the timeline orders discovered files by real modification times and enables
+  adjacent comparisons only when timestamps establish an unambiguous order. The encyclopedia reads
+  item names, icons, weight, cost, and section from installed-game data and uses existing save and
+  Companion actions. The live inspector uses the existing `info` and `list_inventory` protocol.
+- **Verification on 2026-09-29:** Release build with warnings as errors, all 803 local tests,
+  Companion Lua checks, audio validation, i18n validation for all 14 locales, and `git diff --check`
+  pass. This is local L1–L2 evidence. The Inno Setup script was not compiled here; no package was
+  exercised and no game or live Steam session was used. L3–L5 are not claimed.

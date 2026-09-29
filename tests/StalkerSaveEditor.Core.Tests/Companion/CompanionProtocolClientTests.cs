@@ -49,7 +49,7 @@ public sealed class CompanionProtocolClientTests
             await WaitForFile(commandPath);
             Assert.Equal($"v1 b6request {string.Join(' ', commandWords.Skip(2))}", File.ReadAllText(commandPath).Trim());
             File.Delete(commandPath);
-            File.WriteAllText(replyPath, expectedReply.Replace(
+            PublishReply(replyPath, expectedReply.Replace(
                 $"v1 {commandWords[1]} ",
                 "v1 b6request ",
                 StringComparison.Ordinal));
@@ -115,12 +115,30 @@ public sealed class CompanionProtocolClientTests
         Assert.False(send.IsCompleted);
 
         File.Delete(commandPath);
-        File.WriteAllText(replyPath, "v1 request-1 ok pong\n");
+        PublishReply(replyPath, "v1 request-1 ok pong\n");
         var reply = await send;
 
         Assert.Equal("request-1", reply.Id);
         Assert.Equal(CompanionReplyStatus.Ok, reply.Status);
         Assert.Equal("pong", reply.Text);
+    }
+
+    [Fact]
+    public void Reply_reader_allows_the_game_to_rotate_the_reply_file()
+    {
+        using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
+        var replyPath = Path.Combine(game.AppDataRoot, "save_editor_out.txt");
+        var temporaryPath = Path.Combine(game.AppDataRoot, "save_editor_out.tmp");
+        File.WriteAllText(replyPath, "v1 old-request ok stale\n");
+
+        using var oldReply = CompanionProtocolClient.OpenReplyReadStream(replyPath);
+        File.WriteAllText(temporaryPath, "v1 new-request ok pong\n");
+        File.Delete(replyPath);
+        File.Move(temporaryPath, replyPath);
+
+        using var reader = new StreamReader(oldReply);
+        Assert.Equal("v1 old-request ok stale\n", reader.ReadToEnd());
+        Assert.Equal("v1 new-request ok pong\n", File.ReadAllText(replyPath));
     }
 
     [Fact]
@@ -139,12 +157,12 @@ public sealed class CompanionProtocolClientTests
         Assert.Equal("v1 request-1 ping", File.ReadAllText(commandPath).Trim());
 
         File.Delete(commandPath);
-        File.WriteAllText(replyPath, "v1 request-1 ok pong\n");
+        PublishReply(replyPath, "v1 request-1 ok pong\n");
         await first;
         await WaitForFile(commandPath);
         Assert.Equal("v1 request-2 info", File.ReadAllText(commandPath).Trim());
         File.Delete(commandPath);
-        File.WriteAllText(replyPath, "v1 request-2 ok level=zaton x=1 y=2 z=3 money=4\n");
+        PublishReply(replyPath, "v1 request-2 ok level=zaton x=1 y=2 z=3 money=4\n");
 
         var secondReply = await second;
 
@@ -227,6 +245,14 @@ public sealed class CompanionProtocolClientTests
         }
 
         Assert.True(File.Exists(path), $"Timed out waiting for file: {Path.GetFileName(path)}");
+    }
+
+    private static void PublishReply(string replyPath, string text)
+    {
+        var temporaryPath = Path.Combine(Path.GetDirectoryName(replyPath)!, "save_editor_out.tmp");
+        File.WriteAllText(temporaryPath, text);
+        File.Delete(replyPath);
+        File.Move(temporaryPath, replyPath);
     }
 
     private sealed class SyntheticGame : IDisposable

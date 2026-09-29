@@ -1,5 +1,8 @@
 using System.Globalization;
+using System.Text.Json;
 using StalkerSaveEditor.Cli;
+using StalkerSaveEditor.Core.Patching;
+using StalkerSaveEditor.Core.Storage;
 using StalkerSaveEditor.Core.Formats.Stalker2;
 using StalkerSaveEditor.Core.Formats.XRay;
 using Xunit;
@@ -28,6 +31,40 @@ public sealed class CliCommandTests
         Assert.Contains("task_manager.script", result.Output, StringComparison.Ordinal);
         Assert.Contains("\"fileLastWriteTimeUtc\":", result.Output, StringComparison.Ordinal);
         Assert.Contains("\"knownIssueId\": null", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Crash_discover_command_finds_logs_under_a_detected_installation_as_json()
+    {
+        var steamRoot = Path.Combine(Path.GetTempPath(), "sse-crash-discover-" + Guid.NewGuid().ToString("N"));
+        var game = Path.Combine(steamRoot, "steamapps", "common", "Call of Pripyat");
+        var logPath = Path.Combine(game, "_appdata_", "logs", "xray_steam.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        File.WriteAllText(Path.Combine(game, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(logPath, "[error]Expression : assertion failed\n");
+        File.WriteAllText(Path.Combine(steamRoot, "steamapps", "appmanifest_41700.acf"), """
+            "AppState"
+            {
+                "appid" "41700"
+                "buildid" "11450453"
+                "installdir" "Call of Pripyat"
+            }
+            """);
+        try
+        {
+            var result = Run("crash", "discover", "--steam-root", steamRoot, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            using var response = JsonDocument.Parse(result.Output);
+            var discovered = Assert.Single(response.RootElement.EnumerateArray());
+            Assert.Equal("CallOfPripyat", discovered.GetProperty("game").GetString());
+            Assert.Equal("11450453", discovered.GetProperty("buildId").GetString());
+            Assert.Equal(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(logPath)), discovered.GetProperty("path").GetString());
+        }
+        finally
+        {
+            Directory.Delete(steamRoot, recursive: true);
+        }
     }
 
     [Fact]
@@ -77,7 +114,9 @@ public sealed class CliCommandTests
             Assert.Contains("\"target\": \"ClearSky\"", result.Output, StringComparison.Ordinal);
             Assert.Contains("\"source\": \"Steam\"", result.Output, StringComparison.Ordinal);
             Assert.Contains("\"buildId\": \"11450472\"", result.Output, StringComparison.Ordinal);
-            Assert.Contains(System.Text.Json.JsonEncodedText.Encode(StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(game))).ToString(), result.Output, StringComparison.Ordinal);
+            using var response = JsonDocument.Parse(result.Output);
+            var discovered = Assert.Single(response.RootElement.EnumerateArray());
+            Assert.Equal(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(game)), discovered.GetProperty("directory").GetString());
         }
         finally
         {
@@ -99,20 +138,41 @@ public sealed class CliCommandTests
     }
 
     [Fact]
-    public void Fixes_list_reports_only_researched_catalogue_entries()
+    public void Doctor_quest_command_reports_reader_coverage_without_inventing_task_states()
+    {
+        using var fixture = Fixture.CreateS2();
+
+        var result = Run("doctor", "quest", fixture.SourcePath, "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        using var report = JsonDocument.Parse(result.Output);
+        var root = report.RootElement;
+        Assert.Equal("stalker2", root.GetProperty("formatId").GetString());
+        Assert.False(root.GetProperty("questStatesAvailable").GetBoolean());
+        Assert.Empty(root.GetProperty("states").EnumerateArray());
+        Assert.Contains("does not expose", root.GetProperty("summary").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Fixes_list_reports_retail_verified_catalogue_entries()
     {
         var human = Run("fixes", "list");
-        var json = Run("fixes", "list", "--json");
-        var unsupported = Run("fixes", "list", "--game", "soc", "--json");
+        var json = Run("fixes", "list", "--game", "cs", "--json");
+        var unsupported = Run("fixes", "list", "--game", "unknown", "--json");
 
         Assert.Equal(0, human.ExitCode);
         Assert.Contains("cs.quest.dead-wild-napr [cs] Essential", human.Output, StringComparison.Ordinal);
         Assert.Equal(0, json.ExitCode);
-        Assert.Contains("cs.quest.dead-wild-napr", json.Output, StringComparison.Ordinal);
-        Assert.Contains("11450472", json.Output, StringComparison.Ordinal);
-        Assert.Contains("Experimental", json.Output, StringComparison.Ordinal);
-        Assert.Equal(0, unsupported.ExitCode);
-        Assert.Equal("[]" + Environment.NewLine, unsupported.Output);
+        using var catalogue = JsonDocument.Parse(json.Output);
+        var entries = catalogue.RootElement.EnumerateArray().ToArray();
+        Assert.Equal(25, entries.Length);
+        Assert.Contains(entries, entry => entry.GetProperty("id").GetString() == "cs.quest.dead-wild-napr");
+        Assert.All(entries, entry =>
+        {
+            Assert.Equal("Validated", entry.GetProperty("maturity").GetString());
+            Assert.Equal("11450472", Assert.Single(entry.GetProperty("supportedSteamBuildIds").EnumerateArray()).GetString());
+        });
+        Assert.Equal(2, unsupported.ExitCode);
     }
 
     [Fact]
@@ -136,12 +196,18 @@ public sealed class CliCommandTests
             var json = Run("fixes", "status", "cs", root, "--json");
 
             Assert.Equal(0, human.ExitCode);
-            Assert.Contains("1 catalogued; 0 safe recommendations; 0 installed; 1 experimental", human.Output, StringComparison.Ordinal);
+            Assert.Contains("25 catalogued;", human.Output, StringComparison.Ordinal);
             Assert.Equal(0, json.ExitCode);
-            Assert.Contains("\"buildId\": \"11450472\"", json.Output, StringComparison.Ordinal);
-            Assert.Contains("\"recommendedFixIds\": []", json.Output, StringComparison.Ordinal);
-            Assert.Contains("experimental or research-only", json.Output, StringComparison.Ordinal);
-            Assert.Contains("cs.quest.dead-wild-napr", json.Output, StringComparison.Ordinal);
+            using var status = JsonDocument.Parse(json.Output);
+            var statusRoot = status.RootElement;
+            Assert.Equal("11450472", statusRoot.GetProperty("buildId").GetString());
+            Assert.Equal(25, statusRoot.GetProperty("availableFixes").GetArrayLength());
+            var recommended = statusRoot.GetProperty("recommendedFixIds").EnumerateArray().Select(id => id.GetString()).ToArray();
+            Assert.Equal(23, recommended.Length);
+            Assert.NotEmpty(recommended);
+            Assert.All(recommended, id => Assert.Contains(statusRoot.GetProperty("availableFixes").EnumerateArray(), fix => fix.GetProperty("id").GetString() == id));
+            Assert.Null(statusRoot.GetProperty("catalogueNote").GetString());
+            Assert.Contains(statusRoot.GetProperty("recommendedFixIds").EnumerateArray(), id => id.GetString() == "cs.quest.dead-wild-napr");
         }
         finally
         {
@@ -150,7 +216,56 @@ public sealed class CliCommandTests
     }
 
     [Fact]
-    public void Fixes_apply_preset_keeps_experimental_entries_out_of_recommended_json_result()
+    public void Fixes_apply_preset_all_discovers_from_the_supplied_steam_root_and_returns_structured_json()
+    {
+        var steamRoot = Path.Combine(Path.GetTempPath(), "sse-fix-discovery-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(steamRoot);
+        try
+        {
+            var result = Run("fixes", "apply-preset", "recommended", "all", "--steam-root", steamRoot, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            using var response = JsonDocument.Parse(result.Output);
+            Assert.Equal("Recommended", response.RootElement.GetProperty("preset").GetString());
+            Assert.Equal(GameFixCatalog.DatasetVersion, response.RootElement.GetProperty("catalogueVersion").GetString());
+            Assert.Empty(response.RootElement.GetProperty("installations").EnumerateArray());
+        }
+        finally
+        {
+            Directory.Delete(steamRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fixes_apply_preset_all_skips_an_unsupported_discovered_build_without_writing()
+    {
+        var steamRoot = Path.Combine(Path.GetTempPath(), "sse-fix-build-gate-" + Guid.NewGuid().ToString("N"));
+        var library = Path.Combine(steamRoot, "steamapps");
+        var gameDirectory = Path.Combine(library, "common", "Call of Pripyat");
+        Directory.CreateDirectory(gameDirectory);
+        File.WriteAllText(Path.Combine(gameDirectory, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(Path.Combine(library, "appmanifest_41700.acf"), "\"AppState\" { \"appid\" \"41700\" \"buildid\" \"19000000\" \"installdir\" \"Call of Pripyat\" }");
+        try
+        {
+            var result = Run("fixes", "apply-preset", "recommended", "all", "--steam-root", steamRoot, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            using var response = JsonDocument.Parse(result.Output);
+            var install = Assert.Single(response.RootElement.GetProperty("installations").EnumerateArray());
+            Assert.Equal("cop", install.GetProperty("game").GetString());
+            Assert.Equal("19000000", install.GetProperty("buildId").GetString());
+            Assert.Equal(10, install.GetProperty("selectedFixCount").GetInt32());
+            Assert.Empty(install.GetProperty("installedFixIds").EnumerateArray());
+            Assert.False(Directory.Exists(Path.Combine(gameDirectory, ".save-editor-game-fixes")));
+        }
+        finally
+        {
+            Directory.Delete(steamRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Fixes_apply_recommended_preset_fails_closed_and_records_a_safety_snapshot()
     {
         var library = Path.Combine(Path.GetTempPath(), "sse-fix-preset-cli-" + Guid.NewGuid().ToString("N"));
         var root = Path.Combine(library, "steamapps", "common", "STALKER Clear Sky");
@@ -168,11 +283,14 @@ public sealed class CliCommandTests
         {
             var result = Run("fixes", "apply-preset", "recommended", "cs", root, "--json");
 
-            Assert.Equal(0, result.ExitCode);
-            Assert.Contains("\"preset\": \"Recommended\"", result.Output, StringComparison.Ordinal);
-            Assert.Contains("\"selectedFixCount\": 0", result.Output, StringComparison.Ordinal);
-            Assert.Contains("\"installedFixIds\": []", result.Output, StringComparison.Ordinal);
+            Assert.Equal(2, result.ExitCode);
+            Assert.False(string.IsNullOrWhiteSpace(result.Error));
+            Assert.Contains("Safety snapshot", result.Error, StringComparison.OrdinalIgnoreCase);
             Assert.False(Directory.Exists(Path.Combine(root, ".save-editor-game-fixes")));
+            var targetIdentity = SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(root));
+            Assert.Contains(new ToolkitSnapshotService().List(), snapshot =>
+                string.Equals(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(snapshot.GameDirectory)), targetIdentity,
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
         }
         finally
         {

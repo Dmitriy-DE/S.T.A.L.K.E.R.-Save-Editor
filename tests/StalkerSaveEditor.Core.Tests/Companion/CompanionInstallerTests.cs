@@ -35,6 +35,23 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
+    public void Shipped_cop_fixes_do_not_overlap_companion_assets()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var installer = new CompanionInstaller(ModSourceRoot);
+        installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+
+        var companionPaths = installer.GetManagedFileStatus(CompanionGame.CallOfPripyat, game.GameDirectory)
+            .Select(file => file.RelativePath.Replace('\\', '/'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var gameFixPaths = GameFixCatalog.ForGame(GameTarget.CallOfPripyat)
+            .SelectMany(fix => fix.TextPatches)
+            .Select(patch => patch.RelativePath.Replace('\\', '/'));
+
+        Assert.DoesNotContain(gameFixPaths, companionPaths.Contains);
+    }
+
+    [Fact]
     public void Companion_file_inventory_reports_owned_files_and_hash_drift()
     {
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
@@ -52,6 +69,42 @@ public sealed class CompanionInstallerTests
             file => file.RelativePath == "gamedata/scripts/bind_stalker.script");
         Assert.True(changed.Exists);
         Assert.False(changed.MatchesExpectedHash);
+    }
+
+    [Fact]
+    public void Toolkit_snapshot_replays_companion_through_its_installer_and_preserves_unrelated_files()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var installer = new CompanionInstaller(ModSourceRoot);
+        var engine = TestGameFixEngine();
+        var snapshotRoot = Path.Combine(Path.GetTempPath(), "save-editor-companion-snapshot-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+            var userFile = Path.Combine(game.GameDirectory, "gamedata", "scripts", "unrelated_user.script");
+            Directory.CreateDirectory(Path.GetDirectoryName(userFile)!);
+            File.WriteAllText(userFile, "user = before\n");
+            var service = new ToolkitSnapshotService(snapshotRoot, engine,
+                GameFixCatalog.All.ToDictionary(fix => fix.Id, StringComparer.Ordinal), installer);
+
+            var snapshot = service.Create(GameTarget.CallOfPripyat, game.GameDirectory);
+            Assert.True(snapshot.CompanionInstalled);
+            Assert.Contains(snapshot.Files, file => file.Provider == "Companion");
+            Assert.Contains(snapshot.Files, file => file.Provider == "CompanionState");
+
+            installer.Uninstall(CompanionGame.CallOfPripyat, game.GameDirectory);
+            File.WriteAllText(userFile, "user = changed outside toolkit\n");
+            var restored = service.Restore(snapshot.Id);
+
+            Assert.True(restored.Restored, restored.Message);
+            Assert.True(installer.GetStatus(CompanionGame.CallOfPripyat, game.GameDirectory).ModInstalled);
+            Assert.All(installer.GetManagedFileStatus(CompanionGame.CallOfPripyat, game.GameDirectory), file => Assert.True(file.MatchesExpectedHash));
+            Assert.Equal("user = changed outside toolkit\n", File.ReadAllText(userFile));
+        }
+        finally
+        {
+            if (Directory.Exists(snapshotRoot)) Directory.Delete(snapshotRoot, recursive: true);
+        }
     }
 
     [Fact]

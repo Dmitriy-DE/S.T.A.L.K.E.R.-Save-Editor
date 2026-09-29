@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using StalkerSaveEditor.Core.Content;
 using StalkerSaveEditor.Core.Diagnostics;
@@ -10,17 +11,34 @@ namespace StalkerSaveEditor.Core.Tests.Patching;
 public sealed class GameFixEngineTests
 {
     [Fact]
-    public void Recommended_preset_excludes_the_experimental_catalogue_fix_without_creating_state()
+    public void Recommended_preset_installs_each_selected_catalogue_fix_from_its_exact_text_fragments()
     {
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "11450472");
+        var selected = GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended)
+            .Select(definition => definition with
+            {
+                TextPatches = definition.TextPatches.Select(operation => operation with { ExpectedFileSha256 = null }).ToArray(),
+            })
+            .ToArray();
+        foreach (var definition in selected)
+        {
+            foreach (var group in definition.TextPatches.GroupBy(operation => operation.RelativePath, StringComparer.OrdinalIgnoreCase))
+            {
+                var codePage = Assert.Single(group.Select(operation => operation.CodePage).Distinct());
+                var source = EncodingForPatchTest(codePage).GetBytes(string.Concat(group.Select(operation => operation.ExpectedText)));
+                var path = fixture.GetFile(group.Key);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllBytes(path, source);
+            }
+        }
 
-        var result = new GameFixEngine().ApplyPreset(GameTarget.ClearSky, GameFixPreset.Recommended, fixture.GameDirectory);
+        var result = TestEngine().ApplyFixes(GameTarget.ClearSky, GameFixPreset.Recommended, selected, fixture.GameDirectory);
 
-        Assert.Equal(0, result.SelectedFixCount);
-        Assert.Empty(result.InstalledFixIds);
+        Assert.Equal(selected.Length, result.SelectedFixCount);
+        Assert.Equal(selected.Length, result.InstalledFixIds.Count);
         Assert.Empty(result.AlreadyInstalledFixIds);
-        Assert.False(result.Changed);
-        Assert.False(Directory.Exists(Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes")));
+        Assert.True(result.Changed);
+        Assert.Equal(selected.Length, TestEngine().ListInstalled(fixture.GameDirectory).Count);
     }
 
     [Fact]
@@ -126,6 +144,93 @@ public sealed class GameFixEngineTests
         Assert.True(removed.Changed);
         Assert.Equal("local state = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/task.script")));
         Assert.Equal(GameFixState.Removed, engine.GetStatus(definition, fixture.GameDirectory));
+    }
+
+    [Fact]
+    public void Production_install_refuses_an_unowned_loose_file_without_a_verified_source_hash()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        const string relativePath = "gamedata/scripts/task.script";
+        const string original = "task = vanilla\n";
+        fixture.Write(relativePath, original);
+        var definition = fixture.Fix("cs.test.unowned-loose", "task = vanilla", "task = fixed") with
+        {
+            VerificationState = GameFixVerificationState.RetailFilesVerified,
+            TextPatches = [new TextPatchOperation(relativePath, "task = vanilla", "task = fixed")],
+        };
+
+        Assert.Throws<InvalidDataException>(() => new GameFixEngine().Install(definition, fixture.GameDirectory));
+
+        Assert.Equal(original, File.ReadAllText(fixture.GetFile(relativePath)));
+        Assert.Empty(new GameFixEngine().ListInstalled(fixture.GameDirectory));
+    }
+
+    [Fact]
+    public void Production_install_accepts_a_loose_file_only_when_its_source_hash_is_verified()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        const string relativePath = "gamedata/scripts/task.script";
+        const string original = "task = vanilla\n";
+        fixture.Write(relativePath, original);
+        var sourceHash = Convert.ToHexString(SHA256.HashData(Encoding.Latin1.GetBytes(original))).ToLowerInvariant();
+        var definition = fixture.Fix("cs.test.verified-loose", "task = vanilla", "task = fixed") with
+        {
+            VerificationState = GameFixVerificationState.RetailFilesVerified,
+            TextPatches = [new TextPatchOperation(relativePath, "task = vanilla", "task = fixed")
+            {
+                ExpectedFileSha256 = sourceHash,
+            }],
+        };
+
+        var result = new GameFixEngine().Install(definition, fixture.GameDirectory);
+
+        Assert.Equal(GameFixState.Installed, result.State);
+        Assert.Equal("task = fixed\n", File.ReadAllText(fixture.GetFile(relativePath)));
+    }
+
+    [Fact]
+    public void Every_catalogue_patch_fragment_installs_idempotently_and_uninstall_restores_exact_bytes()
+    {
+        foreach (var shippedFix in GameFixCatalog.All)
+        {
+            using var fixture = new SteamGameFixture(shippedFix.Game, shippedFix.SupportedSteamBuildIds[0]);
+            var operations = shippedFix.TextPatches
+                .Select(operation => operation with { ExpectedFileSha256 = null })
+                .ToArray();
+            var originalFiles = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            foreach (var group in operations.GroupBy(operation => operation.RelativePath, StringComparer.OrdinalIgnoreCase))
+            {
+                var codePages = group.Select(operation => operation.CodePage).Distinct().ToArray();
+                Assert.Single(codePages);
+                var encoding = PatchEncoding(codePages[0]);
+                var sourceText = string.Concat(group.Select(operation => operation.ExpectedText));
+                var sourceBytes = encoding.GetBytes(sourceText);
+                var path = fixture.GetFile(group.Key);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllBytes(path, sourceBytes);
+                originalFiles.Add(group.Key, sourceBytes);
+            }
+
+            var testFix = shippedFix with { TextPatches = operations };
+            var engine = TestEngine();
+            var expectedFiles = originalFiles.ToDictionary(
+                pair => pair.Key,
+                pair => PatchExpectedFragment(testFix.TextPatches.Where(operation => PathComparerForTests(operation.RelativePath, pair.Key)), pair.Value),
+                StringComparer.OrdinalIgnoreCase);
+
+            var installed = engine.Install(testFix, fixture.GameDirectory);
+            Assert.Equal(GameFixState.Installed, installed.State);
+            foreach (var (relativePath, expectedBytes) in expectedFiles)
+                Assert.Equal(expectedBytes, File.ReadAllBytes(fixture.GetFile(relativePath)));
+
+            var repeated = engine.Install(testFix, fixture.GameDirectory);
+            Assert.False(repeated.Changed);
+            Assert.Equal(GameFixState.Installed, repeated.State);
+
+            Assert.Equal(GameFixState.Removed, engine.Uninstall(testFix, fixture.GameDirectory).State);
+            foreach (var (relativePath, originalBytes) in originalFiles)
+                Assert.Equal(originalBytes, File.ReadAllBytes(fixture.GetFile(relativePath)));
+        }
     }
 
     [Fact]
@@ -325,6 +430,40 @@ public sealed class GameFixEngineTests
     }
 
     [Fact]
+    public void Text_patch_round_trips_explicit_cp1251_text_and_restores_original_bytes()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var cp1251 = Encoding.GetEncoding(1251, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+        using var fixture = new SteamGameFixture(GameTarget.CallOfPripyat, "19000000");
+        const string relativePath = "gamedata/configs/text/rus/st_dialogs.xml";
+        const string original = "<text>Неправильное описание артефакта</text>\r\n";
+        const string replacement = "<text>Исправленное описание артефакта</text>\r\n";
+        var path = fixture.GetFile(relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var before = cp1251.GetBytes(original);
+        File.WriteAllBytes(path, before);
+
+        var definition = fixture.Fix("cop.test.cp1251", original, replacement) with
+        {
+            TextPatches =
+            [
+                new TextPatchOperation(relativePath, original, replacement)
+                {
+                    CodePage = 1251,
+                },
+            ],
+        };
+        var engine = TestEngine();
+
+        Assert.Equal(GameFixState.Installed, engine.Install(definition, fixture.GameDirectory).State);
+        Assert.Equal(cp1251.GetBytes(replacement), File.ReadAllBytes(path));
+        Assert.Equal(GameFixState.Installed, engine.Install(definition, fixture.GameDirectory).State);
+
+        Assert.Equal(GameFixState.Removed, engine.Uninstall(definition, fixture.GameDirectory).State);
+        Assert.Equal(before, File.ReadAllBytes(path));
+    }
+
+    [Fact]
     public void Patch_from_an_xray_archive_is_uninstalled_by_removing_only_the_new_overlay()
     {
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
@@ -451,6 +590,36 @@ public sealed class GameFixEngineTests
     }
 
     private static GameFixEngine TestEngine() => new(new PhysicalGameFileSystem(), allowSyntheticDefinitions: true);
+
+    private static Encoding EncodingForPatchTest(int codePage)
+    {
+        if (codePage == 1251) Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+    }
+
+    private static bool PathComparerForTests(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static byte[] PatchExpectedFragment(IEnumerable<TextPatchOperation> operations, byte[] sourceBytes)
+    {
+        var operationList = operations.ToArray();
+        if (operationList.Length == 0) return sourceBytes;
+        var encoding = PatchEncoding(operationList[0].CodePage);
+        var text = encoding.GetString(sourceBytes);
+        foreach (var operation in operationList)
+        {
+            var first = text.IndexOf(operation.ExpectedText, StringComparison.Ordinal);
+            Assert.True(first >= 0, $"The catalogue fragment for {operation.RelativePath} was absent from the test source.");
+            Assert.Equal(-1, text.IndexOf(operation.ExpectedText, first + operation.ExpectedText.Length, StringComparison.Ordinal));
+            text = text[..first] + operation.ReplacementText + text[(first + operation.ExpectedText.Length)..];
+        }
+        return encoding.GetBytes(text);
+    }
+
+    private static Encoding PatchEncoding(int codePage)
+    {
+        if (codePage == 1251) Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+    }
 
     private sealed class FailOnTargetMoveFileSystem(string? failTarget = null, string? changeTargetAfterBackup = null) : IGameFileSystem
     {

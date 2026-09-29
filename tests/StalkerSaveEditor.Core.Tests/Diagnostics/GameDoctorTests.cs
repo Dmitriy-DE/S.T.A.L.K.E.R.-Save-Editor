@@ -70,18 +70,53 @@ public sealed class GameDoctorTests
     }
 
     [Fact]
-    public void Reports_experimental_catalogue_entries_without_calling_them_safe_recommendations()
+    public void Reports_archive_verified_recommendations_without_claiming_they_are_installed()
     {
         using var fixture = new GameFixture();
+        var common = Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "common");
+        fixture.Root = Path.Combine(common, "STALKER Clear Sky");
         fixture.CreateXRayRoot();
+        File.WriteAllText(Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "appmanifest_20510.acf"), """
+            "AppState"
+            {
+                "appid" "20510"
+                "buildid" "11450472"
+                "installdir" "STALKER Clear Sky"
+            }
+            """);
 
         var report = GameDoctor.Analyze(GameTarget.ClearSky, fixture.Root);
 
         var check = Assert.Single(report.Checks, candidate => candidate.Id == "game-fixes");
+        Assert.Equal(GameDoctorStatus.Warning, check.Status);
+        Assert.Contains("23 of 23 safe recommendation(s) are not installed", check.Detail, StringComparison.Ordinal);
+        Assert.Contains("25 fix(es) are catalogued", check.Detail, StringComparison.Ordinal);
+        Assert.Equal(23, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
+    }
+
+    [Fact]
+    public void Does_not_recommend_soc_1_0006_fixes_for_an_unsupported_build()
+    {
+        using var fixture = new GameFixture();
+        var common = Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "common");
+        fixture.Root = Path.Combine(common, "Shadow of Chernobyl");
+        fixture.CreateXRayRoot();
+        File.WriteAllText(Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "appmanifest_4500.acf"), """
+            "AppState"
+            {
+                "appid" "4500"
+                "buildid" "19000000"
+                "installdir" "Shadow of Chernobyl"
+            }
+            """);
+
+        var report = GameDoctor.Analyze(GameTarget.ShadowOfChernobyl, fixture.Root);
+
+        var check = Assert.Single(report.Checks, candidate => candidate.Id == "game-fixes");
         Assert.Equal(GameDoctorStatus.Unknown, check.Status);
-        Assert.Contains("1 fix(es) are catalogued", check.Detail, StringComparison.Ordinal);
-        Assert.Contains("1 experimental fix(es)", check.Detail, StringComparison.Ordinal);
-        Assert.Empty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended));
+        Assert.Equal("No compatible Game Fix recommendation is available.", check.Summary);
+        Assert.Contains("19000000", check.Detail, StringComparison.Ordinal);
+        Assert.Contains("not supported", check.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -136,6 +171,51 @@ public sealed class GameDoctorTests
         Assert.Equal(GameTarget.ClearSky, installations[0].Target);
     }
 
+    [Theory]
+    [InlineData(GameTarget.ShadowOfChernobylEnhancedEdition, 2_427_410, "SoC EE", "fsgame_soc.ltx", "24067120")]
+    [InlineData(GameTarget.ClearSkyEnhancedEdition, 2_427_420, "Clear Sky EE", "fsgame_cs.ltx", "24067129")]
+    [InlineData(GameTarget.CallOfPripyatEnhancedEdition, 2_427_430, "CoP EE", "fsgame_cop.ltx", "24067133")]
+    public void Discovery_accepts_target_specific_enhanced_xray_markers(
+        GameTarget target,
+        int appId,
+        string installDirectory,
+        string markerName,
+        string buildId)
+    {
+        using var fixture = new GameFixture();
+        var steamRoot = Path.Combine(fixture.BaseRoot, "steam");
+        CreateSteamInstall(steamRoot, appId, installDirectory, buildId, xray: true, markerName: markerName);
+
+        var installations = GameDoctor.DiscoverInstallations([steamRoot]);
+
+        var installation = Assert.Single(installations);
+        Assert.Equal(target, installation.Target);
+        Assert.Equal(buildId, installation.BuildId);
+        Assert.Equal(
+            StalkerSaveEditor.Core.Storage.SaveSlotDiscovery.ResolveLinks(Path.Combine(steamRoot, "steamapps", "common", installDirectory)),
+            installation.Directory);
+    }
+
+    [Theory]
+    [InlineData(GameTarget.ClearSkyEnhancedEdition, 2_427_420, "Clear Sky EE", "fsgame_cop.ltx")]
+    [InlineData(GameTarget.CallOfPripyatEnhancedEdition, 2_427_430, "CoP EE", "fsgame_cs.ltx")]
+    public void Discovery_rejects_another_enhanced_games_xray_marker(
+        GameTarget target,
+        int appId,
+        string installDirectory,
+        string markerName)
+    {
+        using var fixture = new GameFixture();
+        var steamRoot = Path.Combine(fixture.BaseRoot, "steam");
+        CreateSteamInstall(steamRoot, appId, installDirectory, buildId: "24000000", xray: true, markerName: markerName);
+
+        var installations = GameDoctor.DiscoverInstallations([steamRoot]);
+
+        Assert.Empty(installations);
+        var report = GameDoctor.Analyze(target, Path.Combine(steamRoot, "steamapps", "common", installDirectory));
+        Assert.Contains(report.Checks, check => check.Id == "installation" && check.Status == GameDoctorStatus.Error);
+    }
+
     [Fact]
     public void Discovery_keeps_distinct_manifest_targets_even_when_they_share_a_directory()
     {
@@ -179,13 +259,19 @@ public sealed class GameDoctorTests
         Assert.Empty(installations);
     }
 
-    private static void CreateSteamInstall(string steamRoot, int appId, string installDirectory, string buildId, bool xray)
+    private static void CreateSteamInstall(
+        string steamRoot,
+        int appId,
+        string installDirectory,
+        string buildId,
+        bool xray,
+        string markerName = "fsgame.ltx")
     {
         var gameDirectory = Path.Combine(steamRoot, "steamapps", "common", installDirectory);
         if (xray)
         {
             Directory.CreateDirectory(gameDirectory);
-            File.WriteAllText(Path.Combine(gameDirectory, "fsgame.ltx"), "marker");
+            File.WriteAllText(Path.Combine(gameDirectory, markerName), "marker");
         }
         else
         {

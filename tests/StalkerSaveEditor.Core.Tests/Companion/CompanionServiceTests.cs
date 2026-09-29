@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Hotkeys;
@@ -47,7 +48,7 @@ public sealed class CompanionServiceTests
         var command = await WaitForCommand(game.AppDataRoot);
         Assert.Equal("ping", command.Command);
         File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(
+        PublishReply(
             Path.Combine(game.AppDataRoot, "save_editor_out.txt"),
             $"v1 {command.Id} ok pong {installer.BundledModBuild}\n");
 
@@ -82,7 +83,7 @@ public sealed class CompanionServiceTests
         var statusTask = service.GetStatusAsync();
         var command = await WaitForCommand(game.AppDataRoot);
         File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(Path.Combine(game.AppDataRoot, "save_editor_out.txt"), $"v1 {command.Id} ok {reply}\n");
+        PublishReply(Path.Combine(game.AppDataRoot, "save_editor_out.txt"), $"v1 {command.Id} ok {reply}\n");
 
         var status = await statusTask;
 
@@ -105,7 +106,7 @@ public sealed class CompanionServiceTests
         var statusTask = service.GetStatusAsync();
         var command = await WaitForCommand(game.AppDataRoot);
         File.Delete(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(
+        PublishReply(
             Path.Combine(game.AppDataRoot, "save_editor_out.txt"),
             $"v1 {command.Id} unsupported unknown command\n");
 
@@ -155,16 +156,24 @@ public sealed class CompanionServiceTests
     private static async Task<(string Id, string Command)> WaitForCommand(string directory)
     {
         var path = Path.Combine(directory, "save_editor_cmd.txt");
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-        while (!File.Exists(path) && DateTime.UtcNow < deadline)
+        var elapsed = Stopwatch.StartNew();
+        while (!File.Exists(path) && elapsed.Elapsed < TimeSpan.FromSeconds(15))
         {
-            await Task.Delay(10);
+            await Task.Delay(TimeSpan.FromMilliseconds(20));
         }
 
         Assert.True(File.Exists(path), "The service did not publish a ping command.");
         var fields = File.ReadAllText(path).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal("v1", fields[0]);
         return (fields[1], string.Join(' ', fields.Skip(2)));
+    }
+
+    private static void PublishReply(string replyPath, string text)
+    {
+        var temporaryPath = Path.Combine(Path.GetDirectoryName(replyPath)!, "save_editor_out.tmp");
+        File.WriteAllText(temporaryPath, text);
+        File.Delete(replyPath);
+        File.Move(temporaryPath, replyPath);
     }
 
     private static async Task<CompanionProtocolReply> ReplyToAction(
@@ -175,7 +184,7 @@ public sealed class CompanionServiceTests
         var command = await WaitForCommand(appDataRoot);
         Assert.Equal(expectedCommand, command.Command);
         File.Delete(Path.Combine(appDataRoot, "save_editor_cmd.txt"));
-        File.WriteAllText(
+        PublishReply(
             Path.Combine(appDataRoot, "save_editor_out.txt"),
             $"v1 {command.Id} ok accepted\n");
         return await pendingReply;

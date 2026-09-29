@@ -7,6 +7,7 @@ namespace StalkerSaveEditor.Desktop.Services;
 /// </summary>
 public sealed class MockCompanionService : ICompanionService
 {
+    public bool SupportsLiveProtocol => false;
     private static readonly Lazy<MockCompanionService> _instance = new(() => new MockCompanionService());
     public static MockCompanionService Instance => _instance.Value;
 
@@ -65,5 +66,11 @@ public sealed class MockCompanionService : ICompanionService
 
         return Task.FromResult<IReadOnlyList<CompanionHotkey>>(list);
     }
+
+    public Task<CompanionInspectionResult> InspectAsync(string gameReleaseId, CancellationToken ct = default) =>
+        Task.FromResult(new CompanionInspectionResult(false, string.Empty, string.Empty, "Live inspection requires the installed Companion protocol."));
+
+    public Task<CompanionActionResult> GiveItemAsync(string gameReleaseId, string section, int count = 1, CancellationToken ct = default) =>
+        Task.FromResult(new CompanionActionResult(false, "Item spawning requires the installed Companion protocol."));
 
 }

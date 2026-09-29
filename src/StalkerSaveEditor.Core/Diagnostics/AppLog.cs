@@ -62,7 +62,7 @@ public static partial class AppLog
     {
         var line = string.Create(
             CultureInfo.InvariantCulture,
-            $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffZ} {level} {message}{(exception is null ? string.Empty : Environment.NewLine + exception)}{Environment.NewLine}");
+            $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffZ} {level} {Redact(message)}{(exception is null ? string.Empty : Environment.NewLine + Redact(exception.ToString()))}{Environment.NewLine}");
         // In the browser the log file is in memory only; the developer console is where it can be read.
         if (OperatingSystem.IsBrowser() && level != "INFO") Console.Error.Write(line);
         lock (Gate)

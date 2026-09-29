@@ -1354,8 +1354,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 return FromStalker2(Stalker2SaveReader.FromBytes(bytes), path, sourceSha256, info.Length, info.LastWriteTime);
             }
-            catch (Stalker2FormatException)
+            catch (Stalker2FormatException exception)
             {
+                AppLog.Warn($"not recognised {Path.GetFileName(path)} ({info.Length} bytes): {exception.Message}");
                 return null;
             }
         }

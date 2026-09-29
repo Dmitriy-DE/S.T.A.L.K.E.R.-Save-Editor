@@ -190,8 +190,20 @@ public sealed partial class GameFixEngine
             .ToArray();
     }
 
-    public GameFixInstallResult Install(GameFixDefinition definition, string gameDirectory) =>
-        Install(definition, gameDirectory, allowVersionTransition: false);
+    public GameFixInstallResult Install(GameFixDefinition definition, string gameDirectory)
+    {
+        try
+        {
+            var result = Install(definition, gameDirectory, allowVersionTransition: false);
+            Diagnostics.AppLog.Info($"game fix {definition?.Id} installed: changed={result.Changed}, files={result.Files.Count}");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            Diagnostics.AppLog.Warn($"game fix {definition?.Id} not installed", exception);
+            throw;
+        }
+    }
 
     private GameFixInstallResult Install(GameFixDefinition definition, string gameDirectory, bool allowVersionTransition)
     {

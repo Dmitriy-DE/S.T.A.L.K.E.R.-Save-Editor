@@ -105,6 +105,26 @@ public sealed class GameFixesViewModel : ObservableViewModel
         RefreshCatalogue();
     }
 
+    /// <summary>
+    /// Opens one fix from another screen (Quest Doctor): selects its game and the fix, and fills the game folder
+    /// from the first detected install when none is chosen. Installing stays the user's explicit action.
+    /// </summary>
+    public void ShowFix(string fixId, Func<GameTarget, string?>? findInstall = null)
+    {
+        if (GameFixCatalog.All.FirstOrDefault(fix => fix.Id == fixId) is not { } definition) return;
+        if (Targets.FirstOrDefault(target => target.Target == definition.Game) is { } target) SelectedTarget = target;
+        if (string.IsNullOrWhiteSpace(GameDirectory))
+        {
+            var directory = (findInstall ?? FindInstall)(definition.Game);
+            if (directory is not null) GameDirectory = directory;
+        }
+
+        SelectedFix = Fixes.FirstOrDefault(entry => entry.Id == fixId);
+    }
+
+    private static string? FindInstall(GameTarget target) =>
+        GameDoctor.DiscoverInstallations().FirstOrDefault(install => install.Target == target)?.Directory;
+
     public ObservableCollection<GameTargetOption> Targets { get; }
     public ObservableCollection<GameFixCategoryRow> Categories { get; }
     public ObservableCollection<GameFixEntry> Fixes { get; }

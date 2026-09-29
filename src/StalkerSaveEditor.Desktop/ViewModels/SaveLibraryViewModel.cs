@@ -70,6 +70,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         _backupDirectoryProvider = backupDirectoryProvider ?? (() => Settings is { BackupDirectory.Length: > 0 } settings ? settings.BackupDirectory : GetDefaultBackupDirectory());
         SaveDoctor = new SaveDoctorViewModel(_backupDirectoryProvider);
         SaveDoctor.SaveRepaired += OnSaveRepaired;
+        SaveDoctor.OpenGameFixRequested += fixId =>
+        {
+            GameFixes.ShowFix(fixId);
+            SelectedTab = "game-fixes";
+        };
         _draftStore = new DraftStore(draftsDirectory);
         if (!Directory.Exists(_draftStore.DirectoryPath))
         {

@@ -12,6 +12,7 @@ public sealed record ToolkitSnapshotFile(string Provider, string RelativePath, s
 
 public sealed record ToolkitSnapshotInfo(
     string Id,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<GameTarget>))]
     GameTarget Target,
     string GameDirectory,
     DateTime CreatedUtc,
@@ -36,7 +37,7 @@ public sealed record ToolkitFixPresetApplicationResult(
 /// Captures hashes and content only for Game Fix, Companion and explicitly managed user.ltx state.
 /// Restore always replays through those providers; content-addressed objects are never copied into a game.
 /// </summary>
-public sealed class ToolkitSnapshotService
+public sealed partial class ToolkitSnapshotService
 {
     private const int SchemaVersion = 1;
     private readonly string _root;
@@ -44,12 +45,6 @@ public sealed class ToolkitSnapshotService
     private readonly IReadOnlyDictionary<string, GameFixDefinition> _definitions;
     private readonly CompanionInstaller? _companion;
     private readonly string _configStateDirectory;
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter<GameTarget>() },
-    };
-
     public ToolkitSnapshotService()
         : this(AppPaths.Snapshots, new GameFixEngine(), GameFixCatalog.All.ToDictionary(fix => fix.Id, StringComparer.Ordinal),
             new CompanionInstaller(CompanionAssetLocator.ResolveSourceRoot()), AppPaths.ToolkitConfig)
@@ -521,7 +516,8 @@ public sealed class ToolkitSnapshotService
         var folder = Path.Combine(SnapshotDirectory, info.Id);
         RejectLink(folder);
         Directory.CreateDirectory(folder);
-        WriteAtomically(Path.Combine(folder, "snapshot.json"), JsonSerializer.SerializeToUtf8Bytes(new SnapshotDocument(SchemaVersion, info), JsonOptions));
+        WriteAtomically(Path.Combine(folder, "snapshot.json"),
+            JsonSerializer.SerializeToUtf8Bytes(new SnapshotDocument(SchemaVersion, info), SnapshotJsonContext.Default.SnapshotDocument));
     }
 
     private ToolkitSnapshotInfo ReadSnapshot(string path, bool validateObjects)
@@ -529,7 +525,7 @@ public sealed class ToolkitSnapshotService
         RejectLink(SnapshotDirectory);
         RejectLink(Path.GetDirectoryName(path)!);
         if (Directory.Exists(ObjectDirectory)) RejectLink(ObjectDirectory);
-        var document = JsonSerializer.Deserialize<SnapshotDocument>(File.ReadAllBytes(path), JsonOptions)
+        var document = JsonSerializer.Deserialize(File.ReadAllBytes(path), SnapshotJsonContext.Default.SnapshotDocument)
             ?? throw new InvalidDataException("Snapshot metadata is empty.");
         if (document.SchemaVersion != SchemaVersion || document.Info is null || document.Info.Files is null || !Enum.IsDefined(document.Info.Target))
             throw new InvalidDataException("Unsupported or incomplete snapshot metadata.");
@@ -569,7 +565,7 @@ public sealed class ToolkitSnapshotService
             if (!File.Exists(path)) continue;
             try
             {
-                var document = JsonSerializer.Deserialize<SnapshotDocument>(File.ReadAllBytes(path), JsonOptions);
+                var document = JsonSerializer.Deserialize(File.ReadAllBytes(path), SnapshotJsonContext.Default.SnapshotDocument);
                 if (document?.Info is not null)
                     foreach (var file in document.Info.Files) if (file is not null) used.Add(file.Sha256);
             }
@@ -684,6 +680,10 @@ public sealed class ToolkitSnapshotService
     }
 
     private sealed record SnapshotDocument(int SchemaVersion, ToolkitSnapshotInfo Info);
+
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+    [JsonSerializable(typeof(SnapshotDocument), TypeInfoPropertyName = "SnapshotDocument")]
+    private partial class SnapshotJsonContext : JsonSerializerContext { }
 
     private sealed class ProviderPathComparer : IEqualityComparer<(string Provider, string Path)>
     {

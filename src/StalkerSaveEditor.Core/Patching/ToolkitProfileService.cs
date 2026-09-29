@@ -11,6 +11,7 @@ namespace StalkerSaveEditor.Core.Patching;
 public sealed record ToolkitProfile(
     string Id,
     string Name,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<GameTarget>))]
     GameTarget Target,
     DateTime CreatedUtc,
     DateTime UpdatedUtc,
@@ -20,7 +21,7 @@ public sealed record ToolkitProfile(
     IReadOnlyDictionary<string, string> UserLtxOverrides);
 
 /// <summary>Stores named, explicit managed states and switches between them through recovery snapshots.</summary>
-public sealed class ToolkitProfileService
+public sealed partial class ToolkitProfileService
 {
     private const int SchemaVersion = 1;
     private readonly string _directory;
@@ -29,12 +30,6 @@ public sealed class ToolkitProfileService
     private readonly CompanionInstaller? _companion;
     private readonly ToolkitSnapshotService _snapshots;
     private readonly string _configStateDirectory;
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter<GameTarget>() },
-    };
-
     public ToolkitProfileService()
         : this(AppPaths.Profiles, new GameFixEngine(), GameFixCatalog.All.ToDictionary(fix => fix.Id, StringComparer.Ordinal),
             new CompanionInstaller(CompanionAssetLocator.ResolveSourceRoot()), new ToolkitSnapshotService(), AppPaths.ToolkitConfig)
@@ -180,13 +175,14 @@ public sealed class ToolkitProfileService
     {
         Directory.CreateDirectory(_directory);
         RejectLink(_directory);
-        AtomicWrite(ProfilePath(profile.Id), JsonSerializer.SerializeToUtf8Bytes(new ProfileDocument(SchemaVersion, profile), JsonOptions));
+        AtomicWrite(ProfilePath(profile.Id),
+            JsonSerializer.SerializeToUtf8Bytes(new ProfileDocument(SchemaVersion, profile), ProfileJsonContext.Default.ProfileDocument));
     }
 
     private ToolkitProfile Read(string path)
     {
         RejectLink(path);
-        var document = JsonSerializer.Deserialize<ProfileDocument>(File.ReadAllBytes(path), JsonOptions)
+        var document = JsonSerializer.Deserialize(File.ReadAllBytes(path), ProfileJsonContext.Default.ProfileDocument)
             ?? throw new InvalidDataException("Profile metadata is empty.");
         if (document.SchemaVersion != SchemaVersion || document.Profile is null) throw new InvalidDataException("Unsupported or incomplete profile metadata.");
         if (!PathEquals(path, ProfilePath(document.Profile.Id))) throw new InvalidDataException("Profile id does not match its metadata path.");
@@ -256,4 +252,8 @@ public sealed class ToolkitProfileService
     }
 
     private sealed record ProfileDocument(int SchemaVersion, ToolkitProfile Profile);
+
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+    [JsonSerializable(typeof(ProfileDocument), TypeInfoPropertyName = "ProfileDocument")]
+    private partial class ProfileJsonContext : JsonSerializerContext { }
 }

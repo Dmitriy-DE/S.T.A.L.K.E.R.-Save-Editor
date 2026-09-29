@@ -624,7 +624,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
     /// <summary>A parsed save (null: not a save), reused while the file keeps its size and modification time.</summary>
-    private sealed record CachedSave(long Length, DateTime LastWriteUtc, SaveFileSummary? Summary);
+    /// <summary>Cache validity: size, write time and creation time (a file swapped in by rename gets a new one).</summary>
+    private sealed record CachedSave(long Length, DateTime LastWriteUtc, DateTime CreationUtc, SaveFileSummary? Summary);
 
     private Dictionary<string, CachedSave> _libraryCache = new(StringComparer.Ordinal);
     private bool _isLoadingLibrary;
@@ -653,7 +654,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 before?.Invoke();
                 return LoadLibrary(directories, cache, progressive
                     ? batch => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendBatch(batch, version))
-                    : null);
+                    : null,
+                    // A newer refresh supersedes this one: stop parsing instead of finishing work nobody will show.
+                    () => version != Volatile.Read(ref _libraryVersion));
             });
             if (version == _libraryVersion)
             {
@@ -678,6 +681,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(Encyclopedia.Refresh);
     }
 
+    private int IndexOfSave(string path)
+    {
+        for (var index = 0; index < Saves.Count; index++)
+        {
+            if (string.Equals(Saves[index].FilePath, path, StringComparison.Ordinal)) return index;
+        }
+
+        return -1;
+    }
+
     private void SetLoadingLibrary(bool loading)
     {
         _isLoadingLibrary = loading;
@@ -695,7 +708,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private static (List<SaveFileSummary> Saves, Dictionary<string, CachedSave> Cache) LoadLibrary(
         IReadOnlyList<string> directories,
         IReadOnlyDictionary<string, CachedSave> cache,
-        Action<IReadOnlyList<SaveFileSummary>>? batchLoaded = null)
+        Action<IReadOnlyList<SaveFileSummary>>? batchLoaded = null,
+        Func<bool>? superseded = null)
     {
         var files = EnumerateSaveFiles(directories)
             .Select(path => new FileInfo(path))
@@ -706,13 +720,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var parallelism = Math.Clamp(Environment.ProcessorCount - 1, 1, 8);
         for (var start = 0; start < files.Length; start += parallelism * 2)
         {
+            if (superseded?.Invoke() == true) return ([], new Dictionary<string, CachedSave>(cache, StringComparer.Ordinal));
             var end = Math.Min(files.Length, start + parallelism * 2);
             Parallel.For(start, end, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, index =>
             {
                 var info = files[index];
-                entries[index] = cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc
+                entries[index] = cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc &&
+                    hit.CreationUtc == info.CreationTimeUtc
                     ? hit
-                    : new CachedSave(info.Length, info.LastWriteTimeUtc, TryReadSave(info.FullName));
+                    : new CachedSave(info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, TryReadSave(info.FullName));
             });
             batchLoaded?.Invoke(entries[start..end].Select(entry => entry.Summary).OfType<SaveFileSummary>().ToArray());
         }
@@ -770,7 +786,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     /// <summary>Remove + insert: Avalonia's virtualizing list throws on a Replace notification for the selected row.</summary>
     private void OnSaveRepaired(string path)
     {
-        var index = Saves.ToList().FindIndex(save => string.Equals(save.FilePath, path, StringComparison.Ordinal));
+        var index = IndexOfSave(path);
         if (index < 0 || TryReadSave(path) is not { } refreshed) return;
         var wasSelected = ReferenceEquals(SelectedSave, Saves[index]);
         ReplaceSave(index, refreshed);
@@ -793,7 +809,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         if (parsed is null) return false;
         // Opening a file that is already listed (or re-opening it after a change) replaces its entry.
-        var index = Saves.ToList().FindIndex(save => string.Equals(save.FilePath, parsed.FilePath, StringComparison.Ordinal));
+        var index = IndexOfSave(parsed.FilePath);
         if (index >= 0) ReplaceSave(index, parsed);
         else Saves.Add(parsed);
         Timeline.SetSaves(Saves);
@@ -1057,6 +1073,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
         catch (Exception ex)
         {
+            AppLog.Error("restore failed", ex);
             StatusMessage = L.T("Ошибка восстановления: {0}", ex.Message);
         }
     }
@@ -1349,8 +1366,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                     MaxRecursionDepth = 4,
                 }).Where(IsSupportedSaveFile).ToArray();
             }
-            catch (Exception)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
             {
+                AppLog.Warn($"save folder not listed: {exception.GetType().Name}: {exception.Message}");
                 continue;
             }
 

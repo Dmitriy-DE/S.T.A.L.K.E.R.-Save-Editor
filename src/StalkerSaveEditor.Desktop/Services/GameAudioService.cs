@@ -89,18 +89,28 @@ public sealed class GameAudioService
     {
         if (!IsEnabled || Volume == 0) return;
         var family = _family;
+        var name = $"{family}-{sound}";
+        // One task per sound at a time: fast hovering must not queue a pile of decode/play tasks.
+        if (!_playing.TryAdd(name, 0)) return;
         _ = Task.Run(() =>
         {
             try
             {
-                if (Prepare(family, [EventFiles[sound]], $"{family}-{sound}") is { } wav) PlayOnce(wav);
+                if (Prepare(family, [EventFiles[sound]], name) is { } wav) PlayOnce(wav);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 AppLog.Warn($"sound {sound} not played", exception);
             }
+            finally
+            {
+                _playing.TryRemove(name, out _);
+            }
         });
     }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _playing = new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> _prepareLocks = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Decodes the given OGG files of a family into one 16-bit WAV at the current volume (cached, one
@@ -109,16 +119,30 @@ public sealed class GameAudioService
     /// </summary>
     internal string? Prepare(string family, string[] files, string name)
     {
+        // Single flight per sound: a second caller waits for the first decode instead of racing on the same files.
+        lock (_prepareLocks.GetOrAdd(name, static _ => new object()))
+        {
+            return PrepareLocked(family, files, name);
+        }
+    }
+
+    private string? PrepareLocked(string family, string[] files, string name)
+    {
         var target = Path.Combine(_cacheDirectory, $"{name}-v{Volume}.wav");
         if (File.Exists(target)) return target;
         var sources = files.Select(file => Path.Combine(_soundRoot, family, file)).ToArray();
         if (!sources.All(File.Exists)) return null;
         Directory.CreateDirectory(_cacheDirectory);
-        var temp = target + ".tmp";
+        var temp = $"{target}.{Guid.NewGuid():N}.tmp";
         var readers = sources.Select(path => new NVorbis.VorbisReader(path)).ToArray();
         try
         {
             WriteWav(temp, readers, Volume / 100f);
+        }
+        catch
+        {
+            TryDelete(temp);
+            throw;
         }
         finally
         {
@@ -144,9 +168,14 @@ public sealed class GameAudioService
         var inputs = readers.Select(reader => new float[reader.Channels * 4096]).ToArray();
         var pcm = new short[stereoPair ? 2 * 4096 : inputs[0].Length];
         long dataBytes = 0;
+        var counts = new int[readers.Length];
         while (true)
         {
-            var counts = readers.Select((reader, index) => reader.ReadSamples(inputs[index], 0, inputs[index].Length)).ToArray();
+            for (var index = 0; index < readers.Length; index++)
+            {
+                counts[index] = readers[index].ReadSamples(inputs[index], 0, inputs[index].Length);
+            }
+
             int written;
             if (stereoPair)
             {

@@ -90,6 +90,11 @@ public static class XRayRelocation
         var actor = Actor(save);
         var raw = save.Container.Raw.ToArray();
         var header = SpawnPositionOffset(raw, actor);
+        if (header + 24 > actor.RecordOffset + actor.RecordLength || actor.StateLength < StateLevelVertexOffset + 4)
+        {
+            throw new XRayFormatException("The actor record is too short for the verified position layout.");
+        }
+
         WriteVector(raw, header, anchor.Position);
         WriteVector(raw, header + 12, anchor.Direction);
         BinaryPrimitives.WriteUInt16LittleEndian(raw.AsSpan(actor.StateOffset + StateGameVertexOffset), anchor.GameVertexId);
@@ -126,7 +131,7 @@ public static class XRayRelocation
         var position = actor.RecordOffset + 2 + 2;
         for (var strings = 0; strings < 2; strings++)
         {
-            var end = raw[position..].IndexOf((byte)0);
+            var end = raw[position..(actor.RecordOffset + actor.RecordLength)].IndexOf((byte)0);
             if (end < 0) throw new XRayFormatException("The actor spawn header is truncated.");
             position += end + 1;
         }

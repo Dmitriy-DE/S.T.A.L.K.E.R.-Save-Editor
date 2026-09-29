@@ -59,7 +59,7 @@ public sealed class CloudViewModel : ObservableViewModel
         {
             if (SetProperty(ref _selectedAppId, value))
             {
-                _ = RefreshAsync();
+                BackgroundTask.Run(RefreshAsync(), "cloud refresh");
             }
         }
     }

@@ -54,8 +54,8 @@ public sealed class CompanionViewModel : ObservableViewModel
         _service = service;
         InitCommands();
         CheckHotkeySupport();
-        _ = RefreshStatusAsync();
-        _ = RefreshGamesAsync();
+        BackgroundTask.Run(RefreshStatusAsync(), "companion status");
+        BackgroundTask.Run(RefreshGamesAsync(), "companion games");
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ public sealed class CompanionViewModel : ObservableViewModel
                     ManualGameDir = adapter.GetUserGameDirectory(game) ?? string.Empty;
                 }
 
-                _ = RefreshStatusAsync();
+                BackgroundTask.Run(RefreshStatusAsync(), "companion status");
                 OnPropertyChanged(nameof(CanInspect));
                 OnPropertyChanged(nameof(InspectorDisabledReason));
                 InspectCommand.NotifyCanExecuteChanged();
@@ -372,7 +372,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             {
                 if (Hotkeys.FirstOrDefault(row => row.Action == HotkeyLayout.ActionName(binding.Action)) is { } row) row.Key = binding.Gesture.ToString();
             }
-            _ = SaveHotkeysAsync();
+            BackgroundTask.Run(SaveHotkeysAsync(), "hotkey save");
         }, () => !_isBusy && Hotkeys.Count > 0);
 
         InspectCommand = new RelayCommand(
@@ -575,7 +575,7 @@ public sealed class CompanionViewModel : ObservableViewModel
         StatusMessage = string.IsNullOrEmpty(dir)
             ? L.T("Папка очищена, используется автообнаружение.")
             : L.T("Папка задана: {0}", dir);
-        _ = RefreshStatusAsync();
+        BackgroundTask.Run(RefreshStatusAsync(), "companion status");
     }
 
     // ── Hotkeys toggle ────────────────────────────────────────────────────────

@@ -47,7 +47,7 @@ public static class ItemIconService
         if (image.Source is not null || HostPlatform.FetchAsset is not { } fetch) return;
         var relative = IconKey(releaseId.Replace("-ee", string.Empty, StringComparison.Ordinal), itemKey);
         if (relative is null) return;
-        _ = ShowFetchedAsync(image, fetch, "Assets/Icons/" + relative, $"{releaseId}|{itemKey}");
+        BackgroundTask.Run(ShowFetchedAsync(image, fetch, "Assets/Icons/" + relative, $"{releaseId}|{itemKey}"), "item icon");
     }
 
     private static async Task ShowFetchedAsync(Avalonia.Controls.Image image, Func<string, Task<byte[]?>> fetch, string path, string cacheKey)

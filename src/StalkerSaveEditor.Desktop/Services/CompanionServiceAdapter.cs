@@ -44,7 +44,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         // Invalidate any cached runtime when the game dir changes.
         if (_runtimes.Remove(game, out var old))
         {
-            _ = old.DisposeAsync();
+            BackgroundTask.Run(old.DisposeAsync(), "companion dispose");
         }
     }
 

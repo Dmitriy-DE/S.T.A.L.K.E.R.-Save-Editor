@@ -47,7 +47,7 @@ public static class GameContentService
     private const int IconCellSize = 50;
 
     /// <summary>Bumped whenever the builder output changes so old caches are ignored.</summary>
-    private const int BuilderVersion = 4;
+    private const int BuilderVersion = 5;
     private static readonly string[] ModMarkers = ["ogsm", "srp", "anomaly", "misery", "complete", "gunslinger", "amk"];
 
     public static string ReleaseIdFor(CompanionGame game) => game switch

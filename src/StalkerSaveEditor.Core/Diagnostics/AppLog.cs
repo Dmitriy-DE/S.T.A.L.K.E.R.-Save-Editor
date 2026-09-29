@@ -21,6 +21,12 @@ public static class AppPaths
     public static string Drafts => Path.Combine(DataDirectory, "drafts");
 
     public static string ContentCache => Path.Combine(DataDirectory, "content");
+
+    public static string Snapshots => Path.Combine(DataDirectory, "snapshots");
+
+    public static string Profiles => Path.Combine(DataDirectory, "profiles");
+
+    public static string ToolkitConfig => Path.Combine(DataDirectory, "toolkit-config");
 }
 
 /// <summary>

@@ -1,4 +1,5 @@
 using StalkerSaveEditor.Core.Patching;
+using StalkerSaveEditor.Core.Storage;
 using StalkerSaveEditor.Desktop.ViewModels;
 using Xunit;
 
@@ -62,19 +63,37 @@ public sealed class GameFixesViewModelTests
     }
 
     [Fact]
-    public async Task Recommended_preset_requires_a_checked_installation_and_fails_closed_without_retail_files()
+    public async Task Recommended_preset_requires_a_checked_installation_and_records_a_safety_snapshot()
     {
         using var install = new SteamInstallFixture("11450472");
-        var viewModel = CreateClearSkyViewModel(install.GameDirectory);
+        var snapshotRoot = Path.Combine(Path.GetTempPath(), "sse-fix-vm-snapshots-" + Guid.NewGuid().ToString("N"));
+        var configStateRoot = Path.Combine(snapshotRoot, "config");
+        var snapshots = new ToolkitSnapshotService(
+            snapshotRoot,
+            new GameFixEngine(),
+            GameFixCatalog.All.ToDictionary(fix => fix.Id, StringComparer.Ordinal),
+            configStateDirectory: configStateRoot);
+        var viewModel = CreateClearSkyViewModel(install.GameDirectory, snapshots);
 
-        Assert.False(viewModel.ApplyRecommendedPresetCommand.CanExecute(null));
-        await viewModel.CheckInstallationAsync();
+        try
+        {
+            Assert.False(viewModel.ApplyRecommendedPresetCommand.CanExecute(null));
+            await viewModel.CheckInstallationAsync();
 
-        Assert.True(viewModel.ApplyRecommendedPresetCommand.CanExecute(null));
-        await viewModel.ApplyRecommendedPresetAsync();
+            Assert.True(viewModel.ApplyRecommendedPresetCommand.CanExecute(null));
+            await viewModel.ApplyRecommendedPresetAsync();
 
-        Assert.NotEmpty(viewModel.Status);
-        Assert.False(Directory.Exists(Path.Combine(install.GameDirectory, ".save-editor-game-fixes")));
+            Assert.NotEmpty(viewModel.Status);
+            Assert.Contains(snapshots.List(), snapshot =>
+                string.Equals(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(snapshot.GameDirectory)),
+                    SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(install.GameDirectory)),
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            Assert.False(Directory.Exists(Path.Combine(install.GameDirectory, ".save-editor-game-fixes")));
+        }
+        finally
+        {
+            if (Directory.Exists(snapshotRoot)) Directory.Delete(snapshotRoot, recursive: true);
+        }
     }
 
     [Fact]
@@ -89,9 +108,9 @@ public sealed class GameFixesViewModelTests
         Assert.False(current.UpdateAvailable);
     }
 
-    private static GameFixesViewModel CreateClearSkyViewModel(string gameDirectory)
+    private static GameFixesViewModel CreateClearSkyViewModel(string gameDirectory, ToolkitSnapshotService? snapshots = null)
     {
-        var viewModel = new GameFixesViewModel();
+        var viewModel = new GameFixesViewModel(snapshots);
         viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cs");
         viewModel.GameDirectory = gameDirectory;
         return viewModel;

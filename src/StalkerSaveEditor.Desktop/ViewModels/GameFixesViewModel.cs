@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using StalkerSaveEditor.Core.Diagnostics;
 using StalkerSaveEditor.Core.Patching;
+using StalkerSaveEditor.Core.Storage;
 using StalkerSaveEditor.Desktop.Services;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -65,6 +67,7 @@ public sealed record GameFixEntry(GameFixDefinition Definition, GameFixState Sta
 
 public sealed class GameFixesViewModel : ObservableViewModel
 {
+    private readonly ToolkitSnapshotService _snapshots;
     private GameTargetOption _selectedTarget;
     private GameFixEntry? _selectedFix;
     private string _gameDirectory = string.Empty;
@@ -76,8 +79,9 @@ public sealed class GameFixesViewModel : ObservableViewModel
     private bool _installationMarkerValid;
     private bool _isBusy;
 
-    public GameFixesViewModel()
+    public GameFixesViewModel(ToolkitSnapshotService? snapshots = null)
     {
+        _snapshots = snapshots ?? new ToolkitSnapshotService();
         Targets = new ObservableCollection<GameTargetOption>(Enum.GetValues<GameTarget>()
             .Select(target =>
             {
@@ -229,7 +233,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
             UpdateCompatibilityStatus();
             RefreshFixStates(SelectedFix?.Id);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)
         {
             InvalidateInspection();
             CompatibilityStatus = L.T("ОШИБКА: {0}", exception.Message);
@@ -264,7 +268,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
                 ? L.T("УСТАНОВЛЕНО: {0}", entry.Id)
                 : L.T("УЖЕ УСТАНОВЛЕНО: {0}", entry.Id);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or InvalidOperationException or NotSupportedException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             Status = L.T("ОШИБКА: {0}", exception.Message);
         }
@@ -281,15 +285,26 @@ public sealed class GameFixesViewModel : ObservableViewModel
         if (!CanApplyPreset(preset)) return;
         IsBusy = true;
         Status = string.Empty;
+        string? safetySnapshotId = null;
         try
         {
-            var result = await Task.Run(() => new GameFixEngine().ApplyPreset(preset: preset, game: SelectedTarget.Target, gameDirectory: GameDirectory));
+            var application = await Task.Run(() => _snapshots.ApplyFixPreset(SelectedTarget.Target, GameDirectory, preset));
             RefreshFixStates();
+            if (!application.Applied)
+            {
+                Status = L.T("ОШИБКА: {0}", application.Error ?? string.Empty) +
+                    (application.SafetySnapshotId is null ? string.Empty : " · " + L.T("РЕЗЕРВНАЯ ТОЧКА: {0}", application.SafetySnapshotId));
+                return;
+            }
+
+            safetySnapshotId = application.SafetySnapshotId;
+            var result = application.PresetResult!;
             Status = result.SelectedFixCount == 0
                 ? L.T("ПРЕСЕТ НЕ СОДЕРЖИТ ПРОВЕРЕННЫХ ИСПРАВЛЕНИЙ ДЛЯ ЭТОЙ ИГРЫ.")
-                : L.T("ПРЕСЕТ {0}: УСТАНОВЛЕНО {1}; УЖЕ АКТУАЛЬНЫХ {2}.", PresetName(preset), result.InstalledFixIds.Count, result.AlreadyInstalledFixIds.Count);
+                : L.T("ПРЕСЕТ {0}: УСТАНОВЛЕНО {1}; УЖЕ АКТУАЛЬНЫХ {2}.", PresetName(preset), result.InstalledFixIds.Count, result.AlreadyInstalledFixIds.Count) +
+                    (safetySnapshotId is null ? string.Empty : " · " + L.T("РЕЗЕРВНАЯ ТОЧКА: {0}", safetySnapshotId));
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or InvalidOperationException or NotSupportedException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             Status = L.T("ОШИБКА: {0}", exception.Message);
         }
@@ -313,7 +328,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
                 ? L.T("УДАЛЕНО И ВОССТАНОВЛЕНО: {0}", entry.Id)
                 : L.T("ИСПРАВЛЕНИЕ НЕ БЫЛО УСТАНОВЛЕНО: {0}", entry.Id);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or InvalidOperationException or NotSupportedException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             Status = L.T("ОШИБКА: {0}", exception.Message);
         }
@@ -337,7 +352,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
                 ? L.T("ОБНОВЛЕНО: {0}", entry.Id)
                 : L.T("УЖЕ АКТУАЛЬНО: {0}", entry.Id);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or InvalidOperationException or NotSupportedException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             Status = L.T("ОШИБКА: {0}", exception.Message);
         }
@@ -404,7 +419,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
             {
                 installed = new GameFixEngine().ListInstalled(GameDirectory);
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException)
             {
                 Status = L.T("ОШИБКА: {0}", exception.Message);
             }
@@ -500,7 +515,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
         if (string.IsNullOrWhiteSpace(right)) return false;
         try
         {
-            return string.Equals(Path.GetFullPath(left), Path.GetFullPath(right),
+            return string.Equals(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(left)), SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(right)),
                 OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
         }
         catch (ArgumentException)

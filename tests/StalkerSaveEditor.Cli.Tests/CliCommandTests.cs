@@ -34,6 +34,40 @@ public sealed class CliCommandTests
     }
 
     [Fact]
+    public void Crash_discover_command_finds_logs_under_a_detected_installation_as_json()
+    {
+        var steamRoot = Path.Combine(Path.GetTempPath(), "sse-crash-discover-" + Guid.NewGuid().ToString("N"));
+        var game = Path.Combine(steamRoot, "steamapps", "common", "Call of Pripyat");
+        var logPath = Path.Combine(game, "_appdata_", "logs", "xray_steam.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        File.WriteAllText(Path.Combine(game, "fsgame.ltx"), "$game_data$ = false| true| $fs_root$| gamedata\\\n");
+        File.WriteAllText(logPath, "[error]Expression : assertion failed\n");
+        File.WriteAllText(Path.Combine(steamRoot, "steamapps", "appmanifest_41700.acf"), """
+            "AppState"
+            {
+                "appid" "41700"
+                "buildid" "11450453"
+                "installdir" "Call of Pripyat"
+            }
+            """);
+        try
+        {
+            var result = Run("crash", "discover", "--steam-root", steamRoot, "--json");
+
+            Assert.Equal(0, result.ExitCode);
+            using var response = JsonDocument.Parse(result.Output);
+            var discovered = Assert.Single(response.RootElement.EnumerateArray());
+            Assert.Equal("CallOfPripyat", discovered.GetProperty("game").GetString());
+            Assert.Equal("11450453", discovered.GetProperty("buildId").GetString());
+            Assert.Equal(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(logPath)), discovered.GetProperty("path").GetString());
+        }
+        finally
+        {
+            Directory.Delete(steamRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Doctor_game_command_audits_an_explicit_installation_as_json()
     {
         var root = Path.Combine(Path.GetTempPath(), "sse-doctor-cli-" + Guid.NewGuid().ToString("N"));
@@ -101,6 +135,22 @@ public sealed class CliCommandTests
         Assert.Contains("\"status\": \"Ok\"", result.Output, StringComparison.Ordinal);
         Assert.Contains("semantic-state", result.Output, StringComparison.Ordinal);
         Assert.Contains("\"repair\"", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Doctor_quest_command_reports_reader_coverage_without_inventing_task_states()
+    {
+        using var fixture = Fixture.CreateS2();
+
+        var result = Run("doctor", "quest", fixture.SourcePath, "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        using var report = JsonDocument.Parse(result.Output);
+        var root = report.RootElement;
+        Assert.Equal("stalker2", root.GetProperty("formatId").GetString());
+        Assert.False(root.GetProperty("questStatesAvailable").GetBoolean());
+        Assert.Empty(root.GetProperty("states").EnumerateArray());
+        Assert.Contains("does not expose", root.GetProperty("summary").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -215,7 +265,7 @@ public sealed class CliCommandTests
     }
 
     [Fact]
-    public void Fixes_apply_recommended_preset_fails_closed_when_retail_files_are_missing()
+    public void Fixes_apply_recommended_preset_fails_closed_and_records_a_safety_snapshot()
     {
         var library = Path.Combine(Path.GetTempPath(), "sse-fix-preset-cli-" + Guid.NewGuid().ToString("N"));
         var root = Path.Combine(library, "steamapps", "common", "STALKER Clear Sky");
@@ -235,7 +285,12 @@ public sealed class CliCommandTests
 
             Assert.Equal(2, result.ExitCode);
             Assert.False(string.IsNullOrWhiteSpace(result.Error));
+            Assert.Contains("Safety snapshot", result.Error, StringComparison.OrdinalIgnoreCase);
             Assert.False(Directory.Exists(Path.Combine(root, ".save-editor-game-fixes")));
+            var targetIdentity = SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(root));
+            Assert.Contains(new ToolkitSnapshotService().List(), snapshot =>
+                string.Equals(SaveSlotDiscovery.ResolveLinks(Path.GetFullPath(snapshot.GameDirectory)), targetIdentity,
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
         }
         finally
         {

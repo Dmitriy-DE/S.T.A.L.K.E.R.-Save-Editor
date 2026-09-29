@@ -786,15 +786,18 @@ public sealed partial class GameFixEngine
         var contentRelativePath = relativePath.StartsWith("gamedata/", StringComparison.OrdinalIgnoreCase)
             ? relativePath["gamedata/".Length..]
             : relativePath;
-        var companionGame = game switch
+        var (companionGame, fsgame) = game switch
         {
-            GameTarget.ShadowOfChernobyl => CompanionGame.ShadowOfChernobyl,
-            GameTarget.ClearSky => CompanionGame.ClearSky,
-            GameTarget.CallOfPripyat => CompanionGame.CallOfPripyat,
+            GameTarget.ShadowOfChernobyl => (CompanionGame.ShadowOfChernobyl, "fsgame.ltx"),
+            GameTarget.ClearSky => (CompanionGame.ClearSky, "fsgame.ltx"),
+            GameTarget.CallOfPripyat => (CompanionGame.CallOfPripyat, "fsgame.ltx"),
+            GameTarget.ShadowOfChernobylEnhancedEdition => (CompanionGame.ShadowOfChernobyl, "fsgame_soc.ltx"),
+            GameTarget.ClearSkyEnhancedEdition => (CompanionGame.ClearSky, "fsgame_cs.ltx"),
+            GameTarget.CallOfPripyatEnhancedEdition => (CompanionGame.CallOfPripyat, "fsgame_cop.ltx"),
             _ => throw new FileNotFoundException("The target is not a loose file and this game edition has no verified archive reader.", absolutePath),
         };
         var tree = GameFileTree.Load(companionGame, root,
-            candidate => string.Equals(candidate, contentRelativePath, StringComparison.OrdinalIgnoreCase), _fileSystem);
+            candidate => string.Equals(candidate, contentRelativePath, StringComparison.OrdinalIgnoreCase), _fileSystem, [fsgame]);
         if (!tree.Files.TryGetValue(contentRelativePath, out var gameFile))
             throw new FileNotFoundException("The target file is absent from the game archives and the loose game-data directory.", absolutePath);
         return (gameFile.Read(), TargetExistedBefore: false, tree.Fingerprint);

@@ -59,8 +59,8 @@ public sealed class InventoryLineViewModel : ObservableViewModel
                 : conditionDisabledReason ?? L.T("Редактирование прочности не поддерживается форматом");
         _conditionPercent = condition.HasValue ? (int)Math.Round(condition.Value * 100f) : 100;
 
-        _placement = placement ?? "ruck";
-        OriginalPlacement = placement ?? "ruck";
+        _placement = placement ?? string.Empty;
+        OriginalPlacement = placement ?? string.Empty;
         CanEditPlacement = canEditPlacement;
         PlacementDisabledReason = CanEditPlacement
             ? L.T("Переместить предмет (слот / пояс / рюкзак)")
@@ -190,6 +190,7 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     public uint Handle { get; }
     public string Category { get; }
     public uint? OriginalCount { get; }
+    public string OriginalCountDisplay => OriginalCount?.ToString(CultureInfo.CurrentCulture) ?? "—";
     public bool CanEditCount { get; }
     public string CountDisabledReason { get; }
 
@@ -250,12 +251,14 @@ public sealed class InventoryLineViewModel : ObservableViewModel
 
     public string ConditionDisplay => OriginalCondition.HasValue ? $"{_conditionPercent}%" : "—";
 
-    public string ConditionColor => _conditionPercent switch
-    {
-        >= 75 => "#7BCB62",
-        >= 40 => "#D6A62D",
-        _ => "#D85A45",
-    };
+    public string ConditionColor => !OriginalCondition.HasValue
+        ? "#716F67"
+        : _conditionPercent switch
+        {
+            >= 75 => "#7BCB62",
+            >= 40 => "#D6A62D",
+            _ => "#D85A45",
+        };
 
     public string Placement
     {
@@ -270,14 +273,16 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         }
     }
 
-    public string PlacementDisplay => _placement switch
-    {
-        "slot" or "carried" => L.T("Слот"),
-        "belt" => L.T("Пояс"),
-        "ruck" or "inventory" => L.T("Рюкзак"),
-        "equipped" => L.T("Надето"),
-        _ => _placement,
-    };
+    public string PlacementDisplay => string.IsNullOrWhiteSpace(_placement)
+        ? "—"
+        : _placement switch
+        {
+            "slot" or "carried" => L.T("Слот"),
+            "belt" => L.T("Пояс"),
+            "ruck" or "inventory" => L.T("Рюкзак"),
+            "equipped" => L.T("Надето"),
+            _ => _placement,
+        };
 
     /// <summary>The row shows where the item is only when it is not simply in the backpack.</summary>
     public bool ShowPlacementBadge => _placement is not ("ruck" or "inventory");

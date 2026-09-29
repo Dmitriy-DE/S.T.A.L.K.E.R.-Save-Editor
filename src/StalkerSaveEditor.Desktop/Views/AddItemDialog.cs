@@ -19,22 +19,36 @@ public sealed class AddItemDialog : Window
         Height = 560;
         Background = StalkerTheme.BrushBgBase;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Content = BuildContent(addVm, parentVm, destination, Close);
+    }
+
+    /// <summary>Shared catalog editor, also hosted inline by Inventory so adding is not a blocking flow.</summary>
+    public static Control BuildContent(
+        AddItemViewModel addVm,
+        SaveLibraryViewModel parentVm,
+        string destination,
+        Action close)
+    {
+        ArgumentNullException.ThrowIfNull(addVm);
+        ArgumentNullException.ThrowIfNull(parentVm);
+        ArgumentNullException.ThrowIfNull(close);
 
         var root = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"),
             Margin = new Thickness(16),
+            RowSpacing = 8,
         };
 
-        // Search Box
         var searchBox = new TextBox
         {
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
             Watermark = L.T("Поиск по названию или ключу секции…"),
-            Margin = new Thickness(0, 0, 0, 10),
+            MinHeight = 36,
         };
+        Avalonia.Automation.AutomationProperties.SetName(searchBox, L.T("Поиск по каталогу предметов"));
         searchBox.Bind(TextBox.TextProperty, new Binding(nameof(AddItemViewModel.SearchText))
         {
             Source = addVm,
@@ -43,7 +57,6 @@ public sealed class AddItemDialog : Window
         });
         root.Children.Add(searchBox);
 
-        // Items List
         var itemsList = new ListBox
         {
             Background = StalkerTheme.BrushBgPanel,
@@ -51,22 +64,22 @@ public sealed class AddItemDialog : Window
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(3),
             ItemsSource = addVm.FilteredItems,
-            ItemTemplate = StalkerTheme.Template<CatalogItemEntry>(item =>
+            ItemTemplate = StalkerTheme.Template<CatalogItemEntry>(_ =>
             {
-                var row = new StackPanel { Spacing = 2, Margin = new Thickness(6, 4) };
-                row.Children.Add(new TextBlock
+                var row = new StackPanel { Spacing = 2, Margin = new Thickness(8, 6) };
+                var name = new TextBlock
                 {
-                    Text = item.DisplayName,
                     FontWeight = FontWeight.Medium,
                     Foreground = StalkerTheme.BrushTextPrimary,
                     FontSize = 13,
-                });
-                row.Children.Add(new TextBlock
-                {
-                    Text = item.Key,
-                    FontSize = 10,
-                    Foreground = StalkerTheme.BrushTextMuted,
-                });
+                    TextWrapping = TextWrapping.Wrap,
+                };
+                name.Bind(TextBlock.TextProperty, new Binding(nameof(CatalogItemEntry.DisplayName)));
+                row.Children.Add(name);
+
+                var key = new TextBlock { FontSize = 10, Foreground = StalkerTheme.BrushTextMuted };
+                key.Bind(TextBlock.TextProperty, new Binding(nameof(CatalogItemEntry.Key)));
+                row.Children.Add(key);
                 return row;
             }),
         };
@@ -75,14 +88,33 @@ public sealed class AddItemDialog : Window
             Source = addVm,
             Mode = BindingMode.TwoWay,
         });
-        Grid.SetRow(itemsList, 1);
-        root.Children.Add(itemsList);
 
-        // Quantity Row
+        var noResults = new TextBlock
+        {
+            Text = L.T("Предметы не найдены."),
+            Foreground = StalkerTheme.BrushTextMuted,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(16),
+        };
+        var catalogHost = new Grid { Children = { itemsList, noResults } };
+        void UpdateCatalogState()
+        {
+            var hasItems = addVm.FilteredItems.Count > 0;
+            itemsList.IsVisible = hasItems;
+            noResults.IsVisible = !hasItems;
+        }
+        addVm.FilteredItems.CollectionChanged += (_, _) => UpdateCatalogState();
+        UpdateCatalogState();
+        Grid.SetRow(catalogHost, 1);
+        root.Children.Add(catalogHost);
+
         var qtyRow = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("120,80,*"),
-            Margin = new Thickness(0, 10, 0, 12),
+            ColumnDefinitions = new ColumnDefinitions("*,120"),
+            Margin = new Thickness(0, 4, 0, 4),
+            ColumnSpacing = 8,
         };
         qtyRow.Children.Add(new TextBlock
         {
@@ -96,7 +128,8 @@ public sealed class AddItemDialog : Window
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
-            Text = "1",
+            VerticalContentAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Right,
         };
         qtyBox.Bind(TextBox.TextProperty, new Binding(nameof(AddItemViewModel.Quantity))
         {
@@ -108,32 +141,39 @@ public sealed class AddItemDialog : Window
         Grid.SetRow(qtyRow, 2);
         root.Children.Add(qtyRow);
 
-        // Buttons
-        var btnRow = new StackPanel
+        var buttonRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 10,
+            Spacing = 8,
         };
-
-        var addBtn = StalkerTheme.StalkerButton(L.T("Добавить"), isPrimary: true, minWidth: 110);
-        addBtn.Click += (_, _) =>
+        var addButton = StalkerTheme.StalkerButton(L.T("Добавить"), isPrimary: true, minWidth: 110);
+        addButton.Bind(Button.IsEnabledProperty, new Binding(nameof(AddItemViewModel.SelectedItem))
         {
-            if (addVm.SelectedItem is not null)
-            {
-                parentVm.StageItemAddition(addVm.SelectedItem.Key, addVm.Quantity, destination);
-                Close();
-            }
+            Source = addVm,
+            Converter = new NullToBoolConverter(),
+        });
+        addButton.Click += (_, _) =>
+        {
+            if (addVm.SelectedItem is not { } selected) return;
+            parentVm.StageItemAddition(selected.Key, addVm.Quantity, destination);
+            close();
         };
-        btnRow.Children.Add(addBtn);
+        buttonRow.Children.Add(addButton);
 
-        var cancelBtn = StalkerTheme.StalkerButton(L.T("Отмена"), isPrimary: false, minWidth: 100);
-        cancelBtn.Click += (_, _) => Close();
-        btnRow.Children.Add(cancelBtn);
+        var cancelButton = StalkerTheme.StalkerButton(L.T("Отмена"), isPrimary: false, minWidth: 100);
+        cancelButton.Click += (_, _) => close();
+        buttonRow.Children.Add(cancelButton);
+        Grid.SetRow(buttonRow, 3);
+        root.Children.Add(buttonRow);
+        return root;
+    }
 
-        Grid.SetRow(btnRow, 3);
-        root.Children.Add(btnRow);
+    private sealed class NullToBoolConverter : Avalonia.Data.Converters.IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) => value is not null;
 
-        Content = root;
+        public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
+            throw new NotSupportedException();
     }
 }

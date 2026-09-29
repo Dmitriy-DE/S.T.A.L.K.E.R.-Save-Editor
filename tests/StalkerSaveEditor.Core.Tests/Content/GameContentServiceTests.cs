@@ -74,7 +74,7 @@ public sealed class GameContentServiceTests
         Write(game.Path, "gamedata/configs/system.ltx",
             "#include \"misc\\items.ltx\"\n#include \"creatures\\game_relations.ltx\"\n#include \"misc\\inventory_upgrades.ltx\"\n");
         Write(game.Path, "gamedata/configs/misc/items.ltx",
-            "[medkit]\nclass = II_MEDKI\ninv_name = st_medkit\ninv_weight = 0.5\ninv_grid_width = 1\ninv_grid_height = 1\ninv_grid_x = 1\ninv_grid_y = 0\n" +
+            "[medkit]\nclass = II_MEDKI\ninv_name = st_medkit\ninv_weight = 0.5\ncost = 1250\ninv_grid_width = 1\ninv_grid_height = 1\ninv_grid_x = 1\ninv_grid_y = 0\n" +
             "[wpn_pm]\nclass = WP_PM\ninv_name = st_pm\ninv_grid_width = 2\ninv_grid_height = 1\ninv_grid_x = 0\ninv_grid_y = 1\n" +
             "[wpn_pm_hud]\nclass = WP_PM\ninv_name = st_pm\n");
         Write(game.Path, "gamedata/configs/misc/inventory_upgrades.ltx", "#include \"..\\weapons\\upgrades\\w_pm_up.ltx\"\n[upgraded_inventory]\nwpn_pm\n");
@@ -95,6 +95,7 @@ public sealed class GameContentServiceTests
         Assert.Equal(2, first.Status.ItemCount);
         Assert.Null(first.Bundle.Items.Resolve("wpn_pm_hud"));
         Assert.Equal("Аптечка", first.Bundle.Items.Resolve("medkit")!.DisplayName);
+        Assert.Equal(1250, first.Bundle.Items.Resolve("medkit")!.Cost);
         Assert.Equal("weapon_magazined", first.Bundle.Items.Resolve("wpn_pm")!.SerializationFamily);
         Assert.Equal("wpn_pm", first.Bundle.Upgrades!.Resolve("up_a_pm")!.ItemKey);
         Assert.Equal(-1000, first.Bundle.Factions!.DefaultRelation("stalker", "bandit"));

@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Backups;
 using StalkerSaveEditor.Core.Capabilities;
 using StalkerSaveEditor.Core.Catalogs;
+using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.Enhanced;
 using StalkerSaveEditor.Core.Formats.Stalker2;
@@ -102,6 +103,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         // Loading selects a save, which updates the comparison: it must exist first.
         Compare = new CompareViewModel(releaseId => TryCatalog(releaseId, out var bundle) ? bundle : null);
+        Timeline = new SaveTimelineViewModel(CompareTimelinePair);
 
         Diagnostics = new DiagnosticsViewModel(
             pendingCrash: InteractiveApp ? CrashReporter.Pending() : null,
@@ -112,12 +114,31 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         DisableReportsCommand = new RelayCommand(() => AnswerReportsNotice(false));
         SendReportIfDue();
 
+        Encyclopedia = new EncyclopediaViewModel(
+            GameContentRegistry.GetLoadedContents,
+            CanAddEncyclopediaItem,
+            AddEncyclopediaItem,
+            Companion.CanSpawnForGame,
+            Companion.GiveItemAsync);
+        ToolkitEnvironment = new ToolkitEnvironmentViewModel(() => (GameFixes.SelectedTarget.Target, GameFixes.GameDirectory));
+        GameFixes.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is null or nameof(GameFixesViewModel.SelectedTarget) or nameof(GameFixesViewModel.GameDirectory) or nameof(GameFixesViewModel.Status))
+                ToolkitEnvironment.Refresh();
+        };
+        Companion.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is null or nameof(CompanionViewModel.SelectedGame) or nameof(CompanionViewModel.State))
+                Encyclopedia.RefreshAvailability();
+        };
+        Encyclopedia.RefreshAvailability();
+
         if (discoverLocalSaves && InteractiveApp)
         {
             // Items, names and icons of the installed games (and their mods) first, then the saves read
             // with them — all off the interface thread.
             var contentLanguage = I18nService.Instance.CurrentLanguage;
-            _ = RefreshAsync(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
+            _ = RefreshInstalledGameContentAsync(contentLanguage);
         }
         else if (discoverLocalSaves)
         {
@@ -153,6 +174,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
     public CompareViewModel Compare { get; }
+
+    public SaveTimelineViewModel Timeline { get; }
+
+    public EncyclopediaViewModel Encyclopedia { get; }
 
     private void UpdateCompareSubject()
     {
@@ -195,6 +220,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public SaveDoctorViewModel SaveDoctor { get; } = new();
     public GameFixesViewModel GameFixes { get; } = new();
     public UpdatesViewModel Updates { get; } = new();
+    public ToolkitEnvironmentViewModel ToolkitEnvironment { get; }
 
     /// <summary>
     /// Companion screen ViewModel — backed by real Core services in normal runs,
@@ -228,6 +254,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsSaveDoctorTab));
                 OnPropertyChanged(nameof(IsGameFixesTab));
                 OnPropertyChanged(nameof(IsUpdatesTab));
+                OnPropertyChanged(nameof(IsTimelineTab));
+                OnPropertyChanged(nameof(IsEncyclopediaTab));
+                OnPropertyChanged(nameof(IsToolkitEnvironmentTab));
                 OnPropertyChanged(nameof(ShowOverviewScreen));
                 OnPropertyChanged(nameof(ShowInventoryScreen));
                 OnPropertyChanged(nameof(ShowFactionsScreen));
@@ -243,6 +272,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowSaveDoctorScreen));
                 OnPropertyChanged(nameof(ShowGameFixesScreen));
                 OnPropertyChanged(nameof(ShowUpdatesScreen));
+                OnPropertyChanged(nameof(ShowTimelineScreen));
+                OnPropertyChanged(nameof(ShowEncyclopediaScreen));
+                OnPropertyChanged(nameof(ShowToolkitEnvironmentScreen));
                 OnPropertyChanged(nameof(IsFirstRunWizardVisible));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
             }
@@ -264,7 +296,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -307,6 +339,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsSaveDoctorTab => SelectedTab == "save-doctor";
     public bool IsGameFixesTab => SelectedTab == "game-fixes";
     public bool IsUpdatesTab => SelectedTab == "updates";
+    public bool IsTimelineTab => SelectedTab == "timeline";
+    public bool IsEncyclopediaTab => SelectedTab == "encyclopedia";
+    public bool IsToolkitEnvironmentTab => SelectedTab == "toolkit-environment";
 
     public bool ShowOverviewScreen => HasSelection && IsOverviewTab;
     public bool ShowInventoryScreen => HasSelection && IsInventoryTab;
@@ -318,12 +353,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
     public bool ShowCloudScreen => IsCloudTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsFirstRunWizardVisible;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsFirstRunWizardVisible;
     public bool ShowAchievementsScreen => IsAchievementsTab;
     public bool ShowGameDoctorScreen => IsGameDoctorTab;
     public bool ShowSaveDoctorScreen => IsSaveDoctorTab;
     public bool ShowGameFixesScreen => IsGameFixesTab;
     public bool ShowUpdatesScreen => IsUpdatesTab;
+    public bool ShowTimelineScreen => IsTimelineTab;
+    public bool ShowEncyclopediaScreen => IsEncyclopediaTab;
+    public bool ShowToolkitEnvironmentScreen => IsToolkitEnvironmentTab;
 
 
     public SaveFileSummary? SelectedSave
@@ -380,8 +418,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             OnPropertyChanged(nameof(ShowTransitionsScreen));
             OnPropertyChanged(nameof(ShowBackupsScreen));
             OnPropertyChanged(nameof(ShowSettingsScreen));
+            OnPropertyChanged(nameof(ShowTimelineScreen));
+            OnPropertyChanged(nameof(ShowEncyclopediaScreen));
             OnPropertyChanged(nameof(ShowCapabilitiesScreen));
             OnPropertyChanged(nameof(ShouldShowEmptyState));
+            Encyclopedia.RefreshAvailability();
 
             SaveCommand.NotifyCanExecuteChanged();
             UndoCommand.NotifyCanExecuteChanged();
@@ -568,6 +609,12 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
+    private async Task RefreshInstalledGameContentAsync(string contentLanguage)
+    {
+        await RefreshAsync(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(Encyclopedia.Refresh);
+    }
+
     private void SetLoadingLibrary(bool loading)
     {
         _isLoadingLibrary = loading;
@@ -617,6 +664,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         // A batch can arrive after the finished list (the continuation may run first): then it is already shown.
         if (version != _libraryVersion || version == _appliedLibraryVersion) return;
         foreach (var save in batch) Saves.Add(save);
+        Timeline.SetSaves(Saves);
         SelectedSave ??= Saves.FirstOrDefault();
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
         OnPropertyChanged(nameof(ShouldShowEmptyState));
@@ -633,6 +681,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             foreach (var save in library.Saves) Saves.Add(save);
         }
 
+        Timeline.SetSaves(Saves);
         SelectedSave = Saves.FirstOrDefault(save => save.FilePath == selectedPath) ?? Saves.FirstOrDefault();
         RefreshBackups();
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
@@ -670,10 +719,27 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         var index = Saves.ToList().FindIndex(save => string.Equals(save.FilePath, parsed.FilePath, StringComparison.Ordinal));
         if (index >= 0) ReplaceSave(index, parsed);
         else Saves.Add(parsed);
+        Timeline.SetSaves(Saves);
         SelectedSave = parsed;
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
         OnPropertyChanged(nameof(ShouldShowEmptyState));
         return true;
+    }
+
+    private void CompareTimelinePair(SaveFileSummary current, SaveFileSummary previous)
+    {
+        SelectedSave = current;
+        SelectedTab = "overview";
+        Compare.Selected = Compare.Candidates.FirstOrDefault(candidate => candidate.Path == previous.FilePath);
+    }
+
+    private bool CanAddEncyclopediaItem(string releaseId) =>
+        SelectedSave is { CanAddItems: true } save &&
+        string.Equals(save.ReleaseId.Replace("-ee", string.Empty, StringComparison.Ordinal), releaseId, StringComparison.Ordinal);
+
+    private void AddEncyclopediaItem(string releaseId, string section)
+    {
+        if (CanAddEncyclopediaItem(releaseId)) StageItemAddition(section, 1);
     }
 
     public void Undo()
@@ -1419,24 +1485,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     /// </summary>
     private static string ResolveModSourceRoot()
     {
-        // Packaged: mods/companion sits next to the binary.
-        var execDir = Path.GetDirectoryName(AppContext.BaseDirectory) ?? Directory.GetCurrentDirectory();
-        var candidate = Path.Combine(execDir, "mods", "companion");
-        if (Directory.Exists(candidate)) return candidate;
-
-        // Development: walk up from executable directory to find repository root (has mods/).
-        var current = execDir;
-        for (var depth = 0; depth < 8; depth++)
-        {
-            var modsDir = Path.Combine(current!, "mods", "companion");
-            if (Directory.Exists(modsDir)) return modsDir;
-            var parent = Path.GetDirectoryName(current);
-            if (parent is null || parent == current) break;
-            current = parent;
-        }
-
-        // Fallback: return a non-existent path; CompanionInstaller.GetStatus() will report the issue.
-        return Path.Combine(execDir, "mods", "companion");
+        return CompanionAssetLocator.ResolveSourceRoot();
     }
 
     private static bool IsBackupArtifact(string path)

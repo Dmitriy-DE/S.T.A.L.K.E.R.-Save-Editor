@@ -41,7 +41,7 @@ The desktop screen lists definitions, categories, maturity, source/build details
 
 `list` reports catalogued definitions only. `status` distinguishes available catalogue entries, safe preset recommendations and installed manifests. `apply-preset` supports Essential only, Recommended, and All safe fixes; Custom remains an explicit per-fix selection. All Safe currently contains the same Essential+Recommended definitions and excludes Community changes. Recommended is the default recommendation, but nothing is applied unless the user invokes an action. Preset application requires a structurally valid selected install and, for non-empty selections, a Steam build supported by every selected definition. It preflights managed-file drift and rolls back only fixes newly installed by that batch if a later install fails. Targets without a fix for the detected build report no compatible recommendation.
 
-The `all` form uses Game Doctor's existing installation discovery and applies the selected preset only when every fix in it supports the detected build. Unsupported builds are reported as skipped and left untouched. JSON results list game IDs, build IDs, selected counts, fix IDs, and per-installation errors without serializing installation paths.
+The `all` form uses Game Doctor's existing installation discovery and applies the selected preset only when every fix in it supports the detected build. Desktop, explicit CLI, and installer preset actions create a Toolkit Environment safety snapshot before changing a compatible installation; the CLI reports the snapshot ID. Unsupported builds are reported as skipped and left untouched. JSON results list game IDs, build IDs, selected counts, fix IDs, safety snapshot IDs, and per-installation errors without serializing installation paths.
 
 The Windows installer has an optional Game Fixes component. If selected, it offers Recommended (default), Essential only, All safe, and Later. Setup delegates to `stalker-save-editor-cli fixes apply-preset ... all`; Inno contains no patch operations. The desktop screen displays a preset delta when the catalogue adds fixes. For this release, CoP Recommended changes from 5 to 10 between `2026.09.1` and `2026.09.2`; Clear Sky and SoC counts are unchanged.
 
@@ -49,12 +49,12 @@ The Windows installer has an optional Game Fixes component. If selected, it offe
 
 - The installer integration is Windows-only. The Inno Setup compiler is not available in this Linux environment, so the `.iss` script has not been compiled here.
 - No “fix safe issues” action runs without an explicit user command. Preset application is explicit and requires a selected compatible game installation.
-- Profiles, managed configuration overrides, and user-facing snapshot controls are outside this phase.
+- Profile activation and managed `user.ltx` changes use the Toolkit snapshot coordinator and their existing providers. Unmanaged settings are not captured or rewritten.
 - The retail archive copy round trip verifies file targeting and rollback; it does not prove a game accepts the overlay or that an affected save is repaired.
 
 ## Reliability evidence
 
-- **L1:** Core tests cover build and source gates, archive-to-loose overlays, manifests, rollback, drift refusal, dependency/conflict checks, and preset application.
-- **L2:** CLI and desktop view-model tests cover explicit actions, status reporting, preset counts and installation discovery using synthetic installations. The CLI all-installations path skips an unsupported build without writing.
+- **L1:** Core tests cover build and source gates, archive-to-loose overlays, manifests, rollback, drift refusal, dependency/conflict checks, preset safety snapshots, managed settings, profiles, and install-audit ownership.
+- **L2:** CLI and desktop view-model tests cover explicit actions, status reporting, preset counts and discovery using synthetic installations. The CLI all-installations path skips an unsupported build without writing.
 - **L3:** an earlier packaged NativeAOT CLI smoke test covered an empty preset; it did not verify these new retail catalogue payloads.
 - **L4–L5:** no live game workflow, issue reproduction, or in-game acceptance has been performed.

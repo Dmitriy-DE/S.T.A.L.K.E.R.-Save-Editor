@@ -392,7 +392,11 @@ internal static class Program
             if (args.Length is < 5 or > 6 || !GameTargetCatalog.TryParse(args[3], out var target) ||
                 args.Length == 6 && args[5] != "--json")
                 throw new ArgumentException(usage);
-            var result = new GameFixEngine().ApplyPreset(target, preset, args[4]);
+            var application = new ToolkitSnapshotService().ApplyFixPreset(target, args[4], preset);
+            if (!application.Applied)
+                throw new InvalidOperationException((application.Error ?? "The preset could not be applied.") +
+                    (application.SafetySnapshotId is null ? string.Empty : $" Safety snapshot {application.SafetySnapshotId} is retained."));
+            var result = application.PresetResult!;
             if (args.Length == 6)
             {
                 Console.WriteLine(JsonSerializer.Serialize(
@@ -402,13 +406,15 @@ internal static class Program
                         result.SelectedFixCount,
                         result.InstalledFixIds.ToArray(),
                         result.AlreadyInstalledFixIds.ToArray(),
-                        result.Changed),
+                        result.Changed,
+                        application.SafetySnapshotId),
                     CliJsonContext.Default.GameFixPresetJsonResult));
             }
             else
             {
                 Console.WriteLine($"{result.Preset}: installed {result.InstalledFixIds.Count} of {result.SelectedFixCount} safe fix(es); " +
-                    $"{result.AlreadyInstalledFixIds.Count} already current.");
+                    $"{result.AlreadyInstalledFixIds.Count} already current." +
+                    (application.SafetySnapshotId is null ? string.Empty : $" Safety snapshot {application.SafetySnapshotId}."));
             }
             return 0;
         }
@@ -463,35 +469,44 @@ internal static class Program
         var results = new List<GameFixPresetInstallationJsonResult>();
         foreach (var installation in installations)
         {
-            var selected = GameFixCatalog.ForPreset(installation.Target, preset);
+            var target = installation.Target;
+            var selected = GameFixCatalog.ForPreset(target, preset);
             if (selected.Count == 0) continue;
-            var gameId = GameTargetCatalog.Get(installation.Target).Id;
+            var targetId = GameTargetCatalog.Get(target).Id;
             if (installation.BuildId is not { } buildId ||
                 selected.Any(definition => !definition.SupportedSteamBuildIds.Contains(buildId, StringComparer.Ordinal)))
             {
                 results.Add(new GameFixPresetInstallationJsonResult(
-                    gameId, installation.BuildId, selected.Count, [], [],
-                    "The discovered build is not supported by every selected fix."));
+                    targetId, installation.BuildId, selected.Count, [], [],
+                    "The discovered build is not supported by every selected fix.", null));
                 continue;
             }
 
             try
             {
-                var applied = new GameFixEngine().ApplyPreset(installation.Target, preset, installation.Directory);
+                var application = new ToolkitSnapshotService().ApplyFixPreset(target, installation.Directory, preset);
+                if (!application.Applied)
+                {
+                    results.Add(new GameFixPresetInstallationJsonResult(
+                        targetId, installation.BuildId, selected.Count, [], [], application.Error, application.SafetySnapshotId));
+                    continue;
+                }
+                var applied = application.PresetResult!;
                 results.Add(new GameFixPresetInstallationJsonResult(
-                    gameId,
+                    targetId,
                     installation.BuildId,
                     applied.SelectedFixCount,
                     applied.InstalledFixIds.ToArray(),
                     applied.AlreadyInstalledFixIds.ToArray(),
-                    null));
+                    null,
+                    application.SafetySnapshotId));
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or
                 ArgumentException or InvalidOperationException or FormatException or NotSupportedException or
                 InvalidDataException or OverflowException)
             {
                 results.Add(new GameFixPresetInstallationJsonResult(
-                    gameId, installation.BuildId, selected.Count, [], [], exception.Message));
+                    targetId, installation.BuildId, selected.Count, [], [], exception.Message, null));
             }
         }
 
@@ -509,10 +524,12 @@ internal static class Program
             foreach (var result in results)
             {
                 if (result.Error is { } error)
-                    Console.WriteLine($"{result.Game}: skipped or failed — {error}");
+                    Console.WriteLine($"{result.Game}: skipped or failed — {error}" +
+                        (result.SafetySnapshotId is null ? string.Empty : $" Safety snapshot {result.SafetySnapshotId}."));
                 else
                     Console.WriteLine($"{result.Game}: installed {result.InstalledFixIds.Length} of {result.SelectedFixCount}; " +
-                        $"{result.AlreadyInstalledFixIds.Length} already current.");
+                        $"{result.AlreadyInstalledFixIds.Length} already current." +
+                        (result.SafetySnapshotId is null ? string.Empty : $" Safety snapshot {result.SafetySnapshotId}."));
             }
         }
 
@@ -1097,7 +1114,8 @@ internal sealed record GameFixPresetJsonResult(
     int SelectedFixCount,
     string[] InstalledFixIds,
     string[] AlreadyInstalledFixIds,
-    bool Changed);
+    bool Changed,
+    string? SafetySnapshotId);
 
 internal sealed record GameFixPresetInstallationJsonResult(
     string Game,
@@ -1105,7 +1123,8 @@ internal sealed record GameFixPresetInstallationJsonResult(
     int SelectedFixCount,
     string[] InstalledFixIds,
     string[] AlreadyInstalledFixIds,
-    string? Error);
+    string? Error,
+    string? SafetySnapshotId);
 
 internal sealed record GameFixPresetAllJsonResult(
     GameFixPreset Preset,

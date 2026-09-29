@@ -190,6 +190,75 @@ public sealed class CompanionView : UserControl
         statusStack.Children.Add(btnRow);
         mainStack.Children.Add(StalkerTheme.Card(statusStack));
 
+        var inspectorStack = new StackPanel { Spacing = 10 };
+        inspectorStack.Children.Add(new TextBlock
+        {
+            Text = L.T("ЖИВОЙ ИНСПЕКТОР"),
+            FontSize = 13,
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushAccentAmber,
+            LetterSpacing = 0.8,
+        });
+        inspectorStack.Children.Add(new TextBlock
+        {
+            Text = L.T("Показываются только ответы протокола Companion: info и list_inventory."),
+            Foreground = StalkerTheme.BrushTextMuted,
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        var inspectorButton = StalkerTheme.StalkerButton(L.T("ПОЛУЧИТЬ ДАННЫЕ"), isPrimary: true, minWidth: 170);
+        inspectorButton.Bind(Button.CommandProperty, new Binding("InspectCommand"));
+        inspectorStack.Children.Add(inspectorButton);
+        var inspectorDisabled = new TextBlock
+        {
+            Foreground = StalkerTheme.BrushTextMuted,
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+            [!TextBlock.TextProperty] = new Binding("InspectorDisabledReason"),
+            [!IsVisibleProperty] = new Binding("InspectorDisabledReason")
+            {
+                Converter = new FuncValueConverter<string, bool>(reason => !string.IsNullOrWhiteSpace(reason)),
+            },
+        };
+        inspectorStack.Children.Add(inspectorDisabled);
+        inspectorStack.Children.Add(new TextBlock
+        {
+            FontSize = 11,
+            Foreground = StalkerTheme.BrushTextMuted,
+            [!TextBlock.TextProperty] = new Binding("InspectorStatus"),
+        });
+        inspectorStack.Children.Add(new TextBlock
+        {
+            Text = L.T("Информация игрока"),
+            Foreground = StalkerTheme.BrushTextSecondary,
+            FontWeight = FontWeight.SemiBold,
+        });
+        inspectorStack.Children.Add(new TextBox
+        {
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 100,
+            Background = StalkerTheme.BrushBgInput,
+            [!TextBox.TextProperty] = new Binding("InspectorInfo"),
+        });
+        inspectorStack.Children.Add(new TextBlock
+        {
+            Text = L.T("Инвентарь игрока"),
+            Foreground = StalkerTheme.BrushTextSecondary,
+            FontWeight = FontWeight.SemiBold,
+        });
+        inspectorStack.Children.Add(new TextBox
+        {
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 150,
+            Background = StalkerTheme.BrushBgInput,
+            [!TextBox.TextProperty] = new Binding("InspectorInventory"),
+        });
+        mainStack.Children.Add(StalkerTheme.Card(inspectorStack));
+
         // 2b. All games
         var gamesStack = new StackPanel { Spacing = 8 };
         gamesStack.Children.Add(new TextBlock

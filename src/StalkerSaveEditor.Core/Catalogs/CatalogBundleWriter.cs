@@ -39,6 +39,7 @@ internal static class CatalogBundleWriter
             OptionalString(json, "display_name", item.DisplayName);
             OptionalString(json, "category", item.Category);
             if (item.UnitWeight is { } weight) json.WriteNumber("unit_weight", weight);
+            OptionalInt(json, "cost", item.Cost);
             OptionalInt(json, "width", item.Width);
             OptionalInt(json, "height", item.Height);
             OptionalInt(json, "max_stack", item.MaxStack);

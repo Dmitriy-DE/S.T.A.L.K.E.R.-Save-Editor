@@ -30,6 +30,10 @@ public sealed class CompanionViewModel : ObservableViewModel
     private bool _hotkeysEnabled;
     private string? _hotkeysUnsupportedReason;
     private string _manualGameDir = string.Empty;
+    private string _inspectorInfo = string.Empty;
+    private string _inspectorInventory = string.Empty;
+    private string _inspectorStatus = string.Empty;
+    private string _inspectorUpdated = string.Empty;
 
     /// <summary>
     /// Production constructor — receives real <see cref="CompanionServiceAdapter"/>.
@@ -72,6 +76,9 @@ public sealed class CompanionViewModel : ObservableViewModel
                 }
 
                 _ = RefreshStatusAsync();
+                OnPropertyChanged(nameof(CanInspect));
+                OnPropertyChanged(nameof(InspectorDisabledReason));
+                InspectCommand.NotifyCanExecuteChanged();
             }
         }
     }
@@ -91,6 +98,9 @@ public sealed class CompanionViewModel : ObservableViewModel
                 InstallCommand.NotifyCanExecuteChanged();
                 UninstallCommand.NotifyCanExecuteChanged();
                 PingCommand.NotifyCanExecuteChanged();
+                InspectCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(CanInspect));
+                OnPropertyChanged(nameof(InspectorDisabledReason));
             }
         }
     }
@@ -148,6 +158,7 @@ public sealed class CompanionViewModel : ObservableViewModel
                 RefreshCommand.NotifyCanExecuteChanged();
                 SetManualDirCommand.NotifyCanExecuteChanged();
                 ToggleHotkeysCommand.NotifyCanExecuteChanged();
+                InspectCommand.NotifyCanExecuteChanged();
                 InstallCheckedCommand?.NotifyCanExecuteChanged();
             }
         }
@@ -187,6 +198,26 @@ public sealed class CompanionViewModel : ObservableViewModel
     {
         get => _manualGameDir;
         set => SetProperty(ref _manualGameDir, value);
+    }
+
+    public string InspectorInfo { get => _inspectorInfo; private set => SetProperty(ref _inspectorInfo, value); }
+    public string InspectorInventory { get => _inspectorInventory; private set => SetProperty(ref _inspectorInventory, value); }
+    public string InspectorStatus { get => _inspectorStatus; private set => SetProperty(ref _inspectorStatus, value); }
+    public string InspectorUpdated { get => _inspectorUpdated; private set => SetProperty(ref _inspectorUpdated, value); }
+    public bool CanInspect => !_isBusy && _service.SupportsLiveProtocol && _state is CompanionState.Installed or CompanionState.Active;
+    public string InspectorDisabledReason => !_service.SupportsLiveProtocol
+        ? L.T("Для живой проверки нужен установленный Companion-протокол.")
+        : _state is not (CompanionState.Installed or CompanionState.Active)
+            ? L.T("Установите Companion для выбранной игры; живые данные доступны при запущенной игре.")
+            : string.Empty;
+
+    public bool CanSpawnForGame(string releaseId) =>
+        _service.SupportsLiveProtocol && SelectedGame == releaseId && State == CompanionState.Active;
+
+    public async Task<(bool Success, string Message)> GiveItemAsync(string releaseId, string section)
+    {
+        var result = await _service.GiveItemAsync(releaseId, section, 1).ConfigureAwait(false);
+        return (result.Success, result.Message);
     }
 
     public bool CanInstall => !_isBusy && _state != CompanionState.Active;
@@ -284,6 +315,7 @@ public sealed class CompanionViewModel : ObservableViewModel
     public RelayCommand RefreshCommand { get; private set; } = null!;
     public RelayCommand SetManualDirCommand { get; private set; } = null!;
     public RelayCommand ToggleHotkeysCommand { get; private set; } = null!;
+    public RelayCommand InspectCommand { get; private set; } = null!;
 
     // ── Commands ──────────────────────────────────────────────────────────────
 
@@ -317,6 +349,10 @@ public sealed class CompanionViewModel : ObservableViewModel
         ToggleHotkeysCommand = new RelayCommand(
             async () => await ToggleHotkeysAsync(),
             () => !_isBusy && HotkeysSupported);
+
+        InspectCommand = new RelayCommand(
+            async () => await RefreshInspectorAsync(),
+            () => CanInspect);
     }
 
     // ── Hotkey support check ──────────────────────────────────────────────────
@@ -373,10 +409,44 @@ public sealed class CompanionViewModel : ObservableViewModel
             {
                 Hotkeys.Add(new CompanionHotkeyItemViewModel(hk));
             }
+            OnPropertyChanged(nameof(CanInspect));
+            OnPropertyChanged(nameof(InspectorDisabledReason));
+            InspectCommand.NotifyCanExecuteChanged();
         }
         catch (Exception ex)
         {
             StatusMessage = L.T("Ошибка обновления статуса: {0}", ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task RefreshInspectorAsync()
+    {
+        if (!CanInspect)
+        {
+            InspectorStatus = InspectorDisabledReason;
+            return;
+        }
+
+        IsBusy = true;
+        InspectorStatus = L.T("Чтение ответов Companion…");
+        try
+        {
+            var result = await _service.InspectAsync(_selectedGame);
+            InspectorStatus = result.Message;
+            if (result.Success)
+            {
+                InspectorInfo = result.Info;
+                InspectorInventory = result.Inventory;
+                InspectorUpdated = DateTimeOffset.Now.ToString("g", System.Globalization.CultureInfo.CurrentCulture);
+            }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            InspectorStatus = L.T("Не удалось получить данные Companion: {0}", exception.Message);
         }
         finally
         {

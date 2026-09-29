@@ -213,6 +213,10 @@ public sealed class GameDoctorViewModel : ObservableViewModel
                 var detail = check.Detail.Length == 0 ? check.Summary : check.Summary + " " + check.Detail;
                 Checks.Add(new GameDoctorCheckRow(mark, name, detail, check.Status));
             }
+            if (await Task.Run(() => CrashLogDiscovery.AnalyzeLatestInGameDirectory(report.GameDirectory, SelectedTarget.Id)) is { } crash)
+            {
+                Checks.Add(CrashRow(crash));
+            }
             LooseFiles.Clear();
             foreach (var path in report.LooseFiles) LooseFiles.Add(path);
             FileAudit.Clear();
@@ -250,6 +254,26 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         {
             IsAnalyzing = false;
         }
+    }
+
+    private static GameDoctorCheckRow CrashRow(CrashLogAnalysis crash)
+    {
+        var name = L.T("ПОСЛЕДНИЙ ЛОГ ИГРЫ");
+        if (crash.Kind == CrashLogKind.Unknown && crash.KnownIssue is null) return new GameDoctorCheckRow("✓", name, L.T("ПАДЕНИЙ В ПОСЛЕДНЕМ ЛОГЕ НЕ НАЙДЕНО."), GameDoctorStatus.Ok);
+        if (crash.KnownIssue is not { } issue)
+        {
+            return new GameDoctorCheckRow("?", name, L.T("ПАДЕНИЕ: {0}. ИЗВЕСТНОЙ ПРИЧИНЫ В КАТАЛОГЕ НЕТ.", crash.Summary), GameDoctorStatus.Unknown);
+        }
+
+        var advice = issue.Advice switch
+        {
+            CrashAdvice.InstallFix => L.T("УСТАНОВИТЕ ИСПРАВЛЕНИЕ ИГРЫ {0}.", issue.FixId ?? string.Empty),
+            CrashAdvice.RepairSave => L.T("ОТКРОЙТЕ ПОСЛЕДНИЙ СЕЙВ В ДОКТОРЕ СОХРАНЕНИЯ И ИСПРАВЬТЕ КВЕСТЫ; ЗАТЕМ УСТАНОВИТЕ ИСПРАВЛЕНИЕ ИГРЫ {0}.", issue.FixId ?? string.Empty),
+            CrashAdvice.ReloadEarlierSave => L.T("СЛУЧАЙНЫЙ СБОЙ: ЗАГРУЗИТЕ СЕЙВ ЕЩЁ РАЗ ИЛИ БОЛЕЕ РАННИЙ."),
+            CrashAdvice.CorruptSave => L.T("СЕЙВ ПОВРЕЖДЁН: ПОМОЖЕТ ТОЛЬКО БОЛЕЕ РАННИЙ СЕЙВ."),
+            _ => L.T("ИСПРАВЛЕНО В НАРОДНЫХ ПАТЧАХ (SRP ДЛЯ ЧН, ZRP ДЛЯ ТЧ); СРЕДИ НАШИХ ИСПРАВЛЕНИЙ ЕГО НЕТ."),
+        };
+        return new GameDoctorCheckRow("⚠", name, L.T("ИЗВЕСТНОЕ ПАДЕНИЕ {0}. {1}", issue.Id, advice), GameDoctorStatus.Warning);
     }
 
     public string S2ModState => _s2ModState.ToString();

@@ -15,6 +15,11 @@ public sealed record AppSettings
     public int SoundVolume { get; init; } = 80;
     public bool MusicEnabled { get; init; }
 
+    /// <summary>Visual preferences are applied live; ids keep the settings stable across languages.</summary>
+    public string ThemeId { get; init; } = "zone";
+    public string AccentId { get; init; } = "amber";
+    public int UiScalePercent { get; init; } = 100;
+
     /// <summary>Send the redacted log to the developer once a day and after a crash.</summary>
     public bool SendReports { get; init; } = true;
 

@@ -1,4 +1,6 @@
 using StalkerSaveEditor.Desktop.Services;
+using StalkerSaveEditor.Desktop.Styles;
+using Avalonia.Media;
 using System.Collections.ObjectModel;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -9,6 +11,9 @@ public sealed class LanguageOption(string code, string name)
     public string Name { get; } = name;
     public override string ToString() => Name;
 }
+
+public sealed record AppearanceOption(string Id, string Name);
+public sealed record UiScaleOption(int Percent, string Name);
 
 public sealed class SettingsViewModel : ObservableViewModel
 {
@@ -23,6 +28,10 @@ public sealed class SettingsViewModel : ObservableViewModel
     private AppSettings _stored;
     private readonly Lock _persistGate = new();
     private bool _sendReports;
+    private string _themeId = "zone";
+    private string _accentId = "amber";
+    private int _uiScalePercent = 100;
+    private ScaleTransform _uiScaleTransform = new(1, 1);
 
     public bool SendReports
     {
@@ -88,6 +97,27 @@ public sealed class SettingsViewModel : ObservableViewModel
             _musicEnabled = stored.MusicEnabled;
         }
 
+        _themeId = NormalizeThemeId(_stored.ThemeId);
+        _accentId = NormalizeAccentId(_stored.AccentId);
+        _uiScalePercent = NormalizeUiScale(_stored.UiScalePercent);
+        _uiScaleTransform = new ScaleTransform(_uiScalePercent / 100d, _uiScalePercent / 100d);
+        StalkerTheme.ApplyAppearance(_themeId, _accentId, _uiScalePercent);
+
+        Themes =
+        [
+            new AppearanceOption("zone", L.T("Зона (тёмная)")),
+            new AppearanceOption("clear-sky", L.T("Чистое небо")),
+            new AppearanceOption("day", L.T("День")),
+        ];
+        Accents =
+        [
+            new AppearanceOption("amber", L.T("Янтарный")),
+            new AppearanceOption("teal", L.T("Бирюзовый")),
+            new AppearanceOption("blue", L.T("Синий")),
+            new AppearanceOption("rust", L.T("Ржавый")),
+        ];
+        UiScales = [new UiScaleOption(100, "100%"), new UiScaleOption(125, "125%"), new UiScaleOption(150, "150%")];
+
         SaveDirectories = new ObservableCollection<string>(saveDirectories);
         _backupDirectory = backupDirectory;
 
@@ -120,6 +150,46 @@ public sealed class SettingsViewModel : ObservableViewModel
 
     public ObservableCollection<string> SaveDirectories { get; }
     public IReadOnlyList<LanguageOption> Languages { get; }
+    public IReadOnlyList<AppearanceOption> Themes { get; }
+    public IReadOnlyList<AppearanceOption> Accents { get; }
+    public IReadOnlyList<UiScaleOption> UiScales { get; }
+
+    public string ThemeId
+    {
+        get => _themeId;
+        set
+        {
+            var normalized = NormalizeThemeId(value);
+            if (SetProperty(ref _themeId, normalized)) ApplyVisualPreferences();
+        }
+    }
+
+    public string AccentId
+    {
+        get => _accentId;
+        set
+        {
+            var normalized = NormalizeAccentId(value);
+            if (SetProperty(ref _accentId, normalized)) ApplyVisualPreferences();
+        }
+    }
+
+    public int UiScalePercent
+    {
+        get => _uiScalePercent;
+        set
+        {
+            var normalized = NormalizeUiScale(value);
+            if (!SetProperty(ref _uiScalePercent, normalized)) return;
+            _uiScaleTransform = new ScaleTransform(normalized / 100d, normalized / 100d);
+            OnPropertyChanged(nameof(UiScaleFactor));
+            OnPropertyChanged(nameof(UiScaleTransform));
+            ApplyVisualPreferences();
+        }
+    }
+
+    public double UiScaleFactor => _uiScalePercent / 100d;
+    public ScaleTransform UiScaleTransform => _uiScaleTransform;
 
     public RelayCommand AddSaveDirectoryCommand { get; }
     public RelayCommand<string> RemoveSaveDirectoryCommand { get; }
@@ -245,7 +315,31 @@ public sealed class SettingsViewModel : ObservableViewModel
         SoundEnabled = SoundEnabled,
         SoundVolume = SoundVolume,
         MusicEnabled = MusicEnabled,
+        ThemeId = ThemeId,
+        AccentId = AccentId,
+        UiScalePercent = UiScalePercent,
     };
+
+    private void ApplyVisualPreferences()
+    {
+        StalkerTheme.ApplyAppearance(ThemeId, AccentId, UiScalePercent);
+        lock (_persistGate)
+        {
+            _stored = _stored with { ThemeId = ThemeId, AccentId = AccentId, UiScalePercent = UiScalePercent };
+            try
+            {
+                if (_settingsPath is not null) _stored.Save(_settingsPath);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                SettingsStatus = L.T("Не удалось сохранить настройки: ") + exception.Message;
+            }
+        }
+    }
+
+    private static string NormalizeThemeId(string? id) => id is "clear-sky" or "day" ? id : "zone";
+    private static string NormalizeAccentId(string? id) => id is "teal" or "blue" or "rust" ? id : "amber";
+    private static int NormalizeUiScale(int percent) => percent is 125 or 150 ? percent : 100;
 
     /// <summary>Writes settings.json (only in the interactive app; tests and screenshots have no path).</summary>
     private void Persist()

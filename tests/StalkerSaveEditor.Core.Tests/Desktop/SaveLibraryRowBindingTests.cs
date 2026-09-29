@@ -9,6 +9,7 @@ using Xunit;
 
 namespace StalkerSaveEditor.Core.Tests.Desktop;
 
+[Collection(AvaloniaViewTestGroup.Name)]
 public sealed class SaveLibraryRowBindingTests
 {
     [Fact]

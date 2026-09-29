@@ -285,6 +285,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsTimelineTab));
                 OnPropertyChanged(nameof(IsEncyclopediaTab));
                 OnPropertyChanged(nameof(IsToolkitEnvironmentTab));
+                OnPropertyChanged(nameof(IsGamesOverviewTab));
                 OnPropertyChanged(nameof(IsSaveWorkspace));
                 OnPropertyChanged(nameof(CurrentGroupTitle));
                 OnPropertyChanged(nameof(CurrentPageTitle));
@@ -306,6 +307,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowTimelineScreen));
                 OnPropertyChanged(nameof(ShowEncyclopediaScreen));
                 OnPropertyChanged(nameof(ShowToolkitEnvironmentScreen));
+                OnPropertyChanged(nameof(ShowGamesOverviewScreen));
                 OnPropertyChanged(nameof(IsFirstRunWizardVisible));
                 OnPropertyChanged(nameof(ShouldShowEmptyState));
             }
@@ -327,7 +329,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsGamesOverviewTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -373,12 +375,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsTimelineTab => SelectedTab == "timeline";
     public bool IsEncyclopediaTab => SelectedTab == "encyclopedia";
     public bool IsToolkitEnvironmentTab => SelectedTab == "toolkit-environment";
+    public bool IsGamesOverviewTab => SelectedTab == "games";
 
     public bool IsSaveWorkspace => SelectedTab is "overview" or "inventory" or "factions" or "stashes" or "transitions" or "backups" or "timeline" or "save-doctor";
 
     public string CurrentGroupTitle => SelectedTab switch
     {
-        "game-fixes" or "game-doctor" or "toolkit-environment" or "companion" or "achievements" => L.T("ИГРЫ"),
+        "games" or "game-fixes" or "game-doctor" or "toolkit-environment" or "companion" or "achievements" => L.T("ИГРЫ"),
         "encyclopedia" or "capabilities" or "updates" or "settings" or "cloud" => L.T("ИНСТРУМЕНТЫ"),
         _ => L.T("СОХРАНЕНИЯ"),
     };
@@ -393,6 +396,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         "timeline" => L.T("ИСТОРИЯ СОХРАНЕНИЙ"),
         "save-doctor" => L.T("ДОКТОР СОХРАНЕНИЯ"),
         "game-fixes" => L.T("ИСПРАВЛЕНИЯ ИГРЫ"),
+        "games" => L.T("ИГРЫ И ИНСТРУМЕНТЫ"),
         "game-doctor" => L.T("ДОКТОР ИГРЫ"),
         "toolkit-environment" => L.T("СРЕДА ИГРЫ"),
         "companion" => L.T("КОМПАНЬОН"),
@@ -415,7 +419,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
     public bool ShowCloudScreen => IsCloudTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsFirstRunWizardVisible;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsGamesOverviewTab && !IsFirstRunWizardVisible;
     public bool ShowAchievementsScreen => IsAchievementsTab;
     public bool ShowGameDoctorScreen => IsGameDoctorTab;
     public bool ShowSaveDoctorScreen => IsSaveDoctorTab;
@@ -424,6 +428,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowTimelineScreen => IsTimelineTab;
     public bool ShowEncyclopediaScreen => IsEncyclopediaTab;
     public bool ShowToolkitEnvironmentScreen => IsToolkitEnvironmentTab;
+    public bool ShowGamesOverviewScreen => IsGamesOverviewTab;
 
 
     public SaveFileSummary? SelectedSave

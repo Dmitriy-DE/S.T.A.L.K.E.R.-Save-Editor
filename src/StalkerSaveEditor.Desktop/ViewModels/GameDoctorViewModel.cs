@@ -10,6 +10,16 @@ public sealed record GameTargetOption(GameTarget Target, string Id, string Title
 public sealed record GameDoctorInstallationOption(GameTarget Target, string Title, string Directory, GameInstallSource Source, string? BuildId)
 {
     public string Label => $"{Title} · {Directory}";
+    public string SourceDisplay => Source switch
+    {
+        GameInstallSource.Steam => L.T("Steam"),
+        GameInstallSource.Gog => L.T("GOG"),
+        GameInstallSource.Retail => L.T("GSC Retail"),
+        GameInstallSource.Heroic => L.T("Heroic"),
+        GameInstallSource.Selected => L.T("Выбрана вручную"),
+        _ => "—",
+    };
+    public string BuildDisplay => string.IsNullOrWhiteSpace(BuildId) ? "—" : BuildId;
 }
 
 public sealed record GameDoctorCheckRow(string Mark, string Name, string Detail, GameDoctorStatus Status);
@@ -56,11 +66,21 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         get => _selectedInstallation;
         set
         {
-            if (!SetProperty(ref _selectedInstallation, value) || value is null) return;
+            if (!SetProperty(ref _selectedInstallation, value)) return;
+            OnPropertyChanged(nameof(SelectedInstallationStatus));
+            if (value is null)
+            {
+                GameDirectory = string.Empty;
+                return;
+            }
             SelectedTarget = Targets.Single(target => target.Target == value.Target);
             GameDirectory = value.Directory;
         }
     }
+
+    public string SelectedInstallationStatus => SelectedInstallation is null
+        ? L.T("Не выбрана")
+        : L.T("Установка найдена");
 
     public RelayCommand DiscoverInstallationsCommand { get; }
     public RelayCommand DisableS2ModsCommand { get; }
@@ -77,6 +97,7 @@ public sealed class GameDoctorViewModel : ObservableViewModel
                 {
                     _selectedInstallation = null;
                     OnPropertyChanged(nameof(SelectedInstallation));
+                    OnPropertyChanged(nameof(SelectedInstallationStatus));
                 }
                 InvalidateReport();
                 AnalyzeCommand.NotifyCanExecuteChanged();
@@ -106,8 +127,13 @@ public sealed class GameDoctorViewModel : ObservableViewModel
     public string DiscoveryStatus
     {
         get => _discoveryStatus;
-        private set => SetProperty(ref _discoveryStatus, value);
+        private set
+        {
+            if (SetProperty(ref _discoveryStatus, value)) OnPropertyChanged(nameof(IsDiscoveryIdle));
+        }
     }
+
+    public bool IsDiscoveryIdle => !IsDiscovering && string.IsNullOrWhiteSpace(DiscoveryStatus);
 
     public bool IsAnalyzing
     {
@@ -127,7 +153,9 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         get => _isDiscovering;
         private set
         {
-            if (SetProperty(ref _isDiscovering, value)) DiscoverInstallationsCommand.NotifyCanExecuteChanged();
+            if (!SetProperty(ref _isDiscovering, value)) return;
+            DiscoverInstallationsCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsDiscoveryIdle));
         }
     }
 
@@ -157,6 +185,8 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         try
         {
             var found = await Task.Run(_discoverInstallations);
+            var previousSelection = SelectedInstallation;
+            if (previousSelection is not null) SelectedInstallation = null;
             Installations.Clear();
             foreach (var installation in found)
             {
@@ -168,6 +198,16 @@ public sealed class GameDoctorViewModel : ObservableViewModel
                     installation.BuildId));
             }
 
+            if (previousSelection is not null)
+            {
+                SelectedInstallation = Installations.FirstOrDefault(installation =>
+                    installation.Target == previousSelection.Target &&
+                    string.Equals(
+                        Path.TrimEndingDirectorySeparator(installation.Directory),
+                        Path.TrimEndingDirectorySeparator(previousSelection.Directory),
+                        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            }
+
             if (Installations.Count == 0)
                 DiscoveryStatus = L.T("●  НЕ НАЙДЕНО");
             else
@@ -175,7 +215,8 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
-            DiscoveryStatus = L.T("ОШИБКА: {0}", exception.Message);
+            AppLog.Warn("game installation discovery failed", exception);
+            DiscoveryStatus = L.T("Не удалось найти установки. Укажите папку игры вручную в Докторе игры.");
         }
         finally
         {

@@ -1,5 +1,7 @@
 using StalkerSaveEditor.Desktop.Services;
+using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
+using Avalonia.Media;
 using Xunit;
 
 namespace StalkerSaveEditor.Core.Tests.Desktop;
@@ -29,6 +31,42 @@ public sealed class SettingsAndAudioTests : IDisposable
         Assert.Equal(["/a", "/games/cop/savedgames"], second.SaveDirectories);
         Assert.Equal(35, second.SoundVolume);
         Assert.True(second.MusicEnabled);
+    }
+
+    [Fact]
+    public void Visual_preferences_apply_live_and_persist_without_the_save_button()
+    {
+        var path = Path.Combine(_directory, "settings.json");
+        StalkerTheme.ApplyAppearance("zone", "amber", 100);
+        var originalBackground = StalkerTheme.BgBase;
+
+        try
+        {
+            var settings = new SettingsViewModel(["/a"], "/backups", settingsPath: path);
+            settings.ThemeId = "clear-sky";
+            settings.AccentId = "teal";
+            settings.UiScalePercent = 125;
+
+            var saved = AppSettings.Load(path);
+            Assert.Equal("clear-sky", saved.ThemeId);
+            Assert.Equal("teal", saved.AccentId);
+            Assert.Equal(125, saved.UiScalePercent);
+            Assert.NotEqual(originalBackground, StalkerTheme.BgBase);
+            Assert.Equal(1.25, settings.UiScaleFactor);
+
+            var reloaded = new SettingsViewModel(
+                saved.SaveDirectories ?? ["/a"],
+                saved.BackupDirectory ?? "/backups",
+                settingsPath: path,
+                stored: saved);
+            Assert.Equal("clear-sky", reloaded.ThemeId);
+            Assert.Equal("teal", reloaded.AccentId);
+            Assert.Equal(125, reloaded.UiScalePercent);
+        }
+        finally
+        {
+            StalkerTheme.ApplyAppearance("zone", "amber", 100);
+        }
     }
 
     [Fact]

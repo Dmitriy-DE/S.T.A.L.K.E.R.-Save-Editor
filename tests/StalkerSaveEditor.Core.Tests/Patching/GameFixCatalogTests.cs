@@ -39,8 +39,7 @@ public sealed class GameFixCatalogTests
         Assert.Contains(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Id == fix.Id);
         Assert.DoesNotContain(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Category == GameFixCategory.Community);
 
-        foreach (var game in Enum.GetValues<GameTarget>().Where(game => game is not GameTarget.ClearSky and not GameTarget.ShadowOfChernobyl and not GameTarget.CallOfPripyat))
-            Assert.Empty(GameFixCatalog.ForGame(game));
+        Assert.Empty(GameFixCatalog.ForGame(GameTarget.Stalker2));
         Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.AllSafeFixes));
         Assert.Empty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Custom));
     }

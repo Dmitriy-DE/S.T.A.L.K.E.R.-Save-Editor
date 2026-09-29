@@ -103,6 +103,37 @@ public sealed class HotkeyLayout
 
     public IReadOnlyList<CompanionHotkeyBinding> Bindings { get; }
 
+    public static string ActionName(CompanionHotkeyAction action) =>
+        ActionNames.First(pair => pair.Value == action).Key;
+
+    /// <summary>The same action=Ctrl+Key text that <see cref="Parse"/> reads.</summary>
+    public string ToText() =>
+        string.Concat(Bindings.Select(binding => ActionName(binding.Action) + "=" + binding.Gesture + "\n"));
+
+    /// <summary>The user's layout from <paramref name="path"/>, or the default when the file is missing or invalid.</summary>
+    public static HotkeyLayout Load(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? Parse(File.ReadAllText(path)) : Default;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or HotkeyLayoutException)
+        {
+            return Default;
+        }
+    }
+
+    /// <summary>Atomic write of <see cref="ToText"/>.</summary>
+    public void Save(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        var temp = path + ".tmp";
+        File.WriteAllText(temp, ToText());
+        File.Move(temp, path, overwrite: true);
+    }
+
+    public static string DefaultPath => Path.Combine(StalkerSaveEditor.Core.Diagnostics.AppPaths.DataDirectory, "hotkeys.txt");
+
     public static HotkeyLayout Default { get; } = new(Array.AsReadOnly<CompanionHotkeyBinding>(
     [
         new(CompanionHotkeyAction.Heal, HotkeyGesture.Parse("Ctrl+H")),

@@ -48,6 +48,9 @@ public sealed class StashViewModel : ObservableViewModel
     public string Level { get; }
     public ObservableCollection<StashItemViewModel> Items { get; }
 
+    /// <summary>Items queued to be put or created in this box on save.</summary>
+    public ObservableCollection<string> Pending { get; } = [];
+
     public int ItemCount => Items.Count;
     public string HeaderDisplay => L.T("{0} ({1}) — {2} предм.", Name, Level, Items.Count);
 }

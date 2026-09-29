@@ -119,8 +119,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     public Task<IReadOnlyList<CompanionHotkey>> GetHotkeysAsync(
         string gameReleaseId, CancellationToken ct = default)
     {
-        // Return the default layout bindings as display items.
-        IReadOnlyList<CompanionHotkey> result = HotkeyLayout.Default.Bindings
+        IReadOnlyList<CompanionHotkey> result = CurrentLayout.Bindings
             .Select(b => new CompanionHotkey(
                 ActionToId(b.Action),
                 b.Gesture.ToString(),
@@ -250,7 +249,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
 
                 if (!rt.HotkeyService.IsActive)
                 {
-                    await rt.HotkeyService.StartAsync(layout ?? HotkeyLayout.Default, ct)
+                    await rt.HotkeyService.StartAsync(layout ?? CurrentLayout, ct)
                         .ConfigureAwait(false);
                 }
 
@@ -339,6 +338,21 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
             null,
             s.GameDirectory ?? "—",
             issueText);
+    }
+
+    /// <summary>The user's saved layout (hotkeys.txt in the data folder), or the default.</summary>
+    public HotkeyLayout CurrentLayout => HotkeyLayout.Load(HotkeyLayoutPath);
+
+    public string HotkeyLayoutPath { get; init; } = HotkeyLayout.DefaultPath;
+
+    /// <summary>Saves the layout and, when hotkeys are running for the game, restarts them with it.</summary>
+    public async Task<(bool Success, string? Error)> SaveHotkeyLayoutAsync(string gameReleaseId, HotkeyLayout layout, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(layout);
+        layout.Save(HotkeyLayoutPath);
+        if (!AreHotkeysActive(gameReleaseId)) return (true, null);
+        var stopped = await ToggleHotkeysAsync(gameReleaseId, enable: false, ct: ct).ConfigureAwait(false);
+        return stopped.Success ? await ToggleHotkeysAsync(gameReleaseId, enable: true, layout, ct).ConfigureAwait(false) : stopped;
     }
 
     private static string ActionToId(CompanionHotkeyAction action) => action switch

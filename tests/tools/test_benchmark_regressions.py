@@ -82,6 +82,53 @@ class BenchmarkRegressionTests(unittest.TestCase):
         self.assertEqual(1, result, output)
         self.assertIn("ParseFixture time", output)
 
+    def use_three_methods(self) -> None:
+        benchmarks = {name: {"meanNanoseconds": 100, "allocatedBytes": 100} for name in ("A", "B", "C")}
+        data = json.loads(self.baseline.read_text(encoding="utf-8"))
+        data["benchmarks"] = benchmarks
+        self.baseline.write_text(json.dumps(data), encoding="utf-8")
+
+    def write_methods(self, times: dict[str, str]) -> None:
+        for index in range(1, 4):
+            results = self.reports / f"run-{index}" / "results"
+            results.mkdir(parents=True)
+            with (results / "benchmark-report.csv").open("w", newline="", encoding="utf-8") as stream:
+                writer = csv.writer(stream)
+                writer.writerow(("Method", "Mean", "Allocated"))
+                for name, mean in times.items():
+                    writer.writerow((name, mean, "100 B"))
+            (results / "benchmark-report-github.md").write_text(
+                "BenchmarkDotNet, Linux\nAMD EPYC 7763 2.45GHz, 1 CPU\n  [Host] : .NET 10, X64 RyuJIT x86-64-v3\n",
+                encoding="utf-8",
+            )
+
+    def test_uniformly_slower_runner_is_not_a_regression(self) -> None:
+        self.use_three_methods()
+        self.write_methods({"A": "133 ns", "B": "137 ns", "C": "132 ns"})
+
+        result, output = self.check()
+
+        self.assertEqual(0, result, output)
+        self.assertIn("Runner speed factor", output)
+
+    def test_one_method_slower_than_the_others_still_fails(self) -> None:
+        self.use_three_methods()
+        self.write_methods({"A": "100 ns", "B": "102 ns", "C": "150 ns"})
+
+        result, output = self.check()
+
+        self.assertEqual(1, result, output)
+        self.assertIn("C median time regressed", output)
+
+    def test_everything_twice_as_slow_fails_on_the_absolute_limit(self) -> None:
+        self.use_three_methods()
+        self.write_methods({"A": "210 ns", "B": "215 ns", "C": "220 ns"})
+
+        result, output = self.check()
+
+        self.assertEqual(1, result, output)
+        self.assertIn("absolute limit", output)
+
     def test_checks_allocations_in_every_run_without_taking_a_median(self) -> None:
         self.write_samples(("100 ns", "100 ns", "100 ns"), ("100 B", "100 B", "131 B"))
 

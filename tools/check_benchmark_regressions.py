@@ -13,6 +13,7 @@ from pathlib import Path
 
 
 EXPECTED_RUNS = 3
+MAXIMUM_ABSOLUTE_TIME_RATIO = 2.0
 TIME_UNITS_TO_NS = {"ns": 1.0, "us": 1_000.0, "µs": 1_000.0, "ms": 1_000_000.0, "s": 1_000_000_000.0}
 BYTE_UNITS_TO_BYTES = {"b": 1.0, "kb": 1024.0, "kib": 1024.0, "mb": 1024.0**2, "mib": 1024.0**2}
 MEASUREMENT = re.compile(r"^\s*([\d,]+(?:\.\d+)?)\s*([a-zA-Zµ]+)\s*$")
@@ -93,6 +94,7 @@ def check(baseline_path: Path, report_dir: Path) -> int:
 
     failures: list[str] = []
     skipped_time_methods: list[str] = []
+    time_ratios: dict[str, float] = {}
     for method, reference in expected.items():
         runs = observed[method]
         if len(runs) != EXPECTED_RUNS:
@@ -114,8 +116,7 @@ def check(baseline_path: Path, report_dir: Path) -> int:
                 f"{method} time median of {EXPECTED_RUNS}: {median_time:.2f} vs baseline "
                 f"{time_baseline:.2f} ({time_ratio:.2f}x)"
             )
-            if time_ratio > threshold:
-                failures.append(f"{method} median time regressed {time_ratio:.2f}x (limit {threshold:.2f}x)")
+            time_ratios[method] = time_ratio
         else:
             fingerprints = sorted({f"{result['cpuModel']} / {result['jitTarget']}" for result in runs.values()})
             skipped_time_methods.append(method)
@@ -134,6 +135,24 @@ def check(baseline_path: Path, report_dir: Path) -> int:
             print(f"{label}: {actual_value:.2f} vs baseline {allocation_baseline:.2f} ({ratio:.2f}x)")
             if ratio > threshold:
                 failures.append(f"{label} regressed {ratio:.2f}x (limit {threshold:.2f}x)")
+
+    # A slower hosted runner makes every benchmark slower by about the same factor. With three or more
+    # comparable methods the median slowdown is treated as runner speed; a method still fails when it is
+    # slower than the others by more than the threshold, or slower than the baseline by more than 2x.
+    runner_factor = statistics.median(time_ratios.values()) if len(time_ratios) >= 3 else 1.0
+    runner_factor = max(runner_factor, 1.0)
+    if runner_factor > 1.0:
+        print(f"Runner speed factor (median time ratio): {runner_factor:.2f}x")
+    absolute_limit = max(threshold, MAXIMUM_ABSOLUTE_TIME_RATIO)
+    for method, time_ratio in time_ratios.items():
+        relative = time_ratio / runner_factor
+        if relative > threshold:
+            failures.append(
+                f"{method} median time regressed {time_ratio:.2f}x "
+                f"({relative:.2f}x after runner factor, limit {threshold:.2f}x)"
+            )
+        elif time_ratio > absolute_limit:
+            failures.append(f"{method} median time regressed {time_ratio:.2f}x (absolute limit {absolute_limit:.2f}x)")
 
     if failures:
         print("Performance regression threshold exceeded:", file=sys.stderr)

@@ -1,0 +1,194 @@
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+
+namespace StalkerSaveEditor.Core.Diagnostics;
+
+/// <summary>What the user can do about a known crash.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<CrashAdvice>))]
+public enum CrashAdvice
+{
+    /// <summary>Install the named Game Fix; the crash cannot recur after it.</summary>
+    InstallFix,
+    /// <summary>Run Quest Doctor on the last save; the named rule repairs the cause.</summary>
+    RepairSave,
+    /// <summary>A transient engine or spawn failure: load an earlier save.</summary>
+    ReloadEarlierSave,
+    /// <summary>Fixed only by a community patch (SRP for Clear Sky, ZRP for Shadow of Chernobyl); nothing we ship.</summary>
+    CommunityPatch,
+    /// <summary>The save itself is damaged; only an older save helps.</summary>
+    CorruptSave,
+}
+
+/// <summary>A crash message documented by a community patch history, matched against a game log.</summary>
+public sealed record CrashSignature(
+    string Id,
+    string Game,
+    string Title,
+    CrashAdvice Advice,
+    string Explanation,
+    string Source)
+{
+    public string? FixId { get; init; }
+
+    public string? QuestRuleId { get; init; }
+
+    [JsonIgnore]
+    internal Regex Pattern { get; init; } = null!;
+}
+
+/// <summary>
+/// Crash messages quoted verbatim in the SRP v1.1.5 history (Clear Sky) and ZRP 1.09 CrashesStillInTheGame
+/// (Shadow of Chernobyl). A match names the documented cause; it never changes a file.
+/// </summary>
+public static class CrashSignatureCatalog
+{
+    private const string Srp = "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt";
+    private const string Zrp = "ZRP 1.09 XR3a, gamedata/docs/CrashesStillInTheGame.txt (metacognix.com)";
+    private const string ClearSky = "cs";
+    private const string Shadow = "soc";
+
+    private static Regex P(string pattern) =>
+        new(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+    public static IReadOnlyList<CrashSignature> All { get; } =
+    [
+        new("cs.wrong-target-wild-napr", ClearSky, "Task targets Wild Napr after his death", CrashAdvice.RepairSave,
+            "A Flea Market task was given with Wild Napr as its target after he died offline.", Srp)
+        {
+            Pattern = P(@"wrong target for storyline quest:\s*logic@work5,\s*gar_smart_terrain_6_3"),
+            FixId = "cs.quest.dead-wild-napr",
+            QuestRuleId = "cs.wild-napr-dead",
+        },
+        new("cs.insufficient-smart-jobs", ClearSky, "Too many stalkers for one camp", CrashAdvice.CommunityPatch,
+            "More squads were sent to a smart terrain than it has jobs (Dark Valley wagon, Army Warehouses rocks and others).", Srp)
+        {
+            Pattern = P(@"Insufficient smart_terrain jobs"),
+        },
+        new("cs.sim-combat-actor-nil", ClearSky, "Loading a save during a squad fight", CrashAdvice.ReloadEarlierSave,
+            "sim_combat.script reads the actor before it exists right after a save is loaded; loading again usually works.", Srp)
+        {
+            Pattern = P(@"sim_combat\.script:\d+:\s*attempt to index field 'actor' \(a nil value\)"),
+        },
+        new("cs.sim-combat-attack-squad-nil", ClearSky, "Help task for a squad that no longer exists", CrashAdvice.CommunityPatch,
+            "The game evaluated a 'help' task for an attacking squad that was already gone.", Srp)
+        {
+            Pattern = P(@"sim_combat\.script:\d+:\s*attempt to index local 'attack_squad_obj'"),
+        },
+        new("cs.squad-current-action-nil", ClearSky, "Smart terrain captured by a squad without an action", CrashAdvice.CommunityPatch,
+            "A squad captured a smart terrain while it had no current action.", Srp)
+        {
+            Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index field 'current_action'"),
+        },
+        new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.ReloadEarlierSave,
+            "The campfire story scheme picked a random speaker from an empty list.", Srp)
+        {
+            Pattern = P(@"xr_kamp\.script:\d+:\s*bad argument #1 to 'random' \(interval is empty\)"),
+        },
+        new("cs.robbery-squad-left", ClearSky, "Robbers left during a hold-up", CrashAdvice.CommunityPatch,
+            "A robber squad walked off to another camp in the middle of a hold-up.", Srp)
+        {
+            Pattern = P(@"sr_robbery\.script:\d+:\s*attempt to index field '\?' \(a nil value\)"),
+        },
+        new("cs.robbery-manager-nil", ClearSky, "Robbery leader chosen from a squad that already left", CrashAdvice.CommunityPatch,
+            "The robbery scheme still counted a squad that had left the camp when it picked the leader.", Srp)
+        {
+            Pattern = P(@"actor_reaction\.script:\d+:\s*attempt to index local 'manager'"),
+        },
+        new("cs.capture-task-missing-squad", ClearSky, "Capture task for a squad that does not exist", CrashAdvice.CommunityPatch,
+            "The game tried to give a 'capture' task to a squad that no longer exists.", Srp)
+        {
+            Pattern = P(@"task_objects\.script:\d+:\s*attempt to index field '\?' \(a nil value\)"),
+        },
+        new("cs.anomaly-art-nil", ClearSky, "Artefact spawn in an anomaly field", CrashAdvice.ReloadEarlierSave,
+            "An anomaly field referenced an artefact that was already gone.", Srp)
+        {
+            Pattern = P(@"bind_anomaly_zone\.script:\d+:\s*attempt to index local 'art'"),
+        },
+        new("cs.saving-too-much", ClearSky, "Save data too large", CrashAdvice.CommunityPatch,
+            "The scripts wrote more data into a save packet than the engine allows.", Srp)
+        {
+            Pattern = P(@"You are saving too much"),
+        },
+        new("cs.patrol-point-cordon-bonfire", ClearSky, "Patrol point at the Cordon forest bonfire", CrashAdvice.CommunityPatch,
+            "A stalker patrolling the 'Bonfire in forest' reached a waypoint that is not on the level graph.", Srp)
+        {
+            Pattern = P(@"patrol path\s*\[esc_smart_terrain_3_7_walker_1_walk\]"),
+        },
+        new("cs.patrol-red-forest-trader", ClearSky, "Red Forest mine trader left his desk", CrashAdvice.CommunityPatch,
+            "The trader in the mine strayed from his spot and his patrol path became unreachable.", Srp)
+        {
+            Pattern = P(@"patrol path\s*\[red_smart_terrain_3_2_patrol_1_walk\] is inaccessible"),
+        },
+        new("cs.patrol-agroprom-orest", ClearSky, "Orest displaced in Agroprom", CrashAdvice.CommunityPatch,
+            "Orest was pushed out of his space restrictor and his walk path became unreachable.", Srp)
+        {
+            Pattern = P(@"patrol path\s*\[agr_stalker_leader_walk\] is inaccessible"),
+        },
+        new("cs.missing-rukzak-model", ClearSky, "Missing backpack model", CrashAdvice.CommunityPatch,
+            "The game referenced a backpack mesh that is not shipped.", Srp)
+        {
+            Pattern = P(@"Can't find model file 'dynamics\\equipments\\item_rukzak\.ogf'"),
+        },
+        new("cs.treasure-box-in-use", ClearSky, "Stash refilled while Stringov is alive", CrashAdvice.CommunityPatch,
+            "Re-entering the Garbage tried to fill a stash that was already filled.", Srp)
+        {
+            Pattern = P(@"Unable to give treasure \[gar_treasure_quest_smuggler_weapons\]"),
+        },
+        new("cs.red-forest-missing-squad", ClearSky, "Witch Circle ambush squad already dead", CrashAdvice.CommunityPatch,
+            "Following Strelok's helper into the ambush after the ambush squad was killed.", Srp)
+        {
+            Pattern = P(@"There is no squad \[red_pursuit_bounty_hunters_squad_\d+\] in sim_board"),
+        },
+        new("cs.military-dogs-path", ClearSky, "Army Warehouses mutant attack path", CrashAdvice.CommunityPatch,
+            "A mutant squad attacking the military base had no path between two smart terrains (new game needed after the patch).", Srp)
+        {
+            Pattern = P(@"Path between \[mil_smart_terrain_7_11\] and \[mil_smart_terrain_7_10\] doesnt exist"),
+        },
+        new("soc.controller-body-state", Shadow, "Controller animation crash", CrashAdvice.ReloadEarlierSave,
+            "A bad controller animation, usually while it is under attack. Kill controllers before they reach this state.", Zrp)
+        {
+            Pattern = P(@"dBodyStateValide\(b\)"),
+        },
+        new("soc.entity-not-found", Shadow, "Dropped weapon vanished while an NPC evaluated it", CrashAdvice.ReloadEarlierSave,
+            "A killed NPC's weapon was destroyed or fell through the ground while another NPC considered picking it up.", Zrp)
+        {
+            Pattern = P(@"entity not found\.\s*id_parent=\d+\s*id_entity=\d+"),
+        },
+        new("soc.map-location-dead-object", Shadow, "Map spot bound to a destroyed body", CrashAdvice.CorruptSave,
+            "The game destroyed a body but kept its map spot; every later save carries the damage.", Zrp)
+        {
+            Pattern = P(@"(?:SMapLocation|CMapLocation::UpdateSpot) binded to non-existent object"),
+        },
+        new("soc.no-level-in-graph", Shadow, "Creature spawned outside the level", CrashAdvice.ReloadEarlierSave,
+            "A mutant or NPC was spawned outside the level or below it.", Zrp)
+        {
+            Pattern = P(@"there is no specified level in the game graph|There is no proper graph point neighbour"),
+        },
+        new("soc.unknown-weapon-rank", Shadow, "Weapon missing from the rank table", CrashAdvice.CommunityPatch,
+            "A weapon (usually from a mod) has no entry in the weapon rank table.", Zrp)
+        {
+            Pattern = P(@"cannot find rank for"),
+        },
+        new("soc.format-no-value", Shadow, "Script string formatting error", CrashAdvice.CommunityPatch,
+            "A script passed nothing to string.format; usually an incompatible mod.", Zrp)
+        {
+            Pattern = P(@"bad argument #2 to 'format' \(string expected, got no value\)"),
+        },
+    ];
+
+    /// <summary>The first signature whose pattern occurs in the log, limited to one game when it is known.</summary>
+    public static CrashSignature? Match(string text, string? game = null)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var key = NormalizeGame(game);
+        return All.FirstOrDefault(signature => (key is null || signature.Game == key) && signature.Pattern.IsMatch(text));
+    }
+
+    private static string? NormalizeGame(string? game) => game?.Trim().ToLowerInvariant() switch
+    {
+        null or "" => null,
+        "cs" or "cs-ee" or "clear sky" or "stalker-cs" or "stalker-cs-ee" => ClearSky,
+        "soc" or "soc-ee" or "shadow of chernobyl" or "stalker-soc" or "stalker-soc-ee" => Shadow,
+        _ => "none",
+    };
+}

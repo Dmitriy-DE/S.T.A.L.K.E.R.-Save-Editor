@@ -10,10 +10,39 @@ public sealed record GameFixCategoryRow(string Name, GameFixCategory Category, i
 public sealed record GameFixEntry(GameFixDefinition Definition, GameFixState State, string? InstalledVersion = null)
 {
     public string Id => Definition.Id;
-    public string Title => Definition.Title;
-    public string Problem => Definition.Problem;
-    public string Description => Definition.Description;
-    public string Source => Definition.Source;
+    public string Title => Definition.Id switch
+    {
+        "cop.prp.crow-counter-guard" => L.T("Защитить счётчик ворон от повторного уменьшения"),
+        "cop.prp.x8-burer-health-guard" => L.T("Устранить восстановление здоровья буреров за пределами X8"),
+        "cop.prp.jupiter-scanner-task-guard" => L.T("Запретить установку сканеров Юпитера до начала задания"),
+        "cop.prp.altered-insulator-door-gate" => L.T("Открывать дверь изменённого изолятора только по заданию и с артефактом"),
+        "cop.prp.knife-hit-reach" => L.T("Исправить дальность и радиус второго удара ножа"),
+        "cop.prp.sky-stretching-fix" => L.T("Исправить растяжение неба в шейдерах R2 и R3"),
+        _ => Definition.Title,
+    };
+    public string Problem => Definition.Id switch
+    {
+        "cop.prp.crow-counter-guard" => L.T("Повторная очистка сетевого объекта может уменьшить счётчик ворон уже удалённой птицы."),
+        "cop.prp.x8-burer-health-guard" => L.T("Попадание по буреру снаружи ограничителя лаборатории X8 полностью восстанавливает его здоровье."),
+        "cop.prp.jupiter-scanner-task-guard" => L.T("Два дополнительных поля позволяют установить сканер до запуска соответствующего задания."),
+        "cop.prp.altered-insulator-door-gate" => L.T("Зонный триггер открывает дверь без проверки задания и наличия половины артефакта."),
+        "cop.prp.knife-hit-reach" => L.T("Вторая зона удара ножа короче и уже первой зоны."),
+        "cop.prp.sky-stretching-fix" => L.T("Вершинные шейдеры неба одинаково масштабируют вертикальную координату."),
+        _ => Definition.Problem,
+    };
+    public string Description => Definition.Id switch
+    {
+        "cop.prp.crow-counter-guard" => L.T("Удалять запись только пока ворона зарегистрирована и не допускать отрицательного счётчика."),
+        "cop.prp.x8-burer-health-guard" => L.T("Удалить три обработчика попаданий, которые восстанавливают здоровье буреров при атаке извне X8."),
+        "cop.prp.jupiter-scanner-task-guard" => L.T("Добавить проверку начала задания только для четвёртого и пятого полей установки."),
+        "cop.prp.altered-insulator-door-gate" => L.T("Проверять начало задания и наличие половины артефакта перед открытием двери."),
+        "cop.prp.knife-hit-reach" => L.T("Изменить только расстояние и радиус второй зоны удара по исправлению PRP."),
+        "cop.prp.sky-stretching-fix" => L.T("Заменить только преобразование позиции неба в шейдерах DirectX 9 (R2) и DirectX 10 (R3)."),
+        _ => Definition.Description,
+    };
+    public string Source => Definition.Id.StartsWith("cop.prp.", StringComparison.Ordinal)
+        ? L.T("Источник: Pripyat Reclamation Patch v1.2")
+        : Definition.Source;
     public string Builds => string.Join(", ", Definition.SupportedSteamBuildIds);
     public string CategoryName => GameFixesViewModel.CategoryName(Definition.Category);
     public string MaturityName => Definition.Maturity switch

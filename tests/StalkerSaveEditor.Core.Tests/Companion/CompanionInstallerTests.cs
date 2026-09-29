@@ -35,6 +35,23 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
+    public void Shipped_cop_fixes_do_not_overlap_companion_assets()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var installer = new CompanionInstaller(ModSourceRoot);
+        installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+
+        var companionPaths = installer.GetManagedFileStatus(CompanionGame.CallOfPripyat, game.GameDirectory)
+            .Select(file => file.RelativePath.Replace('\\', '/'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var gameFixPaths = GameFixCatalog.ForGame(GameTarget.CallOfPripyat)
+            .SelectMany(fix => fix.TextPatches)
+            .Select(patch => patch.RelativePath.Replace('\\', '/'));
+
+        Assert.DoesNotContain(gameFixPaths, companionPaths.Contains);
+    }
+
+    [Fact]
     public void Companion_file_inventory_reports_owned_files_and_hash_drift()
     {
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);

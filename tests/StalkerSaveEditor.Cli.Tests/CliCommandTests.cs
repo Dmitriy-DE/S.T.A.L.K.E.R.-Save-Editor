@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using StalkerSaveEditor.Cli;
 using StalkerSaveEditor.Core.Formats.Stalker2;
 using StalkerSaveEditor.Core.Formats.XRay;
@@ -99,20 +100,25 @@ public sealed class CliCommandTests
     }
 
     [Fact]
-    public void Fixes_list_reports_only_researched_catalogue_entries()
+    public void Fixes_list_reports_retail_verified_catalogue_entries()
     {
         var human = Run("fixes", "list");
-        var json = Run("fixes", "list", "--json");
-        var unsupported = Run("fixes", "list", "--game", "soc", "--json");
+        var json = Run("fixes", "list", "--game", "cs", "--json");
+        var unsupported = Run("fixes", "list", "--game", "unknown", "--json");
 
         Assert.Equal(0, human.ExitCode);
         Assert.Contains("cs.quest.dead-wild-napr [cs] Essential", human.Output, StringComparison.Ordinal);
         Assert.Equal(0, json.ExitCode);
-        Assert.Contains("cs.quest.dead-wild-napr", json.Output, StringComparison.Ordinal);
-        Assert.Contains("11450472", json.Output, StringComparison.Ordinal);
-        Assert.Contains("Experimental", json.Output, StringComparison.Ordinal);
-        Assert.Equal(0, unsupported.ExitCode);
-        Assert.Equal("[]" + Environment.NewLine, unsupported.Output);
+        using var catalogue = JsonDocument.Parse(json.Output);
+        var entries = catalogue.RootElement.EnumerateArray().ToArray();
+        Assert.Equal(25, entries.Length);
+        Assert.Contains(entries, entry => entry.GetProperty("id").GetString() == "cs.quest.dead-wild-napr");
+        Assert.All(entries, entry =>
+        {
+            Assert.Equal("Validated", entry.GetProperty("maturity").GetString());
+            Assert.Equal("11450472", Assert.Single(entry.GetProperty("supportedSteamBuildIds").EnumerateArray()).GetString());
+        });
+        Assert.Equal(2, unsupported.ExitCode);
     }
 
     [Fact]
@@ -136,12 +142,17 @@ public sealed class CliCommandTests
             var json = Run("fixes", "status", "cs", root, "--json");
 
             Assert.Equal(0, human.ExitCode);
-            Assert.Contains("1 catalogued; 0 safe recommendations; 0 installed; 1 experimental", human.Output, StringComparison.Ordinal);
+            Assert.Contains("25 catalogued;", human.Output, StringComparison.Ordinal);
             Assert.Equal(0, json.ExitCode);
-            Assert.Contains("\"buildId\": \"11450472\"", json.Output, StringComparison.Ordinal);
-            Assert.Contains("\"recommendedFixIds\": []", json.Output, StringComparison.Ordinal);
-            Assert.Contains("experimental or research-only", json.Output, StringComparison.Ordinal);
-            Assert.Contains("cs.quest.dead-wild-napr", json.Output, StringComparison.Ordinal);
+            using var status = JsonDocument.Parse(json.Output);
+            var statusRoot = status.RootElement;
+            Assert.Equal("11450472", statusRoot.GetProperty("buildId").GetString());
+            Assert.Equal(25, statusRoot.GetProperty("availableFixes").GetArrayLength());
+            var recommended = statusRoot.GetProperty("recommendedFixIds").EnumerateArray().Select(id => id.GetString()).ToArray();
+            Assert.NotEmpty(recommended);
+            Assert.All(recommended, id => Assert.Contains(statusRoot.GetProperty("availableFixes").EnumerateArray(), fix => fix.GetProperty("id").GetString() == id));
+            Assert.Null(statusRoot.GetProperty("catalogueNote").GetString());
+            Assert.Contains(statusRoot.GetProperty("recommendedFixIds").EnumerateArray(), id => id.GetString() == "cs.quest.dead-wild-napr");
         }
         finally
         {
@@ -150,7 +161,7 @@ public sealed class CliCommandTests
     }
 
     [Fact]
-    public void Fixes_apply_preset_keeps_experimental_entries_out_of_recommended_json_result()
+    public void Fixes_apply_recommended_preset_fails_closed_when_retail_files_are_missing()
     {
         var library = Path.Combine(Path.GetTempPath(), "sse-fix-preset-cli-" + Guid.NewGuid().ToString("N"));
         var root = Path.Combine(library, "steamapps", "common", "STALKER Clear Sky");
@@ -168,10 +179,8 @@ public sealed class CliCommandTests
         {
             var result = Run("fixes", "apply-preset", "recommended", "cs", root, "--json");
 
-            Assert.Equal(0, result.ExitCode);
-            Assert.Contains("\"preset\": \"Recommended\"", result.Output, StringComparison.Ordinal);
-            Assert.Contains("\"selectedFixCount\": 0", result.Output, StringComparison.Ordinal);
-            Assert.Contains("\"installedFixIds\": []", result.Output, StringComparison.Ordinal);
+            Assert.Equal(2, result.ExitCode);
+            Assert.False(string.IsNullOrWhiteSpace(result.Error));
             Assert.False(Directory.Exists(Path.Combine(root, ".save-editor-game-fixes")));
         }
         finally

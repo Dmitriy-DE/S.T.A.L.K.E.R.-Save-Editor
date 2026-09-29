@@ -148,29 +148,38 @@ public static class GameDoctor
             var modified = installedFixes.Count(fix => fix.State == GameFixState.Modified);
             var available = GameFixCatalog.ForGame(target);
             var recommended = GameFixCatalog.ForPreset(target, GameFixPreset.Recommended);
+            var recommendedBuildCompatible = recommended.Count > 0 && buildId is { } currentBuild &&
+                recommended.All(fix => fix.SupportedSteamBuildIds.Contains(currentBuild, StringComparer.Ordinal));
+            var applicableRecommended = recommendedBuildCompatible ? recommended : [];
             var installedIds = installedFixes
                 .Where(fix => fix.State == GameFixState.Installed)
                 .Select(fix => fix.Id)
                 .ToHashSet(StringComparer.Ordinal);
-            var missingRecommended = recommended.Count(fix => !installedIds.Contains(fix.Id));
+            var missingRecommended = applicableRecommended.Count(fix => !installedIds.Contains(fix.Id));
             var experimental = available.Count(fix => fix.Maturity == GameFixMaturity.Experimental);
             checks.Add(installedFixes.Count == 0
                 ? available.Count == 0
                     ? new GameDoctorCheck("game-fixes", GameDoctorStatus.Unknown, "No toolkit Game Fixes are installed.",
                         "No built-in fix is catalogued for this target; this is not a clean-file verification.")
-                    : recommended.Count == 0
-                        ? new GameDoctorCheck("game-fixes", GameDoctorStatus.Unknown, "No safe Game Fix recommendation is available.",
-                            $"{available.Count} fix(es) are catalogued; {experimental} experimental fix(es) are excluded from safe presets.")
-                        : new GameDoctorCheck("game-fixes", GameDoctorStatus.Warning, "Recommended Game Fixes are not installed.",
-                            $"{missingRecommended} of {recommended.Count} safe recommendation(s) are not installed; {available.Count} fix(es) are catalogued.")
+                : recommended.Count == 0
+                    ? new GameDoctorCheck("game-fixes", GameDoctorStatus.Unknown, "No safe Game Fix recommendation is available.",
+                        $"{available.Count} fix(es) are catalogued; {experimental} experimental fix(es) are excluded from safe presets.")
+                : !recommendedBuildCompatible
+                    ? new GameDoctorCheck("game-fixes", GameDoctorStatus.Unknown, "No compatible Game Fix recommendation is available.",
+                        $"{recommended.Count} safe fix(es) are catalogued, but Steam build {buildId ?? "unknown"} is not supported by the complete preset.")
+                    : new GameDoctorCheck("game-fixes", GameDoctorStatus.Warning, "Recommended Game Fixes are not installed.",
+                        $"{missingRecommended} of {applicableRecommended.Count} safe recommendation(s) are not installed; {available.Count} fix(es) are catalogued.")
                 : modified > 0
                     ? new GameDoctorCheck("game-fixes", GameDoctorStatus.Warning, "Some managed Game Fix files have changed.",
                         $"{modified} of {installedFixes.Count} installed fix(es) differ from their recorded hashes.")
+                : !recommendedBuildCompatible
+                    ? new GameDoctorCheck("game-fixes", GameDoctorStatus.Warning, "Installed Game Fixes are being inspected on an unsupported build.",
+                        $"Steam build {buildId ?? "unknown"} is not supported by the complete safe preset; review the managed files before continuing.")
                     : missingRecommended > 0
                         ? new GameDoctorCheck("game-fixes", GameDoctorStatus.Warning, "Recommended Game Fixes are not installed.",
-                            $"{missingRecommended} of {recommended.Count} safe recommendation(s) are not installed; {installedFixes.Count} fix(es) are installed.")
+                        $"{missingRecommended} of {applicableRecommended.Count} safe recommendation(s) are not installed; {installedFixes.Count} fix(es) are installed.")
                 : new GameDoctorCheck("game-fixes", GameDoctorStatus.Ok, "Toolkit Game Fix manifests and file hashes are valid.",
-                        $"{installedFixes.Count} fix(es) installed; {available.Count} catalogued; {recommended.Count} safe recommendation(s)."));
+                        $"{installedFixes.Count} fix(es) installed; {available.Count} catalogued; {applicableRecommended.Count} compatible safe recommendation(s)."));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
         {
@@ -318,7 +327,7 @@ public static class GameDoctor
             };
             try
             {
-                var installer = new CompanionInstaller(Path.Combine(AppContext.BaseDirectory, "mods", "companion"));
+                var installer = new CompanionInstaller(CompanionAssetLocator.ResolveSourceRoot());
                 foreach (var file in installer.GetManagedFileStatus(companionGame, gameDirectory))
                     Add(file.RelativePath, "Companion", file.Exists, file.MatchesExpectedHash);
             }
@@ -381,7 +390,7 @@ public static class GameDoctor
         };
         try
         {
-            var installer = new CompanionInstaller(Path.Combine(AppContext.BaseDirectory, "mods", "companion"));
+            var installer = new CompanionInstaller(CompanionAssetLocator.ResolveSourceRoot());
             var status = installer.GetStatus(game, gameDirectory);
             if (status.ModInstalled && status.Issues.Count == 0)
             {

@@ -70,18 +70,53 @@ public sealed class GameDoctorTests
     }
 
     [Fact]
-    public void Reports_experimental_catalogue_entries_without_calling_them_safe_recommendations()
+    public void Reports_archive_verified_recommendations_without_claiming_they_are_installed()
     {
         using var fixture = new GameFixture();
+        var common = Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "common");
+        fixture.Root = Path.Combine(common, "STALKER Clear Sky");
         fixture.CreateXRayRoot();
+        File.WriteAllText(Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "appmanifest_20510.acf"), """
+            "AppState"
+            {
+                "appid" "20510"
+                "buildid" "11450472"
+                "installdir" "STALKER Clear Sky"
+            }
+            """);
 
         var report = GameDoctor.Analyze(GameTarget.ClearSky, fixture.Root);
 
         var check = Assert.Single(report.Checks, candidate => candidate.Id == "game-fixes");
+        Assert.Equal(GameDoctorStatus.Warning, check.Status);
+        Assert.Contains("23 of 23 safe recommendation(s) are not installed", check.Detail, StringComparison.Ordinal);
+        Assert.Contains("25 fix(es) are catalogued", check.Detail, StringComparison.Ordinal);
+        Assert.Equal(23, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
+    }
+
+    [Fact]
+    public void Does_not_recommend_soc_1_0006_fixes_for_an_unsupported_build()
+    {
+        using var fixture = new GameFixture();
+        var common = Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "common");
+        fixture.Root = Path.Combine(common, "Shadow of Chernobyl");
+        fixture.CreateXRayRoot();
+        File.WriteAllText(Path.Combine(fixture.BaseRoot, "steam-library", "steamapps", "appmanifest_4500.acf"), """
+            "AppState"
+            {
+                "appid" "4500"
+                "buildid" "19000000"
+                "installdir" "Shadow of Chernobyl"
+            }
+            """);
+
+        var report = GameDoctor.Analyze(GameTarget.ShadowOfChernobyl, fixture.Root);
+
+        var check = Assert.Single(report.Checks, candidate => candidate.Id == "game-fixes");
         Assert.Equal(GameDoctorStatus.Unknown, check.Status);
-        Assert.Contains("1 fix(es) are catalogued", check.Detail, StringComparison.Ordinal);
-        Assert.Contains("1 experimental fix(es)", check.Detail, StringComparison.Ordinal);
-        Assert.Empty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended));
+        Assert.Equal("No compatible Game Fix recommendation is available.", check.Summary);
+        Assert.Contains("19000000", check.Detail, StringComparison.Ordinal);
+        Assert.Contains("not supported", check.Detail, StringComparison.Ordinal);
     }
 
     [Fact]

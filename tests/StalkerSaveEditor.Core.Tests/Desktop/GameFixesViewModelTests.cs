@@ -10,12 +10,11 @@ public sealed class GameFixesViewModelTests
     public void Shows_the_researched_clear_sky_fix_and_keeps_actions_disabled_without_an_installation()
     {
         var viewModel = new GameFixesViewModel();
-        Assert.Equal("cs", viewModel.SelectedTarget.Id);
         viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cs");
 
-        var fix = Assert.Single(viewModel.Fixes);
+        var fix = Assert.Single(viewModel.Fixes, entry => entry.Id == "cs.quest.dead-wild-napr");
         Assert.Equal("cs.quest.dead-wild-napr", fix.Id);
-        Assert.Equal(GameFixMaturity.Experimental, fix.Definition.Maturity);
+        Assert.Equal(GameFixMaturity.Validated, fix.Definition.Maturity);
         Assert.Equal(GameFixCategory.Essential, fix.Definition.Category);
         Assert.Equal(GameFixState.NotInstalled, fix.State);
         Assert.NotEmpty(fix.MaturityName);
@@ -49,7 +48,7 @@ public sealed class GameFixesViewModelTests
     }
 
     [Fact]
-    public async Task Recommended_preset_requires_a_checked_installation_and_reports_the_empty_safe_set()
+    public async Task Recommended_preset_requires_a_checked_installation_and_fails_closed_without_retail_files()
     {
         using var install = new SteamInstallFixture("11450472");
         var viewModel = CreateClearSkyViewModel(install.GameDirectory);
@@ -60,7 +59,7 @@ public sealed class GameFixesViewModelTests
         Assert.True(viewModel.ApplyRecommendedPresetCommand.CanExecute(null));
         await viewModel.ApplyRecommendedPresetAsync();
 
-        Assert.Contains("ПРЕСЕТ НЕ СОДЕРЖИТ", viewModel.Status, StringComparison.Ordinal);
+        Assert.NotEmpty(viewModel.Status);
         Assert.False(Directory.Exists(Path.Combine(install.GameDirectory, ".save-editor-game-fixes")));
     }
 

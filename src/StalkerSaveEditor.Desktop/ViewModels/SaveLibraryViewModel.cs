@@ -825,6 +825,45 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
+    private RelocationAnchorViewModel? _selectedRelocationAnchor;
+
+    public RelocationAnchorViewModel? SelectedRelocationAnchor
+    {
+        get => _selectedRelocationAnchor;
+        set => SetProperty(ref _selectedRelocationAnchor, value);
+    }
+
+    /// <summary>
+    /// TP (experimental): moves the actor to a level-changer destination of this save and writes the save at once,
+    /// through the journaled backup and a read-back of the actor location. Refused while the draft has changes.
+    /// </summary>
+    public void RelocateActor()
+    {
+        if (SelectedSave is not { } save || SelectedRelocationAnchor is not { } target) return;
+        if (CanSave)
+        {
+            StatusMessage = L.T("Сначала сохраните или отмените текущие правки, затем переносите персонажа.");
+            return;
+        }
+
+        try
+        {
+            var prepared = XRayRelocation.Prepare(File.ReadAllBytes(save.FilePath), target.Anchor);
+            var receipt = LocalSaveReplacement.ReplaceLocal(save.FilePath, prepared, _backupDirectoryProvider(), readBack =>
+            {
+                var location = XRayRelocation.ReadActorLocation(XRayTrilogyReader.FromBytes(readBack.Span));
+                if (location.Position != target.Anchor.Position || location.GameVertexId != target.Anchor.GameVertexId)
+                    throw new InvalidDataException("The written save does not place the actor at the destination.");
+            });
+            OnSaveRepaired(save.FilePath);
+            StatusMessage = L.T("Персонаж перенесён: {0}. Backup: {1}", target.Display, Path.GetFileName(receipt.BackupPath));
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or XRayFormatException or UnauthorizedAccessException)
+        {
+            StatusMessage = L.T("Не удалось перенести персонажа: {0}", exception.Message);
+        }
+    }
+
     public void TakeStashItem(StashItemViewModel item)
     {
         item.IsTaken = !item.IsTaken;
@@ -1443,6 +1482,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             Progress = XRayProgressReader.Read(save),
             Weather = XRayWeatherReader.Read(save),
+            RelocationAnchors = XRayRelocation.IsSupported(formatId)
+                ? XRayRelocation.ReadAnchors(save).Select(anchor => new RelocationAnchorViewModel(anchor)).ToArray()
+                : [],
+            ActorLocation = XRayRelocation.IsSupported(formatId) ? XRayRelocation.ReadActorLocation(save) : null,
         };
     }
 

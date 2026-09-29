@@ -38,6 +38,42 @@ public static class TransitionsView
         });
         root.Children.Add(StalkerTheme.Card(noteStack, L.T("Переходы между локациями (Read-Only)")));
 
+        // Relocation (TP, experimental): only destinations of the level changers in this save.
+        var relocation = new StackPanel { Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
+        relocation.Children.Add(new TextBlock
+        {
+            Text = L.T("ПЕРЕНОС ПЕРСОНАЖА (ЭКСПЕРИМЕНТАЛЬНО)"),
+            FontWeight = FontWeight.Bold,
+            Foreground = StalkerTheme.BrushAccentAmber,
+        });
+        relocation.Children.Add(new TextBlock
+        {
+            Text = L.T("Только точки, куда игра сама ставит персонажа после перехода. Сохранение записывается сразу, с бэкапом. В игре это ещё не проверено."),
+            Foreground = StalkerTheme.BrushTextSecondary,
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        var here = new TextBlock { Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 };
+        here.Bind(TextBlock.TextProperty, new Binding("SelectedSave.ActorLocationDisplay") { StringFormat = L.T("Сейчас: {0}") });
+        relocation.Children.Add(here);
+        var pickRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
+        var anchors = new ComboBox
+        {
+            PlaceholderText = L.T("Куда перенести"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemTemplate = new FuncDataTemplate<RelocationAnchorViewModel>((anchor, _) => new TextBlock { Text = anchor?.Display ?? string.Empty }),
+        };
+        anchors.Bind(ItemsControl.ItemsSourceProperty, new Binding("SelectedSave.RelocationAnchors"));
+        anchors.Bind(ComboBox.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedRelocationAnchor)) { Mode = BindingMode.TwoWay });
+        pickRow.Children.Add(anchors);
+        var move = StalkerTheme.StalkerButton(L.T("ПЕРЕНЕСТИ"), isPrimary: true, minWidth: 140);
+        move.Click += (_, _) => (move.DataContext as SaveLibraryViewModel)?.RelocateActor();
+        Grid.SetColumn(move, 1);
+        pickRow.Children.Add(move);
+        relocation.Children.Add(pickRow);
+        relocation.Bind(Visual.IsVisibleProperty, new Binding("SelectedSave.CanRelocate"));
+        noteStack.Children.Add(relocation);
+
         // 2. Empty State
         var emptyPanel = new StackPanel
         {

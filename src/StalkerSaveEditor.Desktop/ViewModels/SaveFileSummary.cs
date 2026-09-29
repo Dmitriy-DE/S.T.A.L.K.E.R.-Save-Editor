@@ -210,6 +210,18 @@ public sealed class SaveFileSummary
     public string KillsDisplay => Progress is { Statistics.Count: > 0 } progress
         ? L.T("сталкеров {0} · мутантов {1}", progress.Count("stalkerkills"), progress.Count("monsterkills"))
         : "—";
+
+    /// <summary>Level-changer destinations the actor can be moved to (TP, experimental); empty when unsupported.</summary>
+    public IReadOnlyList<RelocationAnchorViewModel> RelocationAnchors { get; init; } = [];
+
+    public StalkerSaveEditor.Core.Formats.XRay.XRayActorLocation? ActorLocation { get; init; }
+
+    public bool CanRelocate => RelocationAnchors.Count > 0;
+
+    public string ActorLocationDisplay => ActorLocation is { } location
+        ? L.T("X {0:0.0} · Y {1:0.0} · Z {2:0.0} · вершина {3}", location.Position.X, location.Position.Y, location.Position.Z, location.GameVertexId)
+        : "—";
+
     public float? TimeFactor { get; }
     public string? PlayerFaction { get; }
 
@@ -283,4 +295,9 @@ public sealed class SaveFileSummary
         >= -100 => L.T("Плохая"),
         _ => L.T("Очень плохая"),
     } : "—";
+}
+
+public sealed record RelocationAnchorViewModel(StalkerSaveEditor.Core.Formats.XRay.XRayRelocationAnchor Anchor)
+{
+    public string Display => $"{Anchor.DestinationLevel} · {Anchor.DestinationPoint}";
 }

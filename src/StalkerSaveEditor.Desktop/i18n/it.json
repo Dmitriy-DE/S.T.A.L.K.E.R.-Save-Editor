@@ -137,7 +137,6 @@
  "{0} шт. ({1})": "{0} pz ({1})",
  "{0} → {1}": "{0} → {1}",
  "{0}. Оригинальный файл пока не изменён.": "{0}. Il file originale non è ancora modificato.",
- "{0}: {1}": "{0}: {1}",
  "{0}: {1} · SHA-256 {2}": "{0}: {1} SHA-256 {2}",
  "{0}: добавление предметов ещё не подтверждено проверкой в игре": "{0}: l’aggiunta di oggetti non è ancora confermata nel gioco",
  "{0}: запись пока недоступна — формат ещё не подтверждён загрузкой в игре": "{0}: la scrittura non è ancora disponibile — il formato non è confermato dal caricamento nel gioco",

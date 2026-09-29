@@ -128,7 +128,7 @@ public sealed class InventoryLineViewModel : ObservableViewModel
             "Autosh" => L.T("автоматический огонь"),
             _ => upgrade.Effect,
         };
-        return L.T("{0}: {1}", part, effect);
+        return $"{part}: {effect}";
     }
 
     /// <summary>S2 armour upgrades read as "effect · tier" (from the localization key); anything else keeps its key.</summary>

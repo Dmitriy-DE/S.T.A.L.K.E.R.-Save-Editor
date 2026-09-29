@@ -55,6 +55,8 @@ the editor stores it as a named bookmark and replays it with `teleport`.
 - Refuse to send while a previous `save_editor_cmd.txt` still exists.
 - Wait up to 10 s for the reply with the same `id`, then report
   "game not running or companion not installed" and delete the command file.
+- Read replies with sharing that allows the mod to replace `save_editor_out.txt`
+  during polling; retry transient I/O errors while `.tmp` is rotated into place.
 - Never send a command that is not in this table.
 
 Examples: `tests/golden/companion/*.json`.

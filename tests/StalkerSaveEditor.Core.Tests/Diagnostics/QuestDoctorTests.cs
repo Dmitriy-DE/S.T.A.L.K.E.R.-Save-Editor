@@ -111,11 +111,26 @@ public sealed class QuestDoctorTests
         Assert.True(wolf.NeedsPreventingFix);
     }
 
+    [Theory]
+    [InlineData("soc.mole-dead", "agr_krot", "agr_krot_dead")]
+    [InlineData("soc.prisoner-dead", "val_prisoner_captive", "val_prisoner_dead")]
+    [InlineData("soc.courier-dead", "mil_freedom_member0001", "mil_courier_dead")]
+    [InlineData("soc.informer-dead", "mil_ara", "mil_ara_dead")]
+    public void Shadow_of_chernobyl_dead_npc_without_his_death_flag_is_broken(string rule, string npc, string flag)
+    {
+        var broken = State(QuestDoctor.Evaluate("stalker-soc", Known(), Npcs(Vitals(npc, 0f))), rule);
+        Assert.Equal(QuestTaskStatus.Broken, broken.State);
+        Assert.Equal(flag, broken.MissingInfoPortion);
+
+        Assert.Equal(QuestTaskStatus.Ok, State(QuestDoctor.Evaluate("stalker-soc", Known(), Npcs(Vitals(npc, 1f))), rule).State);
+        Assert.Equal(QuestTaskStatus.Ok, State(QuestDoctor.Evaluate("stalker-soc", Known(flag), Npcs(Vitals(npc, 0f))), rule).State);
+    }
+
     [Fact]
     public void Other_formats_have_no_rules()
     {
         Assert.Empty(QuestDoctor.Evaluate("stalker-cop", Known(), Npcs(Vitals("esc_wolf", 0f))));
-        Assert.Empty(QuestDoctor.Evaluate("stalker-soc", Known(), Npcs(Vitals("esc_wolf", 0f))));
+        Assert.All(QuestDoctor.Evaluate("stalker-soc", Known(), Npcs(Vitals("esc_wolf", 0f))), s => Assert.Equal(QuestTaskStatus.Unknown, s.State));
     }
 
     [Fact]

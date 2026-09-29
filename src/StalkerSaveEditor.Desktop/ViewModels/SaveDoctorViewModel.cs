@@ -151,6 +151,10 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
                 "cs.wolf-dead" => L.T("КВЕСТ: ЗАДАНИЯ ВОЛКА ПОСЛЕ ЕГО СМЕРТИ"),
                 "cs.wild-napr-dead" => L.T("КВЕСТ: ЗАДАНИЯ НАПРА НА БАРАХОЛКЕ ПОСЛЕ ЕГО СМЕРТИ"),
                 "cs.hog-dead" => L.T("КВЕСТ: СЮЖЕТ НА АРМЕЙСКИХ СКЛАДАХ ПОСЛЕ СМЕРТИ КАБАНА"),
+                "soc.mole-dead" => L.T("КВЕСТ: ВСТРЕЧА С КРОТОМ НА АГРОПРОМЕ ПОСЛЕ ЕГО СМЕРТИ"),
+                "soc.prisoner-dead" => L.T("КВЕСТ: ПЛЕННЫЙ ДОЛГОВЕЦ В ТЁМНОЙ ДОЛИНЕ ПОСЛЕ ЕГО СМЕРТИ"),
+                "soc.courier-dead" => L.T("КВЕСТ: КУРЬЕР СВОБОДЫ ПОСЛЕ ЕГО СМЕРТИ"),
+                "soc.informer-dead" => L.T("КВЕСТ: ИНФОРМАТОР СВОБОДЫ ПОСЛЕ ЕГО СМЕРТИ"),
                 _ => state.Title ?? state.TaskId,
             };
             var (mark, status, detail) = state.Reason switch

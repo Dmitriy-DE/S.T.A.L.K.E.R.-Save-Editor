@@ -59,6 +59,7 @@ internal sealed record QuestRule(
 /// <summary>Reports quest breaks that are proven by the save's own data and prepares the one-flag repair.</summary>
 public static class QuestDoctor
 {
+    private const string SocAllSpawn = "retail Shadow of Chernobyl gamedata: spawns/all.spawn ([death] on_info of the NPC)";
     private const string SrpHistory = "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt";
 
     // Every rule needs: the NPC section as the game spawns it, the info portion that game configs (tm_*.ltx
@@ -98,6 +99,45 @@ public static class QuestDoctor
         {
             TooLateInfo = "forester_talked_2",
         },
+
+        // Shadow of Chernobyl: the NPC's own [death] logic in the retail all.spawn gives the flag, and the
+        // retail task XML fails or completes the task on it. A death the game processed offline never runs that logic.
+        new QuestRule(
+            "soc.mole-dead",
+            "stalker-soc",
+            "Mole's Agroprom task after his death",
+            "agr_krot",
+            "agr_krot_dead",
+            null,
+            "Mole is dead, but agr_krot_dead is missing. tasks_agroprom.xml fails the \"meet Mole's group\" objective on that flag; without it the objective points at a dead NPC forever.",
+            [SocAllSpawn, "config/gameplay/tasks_agroprom.xml"]),
+        new QuestRule(
+            "soc.prisoner-dead",
+            "stalker-soc",
+            "Dark Valley prisoner task after his death",
+            "val_prisoner_captive",
+            "val_prisoner_dead",
+            null,
+            "The captive Duty soldier is dead, but val_prisoner_dead is missing. tasks_darkvalley.xml fails \"help the prisoner\" on that flag; without it the task stays open.",
+            [SocAllSpawn, "config/gameplay/tasks_darkvalley.xml"]),
+        new QuestRule(
+            "soc.courier-dead",
+            "stalker-soc",
+            "Freedom courier task after his death",
+            "mil_freedom_member0001",
+            "mil_courier_dead",
+            null,
+            "The Freedom courier is dead, but mil_courier_dead is missing. tasks_military.xml completes the \"kill the courier\" step on that flag; without it the step can never complete.",
+            [SocAllSpawn, "config/gameplay/tasks_military.xml"]),
+        new QuestRule(
+            "soc.informer-dead",
+            "stalker-soc",
+            "Freedom informer task after his death",
+            "mil_ara",
+            "mil_ara_dead",
+            null,
+            "The informer is dead, but mil_ara_dead is missing. tasks_military.xml completes the \"deal with the informer\" step on that flag; without it the step can never complete.",
+            [SocAllSpawn, "config/gameplay/tasks_military.xml"]),
     ];
 
     public static QuestDoctorReport Analyze(ReadOnlySpan<byte> data)
@@ -113,13 +153,13 @@ public static class QuestDoctor
                 []);
         }
 
-        if (overview.FormatId != "stalker-cs")
+        if (!Rules.Any(rule => rule.FormatId == overview.FormatId))
         {
             return new QuestDoctorReport(
                 SaveDoctorStatus.Unknown,
                 overview.FormatId,
                 QuestStatesAvailable: false,
-                "Quest Doctor has evidence-backed rules only for Clear Sky saves; no states or preventing fixes can be inferred for this format.",
+                "Quest Doctor has evidence-backed rules only for Shadow of Chernobyl and Clear Sky saves; no states or preventing fixes can be inferred for this format.",
                 []);
         }
 

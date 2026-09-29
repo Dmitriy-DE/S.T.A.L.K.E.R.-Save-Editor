@@ -104,6 +104,23 @@ public sealed class XRayTrilogySave
 
     public IReadOnlyList<XRayStash> Stashes { get; }
 
+    /// <summary>Health and death markers of every registry object whose section name is <paramref name="section"/> and whose STATE parses as a creature.</summary>
+    public IReadOnlyList<XRayCreatureVitals> FindCreatureVitals(string section)
+    {
+        var raw = Container.Raw.Span;
+        var result = new List<XRayCreatureVitals>();
+        foreach (var record in RegistryObjects)
+        {
+            if ((string.Equals(record.Name, section, StringComparison.Ordinal) || string.Equals(record.NameReplace, section, StringComparison.Ordinal)) &&
+                XRayTrilogyReader.ReadCreatureVitals(raw, record) is { } vitals)
+            {
+                result.Add(vitals);
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>Returns a read-only exact object-record window when the handle is present.</summary>
     public XRayObjectRecord? FindObjectRecord(ushort handle)
     {
@@ -122,6 +139,14 @@ public sealed class XRayTrilogySave
 
         return null;
     }
+}
+
+/// <summary>Read-only life state of a creature object; a health of zero or less means it is dead.</summary>
+public sealed record XRayCreatureVitals(ushort Handle, string Section, float Health, ushort? KillerId, ulong? DeathTime)
+{
+    public bool IsDead => Health <= 0f;
+
+    internal int HealthOffset { get; init; }
 }
 
 public sealed record XRayFactionRelation(int CommunityIndex, int Value);

@@ -710,6 +710,76 @@ public static class XRayTrilogyReader
             record.ClientDataOffset,
             record.ClientDataLength);
 
+    /// <summary>Reads the shared creature prefix (health, killer, death time) of a registry object's STATE; null when it is not laid out as a creature.</summary>
+    internal static XRayCreatureVitals? ReadCreatureVitals(ReadOnlySpan<byte> raw, XRayRegistryObject item)
+    {
+        if (item.Version <= 18 || item.StateLength <= 0 || item.StateOffset < 0 || item.StateOffset + item.StateLength > raw.Length)
+        {
+            return null;
+        }
+
+        try
+        {
+            var version = item.Version;
+            var reader = new SpanReader(raw.Slice(item.StateOffset, item.StateLength), "creature STATE");
+            if (version < 105)
+            {
+                return null;
+            }
+
+            SkipTraderState(ref reader, version);
+            ReadDynamicVisualState(ref reader, version);
+            reader.Skip(3);
+            var healthOffset = checked(item.StateOffset + reader.Position);
+            var health = reader.ReadSingle();
+            if (version < 32)
+            {
+                _ = reader.ReadZeroTerminatedString();
+            }
+
+            if (version > 87)
+            {
+                SkipUInt16Vector(ref reader);
+                SkipUInt16Vector(ref reader);
+            }
+
+            ushort? killer = null;
+            if (version > 94)
+            {
+                killer = reader.ReadUInt16();
+            }
+
+            ulong? deathTime = null;
+            if (version > 115)
+            {
+                deathTime = reader.ReadUInt64();
+            }
+
+            return float.IsFinite(health) && health >= -1f && health <= 1f
+                ? new XRayCreatureVitals(item.ObjectId, item.Name, health, killer, deathTime) { HealthOffset = healthOffset }
+                : null;
+        }
+        catch (XRayFormatException)
+        {
+            return null;
+        }
+    }
+
+    // Human stalkers serialise the trader block before the visual/creature block (the actor does the opposite).
+    private static void SkipTraderState(ref SpanReader reader, ushort version)
+    {
+        reader.Skip(sizeof(uint)); // money
+        _ = reader.ReadZeroTerminatedString(); // specific character
+        reader.Skip(sizeof(uint)); // trader flags
+        _ = reader.ReadZeroTerminatedString(); // character profile
+        reader.Skip(sizeof(int) * 3); // community, rank, reputation
+        _ = reader.ReadZeroTerminatedString(); // display name
+        if (version > 124)
+        {
+            reader.Skip(2);
+        }
+    }
+
     private static ActorState ParseActorState(ReadOnlySpan<byte> state, ushort version, int stateOffset)
     {
         var reader = new SpanReader(state, "actor STATE");
@@ -1130,6 +1200,14 @@ public static class XRayTrilogyReader
             Ensure(sizeof(ushort));
             var value = BinaryPrimitives.ReadUInt16LittleEndian(_data[Position..]);
             Position += sizeof(ushort);
+            return value;
+        }
+
+        public ulong ReadUInt64()
+        {
+            Ensure(sizeof(ulong));
+            var value = BinaryPrimitives.ReadUInt64LittleEndian(_data[Position..]);
+            Position += sizeof(ulong);
             return value;
         }
 

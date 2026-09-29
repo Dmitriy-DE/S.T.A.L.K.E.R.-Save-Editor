@@ -90,7 +90,7 @@ public static class OverviewView
         var statsGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
         };
 
         statsGrid.Children.Add(MakeMetricCell(L.T("ДЕНЬГИ"), "SelectedSave.MoneyDisplay", 0, 0, StalkerTheme.BrushAccentAmber));
@@ -108,6 +108,7 @@ public static class OverviewView
         var killsCell = MakeMetricCell(L.T("УБИТО"), "SelectedSave.KillsDisplay", 2, 2, StalkerTheme.BrushTextPrimary);
         Grid.SetColumnSpan(killsCell, 2);
         statsGrid.Children.Add(killsCell);
+        statsGrid.Children.Add(MakeMetricCell(L.T("ПОГОДА"), "SelectedSave.WeatherDisplay", 0, 3, StalkerTheme.BrushTextSecondary));
 
         stack.Children.Add(StalkerTheme.Card(statsGrid, L.T("Параметры сталкера")));
 

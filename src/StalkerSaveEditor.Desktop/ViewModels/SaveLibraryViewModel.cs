@@ -68,6 +68,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             ? () => [HostPlatform.OpenedSavesDirectory]
             : () => Settings?.SaveDirectories.ToArray() ?? SaveDirectoryDiscovery.GetExistingDirectories());
         _backupDirectoryProvider = backupDirectoryProvider ?? (() => Settings is { BackupDirectory.Length: > 0 } settings ? settings.BackupDirectory : GetDefaultBackupDirectory());
+        SaveDoctor = new SaveDoctorViewModel(_backupDirectoryProvider);
+        SaveDoctor.SaveRepaired += OnSaveRepaired;
         _draftStore = new DraftStore(draftsDirectory);
         if (!Directory.Exists(_draftStore.DirectoryPath))
         {
@@ -217,7 +219,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public CloudViewModel Cloud { get; }
     public AchievementsViewModel Achievements { get; } = new();
     public GameDoctorViewModel GameDoctor { get; } = new();
-    public SaveDoctorViewModel SaveDoctor { get; } = new();
+    public SaveDoctorViewModel SaveDoctor { get; }
     public GameFixesViewModel GameFixes { get; } = new();
     public UpdatesViewModel Updates { get; } = new();
     public ToolkitEnvironmentViewModel ToolkitEnvironment { get; }
@@ -705,6 +707,16 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
     /// <summary>Remove + insert: Avalonia's virtualizing list throws on a Replace notification for the selected row.</summary>
+    private void OnSaveRepaired(string path)
+    {
+        var index = Saves.ToList().FindIndex(save => string.Equals(save.FilePath, path, StringComparison.Ordinal));
+        if (index < 0 || TryReadSave(path) is not { } refreshed) return;
+        var wasSelected = ReferenceEquals(SelectedSave, Saves[index]);
+        ReplaceSave(index, refreshed);
+        if (wasSelected) SelectedSave = refreshed;
+        RefreshBackups();
+    }
+
     private void ReplaceSave(int index, SaveFileSummary save)
     {
         Saves.RemoveAt(index);

@@ -22,4 +22,21 @@ public sealed class SaveDoctorViewModelTests
         Assert.Contains(viewModel.Checks, check => check.Status.ToString() == "Unknown" && check.Name.Contains("КВЕСТОВ", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("stalker2", viewModel.Checks[0].Detail, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task Clear_sky_save_lists_quest_rules_and_offers_no_repair_without_proof()
+    {
+        var viewModel = new SaveDoctorViewModel
+        {
+            SavePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "writer-factions", "cs-source.sav"),
+        };
+
+        await viewModel.AnalyzeAsync();
+
+        Assert.Contains(viewModel.Checks, check => check.Name.Contains("ВОЛКА", StringComparison.Ordinal) && check.Mark == "?");
+        Assert.Contains(viewModel.Checks, check => check.Name.Contains("НАПРА", StringComparison.Ordinal) && check.Mark == "?");
+        Assert.DoesNotContain(viewModel.Checks, check => check.Name == "РЕМОНТ СОХРАНЕНИЯ");
+        Assert.False(viewModel.CanRepairQuests);
+        Assert.False(viewModel.RepairQuestsCommand.CanExecute(null));
+    }
 }

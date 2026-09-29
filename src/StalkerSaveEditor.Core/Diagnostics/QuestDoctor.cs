@@ -16,6 +16,11 @@ public sealed record QuestTaskState(string TaskId, string State, string? Prevent
 
     public string? Detail { get; init; }
 
+    /// <summary>Why the state was chosen: no-info-list, flag-set, npc-missing, alive, too-late or dead-without-flag.</summary>
+    public string? Reason { get; init; }
+
+    public bool NeedsPreventingFix { get; init; }
+
     public string? NpcSection { get; init; }
 
     public string? MissingInfoPortion { get; init; }
@@ -42,7 +47,14 @@ internal sealed record QuestRule(
     string InfoPortion,
     string? PreventingFixId,
     string Explanation,
-    IReadOnlyList<string> References);
+    IReadOnlyList<string> References)
+{
+    /// <summary>An info portion after which the quest line has already branched; the flag no longer helps.</summary>
+    public string? TooLateInfo { get; init; }
+
+    /// <summary>Only the preventing Game Fix makes the game react to the flag; unpatched Clear Sky never reads it.</summary>
+    public bool NeedsPreventingFix { get; init; }
+}
 
 /// <summary>Reports quest breaks that are proven by the save's own data and prepares the one-flag repair.</summary>
 public static class QuestDoctor
@@ -69,8 +81,23 @@ public static class QuestDoctor
             "esc_wolf",
             "esc_wolf_dead",
             "cs.quest.wolf-offline-cancellation",
-            "Wolf is dead, but esc_wolf_dead is missing. The Cordon task list (tm_escape.ltx) cancels his rescue and escort tasks on that flag; without it the reward task stays active forever.",
-            [SrpHistory]),
+            "Wolf is dead, but esc_wolf_dead is missing. With the Wolf Game Fix installed, his rescue quest lines (esc_quest_additional_line*.ltx) close on that flag; without it the reward task stays active forever.",
+            [SrpHistory])
+        {
+            NeedsPreventingFix = true,
+        },
+        new QuestRule(
+            "cs.hog-dead",
+            "stalker-cs",
+            "Hog's storyline task after his death",
+            "mil_hog",
+            "mil_hog_death",
+            null,
+            "Hog is dead, but mil_hog_death is missing. After the talk with Forester the Army Warehouses quest line (mil_quest_line.ltx) checks that flag: without it the story sends you to talk to the dead Hog and stops.",
+            [SrpHistory])
+        {
+            TooLateInfo = "forester_talked_2",
+        },
     ];
 
     public static QuestDoctorReport Analyze(ReadOnlySpan<byte> data)
@@ -123,6 +150,16 @@ public static class QuestDoctor
         return flags.Length == 0 ? null : XRayInfoPortionWriter.AddActorInfo(data, flags);
     }
 
+    /// <summary>Throws unless the written save still parses and no rule reports a broken quest any more.</summary>
+    public static void VerifyRepair(ReadOnlySpan<byte> written)
+    {
+        var report = Analyze(written);
+        if (!report.QuestStatesAvailable || report.States.Any(state => state.State == QuestTaskStatus.Broken))
+        {
+            throw new InvalidDataException("The repaired save still reports a broken quest.");
+        }
+    }
+
     internal static List<QuestTaskState> Evaluate(
         string formatId,
         IReadOnlySet<string>? known,
@@ -134,36 +171,50 @@ public static class QuestDoctor
             var vitals = findVitals(rule.NpcSection);
             string state;
             string detail;
+            string reason;
             if (known is null)
             {
                 state = QuestTaskStatus.Unknown;
                 detail = "The save has no readable actor info list.";
+                reason = "no-info-list";
             }
             else if (known.Contains(rule.InfoPortion))
             {
                 state = QuestTaskStatus.Ok;
                 detail = "The info portion is already set.";
+                reason = "flag-set";
             }
             else if (vitals.Count == 0)
             {
                 state = QuestTaskStatus.Unknown;
                 detail = "The NPC is not in the save (or could not be read); a missing object does not prove his death.";
+                reason = "npc-missing";
             }
             else if (vitals.Any(v => !v.IsDead))
             {
                 state = QuestTaskStatus.Ok;
                 detail = "The NPC is alive.";
+                reason = "alive";
+            }
+            else if (rule.TooLateInfo is { } tooLate && known.Contains(tooLate))
+            {
+                state = QuestTaskStatus.Unknown;
+                detail = $"The NPC is dead without {rule.InfoPortion}, but {tooLate} is already set: the quest line has branched and adding the flag no longer repairs it.";
+                reason = "too-late";
             }
             else
             {
                 state = QuestTaskStatus.Broken;
                 detail = rule.Explanation;
+                reason = "dead-without-flag";
             }
 
             states.Add(new QuestTaskState(rule.Id, state, rule.PreventingFixId)
             {
                 Title = rule.Title,
                 Detail = detail,
+                Reason = reason,
+                NeedsPreventingFix = rule.NeedsPreventingFix,
                 NpcSection = rule.NpcSection,
                 MissingInfoPortion = state == QuestTaskStatus.Broken ? rule.InfoPortion : null,
                 References = rule.References,

@@ -153,6 +153,26 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
 
         // Silent background update check; only the real interactive app goes online (not screenshots or tests).
+        if (InteractiveApp)
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    var installs = StalkerSaveEditor.Core.Diagnostics.GameDoctor.DiscoverInstallations();
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _installations = installs;
+                        OnPropertyChanged(nameof(GameBuildDisplay));
+                    });
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    AppLog.Warn("game install discovery for build check failed", exception);
+                }
+            });
+        }
+
         // Started on the UI thread: the view model raises CanExecuteChanged, which Avalonia buttons accept only there.
         if (InteractiveApp) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = Updates.CheckAsync(silent: true));
     }
@@ -388,6 +408,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             Capabilities.SelectedFormatId = value?.ReleaseId;
             if (InteractiveApp && value is not null) GameAudioService.Instance.UseGame(value.ReleaseId);
             SaveDoctor.SavePath = value?.FilePath ?? string.Empty;
+            OnPropertyChanged(nameof(GameBuildDisplay));
 
             if (value is not null)
             {
@@ -861,6 +882,29 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         catch (Exception exception) when (exception is IOException or InvalidDataException or XRayFormatException or UnauthorizedAccessException)
         {
             StatusMessage = L.T("Не удалось перенести персонажа: {0}", exception.Message);
+        }
+    }
+
+    private IReadOnlyList<GameDoctorInstallation>? _installations;
+
+    /// <summary>RL-6: the installed game's Steam build for the selected save and whether the editor was checked on it.</summary>
+    public string GameBuildDisplay
+    {
+        get
+        {
+            if (_installations is null || SelectedSave is null ||
+                GameBuildFingerprints.TargetForFormat(SelectedSave.ReleaseId) is not { } target)
+            {
+                return "—";
+            }
+
+            var build = GameBuildFingerprints.Detect(target, _installations);
+            return build.Status switch
+            {
+                GameBuildStatus.Verified => L.T("{0} · проверенная", build.BuildId!),
+                GameBuildStatus.Unknown => L.T("{0} · не проверялась: сверьте результат в игре", build.BuildId!),
+                _ => L.T("игра не найдена"),
+            };
         }
     }
 

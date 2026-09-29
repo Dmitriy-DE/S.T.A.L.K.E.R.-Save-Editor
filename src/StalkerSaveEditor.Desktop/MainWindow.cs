@@ -337,6 +337,7 @@ public sealed class MainWindow : Window
                 AddItem(navigation, "✚", L.T("ДОКТОР СОХРАНЕНИЯ"), "save-doctor");
                 AddGroup(navigation, L.T("ИГРЫ"),
                 [
+                    ("◉", L.T("ОБЗОР ИГР"), "games"),
                     ("⚒", L.T("ИСПРАВЛЕНИЯ ИГРЫ"), "game-fixes"),
                     ("⌖", L.T("ДОКТОР ИГРЫ"), "game-doctor"),
                     ("⚙", L.T("СРЕДА ИГРЫ"), "toolkit-environment"),
@@ -938,6 +939,10 @@ public sealed class MainWindow : Window
         // Game Doctor operates on an explicitly selected local installation.
         if (!HostPlatform.IsBrowser)
         {
+            var games = GamesOverviewView.Build(vm);
+            games.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGamesOverviewScreen)) { Source = vm });
+            screens.Children.Add(games);
+
             var gameFixes = new GameFixesView(vm.GameFixes);
             gameFixes.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGameFixesScreen)) { Source = vm });
             screens.Children.Add(gameFixes);

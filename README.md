@@ -132,6 +132,7 @@ stalker-save-editor-cli doctor save "/path/to/save.sav" --json
 stalker-save-editor-cli crash analyse "/path/to/xray.log" --json
 stalker-save-editor-cli crash discover --json
 stalker-save-editor-cli doctor quest "/path/to/save.sav" --json
+stalker-save-editor-cli doctor quest-repair "/path/to/save.sav"
 stalker-save-editor-cli fixes list --json
 stalker-save-editor-cli fixes apply-preset recommended cs "/path/to/Clear Sky" --json
 

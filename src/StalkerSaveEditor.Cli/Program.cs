@@ -253,6 +253,34 @@ internal static class Program
             return saveReport.Status == SaveDoctorStatus.Error ? 1 : 0;
         }
 
+        if (args.Length >= 2 && args[1] == "quest-repair")
+        {
+            if (args.Length < 3) throw new ArgumentException("Usage: doctor quest-repair SAVE_FILE [--output PATH] [--backup-dir DIR]");
+            var repairOptions = ParseOptions(args, 3);
+            var sourceBytes = File.ReadAllBytes(args[2]);
+            var repaired = QuestDoctor.PrepareRepair(sourceBytes);
+            if (repaired is null)
+            {
+                Console.WriteLine("No proven broken quest; the save was not changed.");
+                return 0;
+            }
+
+            var repairReceipt = LocalSaveStorage.ExportLocal(
+                args[2],
+                repairOptions.OutputPath ?? DefaultOutputPath(args[2]),
+                repaired,
+                repairOptions.BackupDirectory ?? DefaultBackupDirectory());
+            QuestDoctor.VerifyRepair(File.ReadAllBytes(repairReceipt.OutputPath));
+            foreach (var state in QuestDoctor.Analyze(sourceBytes).States.Where(state => state.State == QuestTaskStatus.Broken))
+            {
+                Console.WriteLine("Repaired " + state.TaskId + ": added " + state.MissingInfoPortion);
+            }
+            Console.WriteLine("Output: " + repairReceipt.OutputPath);
+            Console.WriteLine("Backup: " + repairReceipt.BackupPath);
+            Console.WriteLine("SHA256: " + repairReceipt.OutputSha256);
+            return 0;
+        }
+
         if (args.Length >= 2 && args[1] == "quest")
         {
             const string questUsage = "Usage: doctor quest SAVE_FILE [--json]";

@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Core.Backups;
 using StalkerSaveEditor.Core.Diagnostics;
 using StalkerSaveEditor.Core.Formats.XRay;
 using Xunit;
@@ -75,7 +76,7 @@ public sealed class QuestDoctorTests
     [Fact]
     public void Living_dead_with_flag_missing_or_unreadable_npcs_are_not_broken()
     {
-        var alive = QuestDoctor.Evaluate("stalker-cs", Known(), Npcs(Vitals("esc_wolf", 1f), Vitals("gar_digger_quester", 0.4f)));
+        var alive = QuestDoctor.Evaluate("stalker-cs", Known(), Npcs(Vitals("esc_wolf", 1f), Vitals("gar_digger_quester", 0.4f), Vitals("mil_hog", 0.7f)));
         Assert.All(alive, s => Assert.Equal(QuestTaskStatus.Ok, s.State));
 
         var flagged = QuestDoctor.Evaluate("stalker-cs", Known("esc_wolf_dead"), Npcs(Vitals("esc_wolf", 0f)));
@@ -87,6 +88,27 @@ public sealed class QuestDoctorTests
         var noActorInfo = QuestDoctor.Evaluate("stalker-cs", null, Npcs(Vitals("esc_wolf", 0f)));
         Assert.Equal(QuestTaskStatus.Unknown, State(noActorInfo, "cs.wolf-dead").State);
         Assert.All(absent.Concat(noActorInfo), s => Assert.Null(s.MissingInfoPortion));
+    }
+
+    [Fact]
+    public void Dead_hog_is_repairable_only_before_the_forester_talk()
+    {
+        var early = State(QuestDoctor.Evaluate("stalker-cs", Known(), Npcs(Vitals("mil_hog", 0f))), "cs.hog-dead");
+        Assert.Equal(QuestTaskStatus.Broken, early.State);
+        Assert.Equal("mil_hog_death", early.MissingInfoPortion);
+        Assert.False(early.NeedsPreventingFix);
+
+        var late = State(QuestDoctor.Evaluate("stalker-cs", Known("forester_talked_2"), Npcs(Vitals("mil_hog", 0f))), "cs.hog-dead");
+        Assert.Equal(QuestTaskStatus.Unknown, late.State);
+        Assert.Equal("too-late", late.Reason);
+        Assert.Null(late.MissingInfoPortion);
+    }
+
+    [Fact]
+    public void Wolf_repair_says_it_needs_the_game_fix()
+    {
+        var wolf = State(QuestDoctor.Evaluate("stalker-cs", Known(), Npcs(Vitals("esc_wolf", 0f))), "cs.wolf-dead");
+        Assert.True(wolf.NeedsPreventingFix);
     }
 
     [Fact]
@@ -121,5 +143,37 @@ public sealed class QuestDoctorTests
         Assert.False(report.QuestStatesAvailable);
         Assert.Empty(report.States);
         Assert.Null(QuestDoctor.PrepareRepair(Fixture(fixture)));
+    }
+
+    [Fact]
+    public void Repair_write_keeps_a_backup_and_the_flag_reads_back()
+    {
+        var directory = Directory.CreateTempSubdirectory("quest-repair-");
+        try
+        {
+            var savePath = Path.Combine(directory.FullName, "saves", "quest.sav");
+            Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+            var source = Fixture("writer-factions/cs-source.sav");
+            File.WriteAllBytes(savePath, source);
+            var prepared = XRayInfoPortionWriter.AddActorInfo(source, ["esc_wolf_dead"]);
+
+            var receipt = LocalSaveReplacement.ReplaceLocal(savePath, prepared, Path.Combine(directory.FullName, "backups"),
+                readBack => QuestDoctor.VerifyRepair(readBack.Span));
+
+            Assert.Equal(source, File.ReadAllBytes(receipt.BackupPath));
+            var written = XRayTrilogyReader.FromBytes(File.ReadAllBytes(savePath));
+            Assert.Contains("esc_wolf_dead", written.ActorKnownInfo);
+            Assert.Equal(QuestTaskStatus.Ok, State(QuestDoctor.Analyze(File.ReadAllBytes(savePath)).States, "cs.wolf-dead").State);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Verify_repair_rejects_bytes_that_do_not_parse()
+    {
+        Assert.Throws<InvalidDataException>(() => QuestDoctor.VerifyRepair(new byte[64]));
     }
 }

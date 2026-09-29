@@ -272,7 +272,7 @@ public sealed class MainWindow : Window
                         path = await HostPlatform.ImportAsync(stream, file.Name);
                     }
 
-                    if (!vm.AddPreviewSave(path)) vm.StatusMessage = L.T("«{0}» — не сохранение S.T.A.L.K.E.R. или файл повреждён.", file.Name);
+                    if (!await vm.AddPreviewSaveAsync(path)) vm.StatusMessage = L.T("«{0}» — не сохранение S.T.A.L.K.E.R. или файл повреждён.", file.Name);
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {

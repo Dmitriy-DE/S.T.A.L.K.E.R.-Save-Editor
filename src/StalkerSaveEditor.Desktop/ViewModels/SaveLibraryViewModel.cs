@@ -206,7 +206,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
-    public ObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];
+    public BulkObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];
     public ObservableCollection<BackupRecordViewModel> Backups { get; } = [];
     public SettingsViewModel Settings { get; }
 
@@ -728,9 +728,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         Saves.Insert(index, save);
     }
 
-    public bool AddPreviewSave(string path)
+    public bool AddPreviewSave(string path) => ShowOpenedSave(TryReadSave(path));
+
+    /// <summary>Same as <see cref="AddPreviewSave"/>, but parses off the UI thread (a large S2 save takes ~0.7 s).</summary>
+    public async Task<bool> AddPreviewSaveAsync(string path) => ShowOpenedSave(await Task.Run(() => TryReadSave(path)));
+
+    private bool ShowOpenedSave(SaveFileSummary? parsed)
     {
-        var parsed = TryReadSave(path);
         if (parsed is null) return false;
         // Opening a file that is already listed (or re-opening it after a change) replaces its entry.
         var index = Saves.ToList().FindIndex(save => string.Equals(save.FilePath, parsed.FilePath, StringComparison.Ordinal));
@@ -1141,28 +1145,19 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private void ApplyInventoryFilter()
     {
-        FilteredInventory.Clear();
-        if (SelectedSave is null) return;
+        if (SelectedSave is null)
+        {
+            FilteredInventory.ReplaceAll([]);
+            return;
+        }
 
         var query = _inventorySearchText.Trim();
-        foreach (var item in SelectedSave.Inventory)
-        {
-            if (item.IsDeleted) continue;
-
-            if (_selectedCategory != "all" && !string.Equals(item.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrEmpty(query) &&
-                !item.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) &&
-                !item.TypeKey.Contains(query, StringComparison.CurrentCultureIgnoreCase))
-            {
-                continue;
-            }
-
-            FilteredInventory.Add(item);
-        }
+        FilteredInventory.ReplaceAll(SelectedSave.Inventory.Where(item =>
+            !item.IsDeleted &&
+            (_selectedCategory == "all" || string.Equals(item.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(query) ||
+             item.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+             item.TypeKey.Contains(query, StringComparison.CurrentCultureIgnoreCase))));
     }
 
     private void OnInventoryItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

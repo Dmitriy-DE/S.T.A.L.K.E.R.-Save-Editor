@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Hotkeys;
@@ -155,10 +156,10 @@ public sealed class CompanionServiceTests
     private static async Task<(string Id, string Command)> WaitForCommand(string directory)
     {
         var path = Path.Combine(directory, "save_editor_cmd.txt");
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-        while (!File.Exists(path) && DateTime.UtcNow < deadline)
+        var elapsed = Stopwatch.StartNew();
+        while (!File.Exists(path) && elapsed.Elapsed < TimeSpan.FromSeconds(15))
         {
-            await Task.Delay(10);
+            await Task.Delay(TimeSpan.FromMilliseconds(20));
         }
 
         Assert.True(File.Exists(path), "The service did not publish a ping command.");

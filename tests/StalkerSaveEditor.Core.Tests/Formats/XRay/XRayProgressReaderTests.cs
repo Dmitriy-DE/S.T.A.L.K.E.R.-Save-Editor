@@ -118,4 +118,12 @@ public sealed class XRayWeatherReaderTests
     [InlineData("mil_lager=agroprom,military\0")]
     [InlineData("")]
     public void Anything_else_is_not_weather(string text) => Assert.Null(XRayWeatherReader.Find(text));
+
+    [Fact]
+    public void Whole_save_fallback_needs_one_unambiguous_dynamic_value()
+    {
+        Assert.Equal(new XRayWeather("dynamic_default", "rain", "cloudy"), XRayWeatherReader.FindUnique("x\0dynamic_default=rain,cloudy\0y\0dynamic_default=rain,cloudy\0"));
+        Assert.Null(XRayWeatherReader.FindUnique("dynamic_default=rain,cloudy\0dynamic_default=clear,clear\0"));
+        Assert.Null(XRayWeatherReader.FindUnique("other_graph=rain,cloudy\0"));
+    }
 }

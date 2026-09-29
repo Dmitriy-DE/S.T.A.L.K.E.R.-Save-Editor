@@ -33,7 +33,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 dotnet publish "$ROOT/src/StalkerSaveEditor.App/StalkerSaveEditor.App.csproj" \
   -c Release -r "$RID" --self-contained true \
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:NoWarn=IL3000 \
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -p:NoWarn=IL3000 \
   -p:Version="$VERSION" -o "$OUT"
 
 mkdir -p "${TMPDIR:-$ROOT/build}"

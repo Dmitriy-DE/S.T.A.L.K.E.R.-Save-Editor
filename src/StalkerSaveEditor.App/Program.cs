@@ -60,6 +60,14 @@ internal static class Program
             return;
         }
 
+        if (args.Length >= 2 && args[0] == "--measure-ui")
+        {
+            var seconds = args.Length > 2 && int.TryParse(args[2], out var parsed) ? parsed : 10;
+            var language = args.Length > 3 ? args[3] : null;
+            Environment.Exit(MeasureUi(args[1], seconds, language));
+            return;
+        }
+
         if (args.Length > 0 && args[0] == "--screenshot-companion")
         {
             var outPath = args.Length > 1 ? args[1] : "companion.png";
@@ -140,6 +148,71 @@ internal static class Program
         if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
         frame.Save(fullPath);
         window.Close();
+    }
+
+    /// <summary>
+    /// ST-3: opens the app headless with one save selected (optionally after a language switch), walks the
+    /// main tabs, and reports the longest gap between 16 ms UI-thread ticks. Exit code 1 above 100 ms.
+    /// </summary>
+    private static int MeasureUi(string savePath, int seconds, string? language)
+    {
+        AppBuilder.Configure<App>()
+            .UseSkia()
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
+            .SetupWithoutStarting();
+        if (language is not null) Services.I18nService.Instance.SetLanguage(language);
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var last = clock.Elapsed;
+        var worst = TimeSpan.Zero;
+        var worstAt = string.Empty;
+        var phase = "window start";
+        var perPhase = new Dictionary<string, TimeSpan>(StringComparer.Ordinal);
+        var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Background, (_, _) =>
+        {
+            var now = clock.Elapsed;
+            var gap = now - last;
+            if (!perPhase.TryGetValue(phase, out var max) || gap > max) perPhase[phase] = gap;
+            if (gap > worst && phase != "window start")
+            {
+                worst = gap;
+                worstAt = phase;
+            }
+            last = now;
+        });
+        timer.Start();
+
+        var viewModel = new SaveLibraryViewModel(discoverLocalSaves: false);
+        var window = new MainWindow(viewModel);
+        window.Show();
+        Task opening = Task.CompletedTask;
+        var steps = new (string Name, Action Run)[]
+        {
+            ("open save", () => opening = viewModel.AddPreviewSaveAsync(savePath)),
+            ("inventory tab", () => viewModel.SelectedTab = "inventory"),
+            ("stashes tab", () => viewModel.SelectedTab = "stashes"),
+            ("overview tab", () => viewModel.SelectedTab = "overview"),
+            ("inventory tab again", () => viewModel.SelectedTab = "inventory"),
+        };
+        using var done = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
+        var index = 0;
+        var stepper = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) =>
+        {
+            if (index >= steps.Length || !opening.IsCompleted) return;
+            phase = steps[index].Name;
+            steps[index++].Run();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        });
+        stepper.Start();
+        var render = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) => AvaloniaHeadlessPlatform.ForceRenderTimerTick());
+        render.Start();
+        Dispatcher.UIThread.MainLoop(done.Token);
+        window.Close();
+
+        Console.WriteLine($"UI measure: {Path.GetFileName(savePath)}; language {language ?? "default"}; {seconds}s");
+        foreach (var (name, gap) in perPhase) Console.WriteLine($"  {name}: {gap.TotalMilliseconds:0} ms");
+        Console.WriteLine($"Longest UI-thread gap after the window is up: {worst.TotalMilliseconds:0} ms (during: {worstAt})");
+        return worst.TotalMilliseconds > 100 ? 1 : 0;
     }
 
     private static void RenderCompanionScreenshot(string outputPath)

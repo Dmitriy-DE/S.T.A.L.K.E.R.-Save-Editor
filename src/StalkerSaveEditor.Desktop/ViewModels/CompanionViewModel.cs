@@ -6,12 +6,23 @@ using ICompanionService = StalkerSaveEditor.Desktop.Services.ICompanionService;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
-/// <summary>One companion hotkey as shown on the screen (the layout is fixed: <see cref="HotkeyLayout.Default"/>).</summary>
-public sealed record CompanionHotkeyItemViewModel(string Action, string Key, string Description)
+/// <summary>One companion hotkey as shown on the screen; the key can be edited and saved to hotkeys.txt.</summary>
+public sealed class CompanionHotkeyItemViewModel(string action, string key, string description) : ObservableViewModel
 {
+    private string _key = key;
+
     public CompanionHotkeyItemViewModel(CompanionHotkey model)
         : this(model.Action, model.Key, model.Description)
     {
+    }
+
+    public string Action { get; } = action;
+    public string Description { get; } = description;
+
+    public string Key
+    {
+        get => _key;
+        set => SetProperty(ref _key, value ?? string.Empty);
     }
 }
 
@@ -315,6 +326,11 @@ public sealed class CompanionViewModel : ObservableViewModel
     public RelayCommand RefreshCommand { get; private set; } = null!;
     public RelayCommand SetManualDirCommand { get; private set; } = null!;
     public RelayCommand ToggleHotkeysCommand { get; private set; } = null!;
+    public RelayCommand SaveHotkeysCommand { get; private set; } = null!;
+    public RelayCommand ResetHotkeysCommand { get; private set; } = null!;
+
+    /// <summary>"Ctrl+H · Ctrl+R · …" for the current rows.</summary>
+    public string HotkeySummary => string.Join("  ·  ", Hotkeys.Select(hotkey => hotkey.Key));
     public RelayCommand InspectCommand { get; private set; } = null!;
 
     // ── Commands ──────────────────────────────────────────────────────────────
@@ -349,6 +365,15 @@ public sealed class CompanionViewModel : ObservableViewModel
         ToggleHotkeysCommand = new RelayCommand(
             async () => await ToggleHotkeysAsync(),
             () => !_isBusy && HotkeysSupported);
+        SaveHotkeysCommand = new RelayCommand(async () => await SaveHotkeysAsync(), () => !_isBusy && Hotkeys.Count > 0);
+        ResetHotkeysCommand = new RelayCommand(() =>
+        {
+            foreach (var binding in HotkeyLayout.Default.Bindings)
+            {
+                if (Hotkeys.FirstOrDefault(row => row.Action == HotkeyLayout.ActionName(binding.Action)) is { } row) row.Key = binding.Gesture.ToString();
+            }
+            _ = SaveHotkeysAsync();
+        }, () => !_isBusy && Hotkeys.Count > 0);
 
         InspectCommand = new RelayCommand(
             async () => await RefreshInspectorAsync(),
@@ -409,6 +434,9 @@ public sealed class CompanionViewModel : ObservableViewModel
             {
                 Hotkeys.Add(new CompanionHotkeyItemViewModel(hk));
             }
+            OnPropertyChanged(nameof(HotkeySummary));
+            SaveHotkeysCommand.NotifyCanExecuteChanged();
+            ResetHotkeysCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(CanInspect));
             OnPropertyChanged(nameof(InspectorDisabledReason));
             InspectCommand.NotifyCanExecuteChanged();
@@ -566,7 +594,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             {
                 HotkeysEnabled = enable;
                 StatusMessage = enable
-                    ? L.T("Горячие клавиши активированы (Ctrl+H/R/M/J/S).")
+                    ? L.T("Горячие клавиши активированы: {0}.", HotkeySummary)
                     : L.T("Горячие клавиши отключены.");
             }
             else
@@ -577,6 +605,47 @@ public sealed class CompanionViewModel : ObservableViewModel
         catch (Exception ex)
         {
             StatusMessage = L.T("Ошибка горячих клавиш: {0}", ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>Validates the edited keys (one modifier + letter each, no duplicates) and saves them.</summary>
+    public async Task SaveHotkeysAsync()
+    {
+        HotkeyLayout layout;
+        try
+        {
+            layout = HotkeyLayout.Parse(string.Join('\n', Hotkeys.Select(row => row.Action + "=" + row.Key)));
+        }
+        catch (HotkeyLayoutException exception)
+        {
+            StatusMessage = L.T("Клавиши не сохранены: {0}", exception.Message);
+            return;
+        }
+
+        if (_service is not CompanionServiceAdapter adapter)
+        {
+            StatusMessage = L.T("Клавиши сохранены: {0}.", HotkeySummary);
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var (success, error) = await adapter.SaveHotkeyLayoutAsync(_selectedGame, layout);
+            foreach (var binding in layout.Bindings)
+            {
+                if (Hotkeys.FirstOrDefault(row => row.Action == HotkeyLayout.ActionName(binding.Action)) is { } row) row.Key = binding.Gesture.ToString();
+            }
+            OnPropertyChanged(nameof(HotkeySummary));
+            StatusMessage = success ? L.T("Клавиши сохранены: {0}.", HotkeySummary) : L.T("Клавиши сохранены, но перезапуск не удался: {0}", error ?? string.Empty);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = L.T("Клавиши не сохранены: {0}", exception.Message);
         }
         finally
         {

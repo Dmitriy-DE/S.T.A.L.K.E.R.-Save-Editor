@@ -56,7 +56,8 @@ internal static partial class InstalledGameCatalogBuilder
                 NonNegative(ParseInt(Get(values, "inv_grid_y"))),
                 Get(values, "icons_texture") ?? "ui_icon_equipment",
                 Get(values, "class"),
-                nameKey));
+                nameKey,
+                cost: NonNegative(ParseInt(Get(values, "cost")))));
         }
 
         return items;

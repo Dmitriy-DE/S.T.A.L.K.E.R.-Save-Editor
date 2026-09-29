@@ -14,6 +14,7 @@ public sealed class CompanionViewModelTests
 
     private sealed class FakeCompanionService : ICompanionService
     {
+        public bool SupportsLiveProtocol { get; set; }
         public CompanionState StateToReturn { get; set; } = CompanionState.NotInstalled;
         public string GamePath { get; set; } = "/fake/game";
         public string Version { get; set; } = "v1";
@@ -61,6 +62,12 @@ public sealed class CompanionViewModelTests
             ];
             return Task.FromResult(result);
         }
+
+        public Task<CompanionInspectionResult> InspectAsync(string gameReleaseId, CancellationToken ct = default) =>
+            Task.FromResult(new CompanionInspectionResult(true, "info", "inventory", "received"));
+
+        public Task<CompanionActionResult> GiveItemAsync(string gameReleaseId, string section, int count = 1, CancellationToken ct = default) =>
+            Task.FromResult(new CompanionActionResult(true, $"gave {count} {section}"));
     }
 
     // ── Constructor ───────────────────────────────────────────────────────────
@@ -112,6 +119,33 @@ public sealed class CompanionViewModelTests
         Assert.Equal(2, vm.Hotkeys.Count);
         Assert.Contains(vm.Hotkeys, h => h.Action == "heal");
         Assert.Contains(vm.Hotkeys, h => h.Action == "quicksave");
+    }
+
+    [Fact]
+    public async Task Live_inspector_displays_only_the_protocol_responses()
+    {
+        var fake = new FakeCompanionService { StateToReturn = CompanionState.Installed, SupportsLiveProtocol = true };
+        var vm = new CompanionViewModel(fake);
+        await vm.RefreshStatusAsync();
+
+        Assert.True(vm.CanInspect);
+        await vm.RefreshInspectorAsync();
+
+        Assert.Equal("info", vm.InspectorInfo);
+        Assert.Equal("inventory", vm.InspectorInventory);
+        Assert.Equal("received", vm.InspectorStatus);
+        Assert.NotEmpty(vm.InspectorUpdated);
+    }
+
+    [Fact]
+    public async Task Item_give_delegates_to_the_existing_companion_service()
+    {
+        var fake = new FakeCompanionService { StateToReturn = CompanionState.Installed, SupportsLiveProtocol = true };
+        var vm = new CompanionViewModel(fake);
+        var result = await vm.GiveItemAsync("stalker-cop", "medkit_army");
+
+        Assert.True(result.Success);
+        Assert.Equal("gave 1 medkit_army", result.Message);
     }
 
     // ── StatusBadge ───────────────────────────────────────────────────────────

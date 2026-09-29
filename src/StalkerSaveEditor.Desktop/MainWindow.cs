@@ -400,10 +400,12 @@ public sealed class MainWindow : Window
         navBar.Children.Add(MakeNavTab(vm, L.T("ТАЙНИКИ"), "stashes", nameof(SaveLibraryViewModel.IsStashesTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("ПЕРЕХОДЫ"), "transitions", nameof(SaveLibraryViewModel.IsTransitionsTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("БЭКАПЫ"), "backups", nameof(SaveLibraryViewModel.IsBackupsTab)));
-        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("СРЕДА ИГРЫ"), "toolkit-environment", nameof(SaveLibraryViewModel.IsToolkitEnvironmentTab)));
+        navBar.Children.Add(MakeNavTab(vm, L.T("ИСТОРИЯ СОХРАНЕНИЙ"), "timeline", nameof(SaveLibraryViewModel.IsTimelineTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ЭНЦИКЛОПЕДИЯ"), "encyclopedia", nameof(SaveLibraryViewModel.IsEncyclopediaTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР СОХРАНЕНИЯ"), "save-doctor", nameof(SaveLibraryViewModel.IsSaveDoctorTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ИСПРАВЛЕНИЯ ИГРЫ"), "game-fixes", nameof(SaveLibraryViewModel.IsGameFixesTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ДОКТОР ИГРЫ"), "game-doctor", nameof(SaveLibraryViewModel.IsGameDoctorTab)));
+        if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("СРЕДА ИГРЫ"), "toolkit-environment", nameof(SaveLibraryViewModel.IsToolkitEnvironmentTab)));
         navBar.Children.Add(MakeNavTab(vm, L.T("ВОЗМОЖНОСТИ"), "capabilities", nameof(SaveLibraryViewModel.IsCapabilitiesTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("КОМПАНЬОН"), "companion", nameof(SaveLibraryViewModel.IsCompanionTab)));
         if (!HostPlatform.IsBrowser) navBar.Children.Add(MakeNavTab(vm, L.T("ОБЛАКО"), "cloud", nameof(SaveLibraryViewModel.IsCloudTab)));
@@ -493,6 +495,16 @@ public sealed class MainWindow : Window
         var backups = BackupsView.Build(vm);
         backups.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowBackupsScreen)));
         screens.Children.Add(backups);
+
+        var timeline = TimelineView.Build(vm.Timeline);
+        timeline.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowTimelineScreen)) { Source = vm });
+        screens.Children.Add(timeline);
+        if (!HostPlatform.IsBrowser)
+        {
+            var encyclopedia = EncyclopediaView.Build(vm.Encyclopedia);
+            encyclopedia.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowEncyclopediaScreen)) { Source = vm });
+            screens.Children.Add(encyclopedia);
+        }
 
         // 7. Settings
         var settings = SettingsView.Build(vm.Settings, vm.Diagnostics);

@@ -17,7 +17,8 @@ public sealed class CompanionEnhancedEditionTests
 
             var root = CompanionAppDataRootResolver.EnhancedEditionRoot(game.FullName);
 
-            Assert.Equal(Path.Combine(library.FullName, "steamapps", "compatdata", "2427430", "pfx", "drive_c", "users", "steamuser",
+            // Under Proton (Linux/macOS) the data root is in the prefix; on Windows it is the real Saved Games.
+            if (!OperatingSystem.IsWindows()) Assert.Equal(Path.Combine(library.FullName, "steamapps", "compatdata", "2427430", "pfx", "drive_c", "users", "steamuser",
                 "Saved Games", "STALKER Call of Prypiat - EE", "STEAM"), root);
             Assert.Equal(Path.Combine("C:\\Users\\me\\Saved Games", "STALKER Call of Prypiat - EE", "STEAM"),
                 CompanionAppDataRootResolver.EnhancedEditionRoot(game.FullName, "C:\\Users\\me\\Saved Games"));

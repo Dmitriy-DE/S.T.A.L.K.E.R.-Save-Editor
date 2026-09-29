@@ -40,3 +40,29 @@ public sealed class SaveDoctorViewModelTests
         Assert.False(viewModel.RepairQuestsCommand.CanExecute(null));
     }
 }
+
+public sealed class GameFixesShowFixTests
+{
+    [Fact]
+    public void Show_fix_selects_its_game_the_fix_and_a_detected_install()
+    {
+        var directory = Directory.CreateTempSubdirectory("show-fix-");
+        try
+        {
+            var viewModel = new GameFixesViewModel();
+
+            viewModel.ShowFix("cs.quest.wolf-offline-cancellation", _ => directory.FullName);
+
+            Assert.Equal(StalkerSaveEditor.Core.Diagnostics.GameTarget.ClearSky, viewModel.SelectedTarget.Target);
+            Assert.Equal("cs.quest.wolf-offline-cancellation", viewModel.SelectedFix?.Id);
+            Assert.Equal(directory.FullName, viewModel.GameDirectory);
+
+            viewModel.ShowFix("no.such.fix", _ => throw new InvalidOperationException());
+            Assert.Equal("cs.quest.wolf-offline-cancellation", viewModel.SelectedFix?.Id);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+}

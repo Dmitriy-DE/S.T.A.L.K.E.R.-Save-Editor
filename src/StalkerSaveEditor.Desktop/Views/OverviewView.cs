@@ -118,6 +118,7 @@ public static class OverviewView
         fileDetails.Children.Add(MakeRow(L.T("Размер файла:"), "SelectedSave.FileSizeDisplay"));
         fileDetails.Children.Add(MakeRow(L.T("Изменён:"), "SelectedSave.LastModifiedDisplay"));
         fileDetails.Children.Add(MakeRow("SHA-256:", "SelectedSave.SourceSha256"));
+        fileDetails.Children.Add(MakeRow(L.T("Сборка игры:"), nameof(SaveLibraryViewModel.GameBuildDisplay)));
 
         stack.Children.Add(StalkerTheme.Card(fileDetails, L.T("Целостность и метаданные")));
         stack.Children.Add(BuildCompare());

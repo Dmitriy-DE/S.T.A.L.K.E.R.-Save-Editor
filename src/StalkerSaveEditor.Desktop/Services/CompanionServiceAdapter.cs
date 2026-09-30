@@ -15,19 +15,14 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     private readonly string _modSourceRoot;
 
     // Per-game state: client + hotkey service created lazily when a game dir is known.
-    private readonly Dictionary<CompanionGame, GameRuntime> _runtimes = [];
+    private readonly Dictionary<string, GameRuntime> _runtimes = [];
 
     // Stores the user-specified or auto-detected game directory per game.
-    private readonly Dictionary<CompanionGame, string?> _userGameDirs =
-        new()
-        {
-            [CompanionGame.ShadowOfChernobyl] = null,
-            [CompanionGame.ClearSky] = null,
-            [CompanionGame.CallOfPripyat] = null,
-        };
+    // Keyed by release id: the retail game and its Enhanced Edition are separate installs.
+    private readonly Dictionary<string, string?> _userGameDirs = new(StringComparer.Ordinal);
 
     // Hotkey toggle state per game (enabled/disabled).
-    private readonly Dictionary<CompanionGame, bool> _hotkeysEnabled = [];
+    private readonly Dictionary<string, bool> _hotkeysEnabled = [];
 
     public CompanionServiceAdapter(string modSourceRoot)
     {
@@ -38,17 +33,17 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     // ── public: game dir ──────────────────────────────────────────────────────
 
     /// <summary>Sets the manually chosen game folder for the given game.</summary>
-    public void SetUserGameDirectory(CompanionGame game, string? directory)
+    public void SetUserGameDirectory(string gameReleaseId, string? directory)
     {
-        _userGameDirs[game] = string.IsNullOrWhiteSpace(directory) ? null : directory;
+        _userGameDirs[gameReleaseId] = string.IsNullOrWhiteSpace(directory) ? null : directory;
         // Invalidate any cached runtime when the game dir changes.
-        if (_runtimes.Remove(game, out var old))
+        if (_runtimes.Remove(gameReleaseId, out var old))
         {
             BackgroundTask.Run(old.DisposeAsync(), "companion dispose");
         }
     }
 
-    public string? GetUserGameDirectory(CompanionGame game) => _userGameDirs.GetValueOrDefault(game);
+    public string? GetUserGameDirectory(string gameReleaseId) => _userGameDirs.GetValueOrDefault(gameReleaseId);
 
     // ── ICompanionService ─────────────────────────────────────────────────────
 
@@ -59,7 +54,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         await Task.Yield(); // keep async signature; installer is sync
         try
         {
-            var status = installer.GetStatus(game, _userGameDirs.GetValueOrDefault(game));
+            var status = installer.GetStatus(game, DirectoryFor(gameReleaseId));
             return MapStatus(status);
         }
         catch (Exception ex)
@@ -73,7 +68,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         var game = ParseGame(gameReleaseId);
         var installer = CreateInstaller();
         await Task.Yield();
-        var result = installer.Install(game, _userGameDirs.GetValueOrDefault(game));
+        var result = installer.Install(game, DirectoryFor(gameReleaseId));
         return result.Success;
     }
 
@@ -82,19 +77,19 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         var game = ParseGame(gameReleaseId);
         var installer = CreateInstaller();
         await Task.Yield();
-        var result = installer.Uninstall(game, _userGameDirs.GetValueOrDefault(game));
+        var result = installer.Uninstall(game, DirectoryFor(gameReleaseId));
         return result.Success;
     }
 
-    private readonly Dictionary<CompanionGame, string?> _buildWarnings = [];
+    private readonly Dictionary<string, string?> _buildWarnings = [];
 
     /// <summary>Set by the last successful ping when the game runs another mod build than the editor ships.</summary>
-    public string? ModBuildWarning(string gameReleaseId) => _buildWarnings.GetValueOrDefault(ParseGame(gameReleaseId));
+    public string? ModBuildWarning(string gameReleaseId) => _buildWarnings.GetValueOrDefault(gameReleaseId);
 
     public async Task<TimeSpan?> PingAsync(string gameReleaseId, CancellationToken ct = default)
     {
         var game = ParseGame(gameReleaseId);
-        var gameDir = GetResolvedGameDir(game);
+        var gameDir = GetResolvedGameDir(gameReleaseId);
         if (gameDir is null) return null;
         try
         {
@@ -105,7 +100,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
             if (reply.Status != StalkerSaveEditor.Core.Companion.CompanionReplyStatus.Ok) return null;
             var gameBuild = reply.Text.StartsWith("pong ", StringComparison.Ordinal) ? reply.Text[5..].Trim() : null;
             var bundled = CreateInstaller().BundledModBuild;
-            _buildWarnings[game] = bundled is not null && !string.Equals(gameBuild, bundled, StringComparison.Ordinal)
+            _buildWarnings[gameReleaseId] = bundled is not null && !string.Equals(gameBuild, bundled, StringComparison.Ordinal)
                 ? L.T("В игре работает мод версии {0}, в редакторе — {1}. Нажмите «Установить / обновить» и перезапустите игру.", gameBuild ?? L.T("старее 2026.09.28"), bundled)
                 : null;
             return sw.Elapsed;
@@ -133,7 +128,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         var status = await GetStatusAsync(gameReleaseId, ct).ConfigureAwait(false);
         if (status.State is not (CompanionState.Installed or CompanionState.Active))
             return new CompanionInspectionResult(false, string.Empty, string.Empty, status.ErrorMessage ?? "Companion is not installed for this game.");
-        var gameDirectory = GetResolvedGameDir(ParseGame(gameReleaseId));
+        var gameDirectory = GetResolvedGameDir(gameReleaseId);
         if (gameDirectory is null)
             return new CompanionInspectionResult(false, string.Empty, string.Empty, "The game directory could not be resolved.");
 
@@ -163,7 +158,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         var status = await GetStatusAsync(gameReleaseId, ct).ConfigureAwait(false);
         if (status.State is not (CompanionState.Installed or CompanionState.Active))
             return new CompanionActionResult(false, status.ErrorMessage ?? "Companion is not installed for this game.");
-        var gameDirectory = GetResolvedGameDir(ParseGame(gameReleaseId));
+        var gameDirectory = GetResolvedGameDir(gameReleaseId);
         if (gameDirectory is null)
             return new CompanionActionResult(false, "The game directory could not be resolved.");
         try
@@ -190,7 +185,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         var game = ParseGame(gameReleaseId);
         var installer = CreateInstaller();
         await Task.Yield();
-        var status = installer.GetStatus(game, _userGameDirs.GetValueOrDefault(game));
+        var status = installer.GetStatus(game, DirectoryFor(gameReleaseId));
         return status.Issues;
     }
 
@@ -228,7 +223,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         CancellationToken ct = default)
     {
         var game = ParseGame(gameReleaseId);
-        var gameDir = GetResolvedGameDir(game);
+        var gameDir = GetResolvedGameDir(gameReleaseId);
         if (gameDir is null)
         {
             return (false, L.T("Папка игры не найдена. Укажите путь вручную."));
@@ -239,12 +234,12 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
             if (enable)
             {
                 // Create or reuse runtime.
-                if (!_runtimes.TryGetValue(game, out var rt))
+                if (!_runtimes.TryGetValue(gameReleaseId, out var rt))
                 {
                     var client = new CompanionProtocolClient(gameDir);
                     var svc = new CompanionHotkeyService(client);
                     rt = new GameRuntime(client, svc);
-                    _runtimes[game] = rt;
+                    _runtimes[gameReleaseId] = rt;
                 }
 
                 if (!rt.HotkeyService.IsActive)
@@ -253,16 +248,16 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
                         .ConfigureAwait(false);
                 }
 
-                _hotkeysEnabled[game] = true;
+                _hotkeysEnabled[gameReleaseId] = true;
             }
             else
             {
-                if (_runtimes.TryGetValue(game, out var rt) && rt.HotkeyService.IsActive)
+                if (_runtimes.TryGetValue(gameReleaseId, out var rt) && rt.HotkeyService.IsActive)
                 {
                     await rt.HotkeyService.StopAsync(ct).ConfigureAwait(false);
                 }
 
-                _hotkeysEnabled[game] = false;
+                _hotkeysEnabled[gameReleaseId] = false;
             }
 
             return (true, null);
@@ -280,7 +275,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     public bool AreHotkeysActive(string gameReleaseId)
     {
         var game = ParseGame(gameReleaseId);
-        return _runtimes.TryGetValue(game, out var rt) && rt.HotkeyService.IsActive;
+        return _runtimes.TryGetValue(gameReleaseId, out var rt) && rt.HotkeyService.IsActive;
     }
 
     // ── Dispose ───────────────────────────────────────────────────────────────
@@ -304,13 +299,50 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
 
     public Stalker2CompanionStatus InstallStalker2() => new Stalker2CompanionInstaller(_modSourceRoot).Install();
 
-    private string? GetResolvedGameDir(CompanionGame game)
+    /// <summary>
+    /// Sends one S2 debug command (god / noclip / timespeed) to the running game through the mod's exchange folder.
+    /// Returns the game's reply text, or why it could not be sent.
+    /// </summary>
+    public async Task<(bool Ok, string Text)> SendStalker2Async(string command, IReadOnlyList<string> arguments)
     {
-        if (_userGameDirs.TryGetValue(game, out var d) && !string.IsNullOrWhiteSpace(d))
-            return d;
-        // Attempt auto-detection via installer.
-        var status = CreateInstaller().GetStatus(game);
-        return status.GameDirectory;
+        var status = Stalker2Status();
+        if (!status.ModInstalled || status.GameDirectory is not { } game)
+            return (false, L.T("Мод S2 не установлен."));
+        try
+        {
+            var client = CompanionProtocolClient.ForDirectory(Stalker2CompanionInstaller.ProtocolDirectory(game), TimeSpan.FromSeconds(6));
+            var reply = await client.SendAsync(command, arguments).ConfigureAwait(false);
+            return (reply.Status == CompanionReplyStatus.Ok, reply.Text);
+        }
+        catch (CompanionProtocolTimeoutException)
+        {
+            return (false, L.T("Игра не ответила: запущена ли S2 с UE4SS и модом?"));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CompanionProtocolException)
+        {
+            return (false, exception.Message);
+        }
+    }
+
+    private string? GetResolvedGameDir(string gameReleaseId)
+    {
+        if (DirectoryFor(gameReleaseId) is { } directory) return directory;
+        // Retail: the installer's own discovery (fsgame.ltx).
+        return CreateInstaller().GetStatus(ParseGame(gameReleaseId)).GameDirectory;
+    }
+
+    /// <summary>
+    /// The user's folder for this release, else for an Enhanced Edition the install Game Doctor finds (the installer's
+    /// own discovery looks for retail fsgame.ltx first and would pick the retail game).
+    /// </summary>
+    private string? DirectoryFor(string gameReleaseId)
+    {
+        if (_userGameDirs.TryGetValue(gameReleaseId, out var chosen) && !string.IsNullOrWhiteSpace(chosen)) return chosen;
+        if (!gameReleaseId.EndsWith("-ee", StringComparison.Ordinal)) return null;
+        var target = StalkerSaveEditor.Core.Diagnostics.GameBuildFingerprints.TargetForFormat(gameReleaseId);
+        return target is null
+            ? null
+            : StalkerSaveEditor.Core.Diagnostics.GameDoctor.DiscoverInstallations().FirstOrDefault(install => install.Target == target)?.Directory;
     }
 
     private static CompanionGame ParseGame(string releaseId) => releaseId switch
@@ -318,6 +350,9 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         "stalker-soc" => CompanionGame.ShadowOfChernobyl,
         "stalker-cs" => CompanionGame.ClearSky,
         "stalker-cop" => CompanionGame.CallOfPripyat,
+        "stalker-soc-ee" => CompanionGame.ShadowOfChernobyl,
+        "stalker-cs-ee" => CompanionGame.ClearSky,
+        "stalker-cop-ee" => CompanionGame.CallOfPripyat,
         _ => throw new ArgumentException($"Unknown game release id: '{releaseId}'", nameof(releaseId)),
     };
 

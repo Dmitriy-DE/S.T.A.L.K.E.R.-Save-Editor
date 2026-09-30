@@ -70,6 +70,9 @@ public sealed class CompanionViewModel : ObservableViewModel
         new("stalker-cop", L.T("S.T.A.L.K.E.R. Зов Припяти")),
         new("stalker-cs", L.T("S.T.A.L.K.E.R. Чистое Небо")),
         new("stalker-soc", L.T("S.T.A.L.K.E.R. Тень Чернобыля")),
+        new("stalker-cop-ee", L.T("Зов Припяти (Enhanced Edition)")),
+        new("stalker-cs-ee", L.T("Чистое Небо (Enhanced Edition)")),
+        new("stalker-soc-ee", L.T("Тень Чернобыля (Enhanced Edition)")),
     ];
 
     public string SelectedGame
@@ -82,8 +85,7 @@ public sealed class CompanionViewModel : ObservableViewModel
                 // sync manual dir display from adapter
                 if (_service is CompanionServiceAdapter adapter)
                 {
-                    var game = ParseGame(value);
-                    ManualGameDir = adapter.GetUserGameDirectory(game) ?? string.Empty;
+                    ManualGameDir = adapter.GetUserGameDirectory(value) ?? string.Empty;
                 }
 
                 BackgroundTask.Run(RefreshStatusAsync(), "companion status");
@@ -333,6 +335,32 @@ public sealed class CompanionViewModel : ObservableViewModel
     public string HotkeySummary => string.Join("  ·  ", Hotkeys.Select(hotkey => hotkey.Key));
     public RelayCommand InspectCommand { get; private set; } = null!;
 
+    private string _stalker2CommandStatus = string.Empty;
+
+    /// <summary>EXPERIMENTAL S2: the game's own debug commands through the UE4SS mod (desktop only).</summary>
+    public bool SupportsStalker2Commands => _service is CompanionServiceAdapter;
+
+    public string Stalker2CommandStatus
+    {
+        get => _stalker2CommandStatus;
+        private set => SetProperty(ref _stalker2CommandStatus, value);
+    }
+
+    public RelayCommand<string> Stalker2CommandCommand => _stalker2Command ??= new RelayCommand<string>(
+        async spec => await SendStalker2Async(spec));
+
+    private RelayCommand<string>? _stalker2Command;
+
+    /// <summary><paramref name="spec"/> is "command argument", e.g. "god on" or "timespeed 5".</summary>
+    public async Task SendStalker2Async(string? spec)
+    {
+        if (_service is not CompanionServiceAdapter adapter || string.IsNullOrWhiteSpace(spec)) return;
+        var parts = spec.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        Stalker2CommandStatus = L.T("Отправка в игру…");
+        var (ok, text) = await adapter.SendStalker2Async(parts[0], parts[1..]);
+        Stalker2CommandStatus = ok ? L.T("Игра выполнила: {0}", text) : L.T("Не выполнено: {0}", text);
+    }
+
     // ── Commands ──────────────────────────────────────────────────────────────
 
     private void InitCommands()
@@ -570,8 +598,7 @@ public sealed class CompanionViewModel : ObservableViewModel
             return;
         }
 
-        var game = ParseGame(_selectedGame);
-        adapter.SetUserGameDirectory(game, string.IsNullOrEmpty(dir) ? null : dir);
+        adapter.SetUserGameDirectory(_selectedGame, string.IsNullOrEmpty(dir) ? null : dir);
         StatusMessage = string.IsNullOrEmpty(dir)
             ? L.T("Папка очищена, используется автообнаружение.")
             : L.T("Папка задана: {0}", dir);
@@ -653,15 +680,6 @@ public sealed class CompanionViewModel : ObservableViewModel
         }
     }
 
-    // ── Static helpers ────────────────────────────────────────────────────────
-
-    private static CompanionGame ParseGame(string releaseId) => releaseId switch
-    {
-        "stalker-soc" => CompanionGame.ShadowOfChernobyl,
-        "stalker-cs" => CompanionGame.ClearSky,
-        "stalker-cop" => CompanionGame.CallOfPripyat,
-        _ => CompanionGame.CallOfPripyat,
-    };
 }
 
 /// <summary>A row of the companion's game list; checked rows get «Установить / обновить во все отмеченные».</summary>

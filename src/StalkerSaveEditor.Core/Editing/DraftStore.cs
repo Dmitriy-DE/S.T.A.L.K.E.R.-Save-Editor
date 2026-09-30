@@ -164,23 +164,7 @@ public sealed partial class DraftStore
         var temporaryPath = Path.Combine(_directory, $".{sourceSha256}.{Guid.NewGuid():N}.tmp");
         try
         {
-            using (var stream = new FileStream(temporaryPath, new FileStreamOptions
-            {
-                Mode = FileMode.CreateNew,
-                Access = FileAccess.Write,
-                Share = FileShare.None,
-                Options = FileOptions.WriteThrough,
-            }))
-            {
-                if (!OperatingSystem.IsWindows())
-                {
-                    File.SetUnixFileMode(temporaryPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-                }
-
-                stream.Write(data);
-                stream.Flush(flushToDisk: true);
-            }
-
+            Storage.DurableFile.WriteNew(temporaryPath, data, ownerOnly: true);
             File.Move(temporaryPath, path, overwrite: true);
         }
         finally

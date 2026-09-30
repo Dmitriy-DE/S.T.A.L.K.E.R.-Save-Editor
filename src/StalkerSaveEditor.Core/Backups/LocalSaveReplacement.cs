@@ -237,33 +237,7 @@ public static class LocalSaveReplacement
     {
         public byte[] ReadAllBytes(string path) => File.ReadAllBytes(path);
 
-        public void WriteNew(string path, byte[] data)
-        {
-            var created = false;
-            try
-            {
-                using var stream = new FileStream(path, new FileStreamOptions
-                {
-                    Mode = FileMode.CreateNew,
-                    Access = FileAccess.Write,
-                    Share = FileShare.None,
-                    Options = FileOptions.WriteThrough,
-                });
-                created = true;
-                if (!OperatingSystem.IsWindows())
-                {
-                    File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-                }
-
-                stream.Write(data);
-                stream.Flush(flushToDisk: true);
-            }
-            catch
-            {
-                if (created) DeleteIfExists(path);
-                throw;
-            }
-        }
+        public void WriteNew(string path, byte[] data) => Storage.DurableFile.WriteNew(path, data, ownerOnly: true);
 
         public void Replace(string sourcePath, string destinationPath) =>
             File.Move(sourcePath, destinationPath, overwrite: true);

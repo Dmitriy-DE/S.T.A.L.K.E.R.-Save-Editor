@@ -29,7 +29,8 @@ internal sealed class PhysicalGameFileSystem : IGameFileSystem
     public Stream OpenRead(string path) => File.OpenRead(path);
     public FileAttributes GetAttributes(string path) => File.GetAttributes(path);
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);
-    public void WriteAllBytes(string path, byte[] bytes) => File.WriteAllBytes(path, bytes);
+    // Temp files of AtomicGameFileWriter: durable before the rename, so a crash never leaves an empty game file.
+    public void WriteAllBytes(string path, byte[] bytes) => Storage.DurableFile.WriteNew(path, bytes);
     public void Move(string source, string destination, bool overwrite) => File.Move(source, destination, overwrite);
     public void DeleteFile(string path) => File.Delete(path);
     public void DeleteDirectory(string path, bool recursive) => Directory.Delete(path, recursive);

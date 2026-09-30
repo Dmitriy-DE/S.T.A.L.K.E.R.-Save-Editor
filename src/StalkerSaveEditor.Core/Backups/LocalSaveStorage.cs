@@ -595,37 +595,8 @@ public static class LocalSaveStorage
         }
     }
 
-    private static void WriteNew(string path, ReadOnlySpan<byte> bytes)
-    {
-        var created = false;
-        try
-        {
-            using var stream = new FileStream(path, new FileStreamOptions
-            {
-                Mode = FileMode.CreateNew,
-                Access = FileAccess.Write,
-                Share = FileShare.None,
-                Options = FileOptions.WriteThrough,
-            });
-            created = true;
-            if (!OperatingSystem.IsWindows())
-            {
-                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            }
-
-            stream.Write(bytes);
-            stream.Flush(flushToDisk: true);
-        }
-        catch
-        {
-            if (created)
-            {
-                DeleteIfExists(path);
-            }
-
-            throw;
-        }
-    }
+    private static void WriteNew(string path, ReadOnlySpan<byte> bytes) =>
+        Storage.DurableFile.WriteNew(path, bytes, ownerOnly: true);
 
     private static void WriteTemporary(string path, ReadOnlySpan<byte> bytes)
     {

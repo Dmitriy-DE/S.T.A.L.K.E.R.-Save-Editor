@@ -53,6 +53,8 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
 
 ## Not done / next
 
+0. **Fix packs (active):** plan and tracker in `docs/roadmap/FIX-PACKS.md` — update its task table and change log in every related PR.
+
 1. **Owner in game (L5):** a CS/CoP save written by the editor (grows ~4×), Quest Doctor repair, relocation (TP), stash moves, fixes, companion in SoC/CS/EE, S2 companion god/noclip/timespeed (needs S2 on PC with UE4SS).
 2. **Refactors deferred** (no user-visible change): split SaveLibraryViewModel (loader / edit session / VM), list recycling (#90), analyzers for Desktop/App, headless tooling out of the App exe, one file-transaction primitive for fixes/companion/snapshots/backups (after L5).
 3. **Needs owner material:** S2 save pairs for add items/upgrades/relations; S2 game files for content packs (CP-4); UCoPEEP/Workshop files (subscribe) to port external fixes; update signing key; CI publish secrets; Workshop upload.

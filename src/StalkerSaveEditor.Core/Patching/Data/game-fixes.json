@@ -3452,6 +3452,40 @@
       "references": [
         "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
       ]
+    },
+    {
+      "id": "cs.crash.marsh-creature-no-squad",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Marsh creature ambush no longer crashes on a stalker without a squad",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/sr_bloodsucker.script",
+          "expectedText": "\tself.npc_squad \t\t\t\t= sim_board.get_sim_board().squads[alife():object(self.target_npc:id()).squad_id]\r\n",
+          "replacementText": "\tself.npc_squad \t\t\t\t= sim_board.get_sim_board().squads[alife():object(self.target_npc:id()).squad_id]\r\n\tif self.npc_squad == nil then\r\n\t\tself.npc_squad = {squad_npc = {[self.target_npc_id] = true}}\r\n\tend\r\n",
+          "expectedFileSha256": "b94d0ea76e81fc81a5be29a67569e11bd8f6c0056027cf5abb5cf8153f3cad14",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane) and STCS Redux 2.6.3 (credited to the Shoker mod team); our own guard in the retail script.",
+      "problem": "The marsh creature (bloodsucker) ambush in the Swamps and Agroprom makes the victim's squad react; if the victim has no squad any more, the game crashes: sr_bloodsucker.script:428: attempt to index field 'npc_squad' (a nil value).",
+      "description": "A victim without a squad reacts alone instead of crashing the game.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt",
+        "https://www.moddb.com/games/stalker-clear-sky/downloads/stcs-263-redux"
+      ]
     }
   ],
   "enhancedEditionSha256": {

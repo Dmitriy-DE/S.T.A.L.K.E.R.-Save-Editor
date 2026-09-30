@@ -758,7 +758,9 @@ public sealed class MainWindow : Window
                 var sizeText = new TextBlock
                 {
                     FontSize = 10,
-                    Foreground = StalkerTheme.BrushTextMuted,
+                    // Muted grey vanished on the amber selected row; secondary keeps contrast on both.
+                    Foreground = StalkerTheme.BrushTextSecondary,
+                    Margin = new Thickness(6, 0, 0, 0),
                     HorizontalAlignment = HorizontalAlignment.Right,
                 };
                 sizeText.Bind(TextBlock.TextProperty, new Binding(nameof(SaveFileSummary.FileSizeDisplay)));

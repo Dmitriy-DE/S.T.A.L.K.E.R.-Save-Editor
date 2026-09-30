@@ -53,6 +53,21 @@ public sealed class ToolkitEnvironmentView : UserControl
         return root;
     }
 
+    /// <summary>A list with a centred hint while its collection is empty (instead of a blank box).</summary>
+    private static Control EmptyOverlay(ListBox list, ToolkitEnvironmentViewModel vm, string collection, string hint)
+    {
+        var empty = new TextBlock
+        {
+            Text = hint,
+            Foreground = StalkerTheme.BrushTextMuted,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+        };
+        empty.Bind(Visual.IsVisibleProperty, new Binding("!" + collection + ".Count") { Source = vm });
+        return new Grid { Children = { list, empty } };
+    }
+
     private static Control BuildSnapshots(ToolkitEnvironmentViewModel vm)
     {
         var stack = new StackPanel { Spacing = 9 };
@@ -79,7 +94,7 @@ public sealed class ToolkitEnvironmentView : UserControl
             Foreground = StalkerTheme.BrushTextPrimary,
         };
         list.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(ToolkitEnvironmentViewModel.SelectedSnapshot)) { Source = vm, Mode = BindingMode.TwoWay });
-        stack.Children.Add(list);
+        stack.Children.Add(EmptyOverlay(list, vm, nameof(ToolkitEnvironmentViewModel.Snapshots), L.T("Снимков пока нет: создайте первый кнопкой ниже.")));
         var details = new TextBlock { Foreground = StalkerTheme.BrushTextMuted, TextWrapping = TextWrapping.Wrap, FontSize = 11 };
         details.Bind(TextBlock.TextProperty, new Binding(nameof(ToolkitEnvironmentViewModel.SelectedSnapshotDetails)) { Source = vm });
         stack.Children.Add(details);
@@ -139,7 +154,7 @@ public sealed class ToolkitEnvironmentView : UserControl
             Foreground = StalkerTheme.BrushTextPrimary,
         };
         list.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(ToolkitEnvironmentViewModel.SelectedProfile)) { Source = vm, Mode = BindingMode.TwoWay });
-        stack.Children.Add(list);
+        stack.Children.Add(EmptyOverlay(list, vm, nameof(ToolkitEnvironmentViewModel.Profiles), L.T("Профилей пока нет: введите имя и сохраните текущее состояние.")));
         var details = new TextBlock { Foreground = StalkerTheme.BrushTextMuted, TextWrapping = TextWrapping.Wrap, FontSize = 11 };
         details.Bind(TextBlock.TextProperty, new Binding(nameof(ToolkitEnvironmentViewModel.SelectedProfileDetails)) { Source = vm });
         stack.Children.Add(details);

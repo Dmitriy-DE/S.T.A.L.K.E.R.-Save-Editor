@@ -162,7 +162,18 @@ public sealed class CloudView : UserControl
         };
         listBox.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(CloudViewModel.CloudSaves)));
         listBox.Bind(ListBox.SelectedItemProperty, new Binding(nameof(CloudViewModel.SelectedCloudSave), BindingMode.TwoWay));
-        listBorder.Child = listBox;
+        var emptyHint = new TextBlock
+        {
+            Text = L.T("Сейвов в облаке не найдено. Выберите игру или нажмите «Обновить список»."),
+            Foreground = StalkerTheme.BrushTextMuted,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(16),
+            IsHitTestVisible = false,
+        };
+        emptyHint.Bind(Visual.IsVisibleProperty, new Binding("!" + nameof(CloudViewModel.CloudSaves) + ".Count"));
+        listBorder.Child = new Grid { Children = { listBox, emptyHint } };
         workspace.Children.Add(listBorder);
 
         // Right: Detail Panel

@@ -234,7 +234,8 @@ public sealed class GameFixesView : UserControl
         var allSafePreset = StalkerTheme.StalkerButton(L.T("ПРИМЕНИТЬ: ВСЕ БЕЗОПАСНЫЕ"), isPrimary: false, minWidth: 190);
         allSafePreset.Bind(Button.CommandProperty, new Binding(nameof(GameFixesViewModel.ApplyAllSafePresetCommand)) { Source = viewModel });
         presetActions.Children.Add(allSafePreset);
-        details.Children.Add(presetActions);
+        var footer = new StackPanel { Spacing = 4, Margin = new Thickness(0, 10, 0, 0) };
+        footer.Children.Add(presetActions);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
         var install = StalkerTheme.StalkerButton(L.T("УСТАНОВИТЬ ВЫБРАННОЕ"), isPrimary: true, minWidth: 190);
@@ -247,8 +248,8 @@ public sealed class GameFixesView : UserControl
         var remove = StalkerTheme.StalkerButton(L.T("УДАЛИТЬ И ВОССТАНОВИТЬ"), isPrimary: false, minWidth: 190);
         remove.Bind(Button.CommandProperty, new Binding(nameof(GameFixesViewModel.RemoveCommand)) { Source = viewModel });
         actions.Children.Add(remove);
-        details.Children.Add(actions);
-        details.Children.Add(new TextBlock
+        footer.Children.Add(actions);
+        footer.Children.Add(new TextBlock
         {
             Text = L.T("ИСПРАВЛЕНИЕ ЗАПИСЫВАЕТСЯ ТОЛЬКО ПО НАЖАТИЮ КНОПКИ. ПРИ ИЗМЕНЕНИИ УПРАВЛЯЕМОГО ФАЙЛА УДАЛЕНИЕ ОСТАНОВИТСЯ, НЕ ПЕРЕЗАПИСЫВАЯ ЕГО."),
             FontSize = 11,
@@ -262,13 +263,27 @@ public sealed class GameFixesView : UserControl
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(14),
-            Child = new ScrollViewer { Content = details, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto },
+            // Actions stay pinned under the scrolling details, so they are never below the fold.
+            Child = new DockPanel
+            {
+                Children =
+                {
+                    Dock(footer, Avalonia.Controls.Dock.Bottom),
+                    new ScrollViewer { Content = details, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto },
+                },
+            },
         };
         Grid.SetColumn(detailCard, 1);
         content.Children.Add(detailCard);
         Grid.SetRow(content, 4);
         page.Children.Add(content);
         return page;
+    }
+
+    private static Control Dock(Control control, Avalonia.Controls.Dock dock)
+    {
+        DockPanel.SetDock(control, dock);
+        return control;
     }
 
     private static void AddDetail(StackPanel panel, string label, string propertyName, GameFixesViewModel viewModel)

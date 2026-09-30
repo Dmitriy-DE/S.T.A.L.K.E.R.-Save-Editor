@@ -35,11 +35,9 @@ public sealed record CompareFilterOption(
     string Id,
     string Title,
     int Count,
-    bool IsSupported = true,
-    string? DisabledReason = null,
     bool IsSelected = false)
 {
-    public string CountDisplay => IsSupported ? Count.ToString(CultureInfo.InvariantCulture) : "—";
+    public string CountDisplay => Count.ToString(CultureInfo.InvariantCulture);
 }
 
 /// <summary>Read-only differences exposed by the current save inspection contract.</summary>
@@ -55,12 +53,11 @@ public sealed class CompareViewModel : ObservableViewModel
     private string _changeTypeFilterId = "all";
     private string _searchQuery = string.Empty;
     private bool _isSwapped;
+    private string _actionStatus = string.Empty;
 
     public CompareViewModel(Func<string, CatalogBundle?> catalog)
     {
         _catalog = catalog;
-        foreach (var filter in CreateCategoryFilters()) CategoryFilters.Add(filter);
-        foreach (var filter in CreateChangeTypeFilters()) ChangeTypeFilters.Add(filter);
         SelectCategoryCommand = new RelayCommand<string>(id => CategoryFilterId = id ?? "all");
         SelectChangeTypeCommand = new RelayCommand<string>(id => ChangeTypeFilterId = id ?? "all");
     }
@@ -78,6 +75,7 @@ public sealed class CompareViewModel : ObservableViewModel
     public bool CanSwapSides => Subject is not null && Selected is not null;
     public bool HasRows => Rows.Count > 0;
     public bool HasVisibleRows => VisibleRows.Count > 0;
+    public bool CanCopyOrExport => HasVisibleRows;
     public int AddedCount => Rows.Count(row => row.ChangeTypeId == "added");
     public int RemovedCount => Rows.Count(row => row.ChangeTypeId == "removed");
     public int ChangedCount => Rows.Count(row => row.ChangeTypeId == "changed");
@@ -87,10 +85,12 @@ public sealed class CompareViewModel : ObservableViewModel
     public CompareCandidate? SideB => IsSwapped ? Selected : Subject;
     public string SideASourceDisplay => SideA is null ? "—" : SideA.IsBackup ? L.T("Резервная копия") : L.T("Локальный файл");
     public string SideBSourceDisplay => SideB is null ? "—" : SideB.IsBackup ? L.T("Резервная копия") : L.T("Локальный файл");
-    public string UnsupportedExportReason => L.T("Экспорт и копирование списка сравнения пока недоступны.");
-    public string UnsupportedApplyReason => L.T("Изменения из сравнения нельзя применить автоматически. Используйте редактор и кнопку сохранения.");
-    public string UnsupportedCategoryReason => L.T("Поля мира, фракций, настроек и прочих категорий не возвращаются модулем сравнения.");
-    public string UnchangedRowsDisabledReason => L.T("Ядро возвращает только различающиеся поля; неизменённые значения недоступны.");
+
+    public string ActionStatus
+    {
+        get => _actionStatus;
+        private set => SetProperty(ref _actionStatus, value);
+    }
 
     public string Status
     {
@@ -115,7 +115,8 @@ public sealed class CompareViewModel : ObservableViewModel
         get => _categoryFilterId;
         set
         {
-            if (!SetProperty(ref _categoryFilterId, value)) return;
+            var selectedId = CategoryFilters.Any(option => option.Id == value) ? value : "all";
+            if (!SetProperty(ref _categoryFilterId, selectedId)) return;
             RefreshFilterSelectionStates();
             RefreshVisibleRows();
         }
@@ -126,7 +127,8 @@ public sealed class CompareViewModel : ObservableViewModel
         get => _changeTypeFilterId;
         set
         {
-            if (!SetProperty(ref _changeTypeFilterId, value)) return;
+            var selectedId = ChangeTypeFilters.Any(option => option.Id == value) ? value : "all";
+            if (!SetProperty(ref _changeTypeFilterId, selectedId)) return;
             RefreshFilterSelectionStates();
             RefreshVisibleRows();
         }
@@ -188,6 +190,7 @@ public sealed class CompareViewModel : ObservableViewModel
     public void Run()
     {
         Rows.Clear();
+        ActionStatus = string.Empty;
         if (_currentPath is null || _selected is null)
         {
             Status = Candidates.Count == 0
@@ -252,31 +255,44 @@ public sealed class CompareViewModel : ObservableViewModel
 
     private void RefreshFilterOptions()
     {
-        for (var index = 0; index < CategoryFilters.Count; index++)
+        var categories = new List<CompareFilterOption>();
+        var changeTypes = new List<CompareFilterOption>();
+        if (Rows.Count > 0)
         {
-            var option = CategoryFilters[index];
-            var count = option.IsSupported
-                ? option.Id == "all" ? Rows.Count : Rows.Count(row => row.CategoryId == option.Id)
-                : 0;
-            CategoryFilters[index] = option with
-            {
-                Count = count,
-                IsSelected = option.Id == CategoryFilterId,
-            };
+            categories.Add(new CompareFilterOption("all", L.T("Все различия"), Rows.Count));
+            categories.AddRange(Rows
+                .GroupBy(row => new { row.CategoryId, row.CategoryDisplay })
+                .Select(group => new CompareFilterOption(group.Key.CategoryId, group.Key.CategoryDisplay, group.Count())));
+            changeTypes.Add(new CompareFilterOption("all", L.T("Все"), Rows.Count));
+            changeTypes.AddRange(Rows
+                .GroupBy(row => new { row.ChangeTypeId, row.ChangeTypeDisplay })
+                .Select(group => new CompareFilterOption(group.Key.ChangeTypeId, group.Key.ChangeTypeDisplay, group.Count())));
         }
 
-        for (var index = 0; index < ChangeTypeFilters.Count; index++)
+        ReplaceFilterOptions(CategoryFilters, categories);
+        ReplaceFilterOptions(ChangeTypeFilters, changeTypes);
+
+        if (!CategoryFilters.Any(option => option.Id == _categoryFilterId))
         {
-            var option = ChangeTypeFilters[index];
-            var count = option.IsSupported
-                ? option.Id == "all" ? Rows.Count : Rows.Count(row => row.ChangeTypeId == option.Id)
-                : 0;
-            ChangeTypeFilters[index] = option with
-            {
-                Count = count,
-                IsSelected = option.Id == ChangeTypeFilterId,
-            };
+            _categoryFilterId = "all";
+            OnPropertyChanged(nameof(CategoryFilterId));
         }
+
+        if (!ChangeTypeFilters.Any(option => option.Id == _changeTypeFilterId))
+        {
+            _changeTypeFilterId = "all";
+            OnPropertyChanged(nameof(ChangeTypeFilterId));
+        }
+
+        RefreshFilterSelectionStates();
+    }
+
+    private static void ReplaceFilterOptions(
+        ObservableCollection<CompareFilterOption> target,
+        IEnumerable<CompareFilterOption> options)
+    {
+        target.Clear();
+        foreach (var option in options) target.Add(option);
     }
 
     private void RefreshFilterSelectionStates()
@@ -318,6 +334,47 @@ public sealed class CompareViewModel : ObservableViewModel
         }
 
         OnPropertyChanged(nameof(HasVisibleRows));
+        OnPropertyChanged(nameof(CanCopyOrExport));
+    }
+
+    public string BuildCopyListTsv() => BuildDelimitedText('\t', csv: false);
+
+    public string BuildExportCsv() => BuildDelimitedText(',', csv: true);
+
+    public void ReportActionFailure(string message) => ActionStatus = message;
+
+    private string BuildDelimitedText(char delimiter, bool csv)
+    {
+        var headers = new[]
+        {
+            L.T("ТИП"),
+            L.T("ПАРАМЕТР / ОБЪЕКТ"),
+            L.T("ЗНАЧЕНИЕ A"),
+            L.T("ЗНАЧЕНИЕ B"),
+            L.T("КАТЕГОРИЯ"),
+        };
+        var lines = new List<string> { string.Join(delimiter, headers.Select(value => EncodeField(value, delimiter, csv))) };
+        lines.AddRange(VisibleRows.Select(row => string.Join(delimiter, new[]
+        {
+            row.ChangeTypeDisplay,
+            row.Label,
+            row.ValueA,
+            row.ValueB,
+            row.CategoryDisplay,
+        }.Select(value => EncodeField(value, delimiter, csv)))));
+        return string.Join("\r\n", lines);
+    }
+
+    private static string EncodeField(string value, char delimiter, bool csv)
+    {
+        if (!csv)
+        {
+            return value.Replace('\t', ' ').Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
+        }
+
+        return value.IndexOfAny([delimiter, '"', '\r', '\n']) >= 0
+            ? "\"" + value.Replace("\"", "\"\"") + "\""
+            : value;
     }
 
     private static bool MatchesSearch(CompareRow row, string valueA, string valueB, string query) =>
@@ -333,33 +390,6 @@ public sealed class CompareViewModel : ObservableViewModel
         OnPropertyChanged(nameof(SideB));
         OnPropertyChanged(nameof(SideASourceDisplay));
         OnPropertyChanged(nameof(SideBSourceDisplay));
-    }
-
-    private static IEnumerable<CompareFilterOption> CreateCategoryFilters()
-    {
-        yield return new CompareFilterOption("all", L.T("Все различия"), 0);
-        yield return new CompareFilterOption("items", L.T("Предметы"), 0);
-        yield return new CompareFilterOption("character", L.T("Персонаж"), 0);
-        yield return new CompareFilterOption("tasks", L.T("Задания"), 0);
-        var disabledReason = L.T("Ядро пока не сравнивает поля этой категории.");
-        yield return new CompareFilterOption("world", L.T("Мир"), 0, IsSupported: false, DisabledReason: disabledReason);
-        yield return new CompareFilterOption("factions", L.T("Фракции"), 0, IsSupported: false, DisabledReason: disabledReason);
-        yield return new CompareFilterOption("settings", L.T("Настройки"), 0, IsSupported: false, DisabledReason: disabledReason);
-        yield return new CompareFilterOption("other", L.T("Другое"), 0, IsSupported: false, DisabledReason: disabledReason);
-    }
-
-    private static IEnumerable<CompareFilterOption> CreateChangeTypeFilters()
-    {
-        yield return new CompareFilterOption("all", L.T("Все"), 0);
-        yield return new CompareFilterOption("added", L.T("Добавлено"), 0);
-        yield return new CompareFilterOption("removed", L.T("Удалено"), 0);
-        yield return new CompareFilterOption("changed", L.T("Изменено"), 0);
-        yield return new CompareFilterOption(
-            "unchanged",
-            L.T("Без изменений"),
-            0,
-            IsSupported: false,
-            DisabledReason: L.T("Ядро возвращает только различающиеся поля; неизменённые значения недоступны."));
     }
 
     private static (string Id, string Display) Category(string kind) => kind switch

@@ -8,6 +8,8 @@ using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using System.Text;
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
@@ -22,8 +24,8 @@ public static class CompareView
     private static readonly FuncValueConverter<bool, IBrush> FilterBorderConverter =
         new(selected => selected ? StalkerTheme.BrushAccentAmber : StalkerTheme.BrushBorderSubtle);
 
-    private static readonly FuncValueConverter<bool, IBrush> FilterTextConverter =
-        new(isSupported => isSupported ? StalkerTheme.BrushTextPrimary : StalkerTheme.BrushTextMuted);
+    private static readonly FuncValueConverter<string, bool> HasTextConverter =
+        new(value => !string.IsNullOrWhiteSpace(value));
 
     public static Control Build(CompareViewModel viewModel)
     {
@@ -33,7 +35,7 @@ public static class CompareView
         content.Children.Add(BuildSavePairAndSummary(viewModel));
         content.Children.Add(BuildFilterCard(viewModel));
         content.Children.Add(BuildDifferenceTable(viewModel));
-        content.Children.Add(BuildUnsupportedActions(viewModel));
+        content.Children.Add(BuildActions(viewModel));
 
         return new Border
         {
@@ -280,15 +282,6 @@ public static class CompareView
             "compare-category-filters"));
         panel.Children.Add(new TextBlock
         {
-            Name = "compare-unsupported-categories-reason",
-            Text = viewModel.UnsupportedCategoryReason,
-            Foreground = StalkerTheme.BrushTextMuted,
-            FontSize = 10,
-            TextWrapping = TextWrapping.Wrap,
-        });
-
-        panel.Children.Add(new TextBlock
-        {
             Text = L.T("Тип изменения"),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 11,
@@ -318,34 +311,11 @@ public static class CompareView
         });
         controls.Children.Add(search);
 
-        var unchanged = new CheckBox
-        {
-            Name = "compare-show-unchanged",
-            Content = new TextBlock
-            {
-                Text = L.T("Показывать без изменений"),
-                Foreground = StalkerTheme.BrushTextMuted,
-            },
-            IsEnabled = false,
-            Foreground = StalkerTheme.BrushTextSecondary,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        ToolTip.SetTip(unchanged, viewModel.UnchangedRowsDisabledReason);
-        AutomationProperties.SetName(unchanged, L.T("Показывать без изменений"));
-        Grid.SetColumn(unchanged, 1);
-        controls.Children.Add(unchanged);
         panel.Children.Add(controls);
-
-        var unchangedReason = new TextBlock
-        {
-            Name = "compare-show-unchanged-reason",
-            Text = viewModel.UnchangedRowsDisabledReason,
-            Foreground = StalkerTheme.BrushTextMuted,
-            FontSize = 10,
-            TextWrapping = TextWrapping.Wrap,
-        };
-        panel.Children.Add(unchangedReason);
-        return StalkerTheme.Card(panel);
+        var card = StalkerTheme.Card(panel);
+        card.Name = "compare-filter-card";
+        card.Bind(Visual.IsVisibleProperty, new Binding(nameof(CompareViewModel.HasRows)));
+        return card;
     }
 
     private static ItemsControl BuildFilterOptions(
@@ -372,10 +342,7 @@ public static class CompareView
                 };
                 var title = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
                 title.Bind(TextBlock.TextProperty, new Binding(nameof(CompareFilterOption.Title)));
-                title.Bind(TextBlock.ForegroundProperty, new Binding(nameof(CompareFilterOption.IsSupported))
-                {
-                    Converter = FilterTextConverter,
-                });
+                title.Foreground = StalkerTheme.BrushTextPrimary;
                 content.Children.Add(title);
                 var count = new TextBlock
                 {
@@ -398,8 +365,6 @@ public static class CompareView
                 };
                 button.Bind(Button.CommandProperty, new Binding(commandPath) { Source = viewModel });
                 button.Bind(Button.CommandParameterProperty, new Binding(nameof(CompareFilterOption.Id)));
-                button.Bind(Button.IsEnabledProperty, new Binding(nameof(CompareFilterOption.IsSupported)));
-                button.Bind(ToolTip.TipProperty, new Binding(nameof(CompareFilterOption.DisabledReason)));
                 button.Bind(AutomationProperties.NameProperty, new Binding(nameof(CompareFilterOption.Title)));
                 button.Bind(TemplatedControl.BackgroundProperty, new Binding(nameof(CompareFilterOption.IsSelected))
                 {
@@ -517,39 +482,123 @@ public static class CompareView
         grid.Children.Add(cell);
     }
 
-    private static Control BuildUnsupportedActions(CompareViewModel viewModel)
+    private static Control BuildActions(CompareViewModel viewModel)
     {
         var actions = new WrapPanel { ItemSpacing = 8, LineSpacing = 6 };
-        actions.Children.Add(DisabledAction("compare-export", L.T("Экспорт CSV"), viewModel.UnsupportedExportReason));
-        actions.Children.Add(DisabledAction("compare-copy-list", L.T("Копировать список"), viewModel.UnsupportedExportReason));
-        actions.Children.Add(DisabledAction("compare-apply", L.T("Применить выбранные различия"), viewModel.UnsupportedApplyReason, isPrimary: true));
-        return actions;
+        var export = StalkerTheme.StalkerButton(L.T("Экспорт CSV"), isPrimary: false, minWidth: 135);
+        export.Name = "compare-export";
+        export.Bind(Button.IsEnabledProperty, new Binding(nameof(CompareViewModel.CanCopyOrExport)) { Source = viewModel });
+        AutomationProperties.SetName(export, L.T("Экспорт CSV"));
+        export.Click += async (_, _) => await ExportCsvAsync(viewModel, export);
+        actions.Children.Add(export);
+
+        var copy = StalkerTheme.StalkerButton(L.T("Копировать список"), isPrimary: true, minWidth: 150);
+        copy.Name = "compare-copy-list";
+        copy.Bind(Button.IsEnabledProperty, new Binding(nameof(CompareViewModel.CanCopyOrExport)) { Source = viewModel });
+        AutomationProperties.SetName(copy, L.T("Копировать список"));
+        copy.Click += async (_, _) => await CopyListAsync(viewModel, copy);
+        actions.Children.Add(copy);
+
+        var status = new TextBlock
+        {
+            Name = "compare-action-status",
+            Foreground = StalkerTheme.BrushDanger,
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        status.Bind(TextBlock.TextProperty, new Binding(nameof(CompareViewModel.ActionStatus)) { Source = viewModel });
+        status.Bind(Visual.IsVisibleProperty, new Binding(nameof(CompareViewModel.ActionStatus))
+        {
+            Source = viewModel,
+            Converter = HasTextConverter,
+        });
+        return new StackPanel { Spacing = 4, Children = { actions, status } };
     }
 
-    private static Control DisabledAction(string name, string title, string reason, bool isPrimary = false)
+    private static async Task CopyListAsync(CompareViewModel viewModel, Button button)
     {
-        var button = StalkerTheme.StalkerButton(title, isPrimary, minWidth: 135);
-        button.Name = name;
-        button.IsEnabled = false;
-        ToolTip.SetTip(button, reason);
-        AutomationProperties.SetName(button, title);
-        return new StackPanel
+        viewModel.ReportActionFailure(string.Empty);
+        try
         {
-            Name = name + "-group",
-            Spacing = 4,
-            Width = 205,
-            Children =
+            var topLevel = TopLevel.GetTopLevel(button);
+            if (topLevel is null)
             {
-                button,
-                new TextBlock
+                viewModel.ReportActionFailure(L.T("Не удалось скопировать"));
+                return;
+            }
+
+            if (topLevel.Clipboard is not { } clipboard)
+            {
+                viewModel.ReportActionFailure(L.T("Не удалось скопировать"));
+                return;
+            }
+
+            await clipboard.SetTextAsync(viewModel.BuildCopyListTsv());
+        }
+        catch (Exception exception)
+        {
+            viewModel.ReportActionFailure(L.T("Не удалось скопировать") + ": " + exception.Message);
+        }
+    }
+
+    private static async Task ExportCsvAsync(CompareViewModel viewModel, Button button)
+    {
+        viewModel.ReportActionFailure(string.Empty);
+        var csv = viewModel.BuildExportCsv();
+        try
+        {
+            if (HostPlatform.IsBrowser)
+            {
+                if (HostPlatform.ExportFile is not { } exportFile)
                 {
-                    Name = name + "-reason",
-                    Text = reason,
-                    Foreground = StalkerTheme.BrushTextMuted,
-                    FontSize = 10,
-                    TextWrapping = TextWrapping.Wrap,
-                },
-            },
-        };
+                    viewModel.ReportActionFailure(L.T("Не удалось выполнить действие"));
+                    return;
+                }
+
+                var directory = HostPlatform.OpenedSavesDirectory;
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, $"comparison-{Guid.NewGuid():N}.csv");
+                try
+                {
+                    await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+                    await exportFile(path);
+                }
+                finally
+                {
+                    if (File.Exists(path)) File.Delete(path);
+                }
+
+                return;
+            }
+
+            if (TopLevel.GetTopLevel(button)?.StorageProvider is not { } storage)
+            {
+                viewModel.ReportActionFailure(L.T("Не удалось выполнить действие"));
+                return;
+            }
+            var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = L.T("Экспорт CSV"),
+                SuggestedFileName = "stalker-save-differences.csv",
+                DefaultExtension = "csv",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("CSV")
+                    {
+                        Patterns = ["*.csv"],
+                        MimeTypes = ["text/csv"],
+                    },
+                ],
+            });
+            if (file is null) return;
+
+            await using var stream = await file.OpenWriteAsync();
+            await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            await writer.WriteAsync(csv);
+        }
+        catch (Exception exception)
+        {
+            viewModel.ReportActionFailure(L.T("Не удалось сохранить: {0}", exception.Message));
+        }
     }
 }

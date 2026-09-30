@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -460,6 +461,7 @@ public sealed class MainWindow : Window
             var content = new Grid { ColumnDefinitions = new ColumnDefinitions("36,*") };
             var iconText = new TextBlock
             {
+                Name = "nav-icon-" + tab,
                 Text = icon,
                 FontSize = 17,
                 Foreground = StalkerTheme.BrushAccentAmber,
@@ -469,6 +471,7 @@ public sealed class MainWindow : Window
             content.Children.Add(iconText);
             var labelText = new TextBlock
             {
+                Name = "nav-label-" + tab,
                 Text = label,
                 FontFamily = StalkerTheme.HeadingFont,
                 FontSize = 11,
@@ -483,6 +486,7 @@ public sealed class MainWindow : Window
 
             var button = new Button
             {
+                Name = "nav-" + tab,
                 Content = content,
                 Height = 36,
                 Margin = new Thickness(1, 1),
@@ -508,6 +512,9 @@ public sealed class MainWindow : Window
             });
             button.Click += (_, _) => _vm.SelectedTab = tab;
             ToolTip.SetTip(button, label);
+            ToolTip.SetTip(content, label);
+            ToolTip.SetTip(iconText, label);
+            AutomationProperties.SetName(button, label);
             parent.Children.Add(button);
         }
 
@@ -740,11 +747,12 @@ public sealed class MainWindow : Window
                 var metadata = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
                 var slot = new TextBlock
                 {
+                    Name = "save-library-date",
                     FontSize = 10,
                     Foreground = StalkerTheme.BrushTextSecondary,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                 };
-                slot.Bind(TextBlock.TextProperty, new Binding(nameof(SaveFileSummary.SlotTitle)));
+                slot.Bind(TextBlock.TextProperty, new Binding(nameof(SaveFileSummary.LibraryMetadataDisplay)));
                 metadata.Children.Add(slot);
 
                 var sizeText = new TextBlock

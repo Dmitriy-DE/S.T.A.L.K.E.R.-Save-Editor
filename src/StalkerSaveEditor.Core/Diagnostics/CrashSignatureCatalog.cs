@@ -100,17 +100,29 @@ public static class CrashSignatureCatalog
             Pattern = P(@"patrol path \[agr_stalker_leader_walk\] is inaccessible"),
             FixId = "cs.crash.agroprom-orest-path",
         },
-        new("cs.cordon-bonfire-waypoint", ClearSky, "Waypoint off the AI map at the Cordon bonfire", CrashAdvice.InstallFix,
+        new("cs.all-spawn-cordon-waypoint", ClearSky, "Waypoint off the AI map at the Cordon bonfire", CrashAdvice.InstallFix,
             "A waypoint of the 'Bonfire in forest' camp lies outside the AI map.", Srp)
         {
             Pattern = P(@"esc_smart_terrain_3_7_walker_1_walk"),
-            FixId = "cs.crash.cordon-bonfire-waypoint",
+            FixId = "cs.crash.all-spawn-errors",
         },
         new("cs.storyline-task-missing-npc", ClearSky, "Story task for an NPC who is not there (Wild Napr)", CrashAdvice.InstallFix,
             "The game tried to give a story task whose target NPC is fighting or has died offline.", Srp)
         {
             Pattern = P(@"wrong target for storyline quest"),
             FixId = "cs.crash.capture-task-missing-squad",
+        },
+        new("cs.all-spawn-jobs-mil-2-1", ClearSky, "Too many squads for the Army Warehouses 'Camp amidst rocks'", CrashAdvice.InstallFix,
+            "The camp accepts more squads than it has jobs. The fix applies in a new game.", Srp)
+        {
+            Pattern = P(@"Insufficient smart_terrain jobs mil_smart_terrain_2_1"),
+            FixId = "cs.crash.all-spawn-errors",
+        },
+        new("cs.all-spawn-mil-path", ClearSky, "Missing path between Army Warehouses camps", CrashAdvice.InstallFix,
+            "A camp's list of neighbours misses a link that mutant attacks use. The fix applies in a new game.", Srp)
+        {
+            Pattern = P(@"Path between \[mil_smart_terrain_7_11\] and \[mil_smart_terrain_7_10\] doesnt exist"),
+            FixId = "cs.crash.all-spawn-errors",
         },
         new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)

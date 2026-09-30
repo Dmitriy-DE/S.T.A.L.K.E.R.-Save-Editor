@@ -3582,10 +3582,10 @@
       ]
     },
     {
-      "id": "cs.crash.cordon-bonfire-waypoint",
+      "id": "cs.crash.all-spawn-errors",
       "game": "ClearSky",
       "version": "1.0.0",
-      "title": "Cordon 'Bonfire in forest' waypoint crash fixed (and three misplaced sleep spots)",
+      "title": "Broken waypoints and object settings in all.spawn fixed (Cordon bonfire crash, Army Warehouses paths)",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -3593,50 +3593,409 @@
       "maturity": "Validated",
       "dependsOn": [],
       "conflictsWith": [],
-      "textPatches": [
-        {
-          "relativePath": "gamedata/spawns/all.spawn",
-          "expectedText": "name01\u0000pÂ&Æx@Ì\u0006À\u0002\u0000\u0000\u0000p¸\u0001\u0000J\u0001",
-          "replacementText": "name01\u0000\u0012­ÂP{@,NÀ\u0002\u0000\u0000\u0000n¸\u0001\u0000J\u0001",
-          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
-          "codePage": 28591,
-          "binary": true
-        },
-        {
-          "relativePath": "gamedata/spawns/all.spawn",
-          "expectedText": "name00\u0000\u00111èÂaÄïÁbQÁÃ\u0000\u0000\u0000\u0000R+\u0002\u00006\u0002",
-          "replacementText": "name00\u0000e0èÂ·ËïÁ?ÁÃ\u0000\u0000\u0000\u0000Q+\u0002\u00006\u0002",
-          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
-          "codePage": 28591,
-          "binary": true
-        },
-        {
-          "relativePath": "gamedata/spawns/all.spawn",
-          "expectedText": "name05\u0000LûÂï @,VC \u0000\u0000\u0000ÿÿÿÿ\u0002\u0002",
-          "replacementText": "name05\u0000¾\u0005õÂ\u001b\u000f@<ºRC \u0000\u0000\u0000Y\u000f\u0002\u0000\u0002\u0002",
-          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
-          "codePage": 28591,
-          "binary": true
-        },
-        {
-          "relativePath": "gamedata/spawns/all.spawn",
-          "expectedText": "name00\u0000íÍB\tÄB@ÏB\u0000\u0000\u0000\u0000¹\u0006\u0000]\u0002",
-          "replacementText": "name00\u0000³ÂB\u0011$G@î²B\u0000\u0000\u0000\u0000ë\u0006\u0000\u0002",
-          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
-          "codePage": 28591,
-          "binary": true
-        }
-      ],
-      "source": "Coordinates from SRP 1.1.5's documented all.spawn alterations (Decane, github.com/Decane/SRP, spawns/Alterations.txt); applied by us as exact byte replacements to the retail all.spawn.",
-      "problem": "In all.spawn, point name05 of patrol path esc_smart_terrain_3_7_walker_1_walk lies off the AI map (level vertex -1); an NPC walking to the Cordon 'Bonfire in forest' crashes the game: patrol path[esc_smart_terrain_3_7_walker_1_walk], point on path [name05]. Three sleep spots (Cordon x2, Garbage) are also slightly off.",
-      "description": "Moves the four waypoints onto the AI map (same size records in all.spawn, nothing else changes). Works on existing saves.",
-      "implementation": "ExactTextReplacement",
+      "textPatches": [],
+      "source": "Mistakes documented by SRP 1.1.5 (Decane, spawns/Alterations.txt); edits are ours, minimal, and verified against the retail all.spawn (every removed restrictor is absent from it, every new one exists). SRP's clean-ups and gameplay changes are not included.",
+      "problem": "Retail all.spawn contains mistakes that crash the game or break NPC behaviour: a Cordon 'Bonfire in forest' waypoint off the AI map (patrol path[esc_smart_terrain_3_7_walker_1_walk], point on path [name05]), waypoint names with missing or doubled '|' and typos (so animations and signals are ignored), smart terrains pointing at restrictors that do not exist, an Army Warehouses camp with more squads than jobs (Insufficient smart_terrain jobs mil_smart_terrain_2_1), a missing Army Warehouses path link (Path between [mil_smart_terrain_7_11] and [mil_smart_terrain_7_10] doesnt exist), and '//' comments that are not valid in object settings.",
+      "description": "25 waypoint fixes (4 positions, 21 names) take effect on existing saves. 18 object-setting fixes (smart terrain capacity, targets, restrictors, artefact list, animated objects) are stored in the save when the object is created, so they take effect in a new game.",
+      "implementation": "Structured",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
       "verificationState": "RetailFilesVerified",
-      "detectionMethod": "Exact SHA-256 of the retail all.spawn and one unique same-length byte record per waypoint.",
+      "detectionMethod": "Exact SHA-256 of the retail all.spawn; every edit checks the current waypoint name or object settings before changing them.",
       "references": [
         "https://github.com/Decane/SRP"
+      ],
+      "spawnEdits": [
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "mil_smart_terrain_2_1",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = mil_smart_terrain_2_4, mil_smart_terrain_2_3\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 2\r\nsquad_id = 28\r\natt_restr = mil_space_restrictors_2_1_sr_attack\r\ndef_restr = mil_space_restrictors_2_1_sr_defense\r\nactor_hides= mil_vibros, mil_vibros_0000, mil_vibros_0001, mil_vibros_0002, mil_vibros_0003, mil_vibros_0004, mil_vibros_0005, mil_vibros_0006, mil_vibros_0007, mil_vibros_0008, mil_vibros_0009, mil_vibros_0010, mil_vibros_0011, mil_vibros_0012, mil_vibros_0013\r\nsim_avail = {+mil_additional_quest_2_info_complete} true\r\nsurge_hide_avaliable = true\r\n",
+          "replacement": "[smart_terrain]\r\ntargets = mil_smart_terrain_2_4, mil_smart_terrain_2_3\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 1\r\nsquad_id = 28\r\natt_restr = mil_space_restrictors_2_1_sr_attack\r\ndef_restr = mil_space_restrictors_2_1_sr_defense\r\nactor_hides= mil_vibros, mil_vibros_0000, mil_vibros_0001, mil_vibros_0002, mil_vibros_0003, mil_vibros_0004, mil_vibros_0005, mil_vibros_0006, mil_vibros_0007, mil_vibros_0008, mil_vibros_0009, mil_vibros_0010, mil_vibros_0011, mil_vibros_0012, mil_vibros_0013\r\nsim_avail = {+mil_additional_quest_2_info_complete} true\r\nsurge_hide_avaliable = true\r\n"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "mil_smart_terrain_2_2",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = mil_smart_terrain_2_2, red_smart_terrain_3_1\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 2\r\nsquad_id = 2\r\natt_restr = mil_space_restrictors_2_2_sr_attack\r\ndef_restr = mil_space_restrictors_2_2_sr_defense\r\nsim_avail = {+mil_actor_inside_wtower} true\r\nspawn_point = mil_smart_terrain_2_2_spawn_point\r\nwork1 = military\\mil_smart_terrain_2_2_logic.ltx\r\nsurge_hide_avaliable = true",
+          "replacement": "[smart_terrain]\r\ntargets = mil_smart_terrain_2_3, red_smart_terrain_3_1\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 2\r\nsquad_id = 2\r\natt_restr = mil_space_restrictors_2_2_sr_attack\r\ndef_restr = mil_space_restrictors_2_2_sr_defense\r\nsim_avail = {+mil_actor_inside_wtower} true\r\nspawn_point = mil_smart_terrain_2_2_spawn_point\r\nwork1 = military\\mil_smart_terrain_2_2_logic.ltx\r\nsurge_hide_avaliable = true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "mil_smart_terrain_7_7",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = mil_smart_terrain_7_8, mil_smart_terrain_7_9, mil_smart_terrain_7_11\r\nsim_type = territory\r\nsim_value = 2\r\nsquad_capacity = 3\r\nsquad_id = 23\r\natt_restr = mil_space_restrictors_7_7_sr_attack\r\ndef_restr = mil_space_restrictors_7_7_sr_defense\r\nsim_avail = {+mil_merc_talked_f1_f2_wt1} true\r\nsurge_hide_avaliable = true\r\nrespawn_sector = {=spawn_smart_captured_by_faction(freedom)} freedom\r\n\r\n[exclusive]\r\nmilitary_soldier_01 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_soldier_02 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_soldier_03 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_soldier_04 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_sniper = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork1 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork2 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork3 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork4 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork5 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork6 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork7 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork8 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork9 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork10 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork11 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork12 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork14 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork15 = military\\mil_smart_terrain_7_7_logic.ltx",
+          "replacement": "[smart_terrain]\r\ntargets = mil_smart_terrain_7_8, mil_smart_terrain_7_9, mil_smart_terrain_7_10, mil_smart_terrain_7_11\r\nsim_type = territory\r\nsim_value = 2\r\nsquad_capacity = 3\r\nsquad_id = 23\r\natt_restr = mil_space_restrictors_7_7_sr_attack\r\ndef_restr = mil_space_restrictors_7_7_sr_defense\r\nsim_avail = {+mil_merc_talked_f1_f2_wt1} true\r\nsurge_hide_avaliable = true\r\nrespawn_sector = {=spawn_smart_captured_by_faction(freedom)} freedom\r\n\r\n[exclusive]\r\nmilitary_soldier_01 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_soldier_02 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_soldier_03 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_soldier_04 = military\\mil_smart_terrain_7_7_logic.ltx\r\nmilitary_sniper = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork1 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork2 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork3 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork4 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork5 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork6 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork7 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork8 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork9 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork10 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork11 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork12 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork14 = military\\mil_smart_terrain_7_7_logic.ltx\r\nwork15 = military\\mil_smart_terrain_7_7_logic.ltx"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "red_smart_terrain_4_5",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = red_smart_terrain_monsters_3, red_smart_terrain_5_6, red_smart_terrain_3_3, red_smart_terrain_4_3, red_smart_terrain_bridge\r\nsim_type = default\r\nsquad_capacity = 1\r\nsquad_id = 6\r\natt_restr = red_smart_terrain_4_5_attack\r\ndef_restr = red_smart_terrain_4_5_attack\r\nsurge_hide_avaliable = true",
+          "replacement": "[smart_terrain]\r\ntargets = red_smart_terrain_monsters_3, red_smart_terrain_5_6, red_smart_terrain_3_3, red_smart_terrain_4_3, red_smart_terrain_bridge\r\nsim_type = default\r\nsquad_capacity = 1\r\nsquad_id = 6\r\natt_restr = red_smart_terrain_4_5_attack\r\ndef_restr = red_smart_terrain_4_5_defence\r\nsurge_hide_avaliable = true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "red_anomal_zone_0003",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[anomal_zone]\r\nartefact_ways = red_art_way_5, red_art_way_6\r\nartefacts = af_vyvert, af_gravi, af_vyvert ,af_gravi, af_gold_fish\r\nartefact_count = 2\r\n\r\n",
+          "replacement": "[anomal_zone]\r\nartefact_ways = red_art_way_5, red_art_way_6\r\nartefacts = af_vyvert, af_gravi, af_vyvert, af_gravi, af_gold_fish\r\nartefact_count = 2\r\n\r\n"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "agr_smart_terrain_4_4_near_2",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = agr_smart_terrain_4_4, agr_smart_terrain_2_3, agr_smart_terrain_4_4_near_1\r\nsim_type = default\r\nsim_value = 40\r\nsquad_capacity = 1\r\nsquad_id = 32\r\ndef_restr = agr_smart_terrain_4_4_near_2_def\r\ndef_restr = agr_smart_terrain_4_4_near_2_att\r\nsurge_hide_avaliable = true\r\n\r\n[exclusive]\r\ncommander_2 = agroprom\\agr_stalkers_defend_on_trains.ltx",
+          "replacement": "[smart_terrain]\r\ntargets = agr_smart_terrain_4_4, agr_smart_terrain_2_3, agr_smart_terrain_4_4_near_1\r\nsim_type = default\r\nsim_value = 40\r\nsquad_capacity = 1\r\nsquad_id = 32\r\ndef_restr = agr_smart_terrain_4_4_near_2_def\r\natt_restr = agr_smart_terrain_4_4_near_2_att\r\nsurge_hide_avaliable = true\r\n\r\n[exclusive]\r\ncommander_2 = agroprom\\agr_stalkers_defend_on_trains.ltx"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "agr_smart_terrain_1_6_near_1",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = agr_smart_terrain_2_5, agr_smart_terrain_1_6\r\nsim_type = resource\r\nsim_value = 50\r\nsquad_capacity = 2\r\nsquad_id = 1\r\nsim_avail = {+agr_actor_inside_5} true\r\ndef_restr = agr_smart_terrain_1_6_near_1_def\r\natt_restr = agr_smart_terrain_1_6_near_1_att\r\nsurge_hide_avaliable = true",
+          "replacement": "[smart_terrain]\r\ntargets = agr_smart_terrain_2_5, agr_smart_terrain_1_6\r\nsim_type = resource\r\nsim_value = 50\r\nsquad_capacity = 2\r\nsquad_id = 1\r\nsim_avail = {+agr_actor_inside_5} true\r\ndef_restr = agr_smart_terrain_1_6_near_1_def\r\nsurge_hide_avaliable = true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "yan_smart_terrain_2_5",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = yan_smart_terrain_1_6, yan_smart_terrain_2_4, yan_smart_terrain_3_4, yan_smart_terrain_3_6 \r\nsim_type = default\r\nsquad_capacity = 1\r\ngroup_id = 16\r\natt_restr = yan_smart_terrain_2_5_att\r\ndef_restr = yan_smart_terrain_2_5_def\r\nrespawn_sector = zombied\r\nsurge_hide_avaliable = true",
+          "replacement": "[smart_terrain]\r\ntargets = yan_smart_terrain_1_6, yan_smart_terrain_2_4, yan_smart_terrain_3_4, yan_smart_terrain_3_6 \r\nsim_type = default\r\nsquad_capacity = 1\r\ngroup_id = 16\r\ndef_restr = yan_smart_terrain_2_5_def\r\nrespawn_sector = zombied\r\nsurge_hide_avaliable = true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "yan_smart_terrain_zombi_in_sci_base5",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = yan_smart_terrain_quest_saharov\r\nsim_type = default\r\nsim_value = 100\r\nsquad_capacity = 1\r\ngroup_id = 1\r\natt_restr = yan_smart_terrain_zombi_in_sci_base5_att\r\ndef_restr = yan_smart_terrain_zombi_in_sci_base5_def\r\nsurge_hide_avaliable = true",
+          "replacement": "[smart_terrain]\r\ntargets = yan_smart_terrain_quest_saharov\r\nsim_type = default\r\nsim_value = 100\r\nsquad_capacity = 1\r\ngroup_id = 1\r\nsurge_hide_avaliable = true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "yan_smart_terrain_quest_saharov",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = yan_smart_terrain_4_2, yan_smart_terrain_zombi_in_sci_base3\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 1\r\ngroup_id = 87\r\natt_restr = yan_smart_terrain_quest_saharov_att\r\ndef_restr = yan_smart_terrain_quest_saharov_def\r\nsurge_hide_avaliable = true\r\n",
+          "replacement": "[smart_terrain]\r\ntargets = yan_smart_terrain_4_2, yan_smart_terrain_zombi_in_sci_base3\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 1\r\ngroup_id = 87\r\nsurge_hide_avaliable = true\r\n"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "mil_smart_terrain_3_5",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = mil_smart_terrain_2_4, mil_smart_terrain_2_6, mil_smart_terrain_4_5, mil_smart_terrain_4_6\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 1\r\nsquad_id = 7\r\natt_restr = mil_space_restrictors_3_5_sr_attack\r\ndef_restr = mil_space_restrictors_3_5_sr_defense\r\nsurge_hide_avaliable = true",
+          "replacement": "[smart_terrain]\r\ntargets = mil_smart_terrain_2_4, mil_smart_terrain_2_6, mil_smart_terrain_4_5, mil_smart_terrain_4_6\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 1\r\nsquad_id = 7\r\ndef_restr = mil_space_restrictors_3_5_sr_defense\r\nsurge_hide_avaliable = true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "mil_smart_terrain_7_12",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = mil_smart_terrain_7_7, mil_smart_terrain_7_9, mil_smart_terrain_7_8\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 1\r\nsquad_id = 30\r\natt_restr = mil_space_restrictors_7_12_sr_attack\r\ndef_restr = mil_space_restrictors_7_12_sr_defense\r\nsim_avail = {+mil_merc_talked_f1_f2_wt1} true\r\nsurge_hide_avaliable = true",
+          "replacement": "[smart_terrain]\r\ntargets = mil_smart_terrain_7_7, mil_smart_terrain_7_9, mil_smart_terrain_7_8\r\nsim_type = default\r\nsim_value = 1\r\nsquad_capacity = 1\r\nsquad_id = 30\r\nsim_avail = {+mil_merc_talked_f1_f2_wt1} true\r\nsurge_hide_avaliable = true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "lim_smart_terrain_7",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = lim_smart_terrain_6, lim_smart_terrain_8\r\nsim_type = default\r\nsquad_capacity = 2\r\nsquad_id = 7\r\natt_restr = lim_smart_terrain_7_attack\r\ndef_restr = lim_smart_terrain_7_defence\r\n",
+          "replacement": "[smart_terrain]\r\ntargets = lim_smart_terrain_6, lim_smart_terrain_8\r\nsim_type = default\r\nsquad_capacity = 2\r\nsquad_id = 7\r\n"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "lim_smart_terrain_8",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[smart_terrain]\r\ntargets = lim_smart_terrain_6, lim_smart_terrain_7, lim_smart_terrain_9\r\nsim_type = default\r\nsquad_capacity = 2\r\nsquad_id = 8\r\natt_restr = lim_smart_terrain_8_attack\r\ndef_restr = lim_smart_terrain_8_defence\r\n",
+          "replacement": "[smart_terrain]\r\ntargets = lim_smart_terrain_6, lim_smart_terrain_7, lim_smart_terrain_9\r\nsim_type = default\r\nsquad_capacity = 2\r\nsquad_id = 8\r\natt_restr = lim_smart_terrain_8_attack\r\n"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "agr_physic_object_0006",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[collide]\r\nignore_static\r\n[animated_object]          // ñåêöèÿ àíèìèðîâàíèÿ ôèçèêè\r\nleave_joints = all         // íå óíè÷òîæàòü ñòàíäàðòíûå äæîèíòû\r\ncontroled_bones = whell    // âëèÿòü àíèìàöèåé íà ôèçèêó ýòèõ êîñòåé (êðóòèòü òîëüêî ýòó êîñòü)\r\n",
+          "replacement": "[collide]\r\nignore_static\r\n[animated_object]\r\nleave_joints = all\r\ncontroled_bones = whell\r\n"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "agr_physic_object_0008",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[collide]\r\nignore_static\r\n[animated_object]          // ñåêöèÿ àíèìèðîâàíèÿ ôèçèêè\r\nleave_joints = all         // íå óíè÷òîæàòü ñòàíäàðòíûå äæîèíòû\r\ncontroled_bones = whell    // âëèÿòü àíèìàöèåé íà ôèçèêó ýòèõ êîñòåé (êðóòèòü òîëüêî ýòó êîñòü)\r\n",
+          "replacement": "[collide]\r\nignore_static\r\n[animated_object]\r\nleave_joints = all\r\ncontroled_bones = whell\r\n"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "kat_physic_object_0040",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[collide]\r\nignore_static\r\n[animated_object]          // ñåêöèÿ àíèìèðîâàíèÿ ôèçèêè\r\nleave_joints = all         // íå óíè÷òîæàòü ñòàíäàðòíûå äæîèíòû\r\ncontroled_bones = whell    // âëèÿòü àíèìàöèåé íà ôèçèêó ýòèõ êîñòåé (êðóòèòü òîëüêî ýòó êîñòü)",
+          "replacement": "[collide]\r\nignore_static\r\n[animated_object]\r\nleave_joints = all\r\ncontroled_bones = whell"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "CustomData",
+          "target": "kat_physic_object_0041",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "[collide]\r\nignore_static\r\n[animated_object]          // ñåêöèÿ àíèìèðîâàíèÿ ôèçèêè\r\nleave_joints = all         // íå óíè÷òîæàòü ñòàíäàðòíûå äæîèíòû\r\ncontroled_bones = whell    // âëèÿòü àíèìàöèåé íà ôèçèêó ýòèõ êîñòåé (êðóòèòü òîëüêî ýòó êîñòü)",
+          "replacement": "[collide]\r\nignore_static\r\n[animated_object]\r\nleave_joints = all\r\ncontroled_bones = whell"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "red_bridge_bandit_smart_skirmish_2_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00||sig=action",
+          "point": 0,
+          "replacement": "name00|sig=action"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "agr_hole_snork_1_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00|r",
+          "point": 0,
+          "replacement": "name00|r=true"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "gar_smart_terrain_3_5_sleep_1",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name01",
+          "point": 1,
+          "position": [
+            -79.83802795410156,
+            3.930927276611328,
+            -3.2282209396362305
+          ],
+          "levelVertexId": 112750
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "yan_walker_zombie_cut6_7_okr_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "no_retreat=true",
+          "point": 5,
+          "replacement": "name05"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "yan_walker_zombie_cut6_7_okr_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "no_retreat=true",
+          "point": 5,
+          "replacement": "name05"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "agr_smart_terrain_5_2_guard_1_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name01|a=threat-na",
+          "point": 1,
+          "replacement": "name01|a=threat_na"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "yan_walker_zombie_cut6_2_1b_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name01|t=1500|t=in_angar",
+          "point": 1,
+          "replacement": "name01|t=1500|sig=in_angar"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "agr_smart_terrain_4_4_near_3_defender_1_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00|out_restr=agr_smart_terrain_4_4_near_1_defender_1",
+          "point": 0,
+          "replacement": "name00"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "agr_smart_terrain_4_4_near_3_defender_2_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00|out_restr=agr_smart_terrain_4_4_near_1_defender_1",
+          "point": 0,
+          "replacement": "name00"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "yan_walker_zombie_cut6_1a_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00|",
+          "point": 0,
+          "replacement": "name00"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "esc_smart_terrain_7_10_sleep_1",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00",
+          "point": 0,
+          "position": [
+            97.35074615478516,
+            3.1115763187408447,
+            70.34947204589844
+          ],
+          "levelVertexId": 426475,
+          "gameVertexId": 666
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "esc_smart_terrain_5_7_walker_3_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00a=binocular",
+          "point": 0,
+          "replacement": "name00|a=binocular"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "esc_smart_terrain_4_9_guard_2_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00||a=guard_chasovoy",
+          "point": 1,
+          "replacement": "name00|a=guard_chasovoy"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "esc_smart_terrain_5_7_grd_1_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "wp01a=ward",
+          "point": 1,
+          "replacement": "wp01|a=ward"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "esc_smart_terrain_3_16_sleep_1",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00",
+          "point": 0,
+          "position": [
+            -116.09452056884766,
+            -29.974470138549805,
+            -387.1816101074219
+          ],
+          "levelVertexId": 142161
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "esc_smart_terrain_3_7_walker_1_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name05",
+          "point": 5,
+          "position": [
+            -122.51121520996094,
+            4.8143439292907715,
+            210.72747802734375
+          ],
+          "levelVertexId": 135001
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "mar_smart_terrain_6_7_walker_1_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00|a=sllep|t=40000",
+          "point": 0,
+          "replacement": "name00|a=sleep|t=40000"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "mar_smart_terrain_10_7_to_mar_smart_terrain_8_8_patrol_1_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name01ý|ret=0",
+          "point": 1,
+          "replacement": "name01|ret=0"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "lim_smart_terrain_3_to_lim_smart_terrain_2_patrol_1_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name02sig=arrive_to_wait",
+          "point": 2,
+          "replacement": "name02|sig=arrive_to_wait"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "lim_smart_terrain_2_to_lim_smart_terrain_3_patrol_1_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name01||a=assault||sig=arrive_to_wait",
+          "point": 1,
+          "replacement": "name01|a=assault|sig=arrive_to_wait"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "agr_smart_terrain_4_4_near_1_agr_stalker_defender_on_trains_1_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00a=threat_na",
+          "point": 0,
+          "replacement": "name00|a=threat_na"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "agr_smart_terrain_4_4_near_1_agr_stalker_defender_on_trains_2_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name00a=threat_na",
+          "point": 0,
+          "replacement": "name00|a=threat_na"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "mil_smart_terrain_5_6_to_mil_smart_terrain_7_8_patrol_1_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name01sig=arrive_to_wait",
+          "point": 1,
+          "replacement": "name01|sig=arrive_to_wait"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "lim_roof_sniper_3_attack_walk",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name01|",
+          "point": 1,
+          "replacement": "name01"
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "kind": "PatrolPoint",
+          "target": "lim_smart_terrain_6_spec_sniper_1_fire_look",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "expected": "name03||a=threat_fire",
+          "point": 3,
+          "replacement": "name03|a=threat_fire"
+        }
       ]
     },
     {
@@ -3961,12 +4320,6 @@
       "cd3bc42a25c821ac8f9a8b35fa00cdd581554b8ffff7e4115e7cf66fc47414d8",
       "cd3bc42a25c821ac8f9a8b35fa00cdd581554b8ffff7e4115e7cf66fc47414d8",
       "cd3bc42a25c821ac8f9a8b35fa00cdd581554b8ffff7e4115e7cf66fc47414d8"
-    ],
-    "cs.crash.cordon-bonfire-waypoint": [
-      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae",
-      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae",
-      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae",
-      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae"
     ],
     "cs.crash.condlist-syntax": [
       "c9cfd502152a232d2c0b8c22eaef1e93833cae341bf90e0377b657101a61a419",

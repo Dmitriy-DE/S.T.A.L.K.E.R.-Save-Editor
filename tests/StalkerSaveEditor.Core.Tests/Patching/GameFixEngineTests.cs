@@ -14,7 +14,9 @@ public sealed class GameFixEngineTests
     public void Recommended_preset_installs_each_selected_catalogue_fix_from_its_exact_text_fragments()
     {
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "11450472");
+        // Structural all.spawn fixes need a real all.spawn; the engine test with a synthetic one covers them.
         var selected = GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended)
+            .Where(definition => definition.SpawnEdits.Count == 0)
             .Select(definition => definition with
             {
                 TextPatches = definition.TextPatches.Select(operation => operation with { ExpectedFileSha256 = null }).ToArray(),
@@ -42,39 +44,47 @@ public sealed class GameFixEngineTests
     }
 
     [Fact]
-    public void Binary_patch_replaces_same_length_bytes_with_nul_and_uninstall_restores_them()
+    public void Spawn_edits_rename_a_waypoint_and_change_custom_data_and_uninstall_restores_exact_bytes()
     {
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
-        byte[] original = [1, 0, 0, 0, (byte)'p', 0, 0xFF, 0xFF, 0xFF, 0xFF, 2, 0];
+        var original = SyntheticAllSpawn.Build("[logic]\nactive = walker\n", "path_walk", "name00a=guard");
         var path = Path.Combine(fixture.GameDirectory, "gamedata", "spawns", "all.spawn");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, original);
-        var latin1 = Encoding.Latin1;
-        var before = latin1.GetString(original, 4, 6);
-        var after = latin1.GetString([(byte)'p', 0, 0xD9, 0x0F, 0x02, 0x00]);
-        var definition = fixture.Fix("cs.test.binary", "x", "y") with
+        var definition = fixture.Fix("cs.test.spawn", "x", "y") with
         {
-            TextPatches = [new TextPatchOperation("gamedata/spawns/all.spawn", before, after) { Binary = true }],
+            Implementation = GameFixImplementationType.Structured,
+            TextPatches = [],
+            SpawnEdits =
+            [
+                new SpawnEditOperation("gamedata/spawns/all.spawn", SpawnEditKind.PatrolPoint, "path_walk") { Expected = "name00a=guard", Replacement = "name00|a=guard", LevelVertexId = 7 },
+                new SpawnEditOperation("gamedata/spawns/all.spawn", SpawnEditKind.CustomData, "npc_1") { Expected = "[logic]\nactive = walker\n", Replacement = "[logic]\nactive = walker@longer\n" },
+            ],
         };
         var engine = TestEngine();
 
         engine.Install(definition, fixture.GameDirectory);
-        Assert.Equal(new byte[] { 1, 0, 0, 0, (byte)'p', 0, 0xD9, 0x0F, 0x02, 0x00, 2, 0 }, File.ReadAllBytes(path));
+        var patched = File.ReadAllBytes(path);
+        Assert.Equal(SyntheticAllSpawn.Build("[logic]\nactive = walker@longer\n", "path_walk", "name00|a=guard", levelVertex: 7), patched);
         Assert.Equal(GameFixState.Removed, engine.Uninstall(definition, fixture.GameDirectory).State);
         Assert.Equal(original, File.ReadAllBytes(path));
     }
 
     [Fact]
-    public void Nul_bytes_need_a_binary_patch_and_binary_patches_keep_length_and_latin1()
+    public void Spawn_edits_refuse_a_different_file_and_mixed_operation_kinds()
     {
+        var spawn = SyntheticAllSpawn.Build("[logic]\n", "path_walk", "name00");
+        Assert.Throws<InvalidDataException>(() => AllSpawnEditor.Apply(spawn, [new SpawnEditOperation("s", SpawnEditKind.PatrolPoint, "path_walk") { Expected = "other", Replacement = "x" }]));
+        Assert.Throws<InvalidDataException>(() => AllSpawnEditor.Apply(spawn, [new SpawnEditOperation("s", SpawnEditKind.CustomData, "missing") { Expected = "", Replacement = "x" }]));
+        Assert.Throws<InvalidDataException>(() => AllSpawnEditor.Apply(spawn, [new SpawnEditOperation("s", SpawnEditKind.CustomData, "npc_1") { Expected = "[other]\n", Replacement = "x" }]));
+
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
         fixture.Write("gamedata/scripts/task.script", "task = before\n");
-        var engine = TestEngine();
-        GameFixDefinition With(TextPatchOperation operation) => fixture.Fix("cs.test.binary-invalid", "x", "y") with { TextPatches = [operation] };
-
-        Assert.Throws<ArgumentException>(() => engine.Install(With(new("gamedata/scripts/task.script", "task\0", "tusk\0")), fixture.GameDirectory));
-        Assert.Throws<ArgumentException>(() => engine.Install(With(new("gamedata/scripts/task.script", "task", "tasks") { Binary = true }), fixture.GameDirectory));
-        Assert.Throws<ArgumentException>(() => engine.Install(With(new("gamedata/scripts/task.script", "task", "tusk") { Binary = true, CodePage = 1251 }), fixture.GameDirectory));
+        var mixed = fixture.Fix("cs.test.spawn-mixed", "task = before", "task = after") with
+        {
+            SpawnEdits = [new SpawnEditOperation("gamedata/spawns/all.spawn", SpawnEditKind.PatrolPoint, "path_walk") { Expected = "name00", Replacement = "x" }],
+        };
+        Assert.Throws<ArgumentException>(() => TestEngine().Install(mixed, fixture.GameDirectory));
     }
 
     [Fact]
@@ -227,7 +237,7 @@ public sealed class GameFixEngineTests
     [Fact]
     public void Every_catalogue_patch_fragment_installs_idempotently_and_uninstall_restores_exact_bytes()
     {
-        foreach (var shippedFix in GameFixCatalog.All)
+        foreach (var shippedFix in GameFixCatalog.All.Where(fix => fix.SpawnEdits.Count == 0))
         {
             using var fixture = new SteamGameFixture(shippedFix.Game, shippedFix.SupportedSteamBuildIds[0]);
             var operations = shippedFix.TextPatches
@@ -741,4 +751,39 @@ public sealed class GameFixEngineTests
         public void DeleteFile(string path) => _inner.DeleteFile(path);
         public void DeleteDirectory(string path, bool recursive) => _inner.DeleteDirectory(path, recursive);
     }
+}
+
+/// <summary>A minimal Clear Sky all.spawn: one spawn object with custom data and one patrol path with one point.</summary>
+internal static class SyntheticAllSpawn
+{
+    public static byte[] Build(string customData, string pathName, string pointName, uint levelVertex = 5)
+    {
+        var latin1 = Encoding.Latin1;
+        var state = new MemoryStream();
+        var w = new BinaryWriter(state);
+        w.Write((ushort)0); w.Write(0f); w.Write(0u); w.Write(0u); w.Write(0u); // graph, distance, direct control, node, flags
+        w.Write(latin1.GetBytes(customData + "\0")); w.Write(uint.MaxValue); w.Write(uint.MaxValue); w.Write((byte)42); w.Flush();
+        var stateBytes = state.ToArray();
+        var packet = new MemoryStream();
+        w = new BinaryWriter(packet);
+        w.Write((ushort)1); w.Write(latin1.GetBytes("stalker\0npc_1\0")); w.Write((byte)0); w.Write((byte)0xFE);
+        w.Write(new byte[24]); w.Write((ushort)0); w.Write((ushort)1); w.Write(ushort.MaxValue); w.Write(ushort.MaxValue);
+        w.Write((ushort)0x21); w.Write((ushort)124); w.Write((ushort)0xFFFF); w.Write((ushort)8); w.Write((ushort)0); w.Write((ushort)1);
+        w.Write((ushort)(stateBytes.Length + 2)); w.Write(stateBytes); w.Flush();
+        var spawnPacket = Prefix16(packet.ToArray());
+        var obj = Chunk(0, BitConverter.GetBytes((ushort)0)).Concat(Chunk(1, Chunk(0, spawnPacket).Concat(Chunk(1, [0, 0])).ToArray())).ToArray();
+        var objects = Chunk(0, BitConverter.GetBytes(1u)).Concat(Chunk(1, Chunk(0, obj))).Concat(Chunk(2, [])).ToArray();
+        var point = new MemoryStream();
+        w = new BinaryWriter(point);
+        w.Write(latin1.GetBytes(pointName + "\0")); w.Write(1f); w.Write(2f); w.Write(3f); w.Write(0u); w.Write(levelVertex); w.Write((ushort)9); w.Flush();
+        var vertex = Chunk(0, BitConverter.GetBytes(0u)).Concat(Chunk(1, point.ToArray())).ToArray();
+        var graph = Chunk(0, BitConverter.GetBytes(1u)).Concat(Chunk(1, Chunk(0, vertex))).Concat(Chunk(2, [])).ToArray();
+        var path = Chunk(0, latin1.GetBytes(pathName + "\0")).Concat(Chunk(1, graph)).ToArray();
+        var patrols = Chunk(0, BitConverter.GetBytes(1u)).Concat(Chunk(1, Chunk(0, path))).ToArray();
+        return Chunk(0, new byte[44]).Concat(Chunk(1, objects)).Concat(Chunk(3, patrols)).ToArray();
+    }
+
+    private static byte[] Prefix16(byte[] data) => BitConverter.GetBytes((ushort)data.Length).Concat(data).ToArray();
+
+    private static byte[] Chunk(uint id, byte[] data) => BitConverter.GetBytes(id).Concat(BitConverter.GetBytes((uint)data.Length)).Concat(data).ToArray();
 }

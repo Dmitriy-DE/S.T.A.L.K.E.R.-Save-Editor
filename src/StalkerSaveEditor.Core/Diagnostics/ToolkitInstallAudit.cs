@@ -208,13 +208,14 @@ public static class ToolkitInstallAudit
         if (buildId is null) return new Dictionary<string, string>(PathComparer);
         return definitions
             .Where(definition => definition.Game == target && definition.SupportedSteamBuildIds.Contains(buildId, StringComparer.Ordinal))
-            .SelectMany(definition => definition.TextPatches)
-            .Where(operation => IsSha256(operation.ExpectedFileSha256))
+            .SelectMany(definition => definition.TextPatches.Select(operation => (operation.RelativePath, Sha256: operation.ExpectedFileSha256))
+                .Concat(definition.SpawnEdits.Select(edit => (edit.RelativePath, Sha256: edit.ExpectedFileSha256))))
+            .Where(operation => IsSha256(operation.Sha256))
             .GroupBy(operation => NormalizeRelativePath(operation.RelativePath), PathComparer)
             .Select(group => new
             {
                 Path = group.Key,
-                Hashes = group.Select(operation => operation.ExpectedFileSha256!.ToLowerInvariant()).Distinct(StringComparer.Ordinal).ToArray(),
+                Hashes = group.Select(operation => operation.Sha256!.ToLowerInvariant()).Distinct(StringComparer.Ordinal).ToArray(),
             })
             .Where(group => group.Hashes.Length == 1)
             .ToDictionary(group => group.Path, group => group.Hashes[0], PathComparer);

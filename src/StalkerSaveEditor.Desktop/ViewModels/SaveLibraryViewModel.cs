@@ -223,8 +223,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             .Select(other => new CompareCandidate(other.DisplayName, other.FilePath));
         var backups = Backups
             .Where(backup => backup.SourcePath == save.FilePath && File.Exists(backup.BackupPath))
-            .Select(backup => new CompareCandidate(L.T("Бэкап ") + backup.CreatedAt, backup.BackupPath));
-        Compare.SetSubject(save.FilePath, save.ReleaseId, backups.Concat(others).ToArray());
+            .Select(backup => new CompareCandidate(L.T("Бэкап ") + backup.CreatedAt, backup.BackupPath, IsBackup: true));
+        Compare.SetSubject(save.FilePath, save.ReleaseId, backups.Concat(others).ToArray(), save.DisplayName);
     }
 
     public ObservableCollection<SaveFileSummary> Saves { get; } = [];
@@ -288,6 +288,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(IsStashesTab));
                 OnPropertyChanged(nameof(IsTransitionsTab));
                 OnPropertyChanged(nameof(IsBackupsTab));
+                OnPropertyChanged(nameof(IsCompareTab));
                 OnPropertyChanged(nameof(IsSettingsTab));
                 OnPropertyChanged(nameof(IsCapabilitiesTab));
                 OnPropertyChanged(nameof(IsCompanionTab));
@@ -310,6 +311,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                 OnPropertyChanged(nameof(ShowStashesScreen));
                 OnPropertyChanged(nameof(ShowTransitionsScreen));
                 OnPropertyChanged(nameof(ShowBackupsScreen));
+                OnPropertyChanged(nameof(ShowCompareScreen));
                 OnPropertyChanged(nameof(ShowSettingsScreen));
                 OnPropertyChanged(nameof(ShowCapabilitiesScreen));
                 OnPropertyChanged(nameof(ShowCompanionScreen));
@@ -344,7 +346,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsGamesOverviewTab;
+    public bool IsFirstRunWizardVisible => !_isFirstRunWizardDismissed && !_isLoadingLibrary && Saves.Count == 0 && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsGamesOverviewTab && !IsCompareTab;
 
     public RelayCommand DismissWizardCommand { get; }
     public RelayCommand WizardAutoDetectCommand { get; }
@@ -378,6 +380,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsStashesTab => SelectedTab == "stashes";
     public bool IsTransitionsTab => SelectedTab == "transitions";
     public bool IsBackupsTab => SelectedTab == "backups";
+    public bool IsCompareTab => SelectedTab == "compare";
     public bool IsSettingsTab => SelectedTab == "settings";
     public bool IsCapabilitiesTab => SelectedTab == "capabilities";
     public bool IsCompanionTab => SelectedTab == "companion";
@@ -392,7 +395,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool IsToolkitEnvironmentTab => SelectedTab == "toolkit-environment";
     public bool IsGamesOverviewTab => SelectedTab == "games";
 
-    public bool IsSaveWorkspace => SelectedTab is "overview" or "inventory" or "factions" or "stashes" or "transitions" or "backups" or "timeline" or "save-doctor";
+    public bool IsSaveWorkspace => SelectedTab is "overview" or "inventory" or "factions" or "stashes" or "transitions" or "backups" or "compare" or "timeline" or "save-doctor";
 
     public string CurrentGroupTitle => SelectedTab switch
     {
@@ -408,6 +411,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         "stashes" => L.T("ТАЙНИКИ"),
         "transitions" => L.T("ПЕРЕХОДЫ"),
         "backups" => L.T("БЭКАПЫ"),
+        "compare" => L.T("СРАВНЕНИЕ"),
         "timeline" => L.T("ИСТОРИЯ СОХРАНЕНИЙ"),
         "save-doctor" => L.T("ДОКТОР СОХРАНЕНИЯ"),
         "game-fixes" => L.T("ИСПРАВЛЕНИЯ ИГРЫ"),
@@ -430,11 +434,12 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowStashesScreen => HasSelection && IsStashesTab;
     public bool ShowTransitionsScreen => HasSelection && IsTransitionsTab;
     public bool ShowBackupsScreen => HasSelection && IsBackupsTab;
+    public bool ShowCompareScreen => IsCompareTab;
     public bool ShowSettingsScreen => IsSettingsTab;
     public bool ShowCapabilitiesScreen => IsCapabilitiesTab;
     public bool ShowCompanionScreen => IsCompanionTab;
     public bool ShowCloudScreen => IsCloudTab;
-    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsGamesOverviewTab && !IsFirstRunWizardVisible;
+    public bool ShouldShowEmptyState => HasNoSelection && !IsSettingsTab && !IsCapabilitiesTab && !IsCompanionTab && !IsCloudTab && !IsAchievementsTab && !IsGameDoctorTab && !IsSaveDoctorTab && !IsGameFixesTab && !IsUpdatesTab && !IsTimelineTab && !IsEncyclopediaTab && !IsToolkitEnvironmentTab && !IsGamesOverviewTab && !IsCompareTab && !IsFirstRunWizardVisible;
     public bool ShowAchievementsScreen => IsAchievementsTab;
     public bool ShowGameDoctorScreen => IsGameDoctorTab;
     public bool ShowSaveDoctorScreen => IsSaveDoctorTab;
@@ -846,7 +851,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void CompareTimelinePair(SaveFileSummary current, SaveFileSummary previous)
     {
         SelectedSave = current;
-        SelectedTab = "overview";
+        SelectedTab = "compare";
         Compare.Selected = Compare.Candidates.FirstOrDefault(candidate => candidate.Path == previous.FilePath);
     }
 

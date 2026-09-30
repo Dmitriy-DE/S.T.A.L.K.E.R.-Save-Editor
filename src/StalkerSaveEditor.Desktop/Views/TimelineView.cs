@@ -42,7 +42,7 @@ public static class TimelineView
                 var compare = StalkerTheme.StalkerButton(L.T("Сравнить с предыдущим"), isPrimary: false, minWidth: 190);
                 compare.IsEnabled = viewModel.CanCompare(entry);
                 ToolTip.SetTip(compare, compare.IsEnabled
-                    ? L.T("Откройте сравнение в обзоре")
+                    ? L.T("Откройте экран сравнения")
                     : L.T("Нет предыдущего сохранения с известным временем для этой игры."));
                 compare.Click += (_, _) => viewModel.CompareAdjacent(entry);
                 Grid.SetColumn(compare, 1);

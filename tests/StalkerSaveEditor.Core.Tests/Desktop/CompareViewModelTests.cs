@@ -35,6 +35,48 @@ public sealed class CompareViewModelTests
         Assert.Empty(vm.Rows);
         Assert.StartsWith("Не удалось прочитать", vm.Status, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Supported_category_filter_and_side_swap_use_the_real_difference_rows()
+    {
+        var vm = new CompareViewModel(_ => null);
+        vm.SetSubject(Fixture("xray-money-cop-expected.sav"), "stalker-cop",
+            [new CompareCandidate("before", Fixture("xray-money-cop-source.sav"))]);
+        vm.Selected = vm.Candidates[0];
+        var original = Assert.Single(vm.VisibleRows);
+
+        Assert.Equal("character", original.CategoryId);
+        Assert.NotEqual(original.ValueA, original.ValueB);
+
+        vm.SwapSides();
+
+        var swapped = Assert.Single(vm.VisibleRows);
+        Assert.Equal(original.ValueB, swapped.ValueA);
+        Assert.Equal(original.ValueA, swapped.ValueB);
+
+        vm.CategoryFilterId = "items";
+        Assert.Empty(vm.VisibleRows);
+        vm.CategoryFilterId = "character";
+        Assert.Single(vm.VisibleRows);
+    }
+
+    [Fact]
+    public void Search_filters_supported_difference_rows_without_changing_the_comparison()
+    {
+        var vm = new CompareViewModel(_ => null);
+        vm.SetSubject(Fixture("xray-money-cop-expected.sav"), "stalker-cop",
+            [new CompareCandidate("before", Fixture("xray-money-cop-source.sav"))]);
+        vm.Selected = vm.Candidates[0];
+        var row = Assert.Single(vm.Rows);
+
+        vm.SearchQuery = row.Label[..Math.Min(4, row.Label.Length)];
+        Assert.Single(vm.VisibleRows);
+        Assert.Single(vm.Rows);
+
+        vm.SearchQuery = "no matching difference";
+        Assert.Empty(vm.VisibleRows);
+        Assert.Single(vm.Rows);
+    }
 }
 
 public sealed class LibraryStartupTests

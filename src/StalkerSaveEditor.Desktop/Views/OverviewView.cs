@@ -148,7 +148,7 @@ public static class OverviewView
             FontWeight = FontWeight.Bold,
             Foreground = valueBrush,
         };
-        valueBlock.Bind(TextBlock.TextProperty, new Binding(bindingPath));
+        valueBlock.Bind(TextBlock.TextProperty, new Binding(bindingPath) { TargetNullValue = "—", FallbackValue = "—" });
         panel.Children.Add(valueBlock);
 
         var border = new Border
@@ -185,7 +185,7 @@ public static class OverviewView
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
         };
-        val.Bind(TextBlock.TextProperty, new Binding(bindingPath));
+        val.Bind(TextBlock.TextProperty, new Binding(bindingPath) { TargetNullValue = "—", FallbackValue = "—" });
         Grid.SetColumn(val, 1);
         grid.Children.Add(val);
 

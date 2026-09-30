@@ -233,23 +233,7 @@ public sealed partial class ToolkitProfileService
             throw new IOException($"Refusing to follow linked profile state: {path}");
     }
 
-    private static void AtomicWrite(string path, byte[] bytes)
-    {
-        var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.WriteThrough))
-            {
-                stream.Write(bytes);
-                stream.Flush(flushToDisk: true);
-            }
-            File.Move(temp, path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temp)) File.Delete(temp);
-        }
-    }
+    private static void AtomicWrite(string path, byte[] bytes) => Storage.AtomicFile.WriteAllBytes(path, bytes);
 
     private sealed record ProfileDocument(int SchemaVersion, ToolkitProfile Profile);
 

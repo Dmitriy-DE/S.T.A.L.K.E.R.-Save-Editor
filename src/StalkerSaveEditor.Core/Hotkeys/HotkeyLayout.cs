@@ -126,10 +126,7 @@ public sealed class HotkeyLayout
     /// <summary>Atomic write of <see cref="ToText"/>.</summary>
     public void Save(string path)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        var temp = path + ".tmp";
-        File.WriteAllText(temp, ToText());
-        File.Move(temp, path, overwrite: true);
+        Storage.AtomicFile.WriteAllText(path, ToText());
     }
 
     public static string DefaultPath => Path.Combine(StalkerSaveEditor.Core.Diagnostics.AppPaths.DataDirectory, "hotkeys.txt");

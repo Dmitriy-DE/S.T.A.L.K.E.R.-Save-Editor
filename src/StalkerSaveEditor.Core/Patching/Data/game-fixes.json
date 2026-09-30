@@ -3384,6 +3384,74 @@
       "references": [
         "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
       ]
+    },
+    {
+      "id": "cs.crash.npc-offline-during-dialog",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "NPCs no longer vanish offline while you talk or trade with them",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/pda.script",
+          "expectedText": "\r\ndialog_closed = false\r\ntrade_closed",
+          "replacementText": "\r\ndialog_open = false\r\ndialog_closed = false\r\ntrade_closed",
+          "expectedFileSha256": "f6395fa31c0ca9d600af16198adf0767bc6fd8a4f156344f55d6d2d12868fff6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/pda.script",
+          "expectedText": "function trade_wnd_opened()\r\n\tdialog_closed = false\r\n",
+          "replacementText": "function trade_wnd_opened()\r\n\tdialog_closed = false\r\n\tdialog_open = true\r\n",
+          "expectedFileSha256": "f6395fa31c0ca9d600af16198adf0767bc6fd8a4f156344f55d6d2d12868fff6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/pda.script",
+          "expectedText": "function upgrade_wnd_opened()\r\n\tdialog_closed = false\r\n",
+          "replacementText": "function upgrade_wnd_opened()\r\n\tdialog_closed = false\r\n\tdialog_open = true\r\n",
+          "expectedFileSha256": "f6395fa31c0ca9d600af16198adf0767bc6fd8a4f156344f55d6d2d12868fff6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/pda.script",
+          "expectedText": "function dialog_wnd_showed()\r\n\tdialog_closed = false\r\n",
+          "replacementText": "function dialog_wnd_showed()\r\n\tdialog_closed = false\r\n\tdialog_open = true\r\n",
+          "expectedFileSha256": "f6395fa31c0ca9d600af16198adf0767bc6fd8a4f156344f55d6d2d12868fff6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/pda.script",
+          "expectedText": "\tdialog_closed = true\r\n",
+          "replacementText": "\tdialog_closed = true\r\n\tdialog_open = false\r\n",
+          "expectedFileSha256": "f6395fa31c0ca9d600af16198adf0767bc6fd8a4f156344f55d6d2d12868fff6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/se_stalker.script",
+          "expectedText": "\t\t\t\tif xr_logic.pick_section_from_condlist(db.actor, self, self.spawner) ~= nil then\r\n",
+          "replacementText": "\t\t\t\tif xr_logic.pick_section_from_condlist(db.actor, self, self.spawner) ~= nil or pda.dialog_open then\r\n",
+          "expectedFileSha256": "8877e30e0b4e9758e7385440fc2bc806e28658c45992e84068e708c86b6ddc2d",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): same idea, own flag, applied to the retail scripts; not SRP's code.",
+      "problem": "A scripted NPC can switch offline while its dialogue, trade or upgrade window is still open; the open window then refers to a removed object and the game crashes.",
+      "description": "While a dialogue, trade or upgrade window is open, scripted NPCs that are online stay online. Uses its own 'window open' flag, because the retail flag is reset by the meeting script for its sounds.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
     }
   ],
   "enhancedEditionSha256": {

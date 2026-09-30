@@ -213,8 +213,8 @@ public static class BackupsView
             FontSize = 11,
             TextWrapping = TextWrapping.Wrap,
         };
-        restoreReason.Bind(TextBlock.TextProperty, new Binding("SelectedBackup.RestoreDisabledReason"));
-        restoreReason.Bind(Visual.IsVisibleProperty, new Binding("SelectedBackup.CanRestore")
+        restoreReason.Bind(TextBlock.TextProperty, new Binding("SelectedBackup.RestoreInPlaceDisabledReason"));
+        restoreReason.Bind(Visual.IsVisibleProperty, new Binding("SelectedBackup.CanRestoreInPlace")
         {
             Converter = new FuncValueConverter<bool, bool>(canRestore => !canRestore),
         });
@@ -223,8 +223,8 @@ public static class BackupsView
         var actions = new StackPanel { Spacing = 8, Margin = new Thickness(0, 4, 0, 0) };
         var restoreInPlace = StalkerTheme.StalkerButton(L.T("Восстановить на место"), isPrimary: true, minWidth: 220);
         restoreInPlace.Name = "backup-restore-in-place";
-        restoreInPlace.Bind(Button.IsEnabledProperty, new Binding("SelectedBackup.CanRestore"));
-        restoreInPlace.Bind(ToolTip.TipProperty, new Binding("SelectedBackup.RestoreDisabledReason"));
+        restoreInPlace.Bind(Button.IsEnabledProperty, new Binding("SelectedBackup.CanRestoreInPlace"));
+        restoreInPlace.Bind(ToolTip.TipProperty, new Binding("SelectedBackup.RestoreInPlaceDisabledReason"));
         restoreInPlace.Click += (_, _) =>
         {
             if (viewModel.SelectedBackup is { } backup)
@@ -236,8 +236,8 @@ public static class BackupsView
 
         var restoreCopy = StalkerTheme.StalkerButton(L.T("Восстановить в копию"), isPrimary: false, minWidth: 220);
         restoreCopy.Name = "backup-restore-copy";
-        restoreCopy.Bind(Button.IsEnabledProperty, new Binding("SelectedBackup.CanRestore"));
-        restoreCopy.Bind(ToolTip.TipProperty, new Binding("SelectedBackup.RestoreDisabledReason"));
+        restoreCopy.Bind(Button.IsEnabledProperty, new Binding("SelectedBackup.CanRestoreCopy"));
+        restoreCopy.Bind(ToolTip.TipProperty, new Binding("SelectedBackup.RestoreCopyDisabledReason"));
         restoreCopy.Click += (_, _) =>
         {
             if (viewModel.SelectedBackup is { } backup)

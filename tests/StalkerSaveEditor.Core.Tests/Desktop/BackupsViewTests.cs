@@ -87,17 +87,69 @@ public sealed class BackupsViewTests
         Assert.All(row.GetLogicalDescendants().OfType<Button>(), button => Assert.False(button.IsEnabled));
     }
 
-    private static BackupRecordViewModel Backup(string directory, string sourceName, BackupVerificationStatus status) => new(new LocalSaveBackupRecord(
-        Path.Combine(directory, sourceName + ".json"),
-        Path.Combine(directory, sourceName + "_ORIGINAL.sav"),
-        "2026-09-30T10:00:00Z",
-        Path.Combine(directory, sourceName),
-        new string('a', 64),
-        Path.Combine(directory, sourceName + "_OUTPUT.sav"),
-        new string('b', 64),
-        JsonDocument.Parse("{}").RootElement,
-        status,
-        Error: status == BackupVerificationStatus.Verified ? null : "Journal check failed."));
+    [Fact]
+    public void Verified_export_backup_allows_restore_to_copy_but_not_in_place()
+    {
+        using var directory = new TemporaryDirectory();
+        var viewModel = CreateViewModel(directory.Path);
+        var exported = Backup(directory.Path, "exported.sav", BackupVerificationStatus.Verified, mode: "export");
+        viewModel.Backups.Add(exported);
+        typeof(SaveLibraryViewModel).GetProperty("SelectedBackup")!.SetValue(viewModel, exported);
+
+        var view = BackupsView.Build(viewModel);
+        var restoreInPlace = view.GetLogicalDescendants().OfType<Button>()
+            .Single(button => button.Name == "backup-restore-in-place");
+        var restoreCopy = view.GetLogicalDescendants().OfType<Button>()
+            .Single(button => button.Name == "backup-restore-copy");
+        var disabledReason = view.GetLogicalDescendants().OfType<TextBlock>()
+            .Single(text => text.Name == "backup-restore-disabled-reason");
+
+        Assert.False(restoreInPlace.IsEnabled);
+        Assert.True(restoreCopy.IsEnabled);
+        Assert.True(disabledReason.IsVisible);
+        Assert.False(string.IsNullOrWhiteSpace(disabledReason.Text));
+        Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(restoreInPlace)?.ToString()));
+    }
+
+    [Fact]
+    public void Verified_replacement_backup_requires_its_output_path_to_match_the_source()
+    {
+        using var directory = new TemporaryDirectory();
+        var backup = Backup(
+            directory.Path,
+            "mismatched.sav",
+            BackupVerificationStatus.Verified,
+            outputMatchesSource: false);
+
+        Assert.False(backup.CanRestoreInPlace);
+        Assert.True(backup.CanRestoreCopy);
+        Assert.False(string.IsNullOrWhiteSpace(backup.RestoreInPlaceDisabledReason));
+    }
+
+    private static BackupRecordViewModel Backup(
+        string directory,
+        string sourceName,
+        BackupVerificationStatus status,
+        string mode = "replace",
+        bool outputMatchesSource = true)
+    {
+        var sourcePath = Path.Combine(directory, sourceName);
+        var outputPath = outputMatchesSource && (mode is "replace" or "restore")
+            ? sourcePath
+            : Path.Combine(directory, sourceName + "_OUTPUT.sav");
+        var operation = JsonDocument.Parse($"{{\"mode\":\"{mode}\"}}").RootElement.Clone();
+        return new BackupRecordViewModel(new LocalSaveBackupRecord(
+            Path.Combine(directory, sourceName + ".json"),
+            Path.Combine(directory, sourceName + "_ORIGINAL.sav"),
+            "2026-09-30T10:00:00Z",
+            sourcePath,
+            new string('a', 64),
+            outputPath,
+            new string('b', 64),
+            operation,
+            status,
+            Error: status == BackupVerificationStatus.Verified ? null : "Journal check failed."));
+    }
 
     private static SaveLibraryViewModel CreateViewModel(string directory) => new(
         discoverLocalSaves: false,

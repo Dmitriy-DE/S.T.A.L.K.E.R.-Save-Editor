@@ -2041,6 +2041,7 @@
  "Это сейвы разных игр.": "These saves are from different games.",
  "Этот предмет нельзя удалить в текущем сохранении.": "This item cannot be removed in the current save.",
  "Этот предмет отсутствует в каталоге и не может быть добавлен.": "This item is not in the catalog and cannot be added.",
+ "Эту резервную копию можно восстановить только в отдельную копию.": "This backup can only be restored to a separate copy.",
  "Я подтверждаю перезапись": "I confirm the overwrite",
  "ЯЗЫК, ЗВУК И АНИМАЦИИ": "LANGUAGE, SOUND AND ANIMATIONS",
  "Язык интерфейса": "Interface language",

@@ -28,13 +28,23 @@ public static class ItemIconService
     public static string? IconKey(string releaseId, string itemKey)
     {
         if (string.IsNullOrWhiteSpace(itemKey)) return null;
-        if (releaseId.StartsWith("stalker2", StringComparison.Ordinal))
-        {
-            return Stalker2ItemCatalog.LoadEmbedded().Icon(itemKey);
-        }
-
-        return $"xray/{itemKey}.png";
+        var key = releaseId.StartsWith("stalker2", StringComparison.Ordinal)
+            ? Stalker2ItemCatalog.LoadEmbedded().Icon(itemKey)
+            : $"xray/{itemKey}.png";
+        return key is not null && Aliases.Value.TryGetValue(key, out var shared) ? shared : key;
     }
+
+    /// <summary>
+    /// Items that share a picture ship it once; icon-aliases.json maps the other names to that file (270 copies,
+    /// 1.6 MB, removed). Embedded so the desktop app and the web edition resolve the same way.
+    /// </summary>
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> Aliases = new(() =>
+    {
+        using var stream = typeof(ItemIconService).Assembly.GetManifestResourceStream("StalkerSaveEditor.Desktop.icon-aliases.json");
+        if (stream is null) return new Dictionary<string, string>();
+        return System.Text.Json.JsonSerializer.Deserialize(stream, IconAliasJsonContext.Default.DictionaryStringString)
+            ?? new Dictionary<string, string>();
+    });
 
     /// <summary>
     /// Shows the icon in <paramref name="image"/>: at once when it is on disk, otherwise (web host)
@@ -106,4 +116,9 @@ public static class ItemIconService
             return null;
         }
     }
+}
+
+[System.Text.Json.Serialization.JsonSerializable(typeof(Dictionary<string, string>))]
+internal sealed partial class IconAliasJsonContext : System.Text.Json.Serialization.JsonSerializerContext
+{
 }

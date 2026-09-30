@@ -3,8 +3,6 @@
        The interface itself lives in StalkerSaveEditor.Desktop, shared with the browser host. -->
   <PropertyGroup>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
-    <!-- CA1859: view builders return Control on purpose (layout code, not hot paths). -->
-    <NoWarn>$(NoWarn);CA1859</NoWarn>
     <OutputType>WinExe</OutputType>
     <AssemblyName>StalkerSaveEditor</AssemblyName>
     <RootNamespace>StalkerSaveEditor.Desktop</RootNamespace>

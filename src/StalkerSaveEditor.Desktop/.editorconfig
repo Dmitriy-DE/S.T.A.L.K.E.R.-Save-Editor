@@ -1,0 +1,6 @@
+root = false
+
+[*.cs]
+# View builders return Control on purpose (layout code, not hot paths). Here, not in <NoWarn>:
+# publish_app.sh passes -p:NoWarn on the command line, which replaces the project value.
+dotnet_diagnostic.CA1859.severity = none

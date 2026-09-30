@@ -29,7 +29,7 @@ public sealed class GameFixesViewModelTests
         var viewModel = new GameFixesViewModel();
         viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cop");
 
-        Assert.Contains("5 → 10", viewModel.PresetChangeStatus, StringComparison.Ordinal);
+        Assert.Contains("10 → 11", viewModel.PresetChangeStatus, StringComparison.Ordinal);
         Assert.Contains(GameFixCatalog.PreviousDatasetVersion, viewModel.PresetChangeStatus, StringComparison.Ordinal);
         Assert.Contains(GameFixCatalog.DatasetVersion, viewModel.PresetChangeStatus, StringComparison.Ordinal);
 

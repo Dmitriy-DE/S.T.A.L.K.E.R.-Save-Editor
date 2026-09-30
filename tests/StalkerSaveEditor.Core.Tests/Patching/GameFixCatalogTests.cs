@@ -100,15 +100,17 @@ public sealed class GameFixCatalogTests
             Assert.Equal(GameFixVerificationState.RetailFilesVerified, fix.VerificationState);
             Assert.True(
                 fix.Source.Contains("stalker-cop-patch", StringComparison.OrdinalIgnoreCase) ||
-                fix.Source.Contains("Pripyat Reclamation Patch", StringComparison.OrdinalIgnoreCase));
+                fix.Source.Contains("Pripyat Reclamation Patch", StringComparison.OrdinalIgnoreCase) ||
+                fix.Source.Contains("UCoPEEP", StringComparison.Ordinal));
             Assert.Contains(fix.References, reference =>
                 reference.Contains("github.com/victor-homyakov/stalker-cop-patch", StringComparison.Ordinal) ||
-                reference.Contains("moddb.com/mods/pripyat-reclamation-patch", StringComparison.Ordinal));
+                reference.Contains("moddb.com/mods/pripyat-reclamation-patch", StringComparison.Ordinal) ||
+                reference.Contains("steamcommunity.com/sharedfiles/filedetails/?id=3487808500", StringComparison.Ordinal));
             Assert.All(fix.TextPatches, patch => Assert.Matches("^[0-9a-f]{64}$", patch.ExpectedFileSha256));
         });
 
         var recommended = GameFixCatalog.ForPreset(GameTarget.CallOfPripyat, GameFixPreset.Recommended);
-        Assert.Equal(10, recommended.Count);
+        Assert.Equal(11, recommended.Count);
         Assert.Contains(recommended, fix => fix.Id == "cop.weapon.spas12-sight-alignment");
         Assert.Contains(recommended, fix => fix.Id == "cop.weapon.val-sight-alignment");
         Assert.Contains(recommended, fix => fix.Id == "cop.dialog.correct-anomaly-name");
@@ -121,7 +123,7 @@ public sealed class GameFixCatalogTests
         Assert.Contains(recommended, fix => fix.Id == "cop.prp.sky-stretching-fix");
         Assert.DoesNotContain(recommended, fix => fix.Id == "cop.prp.knife-hit-reach");
         Assert.DoesNotContain(GameFixCatalog.ForPreset(GameTarget.CallOfPripyat, GameFixPreset.AllSafeFixes), fix => fix.Category == GameFixCategory.Community);
-        Assert.Equal(5, GameFixCatalog.PreviousPresetCount(GameTarget.CallOfPripyat, GameFixPreset.Recommended));
+        Assert.Equal(10, GameFixCatalog.PreviousPresetCount(GameTarget.CallOfPripyat, GameFixPreset.Recommended));
 
         var russianText = fixes.SelectMany(fix => fix.TextPatches).Where(patch => patch.RelativePath.Contains("/text/rus/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(russianText);

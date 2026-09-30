@@ -975,13 +975,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         try
         {
-            var prepared = XRayRelocation.Prepare(File.ReadAllBytes(save.FilePath), target.Anchor);
-            var receipt = LocalSaveReplacement.ReplaceLocal(save.FilePath, prepared, _backupDirectoryProvider(), readBack =>
-            {
-                var location = XRayRelocation.ReadActorLocation(XRayTrilogyReader.FromBytes(readBack.Span));
-                if (location.Position != target.Anchor.Position || location.GameVertexId != target.Anchor.GameVertexId)
-                    throw new InvalidDataException("The written save does not place the actor at the destination.");
-            });
+            var receipt = SaveEditSession.Relocate(save, target.Anchor, _backupDirectoryProvider());
             OnSaveRepaired(save.FilePath);
             StatusMessage = L.T("Персонаж перенесён: {0}. Backup: {1}", target.Display, Path.GetFileName(receipt.BackupPath));
         }
@@ -1159,23 +1153,12 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         try
         {
-            var source = File.ReadAllBytes(selected.FilePath);
-            var catalog = TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null;
-            var prepared = EditService.PrepareEdit(source, plan, selected.ReleaseId, catalog);
-
-            var receipt = LocalSaveReplacement.ReplaceLocal(
-                selected.FilePath,
-                prepared,
+            var (receipt, refreshed) = SaveEditSession.WritePlan(
+                selected,
+                plan,
+                TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null,
                 _backupDirectoryProvider(),
-                readBack => EditService.VerifyReadBack(readBack.Span, selected.ReleaseId, plan));
-
-            _draftStore.Remove(selected.SourceSha256);
-
-            var refreshed = SaveLibraryLoader.TryReadSave(selected.FilePath);
-            if (refreshed is null || !string.Equals(refreshed.SourceSha256, receipt.OutputSha256, StringComparison.Ordinal))
-            {
-                throw new InvalidDataException("The saved file could not be reopened after write verification.");
-            }
+                _draftStore);
 
             var index = Saves.IndexOf(selected);
             if (index >= 0) ReplaceSave(index, refreshed);

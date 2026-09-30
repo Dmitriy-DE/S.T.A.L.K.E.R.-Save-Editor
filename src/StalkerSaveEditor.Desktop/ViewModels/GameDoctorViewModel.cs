@@ -55,6 +55,18 @@ public sealed class GameDoctorViewModel : ObservableViewModel
         RestoreS2ModsCommand = new RelayCommand(async () => await ToggleS2ModsAsync(disable: false), CanRestoreS2Mods);
     }
 
+    /// <summary>
+    /// Follows the game of the selected save while the user has not picked a folder here: selects that game and
+    /// its first detected install. Only fills the form; checking or installing stays an explicit action.
+    /// </summary>
+    public void FollowGame(GameTarget target, IReadOnlyList<GameDoctorInstallation> installations)
+    {
+        ArgumentNullException.ThrowIfNull(installations);
+        if (!string.IsNullOrWhiteSpace(GameDirectory)) return;
+        if (Targets.FirstOrDefault(option => option.Target == target) is { } option) SelectedTarget = option;
+        if (installations.FirstOrDefault(install => install.Target == target) is { } found) GameDirectory = found.Directory;
+    }
+
     public ObservableCollection<GameTargetOption> Targets { get; }
     public ObservableCollection<GameDoctorCheckRow> Checks { get; } = [];
     public ObservableCollection<string> LooseFiles { get; } = [];

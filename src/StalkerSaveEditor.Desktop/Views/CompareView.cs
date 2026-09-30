@@ -236,7 +236,7 @@ public static class CompareView
             Text = label,
             FontSize = 9,
             Foreground = StalkerTheme.BrushTextMuted,
-            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.Wrap, // "DIFFERENCES" was clipped at 1366x768
         });
         var value = new TextBlock
         {

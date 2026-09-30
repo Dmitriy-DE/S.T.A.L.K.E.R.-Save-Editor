@@ -232,6 +232,7 @@ public sealed class CompanionView : UserControl
             Text = L.T("Информация игрока"),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontWeight = FontWeight.SemiBold,
+            [!IsVisibleProperty] = new Binding("InspectorInfo") { Converter = Avalonia.Data.Converters.StringConverters.IsNotNullOrEmpty },
         });
         inspectorStack.Children.Add(new TextBox
         {
@@ -241,12 +242,15 @@ public sealed class CompanionView : UserControl
             Height = 100,
             Background = StalkerTheme.BrushBgInput,
             [!TextBox.TextProperty] = new Binding("InspectorInfo"),
+            // Hidden until the game answered: empty boxes looked like broken output.
+            [!IsVisibleProperty] = new Binding("InspectorInfo") { Converter = Avalonia.Data.Converters.StringConverters.IsNotNullOrEmpty },
         });
         inspectorStack.Children.Add(new TextBlock
         {
             Text = L.T("Инвентарь игрока"),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontWeight = FontWeight.SemiBold,
+            [!IsVisibleProperty] = new Binding("InspectorInventory") { Converter = Avalonia.Data.Converters.StringConverters.IsNotNullOrEmpty },
         });
         inspectorStack.Children.Add(new TextBox
         {
@@ -256,6 +260,8 @@ public sealed class CompanionView : UserControl
             Height = 150,
             Background = StalkerTheme.BrushBgInput,
             [!TextBox.TextProperty] = new Binding("InspectorInventory"),
+            // Hidden until the game answered: empty boxes looked like broken output.
+            [!IsVisibleProperty] = new Binding("InspectorInventory") { Converter = Avalonia.Data.Converters.StringConverters.IsNotNullOrEmpty },
         });
         mainStack.Children.Add(StalkerTheme.Card(inspectorStack));
 

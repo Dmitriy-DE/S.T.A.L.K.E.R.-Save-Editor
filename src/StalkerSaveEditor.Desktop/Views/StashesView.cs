@@ -58,9 +58,13 @@ public static class StashesView
             {
                 var row = new Grid
                 {
-                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                    ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
                     Margin = new Thickness(4, 2),
                 };
+
+                var icon = new Image { Width = 32, Height = 32, Margin = new Thickness(0, 0, 10, 0) };
+                if (vm.SelectedSave is { } save) Services.ItemIconService.Show(icon, save.ReleaseId, item.TypeKey);
+                row.Children.Add(icon);
 
                 var itemText = new TextBlock
                 {
@@ -69,6 +73,7 @@ public static class StashesView
                     FontSize = 12,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
+                Grid.SetColumn(itemText, 1);
                 row.Children.Add(itemText);
 
                 var takeChk = new CheckBox
@@ -95,7 +100,7 @@ public static class StashesView
                 {
                     if (item.CanEdit) vm.TakeStashItem(item);
                 };
-                Grid.SetColumn(takeChk, 1);
+                Grid.SetColumn(takeChk, 2);
                 row.Children.Add(takeChk);
 
                 return row;

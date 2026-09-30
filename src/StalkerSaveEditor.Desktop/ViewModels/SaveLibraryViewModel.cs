@@ -165,6 +165,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                     {
                         _installations = installs;
                         OnPropertyChanged(nameof(GameBuildDisplay));
+                        FollowSelectedGame();
                     });
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -281,7 +282,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             {
                 if (InteractiveApp) GameAudioService.Instance.Play(SoundEvent.Tab);
                 if (value == "save-doctor" && SelectedSave is { } selectedSave)
+                {
                     SaveDoctor.SavePath = selectedSave.FilePath;
+                    // Read-only check: run it at once instead of showing "choose a save" next to a chosen one.
+                    if (!SaveDoctor.HasReport && SaveDoctor.AnalyzeCommand.CanExecute(null)) SaveDoctor.AnalyzeCommand.Execute(null);
+                }
                 OnPropertyChanged(nameof(IsOverviewTab));
                 OnPropertyChanged(nameof(IsInventoryTab));
                 OnPropertyChanged(nameof(IsFactionsTab));
@@ -466,6 +471,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
             Capabilities.SelectedFormatId = value?.ReleaseId;
             if (InteractiveApp && value is not null) GameAudioService.Instance.UseGame(value.ReleaseId);
+            FollowSelectedGame();
             SaveDoctor.SavePath = value?.FilePath ?? string.Empty;
             OnPropertyChanged(nameof(GameBuildDisplay));
 
@@ -705,6 +711,19 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         await RefreshAsync(() => GameContentRegistry.LoadInstalled(uiLanguage: contentLanguage));
         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(Encyclopedia.Refresh);
+    }
+
+    /// <summary>Game Doctor and Game Fixes start on the selected save's game and its detected install.</summary>
+    private void FollowSelectedGame()
+    {
+        if (_installations is null || SelectedSave is null ||
+            GameBuildFingerprints.TargetForFormat(SelectedSave.ReleaseId) is not { } target)
+        {
+            return;
+        }
+
+        GameDoctor.FollowGame(target, _installations);
+        GameFixes.FollowGame(target, _installations);
     }
 
     private int IndexOfSave(string path)

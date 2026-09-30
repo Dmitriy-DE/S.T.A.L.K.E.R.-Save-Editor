@@ -64,25 +64,29 @@ public static class CrashSignatureCatalog
         {
             Pattern = P(@"Insufficient smart_terrain jobs"),
         },
-        new("cs.sim-combat-actor-nil", ClearSky, "Loading a save during a squad fight", CrashAdvice.ReloadEarlierSave,
+        new("cs.sim-combat-actor-nil", ClearSky, "Loading a save during a squad fight", CrashAdvice.InstallFix,
             "sim_combat.script reads the actor before it exists right after a save is loaded; loading again usually works.", Srp)
         {
             Pattern = P(@"sim_combat\.script:\d+:\s*attempt to index field 'actor' \(a nil value\)"),
+            FixId = "cs.crash.sim-combat",
         },
-        new("cs.sim-combat-attack-squad-nil", ClearSky, "Help task for a squad that no longer exists", CrashAdvice.CommunityPatch,
+        new("cs.sim-combat-attack-squad-nil", ClearSky, "Help task for a squad that no longer exists", CrashAdvice.InstallFix,
             "The game evaluated a 'help' task for an attacking squad that was already gone.", Srp)
         {
             Pattern = P(@"sim_combat\.script:\d+:\s*attempt to index local 'attack_squad_obj'"),
+            FixId = "cs.crash.sim-combat",
         },
-        new("cs.squad-current-action-nil", ClearSky, "Smart terrain captured by a squad without an action", CrashAdvice.CommunityPatch,
+        new("cs.squad-current-action-nil", ClearSky, "Smart terrain captured by a squad without an action", CrashAdvice.InstallFix,
             "A squad captured a smart terrain while it had no current action.", Srp)
         {
             Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index field 'current_action'"),
+            FixId = "cs.crash.squad-action-finished-twice",
         },
-        new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.ReloadEarlierSave,
+        new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)
         {
             Pattern = P(@"xr_kamp\.script:\d+:\s*bad argument #1 to 'random' \(interval is empty\)"),
+            FixId = "cs.crash.kamp-no-animation",
         },
         new("cs.robbery-squad-left", ClearSky, "Robbers left during a hold-up", CrashAdvice.CommunityPatch,
             "A robber squad walked off to another camp in the middle of a hold-up.", Srp)
@@ -94,15 +98,17 @@ public static class CrashSignatureCatalog
         {
             Pattern = P(@"actor_reaction\.script:\d+:\s*attempt to index local 'manager'"),
         },
-        new("cs.capture-task-missing-squad", ClearSky, "Capture task for a squad that does not exist", CrashAdvice.CommunityPatch,
+        new("cs.capture-task-missing-squad", ClearSky, "Capture task for a squad that does not exist", CrashAdvice.InstallFix,
             "The game tried to give a 'capture' task to a squad that no longer exists.", Srp)
         {
             Pattern = P(@"task_objects\.script:\d+:\s*attempt to index field '\?' \(a nil value\)"),
+            FixId = "cs.crash.capture-task-missing-squad",
         },
-        new("cs.anomaly-art-nil", ClearSky, "Artefact spawn in an anomaly field", CrashAdvice.ReloadEarlierSave,
+        new("cs.anomaly-art-nil", ClearSky, "Artefact spawn in an anomaly field", CrashAdvice.InstallFix,
             "An anomaly field referenced an artefact that was already gone.", Srp)
         {
             Pattern = P(@"bind_anomaly_zone\.script:\d+:\s*attempt to index local 'art'"),
+            FixId = "cs.crash.anomaly-zone-missing-artefact",
         },
         new("cs.saving-too-much", ClearSky, "Save data too large", CrashAdvice.CommunityPatch,
             "The scripts wrote more data into a save packet than the engine allows.", Srp)

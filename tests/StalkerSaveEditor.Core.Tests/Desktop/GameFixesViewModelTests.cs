@@ -27,13 +27,13 @@ public sealed class GameFixesViewModelTests
     public void Shows_recommended_preset_growth_and_catalogue_versions()
     {
         var viewModel = new GameFixesViewModel();
-        viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cop");
+        viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cs");
 
-        Assert.Contains("10 → 11", viewModel.PresetChangeStatus, StringComparison.Ordinal);
+        Assert.Contains("23 → 28", viewModel.PresetChangeStatus, StringComparison.Ordinal);
         Assert.Contains(GameFixCatalog.PreviousDatasetVersion, viewModel.PresetChangeStatus, StringComparison.Ordinal);
         Assert.Contains(GameFixCatalog.DatasetVersion, viewModel.PresetChangeStatus, StringComparison.Ordinal);
 
-        viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cs");
+        viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cop");
         Assert.Empty(viewModel.PresetChangeStatus);
     }
 

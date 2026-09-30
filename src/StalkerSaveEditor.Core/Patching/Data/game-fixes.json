@@ -2857,6 +2857,72 @@
       "references": [
         "https://github.com/victor-homyakov/stalker-cop-patch/tree/3835ee1b7829fe7c7712af1a7ff97e85e46a906c"
       ]
+    },
+    {
+      "id": "soc.quest.mil-bloodsucker-village.ee",
+      "game": "ShadowOfChernobylEnhancedEdition",
+      "title": "Complete the Military bloodsucker village task when the lair is empty",
+      "supportedSteamBuildIds": [
+        "24067120"
+      ],
+      "category": "Essential",
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/mil_tasks.script",
+          "expectedText": "    if has_alife_info (\"mil_bloodsucker1_dead\") == true and \r\n       has_alife_info (\"mil_bloodsucker2_dead\") == true and\r\n\t   has_alife_info (\"mil_bloodsucker3_dead\") == true and  \r\n       has_alife_info (\"mil_bloodsucker4_dead\") == true then",
+          "replacementText": "    if xr_conditions.gulag_empty(nil, nil, {\"mil_village_lair\"}) and\r\n\thas_alife_info (\"mil_bloodsucker3_dead\") == true then",
+          "expectedFileSha256": "85f8b54143c9508a61c2f0d0a514f76e084599c4097aa3e07bc48d5865efd253",
+          "codePage": 28591
+        }
+      ],
+      "source": "Ported from the Steam Workshop fix 'Bloodsucker village quest fix' by StarikPohabych (item 3487970687, collection 3593664126); only the task condition, reviewed line by line.",
+      "problem": "The Army Warehouses bloodsucker-village task needs the death info of all four named bloodsuckers; one that dies offline never sets it, so the task can never be completed.",
+      "description": "The completion check uses the village lair being empty (gulag_empty, present in the Enhanced Edition scripts) plus the third bloodsucker's death, as in the Workshop fix. Enhanced Edition only: the retail game has no gulag_empty condition.",
+      "detectionMethod": "Exact SHA-256 of the EE mil_tasks.script (Steam build 24067120) and one unique text anchor.",
+      "references": [
+        "https://steamcommunity.com/sharedfiles/filedetails/?id=3487970687"
+      ],
+      "version": "1.0.0",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified"
+    },
+    {
+      "id": "cop.quest.jup-b15-drink-timer",
+      "game": "CallOfPripyat",
+      "title": "Give the Zulus drinking scene time to finish",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/jupiter/jup_b15_logic.ltx",
+          "expectedText": "on_game_timer = 15 | {+jup_b15_actor_drink_final",
+          "replacementText": "on_game_timer = 25 | {+jup_b15_actor_drink_final",
+          "expectedFileSha256": "26cebb1fcd87c148214adf7e851f1dedb3388d9b171ed851b4cdeb228964d371",
+          "codePage": 1251
+        }
+      ],
+      "source": "Ported from the Unofficial Call of Prypiat Enhanced Edition Patch (UCoPEEP, Steam Workshop 3487808500); the only gameplay change in its configs.db besides UI and Ukrainian text.",
+      "problem": "In the Jupiter drinking scene with Zulus the drink-control timer (15) can fire before the animation ends.",
+      "description": "Raises that timer to 25, exactly as UCoPEEP; nothing else in the scene changes.",
+      "detectionMethod": "Exact SHA-256 of jup_b15_logic.ltx (identical in retail 11450453 and EE 24067133) and one unique text anchor.",
+      "references": [
+        "https://steamcommunity.com/sharedfiles/filedetails/?id=3487808500"
+      ],
+      "version": "1.0.0",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified"
     }
   ],
   "enhancedEditionSha256": {
@@ -3094,6 +3160,9 @@
     ],
     "cop.localization.achievement-pronoun-case": [
       "6ad4cbf0c85de94cf4519fc21c13ca6ce6115b29ed47be32e93b89ddc7f77b53"
+    ],
+    "cop.quest.jup-b15-drink-timer": [
+      "26cebb1fcd87c148214adf7e851f1dedb3388d9b171ed851b4cdeb228964d371"
     ]
   }
 }

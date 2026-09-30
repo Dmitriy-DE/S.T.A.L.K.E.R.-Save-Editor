@@ -7,9 +7,9 @@ namespace StalkerSaveEditor.Core.Tests.Patching;
 public sealed class GameFixEnhancedEditionTests
 {
     [Theory]
-    [InlineData(GameTarget.ShadowOfChernobylEnhancedEdition, "24067120", 12)]
+    [InlineData(GameTarget.ShadowOfChernobylEnhancedEdition, "24067120", 13)]
     [InlineData(GameTarget.ClearSkyEnhancedEdition, "24067129", 23)]
-    [InlineData(GameTarget.CallOfPripyatEnhancedEdition, "24067133", 19)]
+    [InlineData(GameTarget.CallOfPripyatEnhancedEdition, "24067133", 20)]
     public void Each_edition_gets_the_variants_verified_against_its_files(GameTarget game, string build, int count)
     {
         var fixes = GameFixCatalog.ForGame(game);

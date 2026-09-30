@@ -42,8 +42,8 @@ public static class GameFixCatalog
         IReadOnlyList<GameFixDefinition> Definitions,
         IReadOnlyDictionary<string, string[]> EnhancedEditionSha256);
 
-    public const string DatasetVersion = "2026.09.2";
-    public const string PreviousDatasetVersion = "2026.09.1";
+    public const string DatasetVersion = "2026.09.3";
+    public const string PreviousDatasetVersion = "2026.09.2";
     public const GameFixPreset DefaultPreset = GameFixPreset.Recommended;
 
     private static IReadOnlyList<GameFixDefinition>? _all;
@@ -66,7 +66,7 @@ public static class GameFixCatalog
             {
                 GameTarget.ClearSky => 23,
                 GameTarget.ShadowOfChernobyl => 15,
-                GameTarget.CallOfPripyat => 5,
+                GameTarget.CallOfPripyat => 10,
                 _ => 0,
             }
             : 0;

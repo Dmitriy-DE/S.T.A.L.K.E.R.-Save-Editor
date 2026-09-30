@@ -911,7 +911,14 @@ public sealed class MainWindow : Window
         }
 
         // 7. Settings
-        var settings = SettingsView.Build(vm.Settings, vm.Diagnostics);
+        var screenshotSettingsCategory = SaveLibraryViewModel.InteractiveApp
+            ? null
+            : Environment.GetEnvironmentVariable("STALKER_EDITOR_SCREENSHOT_SETTINGS_CATEGORY");
+        var settings = SettingsView.Build(
+            vm.Settings,
+            vm.Diagnostics,
+            tab => vm.SelectedTab = tab,
+            screenshotSettingsCategory);
         settings.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowSettingsScreen)));
         screens.Children.Add(settings);
 

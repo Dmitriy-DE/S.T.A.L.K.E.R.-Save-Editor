@@ -362,7 +362,7 @@ public static class SettingsView
         {
             Name = "settings-directory-list",
             ItemsSource = settings.SaveDirectories,
-            ItemTemplate = StalkerTheme.Template<string>(_ =>
+            ItemTemplate = StalkerTheme.RecyclingTemplate<string>(() =>
             {
                 var row = new Grid
                 {
@@ -571,7 +571,7 @@ public static class SettingsView
         panel.Children.Add(new ItemsControl
         {
             ItemsSource = diagnostics.Checks,
-            ItemTemplate = StalkerTheme.Template<EnvironmentCheckRow>(_ =>
+            ItemTemplate = StalkerTheme.RecyclingTemplate<EnvironmentCheckRow>(() =>
             {
                 var line = new Grid { ColumnDefinitions = new ColumnDefinitions("32,*"), Margin = new Thickness(0, 2) };
                 var statusMark = new TextBlock

@@ -284,7 +284,7 @@ public static class InventoryView
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
-            ItemTemplate = StalkerTheme.Template<InventoryLineViewModel>(_ => MakeItemRow()),
+            ItemTemplate = StalkerTheme.RecyclingTemplate<InventoryLineViewModel>(() => MakeItemRow()),
         };
         list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         {
@@ -612,7 +612,7 @@ public static class InventoryView
     {
         var list = new ItemsControl
         {
-            ItemTemplate = StalkerTheme.Template<UpgradeItemViewModel>(_ =>
+            ItemTemplate = StalkerTheme.RecyclingTemplate<UpgradeItemViewModel>(() =>
             {
                 var checkbox = new CheckBox
                 {

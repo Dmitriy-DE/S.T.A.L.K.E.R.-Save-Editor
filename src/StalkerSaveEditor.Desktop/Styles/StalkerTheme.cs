@@ -223,6 +223,14 @@ public static class StalkerTheme
         where T : class =>
         new((item, _) => item is null ? new Panel() : build(item), supportsRecycling: false);
 
+    /// <summary>
+    /// A row built once and filled only through bindings to its DataContext, so Avalonia may recycle it (issue #90:
+    /// templates that capture the item must not recycle, or a reused row shows another item's data).
+    /// </summary>
+    public static Avalonia.Controls.Templates.FuncDataTemplate<T> RecyclingTemplate<T>(Func<Control> build)
+        where T : class =>
+        new((_, _) => build(), supportsRecycling: true);
+
     public static Border Card(Control content, string? title = null, Thickness? margin = null, Thickness? padding = null)
     {
         var container = new StackPanel { Spacing = 8 };

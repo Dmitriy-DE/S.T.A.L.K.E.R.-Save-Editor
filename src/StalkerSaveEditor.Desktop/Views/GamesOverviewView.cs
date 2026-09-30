@@ -178,7 +178,7 @@ public static class GamesOverviewView
         var rows = new ListBox
         {
             ItemsSource = vm.GameDoctor.Installations,
-            ItemTemplate = StalkerTheme.Template<GameDoctorInstallationOption>(_ => CreateInstallationRow()),
+            ItemTemplate = StalkerTheme.RecyclingTemplate<GameDoctorInstallationOption>(() => CreateInstallationRow()),
             Background = StalkerTheme.BrushBgBase,
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(1),

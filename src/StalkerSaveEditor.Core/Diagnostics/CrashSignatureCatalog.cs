@@ -94,6 +94,12 @@ public static class CrashSignatureCatalog
             Pattern = P(@"sr_bloodsucker\.script:\d+:\s*attempt to index field 'npc_squad'"),
             FixId = "cs.crash.marsh-creature-no-squad",
         },
+        new("cs.agroprom-orest-path", ClearSky, "Orest left his spot at the Agroprom loner base", CrashAdvice.InstallFix,
+            "Orest's movement restrictor does not contain his own patrol path.", Srp)
+        {
+            Pattern = P(@"patrol path \[agr_stalker_leader_walk\] is inaccessible"),
+            FixId = "cs.crash.agroprom-orest-path",
+        },
         new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)
         {

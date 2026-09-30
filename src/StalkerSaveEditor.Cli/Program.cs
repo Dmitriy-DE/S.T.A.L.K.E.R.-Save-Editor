@@ -345,9 +345,67 @@ internal static class Program
         return report.Checks.Any(check => check.Status == GameDoctorStatus.Error) ? 1 : 0;
     }
 
+    /// <summary>
+    /// fixes build-pack TARGET GAME_DIR PACK_GAMEDATA --store DIR --out FILE: diffs a fix pack against the game's
+    /// archives, copies the changed/new files into a content store (named by SHA-256) and writes the overlay list.
+    /// </summary>
+    private static int FixesBuildPack(string[] args)
+    {
+        const string usage = "Usage: fixes build-pack TARGET GAME_DIR PACK_GAMEDATA --store DIR --out FILE";
+        if (!GameTargetCatalog.TryParse(args[2], out var target)) throw new ArgumentException(usage);
+        string? store = null, output = null;
+        for (var index = 5; index < args.Length; index++)
+        {
+            if (args[index] == "--store" && index + 1 < args.Length) store = args[++index];
+            else if (args[index] == "--out" && index + 1 < args.Length) output = args[++index];
+            else throw new ArgumentException(usage);
+        }
+
+        if (store is null || output is null) throw new ArgumentException(usage);
+        var build = FixPackBuilder.Build(target, args[3], args[4]);
+        Directory.CreateDirectory(store);
+        foreach (var file in build.Files)
+        {
+            var destination = Path.Combine(store, file.ContentSha256);
+            if (!File.Exists(destination)) File.Copy(file.SourcePath, destination);
+        }
+
+        using (var stream = File.Create(output))
+        using (var writer = new System.Text.Json.Utf8JsonWriter(stream, new System.Text.Json.JsonWriterOptions { Indented = true }))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("game", GameTargetCatalog.Get(target).Id);
+            writer.WriteStartArray("overlays");
+            foreach (var file in build.Files)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("relativePath", file.RelativePath);
+                writer.WriteString("contentSha256", file.ContentSha256);
+                if (file.OriginalSha256 is { } original) writer.WriteString("expectedFileSha256", original);
+                else writer.WriteNull("expectedFileSha256");
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteNumber("unchanged", build.Unchanged.Count);
+            writer.WriteStartArray("issues");
+            foreach (var issue in build.Issues) writer.WriteStringValue(issue);
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        Console.WriteLine($"{build.Files.Count} files ({build.Files.Count(file => file.OriginalSha256 is null)} new), {build.Unchanged.Count} unchanged, {build.Issues.Count} issues -> {output}");
+        return 0;
+    }
+
     private static int Fixes(string[] args)
     {
         const string usage = "Usage: fixes list [--game TARGET] [--json] | fixes status TARGET GAME_DIR [--json] | fixes apply-preset <essential|recommended|all-safe> TARGET GAME_DIR [--json] | fixes apply-preset <essential|recommended|all-safe> all [--steam-root PATH] [--json] | fixes install ID GAME_DIR | fixes update ID GAME_DIR | fixes remove ID GAME_DIR";
+        if (args.Length >= 5 && args[1] == "build-pack")
+        {
+            return FixesBuildPack(args);
+        }
+
         if (args.Length >= 2 && args[1] == "list")
         {
             GameTarget? selectedTarget = null;

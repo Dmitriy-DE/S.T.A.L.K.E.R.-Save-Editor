@@ -61,7 +61,8 @@ internal sealed class GameFileTree
         string gameDirectory,
         Func<string, bool> wanted,
         IGameFileSystem? fileSystem = null,
-        IReadOnlyList<string>? fsgameFileNames = null)
+        IReadOnlyList<string>? fsgameFileNames = null,
+        bool includeLooseFiles = true)
     {
         fileSystem ??= new PhysicalGameFileSystem();
         var search = CompanionArchiveLocator.Discover(fileSystem, gameDirectory, fsgameFileNames ?? ["fsgame.ltx"], game);
@@ -93,7 +94,7 @@ internal sealed class GameFileTree
 
         var overlay = false;
         var dataRoot = search.GameDataDirectory;
-        if (dataRoot is not null && fileSystem.DirectoryExists(dataRoot))
+        if (includeLooseFiles && dataRoot is not null && fileSystem.DirectoryExists(dataRoot))
         {
             foreach (var path in fileSystem.EnumerateFiles(dataRoot, "*", SearchOption.AllDirectories)
                          .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))

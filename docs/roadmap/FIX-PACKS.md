@@ -39,9 +39,9 @@ in scripts.
 | # | Task | Status | PR |
 |---|---|---|---|
 | FP-1 | Engine: whole-file overlay operation + content store | done | #185 |
-| FP-2 | Research tool: diff a source pack against vanilla installs (`fixes build-pack`) | done | #187 |
+| FP-2 | Research tools: pack diff (`fixes build-pack`), missing logic-section checker (`tools/check_logic_refs.py`) | done | #187, #192 |
 | FP-3 | Hunk extractor: split each source diff into minimal anchored text changes, grouped per file, mapped to changelog entries | todo | |
-| FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | todo | |
+| FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | in progress (crashes ≈11/20) | #189–#193 |
 | FP-5 | SRP desirable fixes (quests, rewards, NPC logic) | todo | |
 | FP-6 | SRP optional fixes (balance, sound, extras), off by default | todo | |
 | FP-7 | ZRP critical + desirable fixes as our own entries | todo | |
@@ -50,7 +50,36 @@ in scripts.
 | FP-10 | EE variants for every ported fix where the EE file allows | todo | |
 | FP-11 | Steam Workshop package of the companion (.pack writer + upload after owner OK) | todo | |
 
+## FP-4 progress (SRP 1.1.5 crash list)
+
+| SRP crash | Our entry | State |
+|---|---|---|
+| Stringov's stash given twice | `cs.crash.treasure-given-twice` | done #191 |
+| Robbers leave during a hold-up | `cs.crash.robbery-squad-left` | done #190 |
+| Robber leader is a mutant / offline | `cs.crash.robbery-leader-offline` | done #190 |
+| Attitude of a missing squad | `cs.crash.relation-to-missing-squad` | done #190 |
+| 'Help' task evaluation | `cs.crash.sim-combat`, `cs.crash.squad-action-finished-twice` (2nd patch) | done #189, #193 |
+| Missing logic sections | `cs.crash.limansk-missing-logic` (+4 refs proven unreachable) | done #192 |
+| Capture task for a missing squad | `cs.crash.capture-task-missing-squad` | done #189 |
+| Load/delete an already deleted save | `cs.crash.save-menu-deleted-last` | done #191 |
+| Squad captures a smart terrain | `cs.crash.squad-action-finished-twice` | done #189 |
+| Campfire with nobody / no animation | `cs.crash.kamp-no-animation` | done #189 |
+| Anomaly zone without an artefact | `cs.crash.anomaly-zone-missing-artefact` | done #189 |
+| Orest strays (Agroprom), mine trader strays (Red Forest) | — | todo: SRP diff mixes rework and balance; cause to prove |
+| Wild Napr task | — | todo: multi-file (death handling moved to spawn sections + condition) |
+| NPC offline during dialogue/trade | — | todo |
+| Smart terrain overloading | — | todo |
+| Marsh creature scene (Agroprom, Swamps) | — | todo |
+| Buggy dialog trees | — | todo |
+| Waypoints: Army Warehouses, Cordon bonfire | — | todo |
+| Two rare crashes on reload | — | todo |
+| Missing mesh (`item_rukzak`) | — | todo (needs a model resource, credited) |
+
 ## Change log
+
+- 2026-09-30 — FP-4 batches 1–5 (#189–#193): 12 Clear Sky crash entries, 6 Game Doctor signatures. Four suspected
+  missing logic sections checked against all.spawn and script flow: unreachable, no fix. Stacked branches rebuilt
+  on main after the queue broke; a leftover pack downloader removed from #188.
 
 - 2026-09-30 — owner: no third-party packs in the product; the fixes must be ours. Pack-install direction dropped
   (the zips uploaded to R2 `fixpacks/` are unused). Overlay engine (#185) and diff tool (#187) kept.

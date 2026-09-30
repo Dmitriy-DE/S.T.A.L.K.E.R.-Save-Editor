@@ -30,6 +30,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private readonly DraftStore _draftStore;
 
     private SaveFileSummary? _selectedSave;
+    private BackupRecordViewModel? _selectedBackup;
     private DraftJournal? _currentJournal;
 
     private string _selectedTab = "overview";
@@ -230,6 +231,20 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public BulkObservableCollection<InventoryLineViewModel> FilteredInventory { get; } = [];
     public ObservableCollection<BackupRecordViewModel> Backups { get; } = [];
     public SettingsViewModel Settings { get; }
+
+    public BackupRecordViewModel? SelectedBackup
+    {
+        get => _selectedBackup;
+        set
+        {
+            if (SetProperty(ref _selectedBackup, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedBackup));
+            }
+        }
+    }
+
+    public bool HasSelectedBackup => SelectedBackup is not null;
 
     public RelayCommand RefreshCommand { get; }
     public RelayCommand SaveCommand { get; }
@@ -774,6 +789,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public void RefreshBackups()
     {
+        var selectedJournalPath = SelectedBackup?.JournalPath;
         Backups.Clear();
         var backupDir = _backupDirectoryProvider();
         if (Directory.Exists(backupDir))
@@ -785,6 +801,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
         }
 
+        SelectedBackup = Backups.FirstOrDefault(backup => backup.JournalPath == selectedJournalPath)
+            ?? Backups.FirstOrDefault(backup => backup.CanRestore)
+            ?? Backups.FirstOrDefault();
         UpdateCompareSubject();
     }
 

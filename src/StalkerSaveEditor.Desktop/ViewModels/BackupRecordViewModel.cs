@@ -15,8 +15,10 @@ public sealed class BackupRecordViewModel(LocalSaveBackupRecord record) : Observ
     public string SourceSha256 => Record.SourceSha256;
     public string? OutputPath => Record.OutputPath;
     public string? OutputName => Record.OutputPath is not null ? Path.GetFileName(Record.OutputPath) : null;
+    public string? ActualSha256 => Record.ActualSha256;
     public BackupVerificationStatus Status => Record.Status;
     public string? Error => Record.Error;
+    public bool HasError => !string.IsNullOrWhiteSpace(Error);
 
     public string StatusDisplay => Status switch
     {
@@ -33,6 +35,15 @@ public sealed class BackupRecordViewModel(LocalSaveBackupRecord record) : Observ
     };
 
     public bool CanRestore => Status == BackupVerificationStatus.Verified;
+
+    public string RestoreDisabledReason => CanRestore
+        ? string.Empty
+        : Status switch
+        {
+            BackupVerificationStatus.Missing => L.T("Файл резервной копии отсутствует; восстановление отключено."),
+            BackupVerificationStatus.Corrupt => L.T("Резервная копия повреждена; восстановление отключено."),
+            _ => L.T("Резервная копия не прошла проверку; восстановление отключено."),
+        };
 
     public string ShortDateDisplay
     {

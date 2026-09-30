@@ -251,7 +251,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
     public bool ShowUpdateButton => SelectedFix?.UpdateAvailable == true;
     public string SelectedFiles => SelectedFix is null
         ? string.Empty
-        : string.Join(Environment.NewLine, SelectedFix.Definition.TextPatches.Select(patch => patch.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase));
+        : string.Join(Environment.NewLine, GameFixEngine.ManagedPaths(SelectedFix.Definition));
 
     public async Task CheckInstallationAsync()
     {

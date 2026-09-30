@@ -500,6 +500,65 @@ public sealed class GameFixEngineTests
         Assert.Equal(archiveBytes, File.ReadAllBytes(Path.Combine(fixture.GameDirectory, "resources", "resources.db0")));
     }
 
+    [Fact]
+    public void Overlay_replaces_and_adds_whole_files_and_removal_restores_the_game_exactly()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        const string replaced = "gamedata/scripts/task.script";
+        const string added = "gamedata/scripts/new_helper.script";
+        fixture.Write(replaced, "task = vanilla\n");
+        var original = File.ReadAllBytes(fixture.GetFile(replaced));
+        var packReplaced = Encoding.Latin1.GetBytes("task = pack version\n");
+        var packAdded = Encoding.Latin1.GetBytes("function helper() end\n");
+        var store = new Dictionary<string, byte[]> { [Sha(packReplaced)] = packReplaced, [Sha(packAdded)] = packAdded };
+        var engine = new GameFixEngine(new PhysicalGameFileSystem(), allowSyntheticDefinitions: false, sha => store.GetValueOrDefault(sha));
+        var definition = OverlayFix(fixture, [
+            new FileOverlayOperation(replaced, Sha(packReplaced)) { ExpectedFileSha256 = Sha(original) },
+            new FileOverlayOperation(added, Sha(packAdded)),
+        ]);
+
+        Assert.Equal(GameFixState.Installed, engine.Install(definition, fixture.GameDirectory).State);
+        Assert.Equal(packReplaced, File.ReadAllBytes(fixture.GetFile(replaced)));
+        Assert.Equal(packAdded, File.ReadAllBytes(fixture.GetFile(added)));
+
+        engine.Uninstall(definition.Id, fixture.GameDirectory);
+        Assert.Equal(original, File.ReadAllBytes(fixture.GetFile(replaced)));
+        Assert.False(File.Exists(fixture.GetFile(added)));
+    }
+
+    [Fact]
+    public void Overlay_refuses_another_original_a_present_new_file_or_missing_content_without_writing()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        const string target = "gamedata/scripts/task.script";
+        fixture.Write(target, "task = modded by someone\n");
+        var before = File.ReadAllBytes(fixture.GetFile(target));
+        var pack = Encoding.Latin1.GetBytes("task = pack\n");
+        var store = new Dictionary<string, byte[]> { [Sha(pack)] = pack };
+        var engine = new GameFixEngine(new PhysicalGameFileSystem(), allowSyntheticDefinitions: false, sha => store.GetValueOrDefault(sha));
+
+        var otherOriginal = OverlayFix(fixture, [new FileOverlayOperation(target, Sha(pack)) { ExpectedFileSha256 = new string('a', 64) }]);
+        Assert.Throws<InvalidDataException>(() => engine.Install(otherOriginal, fixture.GameDirectory));
+        var claimsNew = OverlayFix(fixture, [new FileOverlayOperation(target, Sha(pack))]);
+        Assert.Throws<InvalidDataException>(() => engine.Install(claimsNew, fixture.GameDirectory));
+        var notDownloaded = OverlayFix(fixture, [new FileOverlayOperation(target, new string('b', 64)) { ExpectedFileSha256 = Sha(before) }]);
+        Assert.Throws<FileNotFoundException>(() => engine.Install(notDownloaded, fixture.GameDirectory));
+
+        Assert.Equal(before, File.ReadAllBytes(fixture.GetFile(target)));
+        Assert.Empty(engine.ListInstalled(fixture.GameDirectory));
+    }
+
+    private static string Sha(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+    private static GameFixDefinition OverlayFix(SteamGameFixture fixture, FileOverlayOperation[] overlays) =>
+        fixture.Fix("cs.test.overlay-pack", "unused", "unused") with
+        {
+            Implementation = GameFixImplementationType.Overlay,
+            VerificationState = GameFixVerificationState.RetailFilesVerified,
+            TextPatches = [],
+            Overlays = overlays,
+        };
+
     private sealed class SteamGameFixture : IDisposable
     {
         private readonly string _root;

@@ -82,6 +82,12 @@ public static class CrashSignatureCatalog
             Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index field 'current_action'"),
             FixId = "cs.crash.squad-action-finished-twice",
         },
+        new("cs.squad-help-task-nil", ClearSky, "'Help' task with nothing to offer", CrashAdvice.InstallFix,
+            "The game tried to offer a delayed defence ('help') task, but no task fitted.", Srp)
+        {
+            Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index local 'task' \(a nil value\)"),
+            FixId = "cs.crash.squad-action-finished-twice",
+        },
         new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)
         {

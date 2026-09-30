@@ -102,7 +102,13 @@ public sealed record GameFixDefinition(
     public IReadOnlyList<string> References { get; init; } = [];
 
     /// <summary>Whole-file operations (<see cref="GameFixImplementationType.Overlay"/>).</summary>
-    public IReadOnlyList<FileOverlayOperation> Overlays { get; init; } = [];
+    public IReadOnlyList<FileOverlayOperation> Overlays
+    {
+        get => _overlays;
+        init => _overlays = value ?? []; // catalogue entries written before overlays existed deserialize as null
+    }
+
+    private readonly IReadOnlyList<FileOverlayOperation> _overlays = [];
 }
 
 public sealed record GameFixInstallResult(bool Changed, GameFixState State, IReadOnlyList<string> Files);
@@ -1086,7 +1092,7 @@ public sealed partial class GameFixEngine
             throw new ArgumentException("Fix target, category and maturity must be recognized values.", nameof(definition));
         if (definition.Implementation is not (GameFixImplementationType.ExactTextReplacement or GameFixImplementationType.Overlay))
             throw new NotSupportedException("This engine implements exact text replacements and whole-file overlays only.");
-        if (definition.TextPatches is null || definition.Overlays is null)
+        if (definition.TextPatches is null)
             throw new ArgumentException("Operation lists cannot be null.", nameof(definition));
         if (definition.Implementation == GameFixImplementationType.ExactTextReplacement
                 ? definition.TextPatches.Count == 0 || definition.Overlays.Count > 0

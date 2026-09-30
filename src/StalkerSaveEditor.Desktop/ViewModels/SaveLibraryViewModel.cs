@@ -28,10 +28,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private readonly Func<IReadOnlyList<string>> _saveDirectoriesProvider;
     private readonly Func<string> _backupDirectoryProvider;
     private readonly DraftStore _draftStore;
+    private readonly DraftSession _draft;
 
     private SaveFileSummary? _selectedSave;
     private BackupRecordViewModel? _selectedBackup;
-    private DraftJournal? _currentJournal;
 
     private string _selectedTab = "overview";
     private string _moneyInput = string.Empty;
@@ -77,6 +77,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             SelectedTab = "game-fixes";
         };
         _draftStore = new DraftStore(draftsDirectory);
+        _draft = new DraftSession(_draftStore);
         if (!Directory.Exists(_draftStore.DirectoryPath))
         {
             Directory.CreateDirectory(_draftStore.DirectoryPath);
@@ -483,7 +484,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             }
             else
             {
-                _currentJournal = null;
+                _draft.Close();
             }
 
             UpdateCompareSubject();
@@ -583,15 +584,15 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    public bool CanUndo => _currentJournal?.CanUndo == true;
-    public bool CanRedo => _currentJournal?.CanRedo == true;
+    public bool CanUndo => _draft.CanUndo;
+    public bool CanRedo => _draft.CanRedo;
 
     public bool HasDraftChanges
     {
         get
         {
             if (SelectedSave is null) return false;
-            if (_currentJournal is not null && _currentJournal.Index > 0) return true;
+            if (_draft.Steps > 0) return true;
             return HasPendingChanges(SelectedSave);
         }
     }
@@ -600,9 +601,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         get
         {
-            if (_currentJournal is not null && _currentJournal.Index > 0)
+            if (_draft.Steps > 0)
             {
-                return L.T("Черновик: {0} действ.", _currentJournal.Index);
+                return L.T("Черновик: {0} действ.", _draft.Steps);
             }
             if (SelectedSave is not null && HasPendingChanges(SelectedSave))
             {
@@ -893,29 +894,24 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     public void Undo()
     {
-        if (_currentJournal is { CanUndo: true } journal) MoveInJournal(journal.Undo());
+        if (_draft.Undo() is { } plan) ShowPlan(plan);
     }
 
     public void Redo()
     {
-        if (_currentJournal is { CanRedo: true } journal) MoveInJournal(journal.Redo());
+        if (_draft.Redo() is { } plan) ShowPlan(plan);
     }
 
-    private void MoveInJournal(DraftJournal journal)
+    private void ShowPlan(EditPlan plan)
     {
-        _currentJournal = journal;
-        _draftStore.Save(journal);
-        ApplyPlanToUI(journal.Current);
+        ApplyPlanToUI(plan);
         UpdateDraftState();
     }
 
     public void DiscardDraft()
     {
         if (SelectedSave is null) return;
-        _draftStore.Remove(SelectedSave.SourceSha256);
-        _currentJournal = new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0);
-        ApplyPlanToUI(_currentJournal.Current);
-        UpdateDraftState();
+        ShowPlan(_draft.Discard(SelectedSave.SourceSha256));
         StatusMessage = L.T("Черновик сброшен.");
     }
 
@@ -1068,7 +1064,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public void RefreshStashQueues()
     {
         if (SelectedSave is not { } save) return;
-        var journal = _currentJournal?.Current;
+        var journal = _draft.Current;
         foreach (var stash in save.Stashes)
         {
             stash.Pending.Clear();
@@ -1256,9 +1252,9 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             money: money,
             stackCounts: stackCounts.Count > 0 ? stackCounts : null,
             detachHandles: detaches.Count > 0 ? detaches : null,
-            adds: _currentJournal?.Current.Adds is { Count: > 0 } addsList ? addsList : null,
+            adds: _draft.Current?.Adds is { Count: > 0 } addsList ? addsList : null,
             stashTakes: stashTakes.Count > 0 ? stashTakes : null,
-            stashPuts: _currentJournal?.Current.StashPuts is { Count: > 0 } putsList ? putsList : null,
+            stashPuts: _draft.Current?.StashPuts is { Count: > 0 } putsList ? putsList : null,
             upgrades: upgrades.Count > 0 ? upgrades : null,
             playerFaction: null,
             factionRelations: factionRelations.Count > 0 ? factionRelations : null,
@@ -1268,16 +1264,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
     private void LoadDraft(SaveFileSummary save)
     {
-        var existing = _draftStore.Load(save.SourceSha256);
-        if (existing is not null)
-        {
-            _currentJournal = existing;
-            ApplyPlanToUI(existing.Current);
-        }
-        else
-        {
-            _currentJournal = new DraftJournal([new EditPlan(save.SourceSha256)], 0);
-        }
+        if (_draft.Open(save.SourceSha256) is { } plan) ApplyPlanToUI(plan);
         UpdateDraftState();
     }
 
@@ -1291,11 +1278,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void RecordPlan(EditPlan plan)
     {
         if (SelectedSave is null) return;
-        var journal = _currentJournal ?? new DraftJournal([new EditPlan(SelectedSave.SourceSha256)], 0);
-        if (journal.Current.HasSameEdits(plan)) return;
-        _currentJournal = journal.Record(plan);
-        _draftStore.Save(_currentJournal);
-        UpdateDraftState();
+        if (_draft.Record(SelectedSave.SourceSha256, plan)) UpdateDraftState();
     }
 
     private void ApplyPlanToUI(EditPlan plan)

@@ -1,4 +1,4 @@
-# Handoff — state on 2026-09-29 (evening)
+# Handoff — state on 2026-09-30 (v1.2.0)
 
 Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap/STATE.md`.
 
@@ -7,9 +7,9 @@ Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap
 | What | Where |
 |---|---|
 | Code (only live repo) | `github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor` (renamed from `-Next`). Python repo `S.T.A.L.K.E.R.-Save_Editor` is archived, ignore it. |
-| Released | v1.1.0 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
+| Released | v1.2.0 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
 | Web edition | `stalker-save-editor.pages.dev` (C# WASM, deployed by hand) |
-| Local worktrees | `~/Projects/save-editor-next-claude` (Claude), `~/Projects/save-editor-next` (Codex), `-gemini`, `-toolkit` — use your own |
+| Local worktrees | `~/Projects/save-editor-next-claude` (Claude merge queue), `~/Projects/save-editor-review-claude` (Claude edits — never edit where a queue script runs: it resets hard), `~/Projects/save-editor-next` (Codex) |
 | Owner's games (Linux, Proton) | `~/.local/share/Steam/steamapps/common/` — SoC, CS (+OGSM mod), CoP, three EE; S2 via GFN only (no mods there) |
 | Owner's saves | `…/<game>/_appdata_/savedgames/`, EE and S2 in `compatdata/<appid>/pfx/…` — 342 files. Read or copy; never write them. |
 
@@ -41,7 +41,8 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
 ## Done
 
 - Save editing for SoC/CS/CoP (+EE): money, stacks, condition, placement, upgrades, relations, add/remove items, stashes (take, put, create in stash); S2: money, stacks, condition. Backup + journal + atomic swap + read-back for every write.
-- Read-only save data: PDA tasks with state and times, kill statistics (SoC/CS), weather (CS/CoP), actor location.
+- Read-only save data: PDA tasks with state and times (incl. CoP EE), kill statistics (SoC/CS), weather (CS 62/62, CoP), actor location, installed game build; task changes in Compare.
+- 1.2.0 review fixes: async commands no longer async void, X11 re-grab crash, background task failures logged, resumable companion uninstall, audio races, library refresh cancel; Game Fix catalogue is JSON data; logs record writes/fixes/companion commands (redacted).
 - Quest Doctor (SoC 4 rules, CS 3 rules): detect a dead NPC whose death flag is missing, repair the save, open the preventing Game Fix. Crash signatures (18 CS from SRP, 6 SoC from ZRP) in Game Doctor.
 - Game Fixes: 64 retail + 54 Enhanced Edition variants. Experimental actor relocation to level-changer destinations (TP).
 - Steam: cloud read/download/upload with confirmation and no retries, achievements.
@@ -51,13 +52,12 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
 
 ## Not done / next
 
-1. **Frontend v2 (Codex)** — handoff in `~/Projects/STALKER_FRONTEND_HANDOFF_V1/00_CSHARP_OVERRIDE.md` (C# override of a ChatGPT design pack): left sidebar, new screens, themes/accent/scale. Claude merges and fixes.
-2. **Owner in game (L5):** a CS/CoP save written by the editor (it grows ~4×), Quest Doctor repair, relocation, fixes, SoC/CS companion.
-3. CoP EE task registry (0/12 saves read); CS weather where the string is absent.
-4. S2 companion inspector/god mode/free camera — needs S2 with mods (owner plays via GFN) → later version.
-5. EE/S2 external fixes (UCoPEEP, Nexus) detection; S2 adding items, upgrades, relations need save pairs.
-6. Content packs (CP-3/4), S2 armour upgrade names (KB-7), game build fingerprint (RL-6), companion Workshop/EE/S2 (MOD-2…5), translation review by native speakers (TR-1).
-7. Owner only: Cloudflare/APT secrets for CI publishing; deleting the archived Python repo.
+1. **Owner in game (L5):** a CS/CoP save written by the editor (grows ~4×), Quest Doctor repair, relocation (TP), stash moves, fixes, companion in SoC/CS/EE, S2 companion god/noclip/timespeed (needs S2 on PC with UE4SS).
+2. **Refactors deferred** (no user-visible change): split SaveLibraryViewModel (loader / edit session / VM), list recycling (#90), analyzers for Desktop/App, headless tooling out of the App exe, one file-transaction primitive for fixes/companion/snapshots/backups (after L5).
+3. **Needs owner material:** S2 save pairs for add items/upgrades/relations; S2 game files for content packs (CP-4); UCoPEEP/Workshop files (subscribe) to port external fixes; update signing key; CI publish secrets; Workshop upload.
+4. Translation review by native speakers (TR-1).
+
+Frontend v2: Codex rebuilt shell/themes + 8 screens (#160, #163–#169); Claude polished the other 12 (#170) and took over the frontend on 2026-09-30.
 
 ## Lessons (do not repeat)
 

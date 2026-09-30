@@ -1,23 +1,21 @@
-# Fix packs and third-party fixes — plan and tracker
+# Our own fixes (derived from third-party fix packs) — plan and tracker
 
 Owner decision (2026-09-30): port **all** useful third-party fixes into the editor so players do not need
 external mods. Users install and remove each fix or pack themselves; originals are backed up and restored.
 Authors are credited in every entry (open-source project, attribution, no sale).
 
-## Principles
+## Principles (owner correction, 2026-09-30)
 
-- Every change is checked against the owner's installed retail/EE files: a fix installs only onto the exact
-  original it was made for (SHA-256), otherwise nothing is written.
-- Two levels:
-  1. **Individual fixes** — exact text replacements, reviewed line by line, linked to crash signatures
-     (Game Doctor) and quest rules (Save Doctor). Critical ones first.
-  2. **Whole packs** — SRP / ZRP / … installed as whole-file overlays (one button), optional parts as separate
-     packs off by default. A pack and an individual fix never manage the same file (engine refuses).
-- Categories: **Critical** (crash, save corruption, quest can never finish) → **Desirable** (wrong quest
-  behaviour, rewards, NPC logic) → **Optional, off by default** (balance, sound, "(Optional)" features) →
-  **Not ported** (cosmetic renames, intro removal, taste changes).
-- Enhanced Editions: a pack file applies to EE only where the EE original equals the retail original the pack
-  was made for; the rest is ported by hand.
+- **The fixes are ours.** SRP, ZRP, stalker-cop-patch, PRP, Workshop mods are research sources only: we find what
+  they changed and why, then write our own fix entries (one problem per entry, our text, our tests), crediting the
+  source. We never ship or install a third-party pack as such.
+- Every fix is an exact, verified change: installs only onto the exact original file (SHA-256), user installs and
+  removes it, the original is backed up and restored.
+- Critical first (crash, save corruption, quest can never finish) → desirable (wrong quest behaviour, rewards, NPC
+  logic) → optional, off by default (balance, sound, extras) → not ported (renames, intro removal, taste).
+- Text changes are exact text replacements; new or binary files (e.g. all.spawn) use the whole-file overlay
+  operation with the content shipped by us.
+- Enhanced Editions: a fix gets an EE variant only when checked against the EE file.
 
 ## Sources
 
@@ -41,18 +39,23 @@ in scripts.
 | # | Task | Status | PR |
 |---|---|---|---|
 | FP-1 | Engine: whole-file overlay operation + content store | done | #185 |
-| FP-2 | Pack builder: diff a pack against vanilla installs → overlay definitions (retail + EE applicability) | todo | |
-| FP-3 | Pack hosting on R2 + in-app download with SHA check (button, not bundled) | todo | |
-| FP-4 | UI: packs on the Game Fixes screen (install/remove whole pack, size, credits) | todo | |
-| FP-5 | SRP 1.1.5 full pack (retail CS) | todo | |
-| FP-6 | SRP optional features as separate packs (off by default) | todo | |
-| FP-7 | ZRP 1.07 full pack (retail SoC) | todo | |
-| FP-8 | Critical SRP fixes as individual fixes (45: crashes, save corruption, stuck quests) + crash signatures | todo | |
-| FP-9 | Critical ZRP fixes as individual fixes + signatures | todo | |
-| FP-10 | EE applicability: per pack, port what matches EE originals | todo | |
-| FP-11 | PRP source mirror; remaining CoP fixes | todo | |
-| FP-12 | Steam Workshop package of the companion (.pack writer + upload after owner OK) | todo | |
+| FP-2 | Research tool: diff a source pack against vanilla installs (`fixes build-pack`) | done | #187 |
+| FP-3 | Hunk extractor: split each source diff into minimal anchored text changes, grouped per file, mapped to changelog entries | todo | |
+| FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | todo | |
+| FP-5 | SRP desirable fixes (quests, rewards, NPC logic) | todo | |
+| FP-6 | SRP optional fixes (balance, sound, extras), off by default | todo | |
+| FP-7 | ZRP critical + desirable fixes as our own entries | todo | |
+| FP-8 | ZRP optional fixes | todo | |
+| FP-9 | CoP: remaining stalker-cop-patch items; PRP source mirror | todo | |
+| FP-10 | EE variants for every ported fix where the EE file allows | todo | |
+| FP-11 | Steam Workshop package of the companion (.pack writer + upload after owner OK) | todo | |
 
 ## Change log
 
+- 2026-09-30 — owner: no third-party packs in the product; the fixes must be ours. Pack-install direction dropped
+  (the zips uploaded to R2 `fixpacks/` are unused). Overlay engine (#185) and diff tool (#187) kept.
+
+- 2026-09-30 — pack builder (`fixes build-pack`, archives only, programs/docs skipped). Results on the owner's
+  installs: SRP 677 files (66 new), ZRP 510 (208 new), stalker-cop-patch 24. EE: only part of each pack matches
+  the EE originals (SRP 345/677, ZRP 301/510, cop-patch 11/24) → **no whole packs on EE**, individual fixes only.
 - 2026-09-30 — plan written; UCoPEEP and Workshop bloodsucker fix ported (#184); overlay engine (#185).

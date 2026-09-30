@@ -265,6 +265,46 @@ public sealed class CompanionView : UserControl
         });
         mainStack.Children.Add(StalkerTheme.Card(inspectorStack));
 
+        // 2a'. S2 debug commands (experimental; the game's own GSC commands through the UE4SS mod)
+        var s2Stack = new StackPanel { Spacing = 8 };
+        s2Stack.Children.Add(new TextBlock
+        {
+            Text = L.T("S.T.A.L.K.E.R. 2 — команды игры (экспериментально)"),
+            Foreground = StalkerTheme.BrushAccentAmber,
+            FontWeight = FontWeight.Bold,
+        });
+        s2Stack.Children.Add(new TextBlock
+        {
+            Text = L.T("Нужны S2 на ПК, UE4SS и установленный мод. Команды выполняет сама игра (XSetGodMode, XSetNoClipGSC, XSetTimeSpeed)."),
+            Foreground = StalkerTheme.BrushTextSecondary,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        var s2Buttons = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var (label, spec) in new[]
+        {
+            (L.T("Бессмертие: вкл"), "god on"), (L.T("Бессмертие: выкл"), "god off"),
+            (L.T("Полёт: вкл"), "noclip on"), (L.T("Полёт: выкл"), "noclip off"),
+            (L.T("Время ×5"), "timespeed 5"), (L.T("Время: норма"), "timespeed 0"),
+        })
+        {
+            var button = StalkerTheme.StalkerButton(label, isPrimary: false, minWidth: 140);
+            button.Margin = new Thickness(0, 0, 8, 8);
+            button.Bind(Button.CommandProperty, new Binding(nameof(CompanionViewModel.Stalker2CommandCommand)));
+            button.CommandParameter = spec;
+            s2Buttons.Children.Add(button);
+        }
+
+        s2Stack.Children.Add(s2Buttons);
+        s2Stack.Children.Add(new TextBlock
+        {
+            Foreground = StalkerTheme.BrushTextPrimary,
+            TextWrapping = TextWrapping.Wrap,
+            [!TextBlock.TextProperty] = new Binding(nameof(CompanionViewModel.Stalker2CommandStatus)),
+        });
+        var s2Card = StalkerTheme.Card(s2Stack);
+        s2Card.Bind(Visual.IsVisibleProperty, new Binding(nameof(CompanionViewModel.SupportsStalker2Commands)));
+        mainStack.Children.Add(s2Card);
+
         // 2b. All games
         var gamesStack = new StackPanel { Spacing = 8 };
         gamesStack.Children.Add(new TextBlock

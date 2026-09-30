@@ -30,6 +30,17 @@ public sealed class CompanionProtocolClient
     {
     }
 
+    /// <summary>A client for a mod whose exchange folder is known directly (S2: %LOCALAPPDATA%\Stalker2\Saved).</summary>
+    public static CompanionProtocolClient ForDirectory(string appDataDirectory, TimeSpan? timeout = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(appDataDirectory);
+        return new CompanionProtocolClient(
+            new ResolvedAppDataRoot(System.IO.Path.GetFullPath(appDataDirectory)),
+            timeout ?? TimeSpan.FromSeconds(10),
+            TimeSpan.FromMilliseconds(50),
+            static () => Guid.NewGuid().ToString("N"));
+    }
+
     internal CompanionProtocolClient(
         string gameDirectory,
         TimeSpan timeout,

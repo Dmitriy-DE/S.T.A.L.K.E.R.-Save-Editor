@@ -63,4 +63,21 @@ public sealed class Stalker2CompanionInstallerTests : IDisposable
         Assert.Throws<CompanionInstallerException>(() => new Stalker2CompanionInstaller(ModsRoot()).Install(_game));
         Assert.True(File.Exists(Path.Combine(mods, "SaveEditorCompanion", "keep.txt")));
     }
+
+    [Fact]
+    public void Protocol_folder_is_the_mods_LocalAppData_Saved_folder()
+    {
+        var game = Path.Combine(Path.GetTempPath(), "lib", "steamapps", "common", "S.T.A.L.K.E.R. 2 Heart of Chornobyl");
+        var folder = Stalker2CompanionInstaller.ProtocolDirectory(game);
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.EndsWith(Path.Combine("Stalker2", "Saved"), folder, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Equal(Path.Combine(Path.GetTempPath(), "lib", "steamapps", "compatdata", "1643320", "pfx", "drive_c", "users",
+                "steamuser", "AppData", "Local", "Stalker2", "Saved"), folder);
+        }
+    }
 }

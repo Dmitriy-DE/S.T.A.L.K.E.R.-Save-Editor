@@ -199,14 +199,14 @@ public sealed class CompanionViewModelTests
         var fake = new FakeCompanionService { StateToReturn = CompanionState.NotInstalled };
         var vm = new CompanionViewModel(fake);
         await vm.RefreshGamesAsync();
-        Assert.Equal(3, vm.Games.Count);
+        Assert.Equal(6, vm.Games.Count);
         Assert.All(vm.Games, row => Assert.True(row.IsChecked));
         vm.Games[1].IsChecked = false;
         var before = fake.InstallCallCount;
 
         await vm.InstallCheckedAsync();
 
-        Assert.Equal(before + 2, fake.InstallCallCount);
+        Assert.Equal(before + 5, fake.InstallCallCount);
         Assert.Contains("Готово", vm.StatusMessage, StringComparison.Ordinal);
     }
 
@@ -379,6 +379,9 @@ public sealed class CompanionViewModelTests
         Assert.Contains("stalker-cop", keys);
         Assert.Contains("stalker-cs", keys);
         Assert.Contains("stalker-soc", keys);
-        Assert.Equal(3, vm.AvailableGames.Count);
+        Assert.Contains("stalker-cop-ee", keys);
+        Assert.Contains("stalker-cs-ee", keys);
+        Assert.Contains("stalker-soc-ee", keys);
+        Assert.Equal(6, vm.AvailableGames.Count);
     }
 }

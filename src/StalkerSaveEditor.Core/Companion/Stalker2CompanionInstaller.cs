@@ -24,6 +24,25 @@ public sealed class Stalker2CompanionInstaller(string modSourceRoot)
 
     private string SourceDirectory => Path.Combine(modSourceRoot, "s2", ModFolderName);
 
+    /// <summary>
+    /// Folder the S2 mod polls for commands (main.lua: %LOCALAPPDATA%\Stalker2\Saved). On Windows the user's own
+    /// LocalAppData; under Proton the same path inside the game's prefix next to the library that holds the game.
+    /// </summary>
+    public static string ProtocolDirectory(string gameDirectory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
+        if (OperatingSystem.IsWindows())
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Stalker2", "Saved");
+        }
+
+        var common = Directory.GetParent(Path.GetFullPath(gameDirectory).TrimEnd(Path.DirectorySeparatorChar))
+            ?? throw new DirectoryNotFoundException("The S2 game folder has no parent.");
+        var steamapps = common.Parent ?? throw new DirectoryNotFoundException("The S2 game folder is not inside steamapps/common.");
+        return Path.Combine(steamapps.FullName, "compatdata", SteamAppId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "pfx", "drive_c", "users", "steamuser", "AppData", "Local", "Stalker2", "Saved");
+    }
+
     public static Stalker2CompanionStatus GetStatus(string? gameDirectory = null, IReadOnlyList<string>? steamRoots = null)
     {
         var game = gameDirectory ?? FindGame(steamRoots);

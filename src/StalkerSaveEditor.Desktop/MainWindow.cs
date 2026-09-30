@@ -682,7 +682,7 @@ public sealed class MainWindow : Window
         {
             Background = StalkerTheme.BrushBgPanel,
             // Keep row values on the data context so this template is ready for later recycling.
-            ItemTemplate = StalkerTheme.Template<SaveFileSummary>(_ =>
+            ItemTemplate = StalkerTheme.RecyclingTemplate<SaveFileSummary>(() =>
             {
                 var row = new Grid
                 {

@@ -64,7 +64,7 @@ public sealed class AddItemDialog : Window
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(3),
             ItemsSource = addVm.FilteredItems,
-            ItemTemplate = StalkerTheme.Template<CatalogItemEntry>(_ =>
+            ItemTemplate = StalkerTheme.RecyclingTemplate<CatalogItemEntry>(() =>
             {
                 var row = new StackPanel { Spacing = 2, Margin = new Thickness(8, 6) };
                 var name = new TextBlock

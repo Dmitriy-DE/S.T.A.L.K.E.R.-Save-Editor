@@ -100,7 +100,7 @@ public static class BackupsView
             Name = "backup-history-list",
             Background = StalkerTheme.BrushBgPanel,
             BorderThickness = new Thickness(0),
-            ItemTemplate = StalkerTheme.Template<BackupRecordViewModel>(_ => MakeBackupRow()),
+            ItemTemplate = StalkerTheme.RecyclingTemplate<BackupRecordViewModel>(() => MakeBackupRow()),
         };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.Backups)));
         list.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedBackup)) { Mode = BindingMode.TwoWay });

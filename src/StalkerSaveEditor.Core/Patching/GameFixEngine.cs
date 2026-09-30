@@ -69,6 +69,16 @@ public sealed record TextPatchOperation(string RelativePath, string ExpectedText
     public int CodePage { get; init; } = 28591;
 }
 
+/// <summary>
+/// Places a whole file (a fix pack's file) at <paramref name="RelativePath"/>. <see cref="ExpectedFileSha256"/> is the
+/// original the pack was made against (its effective copy in the game's archives or loose files); null means the file
+/// must not exist anywhere in the game (a new file). The bytes come from the content store by <paramref name="ContentSha256"/>.
+/// </summary>
+public sealed record FileOverlayOperation(string RelativePath, string ContentSha256)
+{
+    public string? ExpectedFileSha256 { get; init; }
+}
+
 public sealed record GameFixDefinition(
     string Id,
     GameTarget Game,
@@ -90,6 +100,15 @@ public sealed record GameFixDefinition(
     public GameFixVerificationState VerificationState { get; init; } = GameFixVerificationState.Research;
     public string DetectionMethod { get; init; } = string.Empty;
     public IReadOnlyList<string> References { get; init; } = [];
+
+    /// <summary>Whole-file operations (<see cref="GameFixImplementationType.Overlay"/>).</summary>
+    public IReadOnlyList<FileOverlayOperation> Overlays
+    {
+        get => _overlays;
+        init => _overlays = value ?? []; // catalogue entries written before overlays existed deserialize as null
+    }
+
+    private readonly IReadOnlyList<FileOverlayOperation> _overlays = [];
 }
 
 public sealed record GameFixInstallResult(bool Changed, GameFixState State, IReadOnlyList<string> Files);
@@ -134,11 +153,15 @@ public sealed partial class GameFixEngine
 
     public GameFixEngine() : this(new PhysicalGameFileSystem(), allowSyntheticDefinitions: false) { }
 
-    internal GameFixEngine(IGameFileSystem fileSystem, bool allowSyntheticDefinitions = false)
+    internal GameFixEngine(IGameFileSystem fileSystem, bool allowSyntheticDefinitions = false, Func<string, byte[]?>? overlayContent = null)
     {
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
         _allowSyntheticDefinitions = allowSyntheticDefinitions;
+        _overlayContent = overlayContent ?? GameFixContentStore.Read;
     }
+
+    private readonly Func<string, byte[]?> _overlayContent;
+    private const string AbsentSourceFingerprint = "absent";
 
     public GameFixState GetStatus(GameFixDefinition definition, string gameDirectory)
     {
@@ -266,13 +289,23 @@ public sealed partial class GameFixEngine
         if (priorManifest is not null)
         {
             var existingPaths = priorManifest.Files.Select(file => NormalizeRelativePath(file.RelativePath)).ToHashSet(PathComparer);
-            var requestedPaths = operations.Select(operation => operation.RelativePath).ToHashSet(PathComparer);
+            var requestedPaths = operations.Select(operation => operation.RelativePath)
+                .Concat(definition.Overlays.Select(overlay => NormalizeRelativePath(overlay.RelativePath)))
+                .ToHashSet(PathComparer);
             if (!existingPaths.SetEquals(requestedPaths))
                 throw new InvalidOperationException("A fix version transition must keep the same managed file set so its recovery state remains authoritative.");
         }
 
-        EnsureNoCompanionOverlap(root, operations.Select(operation => operation.RelativePath));
+        var overlayOperations = definition.Overlays.Select(overlay =>
+        {
+            var normalized = NormalizeRelativePath(overlay.RelativePath);
+            if (activeManifests.SelectMany(manifest => manifest.Files).Any(file => PathComparer.Equals(file.RelativePath, normalized)))
+                throw new InvalidOperationException($"Another active Game Fix manages {normalized}; layered transformations are not supported for this file.");
+            return (Overlay: overlay, RelativePath: normalized);
+        }).ToArray();
+        EnsureNoCompanionOverlap(root, operations.Select(operation => operation.RelativePath).Concat(overlayOperations.Select(overlay => overlay.RelativePath)));
         var changes = PrepareChanges(definition.Game, root, operations);
+        changes.AddRange(overlayOperations.Select(overlay => PrepareOverlay(definition.Game, root, overlay.Overlay, overlay.RelativePath)));
         var fixDirectory = GetFixDirectory(root, definition.Id);
         var backupDirectory = Path.Combine(fixDirectory, "backups");
         var createdBackups = new List<string>();
@@ -409,7 +442,7 @@ public sealed partial class GameFixEngine
             throw new NotSupportedException("Game Fix installation requires validation against the supported retail files; synthetic-test definitions are not installable.");
 
         var oldPaths = oldManifest.Files.Select(file => NormalizeRelativePath(file.RelativePath)).ToHashSet(PathComparer);
-        var newPaths = definition.TextPatches.Select(patch => NormalizeRelativePath(patch.RelativePath)).ToHashSet(PathComparer);
+        var newPaths = ManagedPaths(definition).ToHashSet(PathComparer);
         if (!oldPaths.SetEquals(newPaths))
             throw new NotSupportedException("In-place updates that change the managed file set are not supported; the old fix must be removed and reviewed first.");
 
@@ -788,6 +821,49 @@ public sealed partial class GameFixEngine
         }).ToList();
     }
 
+    private PreparedFileChange PrepareOverlay(GameTarget game, string root, FileOverlayOperation overlay, string relativePath)
+    {
+        var path = ResolveGamePath(root, relativePath);
+        var content = _overlayContent(overlay.ContentSha256)
+            ?? throw new FileNotFoundException("The fix pack file is not in the local content store; download the pack first.", relativePath);
+        if (!string.Equals(Hash(content), overlay.ContentSha256, StringComparison.Ordinal))
+            throw new InvalidDataException("A fix pack file does not match its recorded SHA-256: " + relativePath);
+
+        byte[] before;
+        bool existed;
+        string? fingerprint;
+        if (overlay.ExpectedFileSha256 is { } expected)
+        {
+            (before, existed, fingerprint) = ReadTargetSource(game, root, relativePath, path);
+            if (!string.Equals(Hash(before), expected, StringComparison.Ordinal))
+                throw new InvalidDataException($"The source file hash does not match the file this pack was made for: {relativePath}.");
+        }
+        else
+        {
+            // A new file: it must not exist loose or in the archives, so removing it later restores the game exactly.
+            if (_fileSystem.FileExists(path) || SourceExistsInArchives(game, root, relativePath, path))
+                throw new InvalidDataException("The pack adds a file that already exists in the game: " + relativePath);
+            (before, existed, fingerprint) = ([], false, AbsentSourceFingerprint);
+        }
+
+        if (content.AsSpan().SequenceEqual(before))
+            throw new InvalidDataException("A fix pack file is identical to the game's file: " + relativePath);
+        return new PreparedFileChange(relativePath, path, before, content, Hash(before), Hash(content), existed, fingerprint);
+    }
+
+    private bool SourceExistsInArchives(GameTarget game, string root, string relativePath, string path)
+    {
+        try
+        {
+            _ = ReadTargetSource(game, root, relativePath, path);
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+    }
+
     private (byte[] Bytes, bool TargetExistedBefore, string? SourceFingerprint) ReadTargetSource(
         GameTarget game,
         string root,
@@ -824,6 +900,8 @@ public sealed partial class GameFixEngine
             return MatchesHash(change.AbsolutePath, change.BeforeSha256);
 
         if (_fileSystem.FileExists(change.AbsolutePath)) return false;
+        if (string.Equals(change.SourceFingerprint, AbsentSourceFingerprint, StringComparison.Ordinal))
+            return !SourceExistsInArchives(game, root, change.RelativePath, change.AbsolutePath);
         try
         {
             var current = ReadTargetSource(game, root, change.RelativePath, change.AbsolutePath);
@@ -1012,10 +1090,23 @@ public sealed partial class GameFixEngine
         if (!Enum.IsDefined(definition.Game) || !Enum.IsDefined(definition.Category) || !Enum.IsDefined(definition.Maturity) ||
             !Enum.IsDefined(definition.Implementation) || !Enum.IsDefined(definition.VerificationState) || !Enum.IsDefined(definition.SaveCompatibility))
             throw new ArgumentException("Fix target, category and maturity must be recognized values.", nameof(definition));
-        if (definition.Implementation != GameFixImplementationType.ExactTextReplacement)
-            throw new NotSupportedException("This engine only implements exact single-byte text replacements.");
-        if (definition.TextPatches is null || definition.TextPatches.Count == 0)
-            throw new ArgumentException("At least one text patch is required.", nameof(definition));
+        if (definition.Implementation is not (GameFixImplementationType.ExactTextReplacement or GameFixImplementationType.Overlay))
+            throw new NotSupportedException("This engine implements exact text replacements and whole-file overlays only.");
+        if (definition.TextPatches is null)
+            throw new ArgumentException("Operation lists cannot be null.", nameof(definition));
+        if (definition.Implementation == GameFixImplementationType.ExactTextReplacement
+                ? definition.TextPatches.Count == 0 || definition.Overlays.Count > 0
+                : definition.Overlays.Count == 0 || definition.TextPatches.Count > 0)
+            throw new ArgumentException("A fix has either text patches or whole-file overlays, and at least one.", nameof(definition));
+        foreach (var overlay in definition.Overlays)
+        {
+            if (overlay is null) throw new ArgumentException("Overlay operations cannot be null.", nameof(definition));
+            _ = NormalizeRelativePath(overlay.RelativePath);
+            if (!IsSha256(overlay.ContentSha256) || overlay.ExpectedFileSha256 is { } expected && !IsSha256(expected))
+                throw new ArgumentException("Overlay SHA-256 values must be lowercase hexadecimal.", nameof(definition));
+        }
+        if (definition.Overlays.Select(overlay => NormalizeRelativePath(overlay.RelativePath)).Distinct(PathComparer).Count() != definition.Overlays.Count)
+            throw new ArgumentException("An overlay path appears more than once.", nameof(definition));
         foreach (var operation in definition.TextPatches)
         {
             if (operation is null) throw new ArgumentException("Text patch operations cannot be null.", nameof(definition));
@@ -1102,6 +1193,12 @@ public sealed partial class GameFixEngine
             !_fileSystem.EnumerateDirectories(fixDirectory, "*", SearchOption.TopDirectoryOnly).Any())
             _fileSystem.DeleteDirectory(fixDirectory, recursive: false);
     }
+
+    /// <summary>Every game file a definition manages (text patches and overlays), normalised.</summary>
+    public static IEnumerable<string> ManagedPaths(GameFixDefinition definition) =>
+        definition.TextPatches.Select(patch => NormalizeRelativePath(patch.RelativePath))
+            .Concat(definition.Overlays.Select(overlay => NormalizeRelativePath(overlay.RelativePath)))
+            .Distinct(PathComparer);
 
     private static string GetFixDirectory(string root, string id) => Path.Combine(root, StateDirectoryName, id);
     private static string GetManifestPath(string root, string id) => Path.Combine(GetFixDirectory(root, id), ManifestFileName);

@@ -373,7 +373,7 @@ internal static class Program
                     definition.SupportedSteamBuildIds.ToArray(),
                     definition.DependsOn.ToArray(),
                     definition.ConflictsWith.ToArray(),
-                    definition.TextPatches.Select(patch => patch.RelativePath).ToArray()))
+                    GameFixEngine.ManagedPaths(definition).ToArray()))
                 .ToArray();
             if (json)
                 Console.WriteLine(JsonSerializer.Serialize(entries, CliJsonContext.Default.GameFixListJsonEntries));

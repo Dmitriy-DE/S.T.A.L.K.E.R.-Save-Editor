@@ -177,6 +177,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         // Started on the UI thread: the view model raises CanExecuteChanged, which Avalonia buttons accept only there.
         if (InteractiveApp) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = Updates.CheckAsync(silent: true));
+        if (InteractiveApp) Avalonia.Threading.Dispatcher.UIThread.Post(StartDiskWatch);
     }
 
     /// <summary>Set by <c>Program</c> for the interactive app only: network checks and the previous run's crash.</summary>
@@ -833,6 +834,55 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
     /// <summary>Remove + insert: Avalonia's virtualizing list throws on a Replace notification for the selected row.</summary>
+    private bool _selectedSaveChangedOnDisk;
+    private Avalonia.Threading.DispatcherTimer? _diskWatch;
+
+    /// <summary>The selected save's file changed after it was read (the game or another tool saved over it).</summary>
+    public bool SelectedSaveChangedOnDisk
+    {
+        get => _selectedSaveChangedOnDisk;
+        private set => SetProperty(ref _selectedSaveChangedOnDisk, value);
+    }
+
+    /// <summary>Starts a cheap 3-second size/mtime check of the selected save (interactive app only).</summary>
+    public void StartDiskWatch()
+    {
+        if (_diskWatch is not null) return;
+        _diskWatch = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _diskWatch.Tick += (_, _) => CheckSelectedSaveOnDisk();
+        _diskWatch.Start();
+    }
+
+    public void CheckSelectedSaveOnDisk()
+    {
+        if (SelectedSave is not { } save || _isSaving)
+        {
+            SelectedSaveChangedOnDisk = false;
+            return;
+        }
+
+        try
+        {
+            var info = new FileInfo(save.FilePath);
+            SelectedSaveChangedOnDisk = info.Exists &&
+                (info.Length != save.FileSizeBytes || save.LastModified is { } known && info.LastWriteTime != known);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            SelectedSaveChangedOnDisk = false;
+        }
+    }
+
+    /// <summary>Re-reads the changed save; the draft of the old contents is dropped (its source SHA no longer matches).</summary>
+    public void ReloadChangedSave()
+    {
+        if (SelectedSave is not { } save) return;
+        if (HasDraftChanges) DiscardDraft();
+        OnSaveRepaired(save.FilePath);
+        SelectedSaveChangedOnDisk = false;
+        StatusMessage = L.T("Сейв перечитан с диска.");
+    }
+
     private void OnSaveRepaired(string path)
     {
         var index = IndexOfSave(path);

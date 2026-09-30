@@ -162,9 +162,10 @@
           "edit_durability",
           "edit_placement",
           "edit_player_faction",
-          "edit_relations"
+          "edit_relations",
+          "move_items"
         ],
-        "move_items": false,
+        "move_items": true,
         "mutation_support": {
           "add_items": {
             "maturity": "verified",
@@ -199,8 +200,8 @@
             "reason": null
           },
           "move_items": {
-            "maturity": "unsupported",
-            "reason": null
+            "maturity": "experimental",
+            "reason": "X-Ray stash take/put is read-back verified; game load/re-save is not accepted yet."
           },
           "remove_items": {
             "maturity": "verified",
@@ -269,9 +270,10 @@
           "edit_placement",
           "edit_player_faction",
           "edit_relations",
-          "edit_upgrades"
+          "edit_upgrades",
+          "move_items"
         ],
-        "move_items": false,
+        "move_items": true,
         "mutation_support": {
           "add_items": {
             "maturity": "verified",
@@ -306,8 +308,8 @@
             "reason": "m_upgrades vector requires game load/re-save evidence."
           },
           "move_items": {
-            "maturity": "unsupported",
-            "reason": null
+            "maturity": "experimental",
+            "reason": "X-Ray stash take/put is read-back verified; game load/re-save is not accepted yet."
           },
           "remove_items": {
             "maturity": "verified",
@@ -377,9 +379,10 @@
           "edit_placement",
           "edit_player_faction",
           "edit_relations",
-          "edit_upgrades"
+          "edit_upgrades",
+          "move_items"
         ],
-        "move_items": false,
+        "move_items": true,
         "mutation_support": {
           "add_items": {
             "maturity": "verified",
@@ -414,8 +417,8 @@
             "reason": "m_upgrades vector requires game load/re-save evidence."
           },
           "move_items": {
-            "maturity": "unsupported",
-            "reason": null
+            "maturity": "experimental",
+            "reason": "X-Ray stash take/put is read-back verified; game load/re-save is not accepted yet."
           },
           "remove_items": {
             "maturity": "verified",

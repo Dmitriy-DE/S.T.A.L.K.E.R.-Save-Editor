@@ -41,7 +41,7 @@ in scripts.
 | FP-1 | Engine: whole-file overlay operation + content store | done | #185 |
 | FP-2 | Research tools: pack diff (`fixes build-pack`), missing logic-section checker (`tools/check_logic_refs.py`) | done | #187, #192 |
 | FP-3 | Hunk extractor: split each source diff into minimal anchored text changes, grouped per file, mapped to changelog entries | todo | |
-| FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | in progress (crashes ≈11/20) | #189–#193 |
+| FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | in progress (crashes 17/20) | #189–#193 |
 | FP-5 | SRP desirable fixes (quests, rewards, NPC logic) | todo | |
 | FP-6 | SRP optional fixes (balance, sound, extras), off by default | todo | |
 | FP-7 | ZRP critical + desirable fixes as our own entries | todo | |
@@ -49,6 +49,7 @@ in scripts.
 | FP-9 | CoP: remaining stalker-cop-patch items; PRP source mirror | todo | |
 | FP-10 | EE variants for every ported fix where the EE file allows | todo | |
 | FP-11 | Steam Workshop package of the companion (.pack writer + upload after owner OK) | todo | |
+| FP-12 | Structural all.spawn writer (waypoint name changes, SRP's other ~300 all.spawn alterations) | todo | |
 
 ## FP-4 progress (SRP 1.1.5 crash list)
 
@@ -65,17 +66,26 @@ in scripts.
 | Squad captures a smart terrain | `cs.crash.squad-action-finished-twice` | done #189 |
 | Campfire with nobody / no animation | `cs.crash.kamp-no-animation` | done #189 |
 | Anomaly zone without an artefact | `cs.crash.anomaly-zone-missing-artefact` | done #189 |
-| Orest strays (Agroprom), mine trader strays (Red Forest) | — | todo: SRP diff mixes rework and balance; cause to prove |
+| Orest strays (Agroprom) | `cs.crash.agroprom-orest-path` (published log: path inaccessible) | done #197 |
+| Red Forest mine trader strays | `cs.crash.red-forest-mine-trader-path` | done #197 |
 | Wild Napr task | — | todo: multi-file (death handling moved to spawn sections + condition) |
-| NPC offline during dialogue/trade | — | todo |
+| NPC offline during dialogue/trade | `cs.crash.npc-offline-during-dialog` (own `pda.dialog_open` flag) | done #195 |
 | Smart terrain overloading | — | todo |
-| Marsh creature scene (Agroprom, Swamps) | — | todo |
-| Buggy dialog trees | — | todo |
-| Waypoints: Army Warehouses, Cordon bonfire | — | todo |
-| Two rare crashes on reload | — | todo |
+| Marsh creature scene (Agroprom, Swamps) | `cs.crash.marsh-creature-no-squad` (log: `npc_squad` nil) | done #196 |
+| Buggy dialog trees | — (`tools/check_dialogs.py`: none reachable in retail) | closed #195/#196 |
+| Waypoint: Cordon bonfire | `cs.crash.cordon-bonfire-waypoint` (all.spawn, binary patch) | done #198 |
+| Waypoint: Army Warehouses | — | todo: SRP fix is a waypoint *name* change → needs a structural all.spawn writer (FP-12) |
+| Malformed conditions (found by our checker) | `cs.crash.condlist-syntax` | done #199 |
+| Two rare crashes on reload (`sim_combat` 419/968) | `cs.crash.sim-combat` | done #189 |
 | Missing mesh (`item_rukzak`) | — | todo (needs a model resource, credited) |
 
 ## Change log
+
+- 2026-09-30 — FP-4 batches 6–10 (#195–#199): NPC offline in dialogue, marsh creature, Orest, mine trader, Cordon
+  waypoint, malformed conditions. Engine: same-length binary patches (`binary: true`) for all.spawn records.
+  Research tools: `check_dialogs.py`, `check_condlists.py`, `spawn_points.py`. Real crash logs found online were used to
+  prove causes (STCS Redux notes, GameFAQs). Remaining CS crashes: Wild Napr, smart overloading, Army Warehouses
+  waypoint, missing backpack mesh.
 
 - 2026-09-30 — FP-4 batches 1–5 (#189–#193): 12 Clear Sky crash entries, 6 Game Doctor signatures. Four suspected
   missing logic sections checked against all.spawn and script flow: unreachable, no fix. Stacked branches rebuilt

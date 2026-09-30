@@ -122,9 +122,7 @@ public static class GameContentService
             try
             {
                 Directory.CreateDirectory(cacheRoot);
-                var temporary = catalogPath + ".tmp";
-                File.WriteAllBytes(temporary, CatalogBundleWriter.Write([bundle]));
-                File.Move(temporary, catalogPath, overwrite: true);
+                Storage.AtomicFile.WriteAllBytes(catalogPath, CatalogBundleWriter.Write([bundle]));
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {

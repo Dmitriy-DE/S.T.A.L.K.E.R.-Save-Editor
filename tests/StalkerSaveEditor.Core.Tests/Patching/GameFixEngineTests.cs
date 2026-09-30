@@ -42,6 +42,42 @@ public sealed class GameFixEngineTests
     }
 
     [Fact]
+    public void Binary_patch_replaces_same_length_bytes_with_nul_and_uninstall_restores_them()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        byte[] original = [1, 0, 0, 0, (byte)'p', 0, 0xFF, 0xFF, 0xFF, 0xFF, 2, 0];
+        var path = Path.Combine(fixture.GameDirectory, "gamedata", "spawns", "all.spawn");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, original);
+        var latin1 = Encoding.Latin1;
+        var before = latin1.GetString(original, 4, 6);
+        var after = latin1.GetString([(byte)'p', 0, 0xD9, 0x0F, 0x02, 0x00]);
+        var definition = fixture.Fix("cs.test.binary", "x", "y") with
+        {
+            TextPatches = [new TextPatchOperation("gamedata/spawns/all.spawn", before, after) { Binary = true }],
+        };
+        var engine = TestEngine();
+
+        engine.Install(definition, fixture.GameDirectory);
+        Assert.Equal(new byte[] { 1, 0, 0, 0, (byte)'p', 0, 0xD9, 0x0F, 0x02, 0x00, 2, 0 }, File.ReadAllBytes(path));
+        Assert.Equal(GameFixState.Removed, engine.Uninstall(definition, fixture.GameDirectory).State);
+        Assert.Equal(original, File.ReadAllBytes(path));
+    }
+
+    [Fact]
+    public void Nul_bytes_need_a_binary_patch_and_binary_patches_keep_length_and_latin1()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/task.script", "task = before\n");
+        var engine = TestEngine();
+        GameFixDefinition With(TextPatchOperation operation) => fixture.Fix("cs.test.binary-invalid", "x", "y") with { TextPatches = [operation] };
+
+        Assert.Throws<ArgumentException>(() => engine.Install(With(new("gamedata/scripts/task.script", "task\0", "tusk\0")), fixture.GameDirectory));
+        Assert.Throws<ArgumentException>(() => engine.Install(With(new("gamedata/scripts/task.script", "task", "tasks") { Binary = true }), fixture.GameDirectory));
+        Assert.Throws<ArgumentException>(() => engine.Install(With(new("gamedata/scripts/task.script", "task", "tusk") { Binary = true, CodePage = 1251 }), fixture.GameDirectory));
+    }
+
+    [Fact]
     public void Preset_batch_rolls_back_only_its_new_fixes_when_a_later_fix_fails()
     {
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");

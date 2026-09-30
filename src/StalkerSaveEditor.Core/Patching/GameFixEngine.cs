@@ -67,6 +67,12 @@ public sealed record TextPatchOperation(string RelativePath, string ExpectedText
 
     /// <summary>Single-byte encoding for the target text; Latin-1 preserves legacy byte-oriented patches.</summary>
     public int CodePage { get; init; } = 28591;
+
+    /// <summary>
+    /// Byte patch for a binary file (e.g. a waypoint record in all.spawn): NUL is allowed, the code page must be
+    /// Latin-1 (one char per byte) and the replacement must keep the length, so no chunk size changes.
+    /// </summary>
+    public bool Binary { get; init; }
 }
 
 /// <summary>
@@ -1113,7 +1119,12 @@ public sealed partial class GameFixEngine
             _ = NormalizeRelativePath(operation.RelativePath);
             if (string.IsNullOrEmpty(operation.ExpectedText) || operation.ReplacementText is null || operation.ExpectedText == operation.ReplacementText)
                 throw new ArgumentException("Text patches need a nonempty anchor and a distinct replacement.", nameof(definition));
-            if (operation.ExpectedText.Contains('\0') || operation.ReplacementText.Contains('\0'))
+            if (operation.Binary)
+            {
+                if (operation.CodePage != 28591 || operation.ExpectedText.Length != operation.ReplacementText.Length)
+                    throw new ArgumentException("Binary patches must use Latin-1 and keep the length of the replaced bytes.", nameof(definition));
+            }
+            else if (operation.ExpectedText.Contains('\0') || operation.ReplacementText.Contains('\0'))
                 throw new ArgumentException("Text patch anchors and replacements cannot contain NUL characters.", nameof(definition));
             try
             {

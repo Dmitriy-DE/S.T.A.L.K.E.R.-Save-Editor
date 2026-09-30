@@ -100,6 +100,12 @@ public static class CrashSignatureCatalog
             Pattern = P(@"patrol path \[agr_stalker_leader_walk\] is inaccessible"),
             FixId = "cs.crash.agroprom-orest-path",
         },
+        new("cs.cordon-bonfire-waypoint", ClearSky, "Waypoint off the AI map at the Cordon bonfire", CrashAdvice.InstallFix,
+            "A waypoint of the 'Bonfire in forest' camp lies outside the AI map.", Srp)
+        {
+            Pattern = P(@"esc_smart_terrain_3_7_walker_1_walk"),
+            FixId = "cs.crash.cordon-bonfire-waypoint",
+        },
         new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)
         {

@@ -12,7 +12,7 @@ public sealed class CloudViewModel : ObservableViewModel
     private readonly Func<IReadOnlyList<string>> _localSaveFilesProvider;
     private readonly Action<string>? _onSaveDownloaded;
 
-    private int _selectedAppId = 0; // 0 = All
+    private int _selectedAppId; // 0 = All
     private CloudSaveItemViewModel? _selectedCloudSave;
     private bool _isLoading;
     private bool _isWriting;

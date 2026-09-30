@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- The interface shared by the desktop host (StalkerSaveEditor.App) and the web host (StalkerSaveEditor.Browser). -->
   <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>

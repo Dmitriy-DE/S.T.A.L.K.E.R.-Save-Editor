@@ -2,6 +2,7 @@
   <!-- Desktop host (Windows, Linux, macOS): the window, screenshot modes and the Steam worker entry point.
        The interface itself lives in StalkerSaveEditor.Desktop, shared with the browser host. -->
   <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
     <OutputType>WinExe</OutputType>
     <AssemblyName>StalkerSaveEditor</AssemblyName>
     <RootNamespace>StalkerSaveEditor.Desktop</RootNamespace>

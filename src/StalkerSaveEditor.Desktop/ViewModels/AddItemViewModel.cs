@@ -29,7 +29,9 @@ public sealed class AddItemViewModel : ObservableViewModel
                 _allItems.Add(new CatalogItemEntry(item, localized));
             }
         }
+#pragma warning disable CA1309 // user-facing names sort in the user's language order
         _allItems.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
+#pragma warning restore CA1309
         FilteredItems = new ObservableCollection<CatalogItemEntry>(_allItems);
         SelectedItem = FilteredItems.FirstOrDefault();
     }

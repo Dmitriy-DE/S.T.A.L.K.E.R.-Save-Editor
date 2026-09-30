@@ -344,7 +344,7 @@ public sealed class I18nService
                     }
                     else
                     {
-                        regexBuilder.Append($"(?<p{parts[pos]}_{pos}>.*?)");
+                        regexBuilder.Append(System.Globalization.CultureInfo.InvariantCulture, $"(?<p{parts[pos]}_{pos}>.*?)");
                     }
                 }
                 regexBuilder.Append('$');

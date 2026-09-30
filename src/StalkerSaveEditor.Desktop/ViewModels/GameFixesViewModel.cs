@@ -222,6 +222,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Bound by the view.")]
     public string PresetStatus => L.T("РЕКОМЕНДУЕМЫЙ ПРЕСЕТ ВКЛЮЧАЕТ ОБЯЗАТЕЛЬНЫЕ И РЕКОМЕНДУЕМЫЕ; ИЗМЕНЕНИЯ ТОЛЬКО ПО ЯВНОЙ КОМАНДЕ.");
     public string PresetChangeStatus
     {

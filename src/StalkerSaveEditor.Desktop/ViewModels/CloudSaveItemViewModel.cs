@@ -27,7 +27,7 @@ public sealed class CloudSaveItemViewModel : ObservableViewModel
 
     public string SizeText => L.T("{0:F1} КБ", Model.FileSizeBytes / 1024.0);
 
-    public string TimestampText => Model.RemoteTimestampUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "—";
+    public string TimestampText => Model.RemoteTimestampUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) ?? "—";
 
     public CloudComparison Comparison => Model.Comparison;
 

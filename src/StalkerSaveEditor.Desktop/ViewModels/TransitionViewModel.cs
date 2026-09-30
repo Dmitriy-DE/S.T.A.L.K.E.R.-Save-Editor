@@ -63,5 +63,6 @@ public sealed class TransitionViewModel : ObservableViewModel
         ? $"{PosX.Value:F1}, {PosY.Value:F1}, {PosZ.Value:F1}"
         : "—";
     public string SilentDisplay => Silent.HasValue ? (Silent.Value ? L.T("Да") : L.T("Нет")) : "—";
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Bound by the view.")]
     public string StatusDisplay => L.T("Только чтение");
 }

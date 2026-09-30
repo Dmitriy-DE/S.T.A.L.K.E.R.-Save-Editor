@@ -4070,6 +4070,39 @@
       "references": [
         "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
       ]
+    },
+    {
+      "id": "cs.save.corpse-cleanup-wrong-object",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Corpse cleanup no longer deletes a living NPC or an item that reused a corpse's ID",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/release_body_manager.script",
+          "expectedText": "\t\tif release_object and bind_stalker.delayed_alife_release_objects[self.release_objects_table[pos_in_table].id] == nil then\r\n",
+          "replacementText": "\t\tif release_object and IsStalker(release_object) and not release_object:alive() and bind_stalker.delayed_alife_release_objects[self.release_objects_table[pos_in_table].id] == nil then\r\n",
+          "expectedFileSha256": "c411f9ae5ff3e1b2c33c59349853fcb3287e22b8132ec3ae8f576a3f2d8ca757",
+          "codePage": 28591
+        }
+      ],
+      "source": "Save-corruption issue listed in SRP 1.1.5 (Decane, SRP issue #120); our one-line check in the retail script.",
+      "problem": "The corpse cleanup remembers dead stalkers by ID. If such a corpse disappears some other way, the game can reuse its ID for a new object; the cleanup then deletes that object (a living NPC, a squad member, an item), which can corrupt the game.",
+      "description": "Before deleting, the cleanup checks that the object is still a dead stalker; anything else is just dropped from its list.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/issues/120"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -4360,6 +4393,9 @@
     ],
     "cs.crash.missing-backpack-model": [
       "bdc5db9ef34e4568aefafc371422f2ee03ae12006647321d8b84fe890857e16e"
+    ],
+    "cs.save.corpse-cleanup-wrong-object": [
+      "0588482ddc8a41a525858431bea30c53a7d8e6bfaea8a71ccc3016360536d962"
     ]
   }
 }

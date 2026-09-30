@@ -124,6 +124,12 @@ public static class CrashSignatureCatalog
             Pattern = P(@"Path between \[mil_smart_terrain_7_11\] and \[mil_smart_terrain_7_10\] doesnt exist"),
             FixId = "cs.crash.all-spawn-errors",
         },
+        new("cs.missing-backpack-model", ClearSky, "Missing backpack model", CrashAdvice.InstallFix,
+            "The stalker corpse model points at a file Clear Sky does not ship.", Srp)
+        {
+            Pattern = P(@"Can't find model file 'dynamics\\equipments\\item_rukzak\.ogf'"),
+            FixId = "cs.crash.missing-backpack-model",
+        },
         new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)
         {

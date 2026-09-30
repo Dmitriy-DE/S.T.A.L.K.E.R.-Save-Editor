@@ -4037,6 +4037,39 @@
       "references": [
         "https://github.com/Decane/SRP"
       ]
+    },
+    {
+      "id": "cs.crash.missing-backpack-model",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Missing backpack model no longer crashes the game",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/creatures/m_stalker.ltx",
+          "expectedText": "corpse_visual\t\t\t\t\t= dynamics\\equipments\\item_rukzak.ogf",
+          "replacementText": "corpse_visual\t\t\t\t\t= dynamics\\devices\\dev_rukzak\\dev_rukzak.ogf",
+          "expectedFileSha256": "bdc5db9ef34e4568aefafc371422f2ee03ae12006647321d8b84fe890857e16e",
+          "codePage": 28591
+        }
+      ],
+      "source": "Crash listed in SRP 1.1.5 (Decane), which ships the missing file; our fix reuses the game's own backpack model instead.",
+      "problem": "The stalker template's corpse model points at dynamics\\equipments\\item_rukzak.ogf, which Clear Sky does not ship; when the game needs it, it crashes: Can't find model file 'dynamics\\equipments\\item_rukzak.ogf'.",
+      "description": "Points the corpse model at Clear Sky's own backpack model (dynamics\\devices\\dev_rukzak\\dev_rukzak.ogf).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -4324,6 +4357,9 @@
     "cs.crash.condlist-syntax": [
       "c9cfd502152a232d2c0b8c22eaef1e93833cae341bf90e0377b657101a61a419",
       "8584347d7367b253313366eba7b3d48c788cf66d33569bc9c864bd5a924141bc"
+    ],
+    "cs.crash.missing-backpack-model": [
+      "bdc5db9ef34e4568aefafc371422f2ee03ae12006647321d8b84fe890857e16e"
     ]
   }
 }

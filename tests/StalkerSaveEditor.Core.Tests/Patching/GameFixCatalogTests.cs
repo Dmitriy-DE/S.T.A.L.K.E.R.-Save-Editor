@@ -11,7 +11,7 @@ public sealed class GameFixCatalogTests
     public void Shipped_catalogue_contains_archive_verified_clear_sky_fixes_and_populates_safe_presets()
     {
         var fixes = GameFixCatalog.ForGame(GameTarget.ClearSky);
-        Assert.Equal(25, fixes.Count);
+        Assert.Equal(30, fixes.Count);
         var fix = Assert.Single(fixes, candidate => candidate.Id == "cs.quest.dead-wild-napr");
         Assert.Equal("cs.quest.dead-wild-napr", fix.Id);
         Assert.Equal(GameFixCategory.Essential, fix.Category);
@@ -35,7 +35,7 @@ public sealed class GameFixCatalogTests
         Assert.All(pathOwners, group => Assert.Single(group.Select(entry => entry.Id).Distinct(StringComparer.Ordinal)));
         Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.EssentialOnly));
         Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended));
-        Assert.Equal(23, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
+        Assert.Equal(28, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
         Assert.Contains(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Id == fix.Id);
         Assert.DoesNotContain(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Category == GameFixCategory.Community);
 
@@ -123,7 +123,7 @@ public sealed class GameFixCatalogTests
         Assert.Contains(recommended, fix => fix.Id == "cop.prp.sky-stretching-fix");
         Assert.DoesNotContain(recommended, fix => fix.Id == "cop.prp.knife-hit-reach");
         Assert.DoesNotContain(GameFixCatalog.ForPreset(GameTarget.CallOfPripyat, GameFixPreset.AllSafeFixes), fix => fix.Category == GameFixCategory.Community);
-        Assert.Equal(10, GameFixCatalog.PreviousPresetCount(GameTarget.CallOfPripyat, GameFixPreset.Recommended));
+        Assert.Equal(11, GameFixCatalog.PreviousPresetCount(GameTarget.CallOfPripyat, GameFixPreset.Recommended));
 
         var russianText = fixes.SelectMany(fix => fix.TextPatches).Where(patch => patch.RelativePath.Contains("/text/rus/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(russianText);
@@ -166,8 +166,8 @@ public sealed class GameFixCatalogTests
         viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cs");
 
         Assert.Equal(5, viewModel.Categories.Count);
-        Assert.Equal(2, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Essential).Count);
+        Assert.Equal(7, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Essential).Count);
         Assert.Equal(0, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Experimental).Count);
-        Assert.Contains("25", viewModel.CatalogueStatus, StringComparison.Ordinal);
+        Assert.Contains("30", viewModel.CatalogueStatus, StringComparison.Ordinal);
     }
 }

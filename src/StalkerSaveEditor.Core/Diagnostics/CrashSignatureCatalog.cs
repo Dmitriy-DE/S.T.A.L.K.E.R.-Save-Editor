@@ -88,15 +88,17 @@ public static class CrashSignatureCatalog
             Pattern = P(@"xr_kamp\.script:\d+:\s*bad argument #1 to 'random' \(interval is empty\)"),
             FixId = "cs.crash.kamp-no-animation",
         },
-        new("cs.robbery-squad-left", ClearSky, "Robbers left during a hold-up", CrashAdvice.CommunityPatch,
+        new("cs.robbery-squad-left", ClearSky, "Robbers left during a hold-up", CrashAdvice.InstallFix,
             "A robber squad walked off to another camp in the middle of a hold-up.", Srp)
         {
             Pattern = P(@"sr_robbery\.script:\d+:\s*attempt to index field '\?' \(a nil value\)"),
+            FixId = "cs.crash.robbery-squad-left",
         },
-        new("cs.robbery-manager-nil", ClearSky, "Robbery leader chosen from a squad that already left", CrashAdvice.CommunityPatch,
+        new("cs.robbery-manager-nil", ClearSky, "Robbery leader chosen from a squad that already left", CrashAdvice.InstallFix,
             "The robbery scheme still counted a squad that had left the camp when it picked the leader.", Srp)
         {
             Pattern = P(@"actor_reaction\.script:\d+:\s*attempt to index local 'manager'"),
+            FixId = "cs.crash.robbery-leader-offline",
         },
         new("cs.capture-task-missing-squad", ClearSky, "Capture task for a squad that does not exist", CrashAdvice.InstallFix,
             "The game tried to give a 'capture' task to a squad that no longer exists.", Srp)
@@ -140,10 +142,11 @@ public static class CrashSignatureCatalog
         {
             Pattern = P(@"Unable to give treasure \[gar_treasure_quest_smuggler_weapons\]"),
         },
-        new("cs.red-forest-missing-squad", ClearSky, "Witch Circle ambush squad already dead", CrashAdvice.CommunityPatch,
+        new("cs.red-forest-missing-squad", ClearSky, "Witch Circle ambush squad already dead", CrashAdvice.InstallFix,
             "Following Strelok's helper into the ambush after the ambush squad was killed.", Srp)
         {
             Pattern = P(@"There is no squad \[red_pursuit_bounty_hunters_squad_\d+\] in sim_board"),
+            FixId = "cs.crash.relation-to-missing-squad",
         },
         new("cs.military-dogs-path", ClearSky, "Army Warehouses mutant attack path", CrashAdvice.CommunityPatch,
             "A mutant squad attacking the military base had no path between two smart terrains (new game needed after the patch).", Srp)

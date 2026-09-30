@@ -3102,6 +3102,126 @@
       "references": [
         "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
       ]
+    },
+    {
+      "id": "cs.crash.robbery-squad-left",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Hold-up scene no longer crashes when the robbers leave for another camp",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/sr_robbery.script",
+          "expectedText": "\t\tlocal commander_signals = db.storage[self.commander_obj:id()][db.storage[self.commander_obj:id()].active_scheme].signals\r\n",
+          "replacementText": "\t\tlocal commander_st = db.storage[self.commander_obj:id()]\r\n\t\tif commander_st == nil or commander_st.active_scheme == nil or commander_st[commander_st.active_scheme] == nil then return end\r\n\t\tlocal commander_signals = commander_st[commander_st.active_scheme].signals\r\n",
+          "expectedFileSha256": "7a8f3b99bb483a695e766127e1b71014959439392a9eaab7c9b3b5ccd5951f04",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "If a robber squad walks off in the middle of a hold-up, the scene reads its commander's logic that no longer exists: sr_robbery.script: attempt to index field '?' (a nil value).",
+      "description": "The hold-up update stops quietly when the commander's logic is gone.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.crash.robbery-leader-offline",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Robbery reaction no longer crashes on an NPC that went offline",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/actor_reaction.script",
+          "expectedText": "\tgoal:add_property(world_property(xr_evaluators_id.actor_reaction + 1,false))\r\n\tlocal manager = npc:motivation_action_manager()\r\n\tmanager:set_goal_world_state(goal)\r\n",
+          "replacementText": "\tgoal:add_property(world_property(xr_evaluators_id.actor_reaction + 1,false))\r\n\tlocal manager = npc:motivation_action_manager()\r\n\tif manager == nil then return end\r\n\tmanager:set_goal_world_state(goal)\r\n",
+          "expectedFileSha256": "8e567d1499ba2fc1ed77cf20e5f1e105a48a15c2515fcf93e99906d4ec7aee32",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/actor_reaction.script",
+          "expectedText": "\tgoal:add_property(world_property(stalker_ids.property_puzzle_solved,true))\r\n\tlocal manager = npc:motivation_action_manager()\r\n\tmanager:set_goal_world_state(goal)\r\n",
+          "replacementText": "\tgoal:add_property(world_property(stalker_ids.property_puzzle_solved,true))\r\n\tlocal manager = npc:motivation_action_manager()\r\n\tif manager == nil then return end\r\n\tmanager:set_goal_world_state(goal)\r\n",
+          "expectedFileSha256": "8e567d1499ba2fc1ed77cf20e5f1e105a48a15c2515fcf93e99906d4ec7aee32",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "actor_reaction.script: attempt to index local 'manager' (a nil value) — the NPC chosen for the robbery reaction is no longer online and has no action manager.",
+      "description": "Such an NPC is skipped instead of crashing (both where the reaction is switched on and off).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.crash.relation-to-missing-squad",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Changing the attitude of a squad that no longer exists no longer crashes",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/game_relations.script",
+          "expectedText": "board.squads[squad_id].relationship = new_goodwill\r\n\telse\r\n\t\tabort(\"There is no squad [%s] in sim_board\", squad_id)",
+          "replacementText": "board.squads[squad_id].relationship = new_goodwill\r\n\telse\r\n\t\t-- the squad is already gone: nothing to change (was abort)",
+          "expectedFileSha256": "ab0611fa51d23fe240fe0f3099aefbb6648a7c2b618c541f664bca0856362ab5",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/game_relations.script",
+          "expectedText": "obj:set_goodwill(goodwill, npc)\r\n\t        end\r\n\t    end\r\n\telse\r\n\t\tabort(\"There is no squad [%s] in sim_board\", squad_id)",
+          "replacementText": "obj:set_goodwill(goodwill, npc)\r\n\t        end\r\n\t    end\r\n\telse\r\n\t\t-- the squad is already gone: nothing to change (was abort)",
+          "expectedFileSha256": "ab0611fa51d23fe240fe0f3099aefbb6648a7c2b618c541f664bca0856362ab5",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/game_relations.script",
+          "expectedText": "obj:set_community_goodwill(community, goodwill)\r\n\t        end\r\n\t    end\r\n\telse\r\n\t\tabort(\"There is no squad [%s] in sim_board\", squad_id)",
+          "replacementText": "obj:set_community_goodwill(community, goodwill)\r\n\t        end\r\n\t    end\r\n\telse\r\n\t\t-- the squad is already gone: nothing to change (was abort)",
+          "expectedFileSha256": "ab0611fa51d23fe240fe0f3099aefbb6648a7c2b618c541f664bca0856362ab5",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "Scene logic (e.g. the Red Forest Witch Circle ambush) sets the attitude of squads that may already be dead: ERROR: There is no squad [red_pursuit_bounty_hunters_squad_3] in sim_board.",
+      "description": "game_relations.script ignores an attitude change for a squad that is gone instead of aborting the game (all three attitude functions).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -3351,6 +3471,9 @@
     ],
     "cs.crash.squad-action-finished-twice": [
       "5f21049a8d6ea319112b15b6d559d0a44abc5a32762e16dff9119284631b6bd7"
+    ],
+    "cs.crash.robbery-squad-left": [
+      "00866bb4dd190a1af83f7d2dffbe5b35bdb3be7107d5da4eb68ce47f2da18dd9"
     ]
   }
 }

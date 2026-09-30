@@ -3008,7 +3008,7 @@
       "id": "cs.crash.capture-task-missing-squad",
       "game": "ClearSky",
       "version": "1.0.0",
-      "title": "'Capture' task no longer crashes when its squad no longer exists",
+      "title": "Task crashes fixed: capture task for a missing squad, story task for a missing NPC (Wild Napr)",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -3023,11 +3023,25 @@
           "replacementText": "\t\tlocal squad = sim_board.get_sim_board().squads[self.src_obj]\r\n\t\tif squad ~= nil then squad:give_squad_task(self.target) end\r\n",
           "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\tif self.target == nil then\r\n\t\tabort(\"wrong target for storyline quest: %s\", tostring(self.target_story_ids))\r\n\tend\r\n",
+          "replacementText": "\tif self.target == nil then\r\n\t\treturn nil\r\n\tend\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_effects.script",
+          "expectedText": "\tlocal task = tm:select_task(task_type, target_obj, faction_name)\r\n\ttask:give_task(faction_name)\r\n",
+          "replacementText": "\tlocal task = tm:select_task(task_type, target_obj, faction_name)\r\n\tif task == nil then\r\n\t\treturn\r\n\tend\r\n\ttask:give_task(faction_name)\r\n",
+          "expectedFileSha256": "b10cdb3ac5feea8115bebdc434bdac9862235bd458f34bca6e49396c27147e38",
+          "codePage": 28591
         }
       ],
-      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
-      "problem": "Giving a 'capture' task to a squad that was already removed crashes: task_objects.script: attempt to index field '?' (a nil value).",
-      "description": "The squad is told about its task only if it still exists.",
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code; the Wild Napr crash message is from the SRP 1.1.5 version history.",
+      "problem": "Giving a 'capture' task to a squad that was already removed crashes: task_objects.script: attempt to index field '?' (a nil value). Also: a story task whose target NPC is not on his job (Wild Napr while the Flea Market is fighting, or after he died offline) aborts the game: wrong target for storyline quest: logic@work5,gar_smart_terrain_6_3.",
+      "description": "The capture task is given only if the squad still exists; a story task whose target NPC is missing is simply not given for now.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -3908,9 +3922,6 @@
     "cs.crash.kamp-no-animation": [
       "7d589cd2284ce08879ea010e4ce8e7cfb6c4183133469a0ee945c7520658c6c4"
     ],
-    "cs.crash.capture-task-missing-squad": [
-      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965"
-    ],
     "cs.crash.squad-action-finished-twice": [
       "5f21049a8d6ea319112b15b6d559d0a44abc5a32762e16dff9119284631b6bd7",
       "5f21049a8d6ea319112b15b6d559d0a44abc5a32762e16dff9119284631b6bd7"
@@ -3920,6 +3931,46 @@
     ],
     "cs.crash.treasure-given-twice": [
       "7135ca6719a38fed4339d9e338eabfb0617e2e949e61f7804d1da0bf6c46cd89"
+    ],
+    "cs.crash.capture-task-missing-squad": [
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "6ca034bd289e41f4247d3758f8938d40bff34042be7b4fc72f720232093ccf37"
+    ],
+    "cs.crash.limansk-missing-logic": [
+      "c497cb4e69857db7aaba2d3b87d1ffc0203f46b3a773dd231a5ffaf01b57510f",
+      "c497cb4e69857db7aaba2d3b87d1ffc0203f46b3a773dd231a5ffaf01b57510f",
+      "c497cb4e69857db7aaba2d3b87d1ffc0203f46b3a773dd231a5ffaf01b57510f",
+      "e20ee55c3896eb415648e399143d72b39c82008fca15035d71a0b02309a79af3"
+    ],
+    "cs.crash.npc-offline-during-dialog": [
+      "06708aee31384be6b572818b9edf834049ae0e0a0376cdbdd52be83beeeb598f",
+      "06708aee31384be6b572818b9edf834049ae0e0a0376cdbdd52be83beeeb598f",
+      "06708aee31384be6b572818b9edf834049ae0e0a0376cdbdd52be83beeeb598f",
+      "06708aee31384be6b572818b9edf834049ae0e0a0376cdbdd52be83beeeb598f",
+      "06708aee31384be6b572818b9edf834049ae0e0a0376cdbdd52be83beeeb598f",
+      "8ed8b75275385173d14b3c6bc9fc6b5be41f212fa566312af2734a4dcacbceee"
+    ],
+    "cs.crash.marsh-creature-no-squad": [
+      "719cec08d44ded8003b04b0e2d6154f1cd1d85a1b255d544bf1016c38f242c3d"
+    ],
+    "cs.crash.agroprom-orest-path": [
+      "a833bd1d9118e2efeb79f920a16dca2b3b21451f75c513bc725ea9f0b9722192"
+    ],
+    "cs.crash.red-forest-mine-trader-path": [
+      "cd3bc42a25c821ac8f9a8b35fa00cdd581554b8ffff7e4115e7cf66fc47414d8",
+      "cd3bc42a25c821ac8f9a8b35fa00cdd581554b8ffff7e4115e7cf66fc47414d8",
+      "cd3bc42a25c821ac8f9a8b35fa00cdd581554b8ffff7e4115e7cf66fc47414d8"
+    ],
+    "cs.crash.cordon-bonfire-waypoint": [
+      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae",
+      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae",
+      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae",
+      "8ce9cb2029dee0273a7ca737f9a9119f370450e2390765135c4442550e4a36ae"
+    ],
+    "cs.crash.condlist-syntax": [
+      "c9cfd502152a232d2c0b8c22eaef1e93833cae341bf90e0377b657101a61a419",
+      "8584347d7367b253313366eba7b3d48c788cf66d33569bc9c864bd5a924141bc"
     ]
   }
 }

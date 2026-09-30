@@ -10,6 +10,7 @@
     <AvaloniaResource Include="Assets/Fonts/*.ttf" />
     <None Include="Assets/Fonts/*.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets/Icons/**/*" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets/icon-aliases.json" LogicalName="StalkerSaveEditor.Desktop.icon-aliases.json" />
     <None Include="Assets/PROVENANCE.json" CopyToOutputDirectory="PreserveNewest" />
     <InternalsVisibleTo Include="StalkerSaveEditor.Core.Tests" />
   </ItemGroup>

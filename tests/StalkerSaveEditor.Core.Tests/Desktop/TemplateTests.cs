@@ -27,3 +27,17 @@ public sealed class TemplateTests
         Assert.IsType<TextBlock>(template.Build(null));
     }
 }
+
+public sealed class ItemIconAliasTests
+{
+    [Fact]
+    public void Shared_pictures_resolve_to_one_shipped_file()
+    {
+        // Quest PDAs share one picture in the game; the alias map points the other names at the shipped file.
+        var key = StalkerSaveEditor.Desktop.Services.ItemIconService.IconKey("stalker-cop", "zat_b40_pda_1");
+
+        Assert.NotNull(key);
+        Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", key!.Replace('/', Path.DirectorySeparatorChar))), key);
+        Assert.NotEqual("xray/zat_b40_pda_1.png", key);
+    }
+}

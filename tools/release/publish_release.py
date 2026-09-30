@@ -15,6 +15,7 @@ latest.json is uploaded last so it is the channel's commit marker.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import re
@@ -165,8 +166,28 @@ def publication_files(output_dir: Path) -> list[tuple[str, Path]]:
 
         for path in sorted((p for p in apt_root.rglob("*") if p.is_file()), key=priority):
             ordered.append((path.relative_to(output_dir).as_posix(), path))
+    signature = output_dir / "latest.json.sig"
+    if signature.is_file():
+        # Before the manifest: a client never sees a new latest.json without its signature.
+        ordered.append(("latest.json.sig", signature))
     ordered.append(("latest.json", output_dir / "latest.json"))
     return ordered
+
+
+DEFAULT_SIGNING_KEY = Path.home() / ".config" / "stalker-save-editor" / "update-signing-key.pem"
+
+
+def sign_manifest(output_dir: Path, key: Path = DEFAULT_SIGNING_KEY) -> Path:
+    """ECDSA P-256/SHA-256 over latest.json (openssl, DER, base64) -> latest.json.sig; verified by the app's embedded key."""
+
+    manifest = output_dir / "latest.json"
+    if not key.is_file():
+        raise ValueError(f"update signing key not found: {key}")
+    der = subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(key), str(manifest)],
+                         check=True, capture_output=True).stdout
+    signature = output_dir / "latest.json.sig"
+    signature.write_text(base64.b64encode(der).decode("ascii") + "\n", encoding="ascii")
+    return signature
 
 
 def content_type(path: Path) -> str:
@@ -183,7 +204,7 @@ def publish_r2(output_dir: Path, runner: str = "npx", wrangler_version: str = "4
             runner, "--yes", f"wrangler@{wrangler_version}", "r2", "object", "put", f"{BUCKET}/{name}",
             "--file", str(path), "--remote", "--content-type", content_type(path),
         ]
-        if name == "latest.json" or name.startswith("apt/dists/") or name == "apt/repository-key.asc":
+        if name in ("latest.json", "latest.json.sig") or name.startswith("apt/dists/") or name == "apt/repository-key.asc":
             command += ["--cache-control", "public, max-age=60, must-revalidate"]
         else:
             command += ["--cache-control", "public, max-age=31536000, immutable",
@@ -213,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--published-at", default=datetime.now(UTC).isoformat().replace("+00:00", "Z"))
     parser.add_argument("--publish-r2", action="store_true")
     parser.add_argument("--verify-r2", action="store_true")
+    parser.add_argument("--signing-key", type=Path, default=DEFAULT_SIGNING_KEY,
+                        help="ECDSA P-256 key for latest.json.sig (required to publish)")
     args = parser.parse_args(argv)
     try:
         if args.prepared:
@@ -224,6 +247,8 @@ def main(argv: list[str] | None = None) -> int:
                 parser.error("--artifacts, --version and --commit are required unless --prepared")
             output = prepare_release(args.artifacts, args.output, args.version, args.commit, args.published_at)
         if args.publish_r2:
+            # 1.2.1+ refuses an unsigned manifest; never publish one.
+            sign_manifest(output, args.signing_key)
             publish_r2(output)
         if args.verify_r2:
             verify_r2(output)

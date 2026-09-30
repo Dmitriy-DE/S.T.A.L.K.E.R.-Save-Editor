@@ -36,6 +36,7 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
 1. Bump `<Version>` in `Directory.Build.props` and `ApplicationVersionTests`, PR, merge.
 2. `git tag vX.Y.Z origin/main && git push origin vX.Y.Z` → `release-packages.yml` builds all OSes and creates the GitHub Release.
 3. R2: `gh release download vX.Y.Z` into a folder, `python3 tools/release/publish_release.py --prepared --output <folder> --publish-r2 --verify-r2` (local wrangler login).
+   The tool signs latest.json → latest.json.sig with `~/.config/stalker-save-editor/update-signing-key.pem` (ECDSA P-256, never in git; the public key is embedded in `UpdateSignature`). From 1.2.1 the app rejects an unsigned or wrongly signed manifest. Losing the key means shipping a new public key in a release signed by the old one.
 4. Web: `DOTNET_ROOT=~/.dotnet PATH=~/.dotnet:$PATH dotnet publish src/StalkerSaveEditor.Browser -c Release -o artifacts/web` then `npx wrangler@4 pages deploy artifacts/web/wwwroot --project-name=stalker-save-editor --branch=main`.
 
 ## Done

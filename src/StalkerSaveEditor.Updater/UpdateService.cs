@@ -154,6 +154,7 @@ public sealed class UpdateService : IDisposable
     private readonly Func<string, string?> _findExecutable;
     private readonly IUpdateProcessRunner _processRunner;
     private bool _disposed;
+    private readonly string _signingPublicKeyPem;
 
     public UpdateService(
         string currentVersion,
@@ -199,7 +200,8 @@ public sealed class UpdateService : IDisposable
         string staleDownloadDirectory,
         Func<string, string?> findExecutable,
         IUpdateProcessRunner processRunner,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        string? signingPublicKeyPem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(currentVersion);
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
@@ -231,6 +233,7 @@ public sealed class UpdateService : IDisposable
         };
         _findExecutable = findExecutable;
         _processRunner = processRunner;
+        _signingPublicKeyPem = signingPublicKeyPem ?? UpdateSignature.PublicKeyPem;
         _ = CleanupStaleDownloads(staleDownloadDirectory);
     }
 
@@ -242,6 +245,7 @@ public sealed class UpdateService : IDisposable
             using var response = await SendTrustedAsync(_manifestUri, cancellationToken).ConfigureAwait(false);
             var bytes = await ReadBoundedAsync(response.Content, MaximumManifestBytes, cancellationToken)
                 .ConfigureAwait(false);
+            await VerifyManifestSignatureAsync(bytes, cancellationToken).ConfigureAwait(false);
             var manifest = ParseManifest(new UTF8Encoding(false, true).GetString(bytes));
             var artifact = manifest.Select(_target, _architecture, _kind);
             var state = CompareVersions(_currentVersion, manifest.Version) >= 0
@@ -540,6 +544,28 @@ public sealed class UpdateService : IDisposable
             || !string.IsNullOrEmpty(uri.Fragment))
         {
             throw new UpdateManifestException("Update URL is outside the trusted download policy.");
+        }
+    }
+
+    /// <summary>latest.json.sig next to the manifest must verify against the embedded publisher key (fail closed).</summary>
+    private async Task VerifyManifestSignatureAsync(byte[] manifest, CancellationToken cancellationToken)
+    {
+        var signatureUri = new Uri(_manifestUri.AbsoluteUri + ".sig");
+        byte[] signature;
+        try
+        {
+            using var response = await SendTrustedAsync(signatureUri, cancellationToken).ConfigureAwait(false);
+            signature = await ReadBoundedAsync(response.Content, UpdateSignature.MaximumSignatureBytes, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (HttpRequestException exception)
+        {
+            throw new UpdateManifestException("Update manifest signature is missing: " + exception.Message);
+        }
+
+        if (!UpdateSignature.Verify(manifest, signature, _signingPublicKeyPem))
+        {
+            throw new UpdateManifestException("Update manifest signature is invalid; the update was not trusted.");
         }
     }
 

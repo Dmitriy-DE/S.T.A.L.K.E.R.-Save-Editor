@@ -303,13 +303,39 @@ public sealed class UpdateServiceTests
             ["https"],
             Path.Combine(Path.GetTempPath(), $"updater-cache-{Guid.NewGuid():N}"),
             static _ => null,
-            new FakeUpdateProcessRunner(0));
+            new FakeUpdateProcessRunner(0),
+            signingPublicKeyPem: TestSigningKey.PublicPem);
 
         var result = await service.CheckAsync();
 
         Assert.NotNull(result.Artifact);
         Assert.Equal("1.0.0", result.Manifest!.Version);
         Assert.Null(result.Error);
+    }
+
+    [Fact]
+    public async Task Rejects_a_manifest_without_a_valid_signature()
+    {
+        var payload = CreateManifest("9.9.9", [1, 2, 3]);
+        var unsigned = new FakeHandler(_ => JsonResponse(payload)) { SignManifests = false };
+        using var missing = CreateService(unsigned);
+        Assert.Equal(UpdateState.Invalid, (await missing.CheckAsync()).State);
+
+        var tampered = new FakeHandler(request => request.RequestUri!.AbsolutePath.EndsWith(".sig", StringComparison.Ordinal)
+            ? new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new StringContent(UpdateSignature.Sign("other"u8, TestSigningKey.PrivatePem)) }
+            : JsonResponse(payload)) { SignManifests = false };
+        using var wrong = CreateService(tampered);
+        Assert.Equal(UpdateState.Invalid, (await wrong.CheckAsync()).State);
+
+        Assert.Equal(UpdateState.Available, (await CreateService(new FakeHandler(_ => JsonResponse(payload))).CheckAsync()).State);
+    }
+
+    [Fact]
+    public void Shipped_public_key_is_a_P256_key()
+    {
+        using var key = System.Security.Cryptography.ECDsa.Create();
+        key.ImportFromPem(UpdateSignature.PublicKeyPem);
+        Assert.Equal(256, key.KeySize);
     }
 
     private static UpdateService CreateService(
@@ -335,7 +361,8 @@ public sealed class UpdateServiceTests
                 "apt-get" => "/usr/bin/apt-get",
                 _ => null,
             },
-            processRunner ?? new FakeUpdateProcessRunner(0));
+            processRunner ?? new FakeUpdateProcessRunner(0),
+            signingPublicKeyPem: TestSigningKey.PublicPem);
 
     private static string CreateManifest(string version, byte[] body)
     {
@@ -378,9 +405,36 @@ public sealed class UpdateServiceTests
 
         public void Replace(Func<HttpRequestMessage, HttpResponseMessage> send) => _send = send;
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        public bool SignManifests { get; set; } = true;
+
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken) => Task.FromResult(_send(request));
+            CancellationToken cancellationToken)
+        {
+            var uri = request.RequestUri!;
+            if (!uri.AbsolutePath.EndsWith(".sig", StringComparison.Ordinal)) return _send(request);
+            // Signature next to the manifest: the test publisher signs whatever the fake server returns as latest.json.
+            if (!SignManifests) return new HttpResponseMessage(HttpStatusCode.NotFound) { RequestMessage = request };
+            var manifestRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(uri.AbsoluteUri[..^4]));
+            using var manifest = _send(manifestRequest);
+            if (!manifest.IsSuccessStatusCode) return new HttpResponseMessage(HttpStatusCode.NotFound) { RequestMessage = request };
+            var bytes = await manifest.Content.ReadAsByteArrayAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                RequestMessage = request,
+                Content = new StringContent(UpdateSignature.Sign(bytes, TestSigningKey.PrivatePem)),
+            };
+        }
+    }
+
+    private static class TestSigningKey
+    {
+        private static readonly System.Security.Cryptography.ECDsa Key =
+            System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+
+        public static string PrivatePem { get; } = Key.ExportECPrivateKeyPem();
+
+        public static string PublicPem { get; } = Key.ExportSubjectPublicKeyInfoPem();
     }
 
     private sealed class FakeUpdateProcessRunner(int exitCode) : IUpdateProcessRunner

@@ -17,13 +17,13 @@ namespace StalkerSaveEditor.Desktop.ViewModels;
 public sealed class SaveLibraryViewModel : ObservableViewModel
 {
     private static readonly IReadOnlyDictionary<string, CatalogBundle> Catalogs = CatalogBundleReader.LoadEmbedded();
-    private static bool TryCatalog(string releaseId, out CatalogBundle bundle) =>
+    internal static bool TryCatalog(string releaseId, out CatalogBundle bundle) =>
         GameContentRegistry.TryGetCatalog(releaseId, out bundle) || Catalogs.TryGetValue(releaseId, out bundle!);
 
-    private static readonly OfficialNamesCatalog OfficialNames = OfficialNamesCatalog.LoadEmbedded();
+    internal static readonly OfficialNamesCatalog OfficialNames = OfficialNamesCatalog.LoadEmbedded();
 
     /// <summary>The editor's language as the name catalogs spell it (zh_CN, pt_BR).</summary>
-    private static string NamesLanguage => I18nService.Instance.CurrentLanguage.Replace('-', '_');
+    internal static string NamesLanguage => I18nService.Instance.CurrentLanguage.Replace('-', '_');
 
     private readonly Func<IReadOnlyList<string>> _saveDirectoriesProvider;
     private readonly Func<string> _backupDirectoryProvider;
@@ -456,7 +456,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     public bool ShowToolkitEnvironmentScreen => IsToolkitEnvironmentTab;
     public bool ShowGamesOverviewScreen => IsGamesOverviewTab;
 
-
     public SaveFileSummary? SelectedSave
     {
         get => _selectedSave;
@@ -656,17 +655,13 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         }
     }
 
-    /// <summary>A parsed save (null: not a save), reused while the file keeps its size and modification time.</summary>
-    /// <summary>Cache validity: size, write time and creation time (a file swapped in by rename gets a new one).</summary>
-    private sealed record CachedSave(long Length, DateTime LastWriteUtc, DateTime CreationUtc, SaveFileSummary? Summary);
-
-    private Dictionary<string, CachedSave> _libraryCache = new(StringComparer.Ordinal);
+    private Dictionary<string, SaveLibraryLoader.CachedSave> _libraryCache = new(StringComparer.Ordinal);
     private bool _isLoadingLibrary;
     private int _libraryVersion;
     private int _appliedLibraryVersion = -1;
 
     /// <summary>Re-reads the save folders now (tests, restores): only new or changed files are parsed.</summary>
-    public void Refresh() => ApplyLibrary(LoadLibrary(_saveDirectoriesProvider().ToArray(), _libraryCache));
+    public void Refresh() => ApplyLibrary(SaveLibraryLoader.LoadLibrary(_saveDirectoriesProvider().ToArray(), _libraryCache));
 
     /// <summary>
     /// Re-reads the save folders off the interface thread (the app: hundreds of saves take seconds);
@@ -685,7 +680,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             var loaded = await Task.Run(() =>
             {
                 before?.Invoke();
-                return LoadLibrary(directories, cache, progressive
+                return SaveLibraryLoader.LoadLibrary(directories, cache, progressive
                     ? batch => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendBatch(batch, version))
                     : null,
                     // A newer refresh supersedes this one: stop parsing instead of finishing work nobody will show.
@@ -746,44 +741,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         OnPropertyChanged(nameof(ShouldShowEmptyState));
     }
 
-    /// <summary>
-    /// Lists and parses the save files, newest first, in parallel batches; unchanged files (and files
-    /// known not to be saves) come from <paramref name="cache"/>. <paramref name="batchLoaded"/> sees
-    /// the saves of each finished batch, so a first load can show the newest ones at once.
-    /// </summary>
-    private static (List<SaveFileSummary> Saves, Dictionary<string, CachedSave> Cache) LoadLibrary(
-        IReadOnlyList<string> directories,
-        IReadOnlyDictionary<string, CachedSave> cache,
-        Action<IReadOnlyList<SaveFileSummary>>? batchLoaded = null,
-        Func<bool>? superseded = null)
-    {
-        var files = EnumerateSaveFiles(directories)
-            .Select(path => new FileInfo(path))
-            .Where(info => info.Exists)
-            .OrderByDescending(info => info.LastWriteTimeUtc)
-            .ToArray();
-        var entries = new CachedSave[files.Length];
-        var parallelism = Math.Clamp(Environment.ProcessorCount - 1, 1, 8);
-        for (var start = 0; start < files.Length; start += parallelism * 2)
-        {
-            if (superseded?.Invoke() == true) return ([], new Dictionary<string, CachedSave>(cache, StringComparer.Ordinal));
-            var end = Math.Min(files.Length, start + parallelism * 2);
-            Parallel.For(start, end, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, index =>
-            {
-                var info = files[index];
-                entries[index] = cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc &&
-                    hit.CreationUtc == info.CreationTimeUtc
-                    ? hit
-                    : new CachedSave(info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, TryReadSave(info.FullName));
-            });
-            batchLoaded?.Invoke(entries[start..end].Select(entry => entry.Summary).OfType<SaveFileSummary>().ToArray());
-        }
-
-        var next = new Dictionary<string, CachedSave>(StringComparer.Ordinal);
-        for (var index = 0; index < files.Length; index++) next[files[index].FullName] = entries[index];
-        return (entries.Select(entry => entry.Summary).OfType<SaveFileSummary>().ToList(), next);
-    }
-
     private void AppendBatch(IReadOnlyList<SaveFileSummary> batch, int version)
     {
         // A batch can arrive after the finished list (the continuation may run first): then it is already shown.
@@ -796,7 +753,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     }
 
     /// <summary>Shows a loaded library, keeping the selected save when it is still there.</summary>
-    private void ApplyLibrary((List<SaveFileSummary> Saves, Dictionary<string, CachedSave> Cache) library)
+    private void ApplyLibrary((List<SaveFileSummary> Saves, Dictionary<string, SaveLibraryLoader.CachedSave> Cache) library)
     {
         var selectedPath = SelectedSave?.FilePath;
         _libraryCache = library.Cache;
@@ -886,7 +843,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void OnSaveRepaired(string path)
     {
         var index = IndexOfSave(path);
-        if (index < 0 || TryReadSave(path) is not { } refreshed) return;
+        if (index < 0 || SaveLibraryLoader.TryReadSave(path) is not { } refreshed) return;
         var wasSelected = ReferenceEquals(SelectedSave, Saves[index]);
         ReplaceSave(index, refreshed);
         if (wasSelected) SelectedSave = refreshed;
@@ -899,10 +856,10 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         Saves.Insert(index, save);
     }
 
-    public bool AddPreviewSave(string path) => ShowOpenedSave(TryReadSave(path));
+    public bool AddPreviewSave(string path) => ShowOpenedSave(SaveLibraryLoader.TryReadSave(path));
 
     /// <summary>Same as <see cref="AddPreviewSave"/>, but parses off the UI thread (a large S2 save takes ~0.7 s).</summary>
-    public async Task<bool> AddPreviewSaveAsync(string path) => ShowOpenedSave(await Task.Run(() => TryReadSave(path)));
+    public async Task<bool> AddPreviewSaveAsync(string path) => ShowOpenedSave(await Task.Run(() => SaveLibraryLoader.TryReadSave(path)));
 
     private bool ShowOpenedSave(SaveFileSummary? parsed)
     {
@@ -1214,7 +1171,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
             _draftStore.Remove(selected.SourceSha256);
 
-            var refreshed = TryReadSave(selected.FilePath);
+            var refreshed = SaveLibraryLoader.TryReadSave(selected.FilePath);
             if (refreshed is null || !string.Equals(refreshed.SourceSha256, receipt.OutputSha256, StringComparison.Ordinal))
             {
                 throw new InvalidDataException("The saved file could not be reopened after write verification.");
@@ -1447,318 +1404,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         RecordDraftChange();
     }
 
-    private static IEnumerable<string> EnumerateSaveFiles(IEnumerable<string> directories)
-    {
-        var seen = new HashSet<string>(OperatingSystem.IsWindows()
-            ? StringComparer.OrdinalIgnoreCase
-            : StringComparer.Ordinal);
-        foreach (var directory in directories)
-        {
-            string[] files;
-            try
-            {
-                files = Directory.EnumerateFiles(directory, "*", new EnumerationOptions
-                {
-                    RecurseSubdirectories = true,
-                    IgnoreInaccessible = true,
-                    AttributesToSkip = FileAttributes.ReparsePoint,
-                    MaxRecursionDepth = 4,
-                }).Where(IsSupportedSaveFile).ToArray();
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
-            {
-                AppLog.Warn($"save folder not listed: {exception.GetType().Name}: {exception.Message}");
-                continue;
-            }
-
-            foreach (var file in files)
-            {
-                if (IsBackupArtifact(file)) continue;
-                var fullPath = Path.GetFullPath(file);
-                if (seen.Add(fullPath)) yield return fullPath;
-            }
-        }
-    }
-
-    private static SaveFileSummary? TryReadSave(string path)
-    {
-        try
-        {
-            var info = new FileInfo(path);
-            if (!info.Exists || info.Length is <= 0 or > 512L * 1024 * 1024) return null;
-            var bytes = File.ReadAllBytes(path);
-            var sourceSha256 = Sha256(bytes);
-
-            try
-            {
-                return FromXRay(XRayTrilogyReader.FromBytes(bytes), path, sourceSha256, info.Length, info.LastWriteTime);
-            }
-            catch (XRayFormatException) { }
-
-            try
-            {
-                return FromXRay(XRayEnhancedReader.FromBytes(bytes), path, sourceSha256, info.Length, info.LastWriteTime);
-            }
-            catch (XRayFormatException) { }
-
-            try
-            {
-                return FromStalker2(Stalker2SaveReader.FromBytes(bytes), path, sourceSha256, info.Length, info.LastWriteTime);
-            }
-            catch (Stalker2FormatException exception)
-            {
-                AppLog.Warn($"not recognised {Path.GetFileName(path)} ({info.Length} bytes): {exception.Message}");
-                return null;
-            }
-        }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
-        {
-            // Not a save the readers know (a damaged file, a foreign format): logged, listed nowhere.
-            AppLog.Warn($"skipped {Path.GetFileName(path)}: {exception.GetType().Name}: {exception.Message}");
-            return null;
-        }
-    }
-
-    private static (bool Writable, string? Reason) CheckCapability(string releaseId, string capability)
-    {
-        if (!EditService.CanEdit(releaseId))
-        {
-            var isS2 = string.Equals(releaseId, "stalker2", StringComparison.OrdinalIgnoreCase);
-            var reason = isS2
-                ? L.T("Запись S.T.A.L.K.E.R. 2 выключена в UI до верификации мутаций в живой игре.")
-                : L.T("Запись для формата {0} выключена в UI в целях безопасности.", releaseId);
-            return (false, reason);
-        }
-
-        try
-        {
-            var support = CapabilityRegistry.Get(releaseId, capability);
-            return (support.Writable, support.Writable ? null : (support.Reason ?? L.T("Операция не поддерживается данным форматом")));
-        }
-        catch (KeyNotFoundException)
-        {
-            return (false, L.T("Операция не поддерживается данным форматом"));
-        }
-    }
-
-    private static bool HasCapability(string releaseId, string capability) =>
-        CheckCapability(releaseId, capability).Writable;
-
-    private static SaveFileSummary FromXRay(
-        XRayTrilogySave save,
-        string path,
-        string sourceSha256,
-        long fileSize,
-        DateTime lastModified)
-    {
-        var formatId = save.FormatId;
-        var (canEditMoney, moneyReason) = CheckCapability(formatId, "edit_money");
-        var (canEditStacks, stacksReason) = CheckCapability(formatId, "edit_stacks");
-        var (canEditDurability, durabilityReason) = CheckCapability(formatId, "edit_durability");
-        var (canEditPlacement, placementReason) = CheckCapability(formatId, "edit_placement");
-        var (canEditUpgrades, upgradesReason) = CheckCapability(formatId, "edit_upgrades");
-        var (canEditRelations, relationsReason) = CheckCapability(formatId, "edit_relations");
-        var (canEditPlayerFaction, playerFactionReason) = CheckCapability(formatId, "edit_player_faction");
-        var canEditFactions = canEditRelations || canEditPlayerFaction;
-        var factionReason = canEditFactions ? null : (relationsReason ?? playerFactionReason);
-        var (canMoveItems, moveReason) = CheckCapability(formatId, "move_items");
-        var canEditStashes = canMoveItems && save.Stashes.Count > 0;
-        var stashesReason = !canMoveItems ? moveReason : (save.Stashes.Count == 0 ? L.T("В сохранении нет тайников") : null);
-        var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
-        var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
-
-        var catalog = TryCatalog(formatId, out var bundle) ? bundle : null;
-        var upgradeCatalog = catalog?.Upgrades;
-
-        var inventory = save.Inventory.Select(item =>
-        {
-            var localizedName = OfficialNames.Resolve(formatId, "items", item.TypeKey, NamesLanguage)
-                ?? item.TypeKey;
-            var availableUpgrades = upgradeCatalog?.ForItem(item.TypeKey);
-            return new InventoryLineViewModel(
-                localizedName,
-                item.TypeKey,
-                item.Handle,
-                item.Category,
-                item.Count,
-                canEditStacks && item.EditableCount,
-                item.Condition,
-                canEditDurability && item.ConditionEditable,
-                item.PlacementType,
-                canEditPlacement && item.PlacementEditable,
-                item.Upgrades,
-                canEditUpgrades,
-                availableUpgrades,
-                countDisabledReason: stacksReason,
-                conditionDisabledReason: durabilityReason,
-                placementDisabledReason: placementReason,
-                upgradesDisabledReason: upgradesReason,
-                baseSlot: item.PlacementBaseSlot,
-                releaseId: formatId);
-        });
-
-        var stashes = save.Stashes.Select(s => new StashViewModel(
-            s.Handle,
-            s.Name,
-            s.Level,
-            s.Items.Select(i => new StashItemViewModel(
-                i.Handle,
-                i.TypeKey,
-                OfficialNames.Resolve(formatId, "items", i.TypeKey, NamesLanguage) ?? i.TypeKey,
-                i.Count ?? 1,
-                canEdit: canEditStashes,
-                disabledReason: stashesReason))));
-
-        var factionRelations = new List<FactionRelationViewModel>();
-        var factionCatalog = catalog?.Factions;
-        if (factionCatalog is not null)
-        {
-            foreach (var relation in save.FactionRelations)
-            {
-                var factionDef = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == relation.CommunityIndex);
-                var commKey = factionDef?.Key ?? $"faction_{relation.CommunityIndex}";
-                var localizedFaction = OfficialNames.Resolve(formatId, "factions", commKey, NamesLanguage)
-                    ?? factionDef?.DisplayName
-                    ?? commKey;
-                factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions, factionReason));
-            }
-        }
-
-        string? playerFaction = null;
-        if (save.PlayerFactionIndex.HasValue && factionCatalog is not null)
-        {
-            var def = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == save.PlayerFactionIndex.Value);
-            playerFaction = def?.DisplayName ?? def?.Key;
-        }
-
-        // Real level changers from X-Ray registry (read-only per AGENTS.md)
-        var transitions = save.LevelChangers.Select(lc => new TransitionViewModel(
-            lc.Handle,
-            lc.Name,
-            lc.NameReplace,
-            lc.ParentId,
-            lc.ObjectVersion)).ToList();
-
-        return new SaveFileSummary(
-            path,
-            ReleaseName(formatId),
-            formatId,
-            sourceSha256,
-            save.Money,
-            canEditMoney,
-            inventory,
-            fileSize,
-            lastModified,
-            save.ActorName,
-            save.ActorHealth,
-            save.ActorRank,
-            save.ActorReputation,
-            save.GameTime,
-            save.TimeFactor,
-            playerFaction,
-            canEditFactions,
-            canEditUpgrades,
-            canEditDurability,
-            canEditPlacement,
-            canEditStashes,
-            canAddItems,
-            canRemoveItems,
-            crcOk: true,
-            stashes: stashes,
-            transitions: transitions,
-            factionRelations: factionRelations,
-            moneyDisabledReason: moneyReason,
-            factionDisabledReason: factionReason,
-            upgradesDisabledReason: upgradesReason,
-            durabilityDisabledReason: durabilityReason,
-            placementDisabledReason: placementReason,
-            stashesDisabledReason: stashesReason,
-            addItemsDisabledReason: addReason,
-            removeItemsDisabledReason: removeReason)
-        {
-            Progress = XRayProgressReader.Read(save),
-            Weather = XRayWeatherReader.Read(save),
-            RelocationAnchors = XRayRelocation.IsSupported(formatId)
-                ? XRayRelocation.ReadAnchors(save).Select(anchor => new RelocationAnchorViewModel(anchor)).ToArray()
-                : [],
-            ActorLocation = XRayRelocation.IsSupported(formatId) ? XRayRelocation.ReadActorLocation(save) : null,
-        };
-    }
-
-    private static SaveFileSummary FromStalker2(
-        Stalker2Save save,
-        string path,
-        string sourceSha256,
-        long fileSize,
-        DateTime lastModified)
-    {
-        const string formatId = "stalker2";
-        var (canEditMoney, moneyReason) = CheckCapability(formatId, "edit_money");
-        var (canEditStacks, stacksReason) = CheckCapability(formatId, "edit_stacks");
-        var (canEditDurability, durabilityReason) = CheckCapability(formatId, "edit_durability");
-        var (canEditPlacement, placementReason) = CheckCapability(formatId, "edit_placement");
-        var (canEditUpgrades, upgradesReason) = CheckCapability(formatId, "edit_upgrades");
-        var (canEditRelations, relationsReason) = CheckCapability(formatId, "edit_relations");
-        var (canEditPlayerFaction, playerFactionReason) = CheckCapability(formatId, "edit_player_faction");
-        var canEditFaction = canEditRelations || canEditPlayerFaction;
-        var factionReason = canEditFaction ? null : (relationsReason ?? playerFactionReason);
-        var (canEditStashes, stashesReason) = CheckCapability(formatId, "move_items");
-        var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
-        var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
-
-        var catalog = TryCatalog(formatId, out var bundle) ? bundle.Items : null;
-        var s2Items = Stalker2ItemCatalog.LoadEmbedded();
-        var language = NamesLanguage;
-        var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
-            s2Items.Name(item.DisplayName, language) ?? item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
-            item.TypeKey,
-            item.Handle,
-            item.Category,
-            item.Count,
-            canEditCount: canEditStacks,
-            item.Condition,
-            canEditCondition: canEditDurability,
-            item.Storage,
-            canEditPlacement: canEditPlacement,
-            upgrades: item.Upgrades,
-            canEditUpgrades: canEditUpgrades,
-            availableUpgrades: null,
-            countDisabledReason: stacksReason,
-            conditionDisabledReason: durabilityReason,
-            placementDisabledReason: placementReason,
-            upgradesDisabledReason: upgradesReason,
-            releaseId: formatId,
-            iconKey: item.DisplayName ?? item.TypeKey));
-
-        return new SaveFileSummary(
-            path,
-            ReleaseName(formatId),
-            formatId,
-            sourceSha256,
-            save.Money,
-            canEditMoney,
-            inventory: inventory,
-            fileSizeBytes: fileSize,
-            lastModified: lastModified,
-            canEditFaction: canEditFaction,
-            canEditUpgrades: canEditUpgrades,
-            canEditDurability: canEditDurability,
-            canEditPlacement: canEditPlacement,
-            canEditStashes: canEditStashes,
-            canAddItems: canAddItems,
-            canRemoveItems: canRemoveItems,
-            crcOk: save.StoredCrc32 == save.ComputedCrc32,
-            moneyDisabledReason: moneyReason,
-            factionDisabledReason: factionReason,
-            upgradesDisabledReason: upgradesReason,
-            durabilityDisabledReason: durabilityReason,
-            placementDisabledReason: placementReason,
-            stashesDisabledReason: stashesReason,
-            addItemsDisabledReason: addReason,
-            removeItemsDisabledReason: removeReason);
-    }
-
-
     /// <summary>The rows differ from the save (an unparsable input counts as a change the user has to fix).</summary>
     private bool HasPendingChanges(SaveFileSummary save) =>
         BuildCurrentEditPlan(save).EditKinds != EditKind.None || !InputsAreValid(save);
@@ -1776,9 +1421,6 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
             count is > 0 and <= ushort.MaxValue);
     }
 
-    private static string Sha256(ReadOnlySpan<byte> data) =>
-        Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
-
     // One data folder for the app, the CLI and the cloud screen (STALKER_SAVE_EDITOR_DATA overrides it).
     private static string GetDefaultBackupDirectory() => AppPaths.Backups;
 
@@ -1791,28 +1433,4 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         return CompanionAssetLocator.ResolveSourceRoot();
     }
 
-    private static bool IsBackupArtifact(string path)
-    {
-        var stem = Path.GetFileNameWithoutExtension(path);
-        return stem.EndsWith("_ORIGINAL", StringComparison.OrdinalIgnoreCase) ||
-            stem.EndsWith("_EDITED", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSupportedSaveFile(string path) =>
-        Path.GetExtension(path) is { } extension &&
-        (extension.Equals(".sav", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".scop", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".scs", StringComparison.OrdinalIgnoreCase));
-
-    private static string ReleaseName(string releaseId) => releaseId switch
-    {
-        "stalker-soc" => L.T("Тень Чернобыля"),
-        "stalker-soc-ee" => L.T("Тень Чернобыля (Enhanced Edition)"),
-        "stalker-cs" => L.T("Чистое Небо"),
-        "stalker-cs-ee" => L.T("Чистое Небо (Enhanced Edition)"),
-        "stalker-cop" => L.T("Зов Припяти"),
-        "stalker-cop-ee" => L.T("Зов Припяти (Enhanced Edition)"),
-        "stalker2" => L.T("S.T.A.L.K.E.R. 2: Сердце Чернобыля"),
-        _ => releaseId,
-    };
 }

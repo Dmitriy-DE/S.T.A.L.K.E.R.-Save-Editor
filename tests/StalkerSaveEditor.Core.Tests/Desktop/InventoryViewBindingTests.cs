@@ -1,8 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using StalkerSaveEditor.Desktop.Services;
+using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
 using StalkerSaveEditor.Desktop.Views;
 using Xunit;
@@ -31,10 +33,36 @@ public sealed class InventoryViewBindingTests
         var template = Assert.IsType<FuncDataTemplate<InventoryLineViewModel>>(list.ItemTemplate);
         var row = template.Build(first) ?? throw new InvalidOperationException("Inventory row template returned no control.");
         row.DataContext = second;
+        viewModel.SelectedItem = second;
 
         var labels = row.GetVisualDescendants().OfType<TextBlock>().Select(label => label.Text).ToArray();
         Assert.Contains(second.Name, labels);
         Assert.DoesNotContain(first.Name, labels);
+
+        var key = row.GetVisualDescendants().OfType<TextBlock>().Single(label => label.Text == second.TypeKey);
+        Assert.True(second.IsSelected);
+        Assert.Equal(StalkerTheme.BrushAccentForeground, key.Foreground);
+    }
+
+    [Fact]
+    public void Inventory_rows_keep_the_icon_and_fit_in_a_compact_height()
+    {
+        using var directory = new TemporaryDirectory();
+        var viewModel = new SaveLibraryViewModel(
+            discoverLocalSaves: false,
+            saveDirectoriesProvider: () => [],
+            backupDirectoryProvider: () => Path.Combine(directory.Path, "backups"),
+            draftsDirectory: Path.Combine(directory.Path, "drafts"));
+        var list = InventoryView.Build(viewModel).GetVisualDescendants()
+            .OfType<ListBox>()
+            .Single(candidate => candidate.ItemTemplate is FuncDataTemplate<InventoryLineViewModel>);
+        var template = Assert.IsType<FuncDataTemplate<InventoryLineViewModel>>(list.ItemTemplate);
+        var row = Assert.IsType<Grid>(template.Build(Item("compact item", "wpn_compact")));
+        var icon = Assert.IsType<Border>(row.Children[0]);
+
+        Assert.Equal(40, row.MinHeight);
+        Assert.Equal(32, icon.Width);
+        Assert.Equal(32, icon.Height);
     }
 
     [Fact]

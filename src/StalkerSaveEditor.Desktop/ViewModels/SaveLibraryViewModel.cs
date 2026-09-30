@@ -641,10 +641,11 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         get => _selectedItem;
         set
         {
-            if (SetProperty(ref _selectedItem, value))
-            {
-                RemoveSelectedItemCommand.NotifyCanExecuteChanged();
-            }
+            var previous = _selectedItem;
+            if (!SetProperty(ref _selectedItem, value)) return;
+            if (previous is not null) previous.IsSelected = false;
+            if (value is not null) value.IsSelected = true;
+            RemoveSelectedItemCommand.NotifyCanExecuteChanged();
         }
     }
 

@@ -54,8 +54,7 @@ public sealed class CompareViewModelTests
         Assert.Equal(original.ValueB, swapped.ValueA);
         Assert.Equal(original.ValueA, swapped.ValueB);
 
-        vm.CategoryFilterId = "items";
-        Assert.Empty(vm.VisibleRows);
+        Assert.DoesNotContain(vm.CategoryFilters, option => option.Id == "items");
         vm.CategoryFilterId = "character";
         Assert.Single(vm.VisibleRows);
     }
@@ -76,6 +75,28 @@ public sealed class CompareViewModelTests
         vm.SearchQuery = "no matching difference";
         Assert.Empty(vm.VisibleRows);
         Assert.Single(vm.Rows);
+    }
+
+    [Fact]
+    public void Copy_and_csv_exports_use_visible_rows_and_escape_their_fields()
+    {
+        var vm = new CompareViewModel(_ => null);
+        vm.VisibleRows.Add(new CompareDisplayRow(
+            "Task, \"brief\"\ncontinued",
+            "value\tA",
+            "value \"B\"",
+            "tasks",
+            "Задания",
+            "changed",
+            "Изменено"));
+
+        var tsv = vm.BuildCopyListTsv();
+        var csv = vm.BuildExportCsv();
+
+        Assert.Contains("ТИП\tПАРАМЕТР / ОБЪЕКТ\tЗНАЧЕНИЕ A\tЗНАЧЕНИЕ B\tКАТЕГОРИЯ", tsv);
+        Assert.Contains("Изменено\tTask, \"brief\" continued\tvalue A\tvalue \"B\"\tЗадания", tsv);
+        Assert.Contains("\"Task, \"\"brief\"\"\ncontinued\"", csv);
+        Assert.Contains("\"value \"\"B\"\"\"", csv);
     }
 }
 

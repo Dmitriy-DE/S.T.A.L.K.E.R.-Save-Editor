@@ -11,6 +11,7 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     private int _conditionPercent;
     private string _placement;
     private bool _isDeleted;
+    private bool _isSelected;
 
     public InventoryLineViewModel(
         string name,
@@ -183,6 +184,13 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     public string Name { get; }
     public string TypeKey { get; }
     public string ReleaseId { get; }
+
+    /// <summary>Selection state used to keep the secondary key readable on the selected inventory row.</summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        internal set => SetProperty(ref _isSelected, value);
+    }
 
     /// <summary>Key for the icon lookup: the X-Ray section or the S2 SID.</summary>
     public string IconKey { get; }

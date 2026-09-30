@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
+using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using StalkerSaveEditor.Desktop;
 using StalkerSaveEditor.Desktop.Services;
@@ -90,47 +91,63 @@ public sealed class CompareViewTests
     }
 
     [Fact]
-    public void Unsupported_compare_actions_and_categories_are_disabled_with_reasons()
+    public void Compare_exports_are_enabled_for_visible_rows_and_empty_filter_options_are_omitted()
     {
+        using var directory = new TemporaryDirectory();
+        var sourcePath = CopyFixture("xray-money-cop-source.sav", directory.Path, "before.sav");
+        var currentPath = CopyFixture("xray-money-cop-expected.sav", directory.Path, "current.sav");
         var viewModel = new CompareViewModel(_ => null);
+        viewModel.SetSubject(currentPath, "stalker-cop", [new CompareCandidate("Before", sourcePath)]);
+        viewModel.Selected = Assert.Single(viewModel.Candidates);
         var view = CompareView.Build(viewModel);
-        var noCandidates = view.GetLogicalDescendants().OfType<TextBlock>()
-            .Single(block => block.Name == "compare-no-candidates");
-        Assert.Equal(L.T("Нет других сейвов этой игры или бэкапов для сравнения."), noCandidates.Text);
-        var actionButtons = view.GetLogicalDescendants().OfType<Button>()
-            .Where(button => button.Name is "compare-export" or "compare-copy-list" or "compare-apply")
-            .ToArray();
+        var buttons = view.GetLogicalDescendants().OfType<Button>().ToArray();
 
-        Assert.Equal(3, actionButtons.Length);
-        Assert.All(actionButtons, button =>
-        {
-            Assert.False(button.IsEnabled);
-            Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(button)?.ToString()));
-        });
+        Assert.True(buttons.Single(button => button.Name == "compare-export").IsEnabled);
+        Assert.True(buttons.Single(button => button.Name == "compare-copy-list").IsEnabled);
+        Assert.DoesNotContain(buttons, button => button.Name == "compare-apply");
+        Assert.DoesNotContain(view.GetLogicalDescendants().OfType<CheckBox>(), checkBox => checkBox.Name == "compare-show-unchanged");
+        Assert.DoesNotContain(view.GetLogicalDescendants().OfType<TextBlock>(), block => block.Name?.Contains("reason", StringComparison.Ordinal) == true);
 
-        var unchanged = view.GetLogicalDescendants().OfType<CheckBox>()
-            .Single(checkBox => checkBox.Name == "compare-show-unchanged");
-        Assert.False(unchanged.IsEnabled);
-        Assert.Equal(StalkerTheme.BrushTextSecondary, unchanged.Foreground);
-        Assert.Equal(StalkerTheme.BrushTextMuted, Assert.IsType<TextBlock>(unchanged.Content).Foreground);
-        Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(unchanged)?.ToString()));
+        Assert.Equal(["all", "character"], viewModel.CategoryFilters.Select(option => option.Id));
+        Assert.Equal(["all", "changed"], viewModel.ChangeTypeFilters.Select(option => option.Id));
 
         var picker = view.GetLogicalDescendants().OfType<ComboBox>()
             .Single(comboBox => comboBox.Name == "compare-candidate-picker");
         Assert.Equal(StalkerTheme.BrushTextPrimary, picker.Foreground);
+    }
 
-        var categories = view.GetLogicalDescendants().OfType<ItemsControl>()
-            .Single(control => control.Name == "compare-category-filters");
-        var template = Assert.IsType<FuncDataTemplate<CompareFilterOption>>(categories.ItemTemplate);
-        var unsupported = new CompareFilterOption("world", "Мир", 0, IsSupported: false, DisabledReason: "No world fields.");
-        var worldFilter = template.Build(unsupported) ?? throw new InvalidOperationException("Compare category template returned no control.");
-        worldFilter.DataContext = unsupported;
+    [Fact]
+    public void Compare_filter_and_export_controls_are_hidden_or_disabled_without_differences()
+    {
+        var viewModel = new CompareViewModel(_ => null);
+        var view = CompareView.Build(viewModel);
+        var filterCard = view.GetLogicalDescendants().OfType<Border>()
+            .Single(border => border.Name == "compare-filter-card");
 
-        var worldButton = Assert.IsType<Button>(worldFilter);
-        Assert.False(worldButton.IsEnabled);
-        Assert.Equal("No world fields.", ToolTip.GetTip(worldButton)?.ToString());
-        var worldLabel = Assert.IsType<TextBlock>(Assert.IsType<StackPanel>(worldButton.Content).Children[0]);
-        Assert.Equal(StalkerTheme.BrushTextMuted, worldLabel.Foreground);
+        Assert.False(filterCard.IsVisible);
+        Assert.Empty(viewModel.CategoryFilters);
+        Assert.Empty(viewModel.ChangeTypeFilters);
+        Assert.False(view.GetLogicalDescendants().OfType<Button>().Single(button => button.Name == "compare-export").IsEnabled);
+        Assert.False(view.GetLogicalDescendants().OfType<Button>().Single(button => button.Name == "compare-copy-list").IsEnabled);
+    }
+
+    [Fact]
+    public void Compare_export_reports_an_error_when_desktop_storage_is_unavailable()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourcePath = CopyFixture("xray-money-cop-source.sav", directory.Path, "before.sav");
+        var currentPath = CopyFixture("xray-money-cop-expected.sav", directory.Path, "current.sav");
+        var viewModel = new CompareViewModel(_ => null);
+        viewModel.SetSubject(currentPath, "stalker-cop", [new CompareCandidate("Before", sourcePath)]);
+        viewModel.Selected = Assert.Single(viewModel.Candidates);
+        var view = CompareView.Build(viewModel);
+        var export = view.GetLogicalDescendants().OfType<Button>()
+            .Single(button => button.Name == "compare-export");
+
+        Assert.True(export.IsEnabled);
+        export.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+        Assert.Equal(L.T("Не удалось выполнить действие"), viewModel.ActionStatus);
     }
 
     [Fact]

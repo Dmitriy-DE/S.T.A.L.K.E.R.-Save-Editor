@@ -1,10 +1,13 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Data.Converters;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
@@ -15,6 +18,8 @@ namespace StalkerSaveEditor.Desktop.Views;
 public static class InventoryView
 {
     private static readonly BooleanNotConverter Not = new();
+    private static readonly FuncValueConverter<bool, IBrush> ItemKeyForegroundConverter = new(
+        isSelected => isSelected ? StalkerTheme.BrushAccentForeground : StalkerTheme.BrushTextSecondary);
 
     public static Control Build(SaveLibraryViewModel vm)
     {
@@ -281,6 +286,13 @@ public static class InventoryView
             CornerRadius = new CornerRadius(4),
             ItemTemplate = StalkerTheme.Template<InventoryLineViewModel>(_ => MakeItemRow()),
         };
+        list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
+        {
+            Setters =
+            {
+                new Setter(TemplatedControl.PaddingProperty, new Thickness(2, 0)),
+            },
+        });
         Avalonia.Automation.AutomationProperties.SetName(list, L.T("Предметы в инвентаре"));
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(SaveLibraryViewModel.FilteredInventory)) { Source = vm });
         list.Bind(ListBox.SelectedItemProperty, new Binding(nameof(SaveLibraryViewModel.SelectedItem))
@@ -342,16 +354,17 @@ public static class InventoryView
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("44,*,Auto"),
-            ColumnSpacing = 8,
-            Margin = new Thickness(4, 3),
-            MinHeight = 48,
+            ColumnDefinitions = new ColumnDefinitions("36,*,Auto"),
+            ColumnSpacing = 6,
+            Margin = new Thickness(4, 2),
+            MinHeight = 40,
         };
 
         var iconFrame = new Border
         {
-            Width = 40,
-            Height = 40,
+            Name = "inventory-item-icon-frame",
+            Width = 32,
+            Height = 32,
             Background = StalkerTheme.BrushBgBase,
             BorderBrush = StalkerTheme.BrushBorderSubtle,
             BorderThickness = new Thickness(1),
@@ -393,10 +406,13 @@ public static class InventoryView
         var key = new TextBlock
         {
             FontSize = 10,
-            Foreground = StalkerTheme.BrushTextMuted,
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
         key.Bind(TextBlock.TextProperty, new Binding(nameof(InventoryLineViewModel.TypeKey)));
+        key.Bind(TextBlock.ForegroundProperty, new Binding(nameof(InventoryLineViewModel.IsSelected))
+        {
+            Converter = ItemKeyForegroundConverter,
+        });
         labels.Children.Add(key);
         Grid.SetColumn(labels, 1);
         row.Children.Add(labels);

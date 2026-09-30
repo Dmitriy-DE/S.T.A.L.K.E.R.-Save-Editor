@@ -259,6 +259,12 @@ public sealed class SaveFileSummary
         ? LastModified.Value.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.CurrentCulture)
         : "—";
 
+    /// <summary>Compact date used on the library row beside the file size.</summary>
+    public string LibraryDateDisplay => LastModified?.ToString("dd.MM.yy HH:mm", CultureInfo.CurrentCulture) ?? "—";
+
+    /// <summary>Keep S2's region and play time on the library row; use a compact date for X-Ray saves.</summary>
+    public string LibraryMetadataDisplay => IsStalker2 ? SlotTitle : LibraryDateDisplay;
+
     public string MoneyDisplay => CanEditMoney || Money > 0 ? Money.ToString("N0", CultureInfo.CurrentCulture) + " RU" : "—";
 
     public string GameTimeDisplay

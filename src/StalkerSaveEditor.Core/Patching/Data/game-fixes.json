@@ -2923,6 +2923,185 @@
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
       "verificationState": "RetailFilesVerified"
+    },
+    {
+      "id": "cs.crash.kamp-no-animation",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Campfire NPC with no usable animation no longer crashes the game",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_kamp.script",
+          "expectedText": "\t\tstate = temp[math.random(#temp)]\r\n",
+          "replacementText": "\t\tstate = #temp > 0 and temp[math.random(#temp)] or \"wait\"\r\n",
+          "expectedFileSha256": "5ad70724d1c162fbc21b982658800c000f8be2ebc4a08904603ab03b4a39449a",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "xr_kamp.script picks a random campfire animation from those the NPC can play; when none fits, math.random(0) crashes: bad argument #1 to 'random' (interval is empty).",
+      "description": "If no campfire animation fits, the NPC uses the basic \"wait\" state instead of crashing.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.crash.sim-combat",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Squad-combat script no longer crashes on a missing player or a vanished squad",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/sim_combat.script",
+          "expectedText": "\t\t\tself.cover_manager:calculate_covers(db.actor:position())\r\n",
+          "replacementText": "\t\t\tif db.actor ~= nil then self.cover_manager:calculate_covers(db.actor:position()) end\r\n",
+          "expectedFileSha256": "78b19aef9e179a00c0b128a554907b10ba18bdb36f307f1a6bf7ca8e53b96061",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/sim_combat.script",
+          "expectedText": "function actor_come(squad)\r\n\tlocal actor_position = db.actor:position()\r\n",
+          "replacementText": "function actor_come(squad)\r\n\tif db.actor == nil then return false end\r\n\tlocal actor_position = db.actor:position()\r\n",
+          "expectedFileSha256": "78b19aef9e179a00c0b128a554907b10ba18bdb36f307f1a6bf7ca8e53b96061",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/sim_combat.script",
+          "expectedText": "if attack_squad_obj.squad_power >= squad.squad_power then",
+          "replacementText": "if attack_squad_obj ~= nil and attack_squad_obj.squad_power >= squad.squad_power then",
+          "expectedFileSha256": "78b19aef9e179a00c0b128a554907b10ba18bdb36f307f1a6bf7ca8e53b96061",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "sim_combat.script crashes when it runs before the player is loaded (attempt to index field 'actor' (a nil value)) or when the attacking squad of a 'help' task no longer exists (attempt to index local 'attack_squad_obj' (a nil value)).",
+      "description": "Cover calculation and the \"player arrived\" check wait until the player exists; a help task is only considered while the attacking squad exists.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.crash.capture-task-missing-squad",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "'Capture' task no longer crashes when its squad no longer exists",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\t\tsim_board.get_sim_board().squads[self.src_obj]:give_squad_task(self.target)\r\n",
+          "replacementText": "\t\tlocal squad = sim_board.get_sim_board().squads[self.src_obj]\r\n\t\tif squad ~= nil then squad:give_squad_task(self.target) end\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "Giving a 'capture' task to a squad that was already removed crashes: task_objects.script: attempt to index field '?' (a nil value).",
+      "description": "The squad is told about its task only if it still exists.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.crash.anomaly-zone-missing-artefact",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Anomaly field no longer crashes on an artefact that was already removed",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/bind_anomaly_zone.script",
+          "expectedText": "\t\tlocal art = alife():object(k)\r\n\t\tif cl_pos ~= nil then",
+          "replacementText": "\t\tlocal art = alife():object(k)\r\n\t\tif art == nil then\r\n\t\telseif cl_pos ~= nil then",
+          "expectedFileSha256": "38bba252b08b32b42dc3c2a23e340773ba24b72677a1b346460908ec47f451f1",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "An anomaly field lists its artefacts; one removed in the meantime crashes: bind_anomaly_zone.script: attempt to index local 'art' (a nil value).",
+      "description": "A removed artefact is skipped (the Enhanced Edition already has this check).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.crash.squad-action-finished-twice",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Squad action no longer crashes when it ends during its own update",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/sim_squad_generic.script",
+          "expectedText": "\t\tself.current_action:finalize()\r\n\t\tself.current_action = nil\r\n",
+          "replacementText": "\t\tif self.current_action ~= nil then self.current_action:finalize() end\r\n\t\tself.current_action = nil\r\n",
+          "expectedFileSha256": "939a0e1c730e009bbe2b5f50081ed089c415917b2c29036b8919ae3a3a7945e2",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "A squad's current action can be cleared while it updates; finalizing it then crashes: sim_squad_generic.script: attempt to index field 'current_action' (a nil value).",
+      "description": "The action is finalized only if it still exists.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -3163,6 +3342,15 @@
     ],
     "cop.quest.jup-b15-drink-timer": [
       "26cebb1fcd87c148214adf7e851f1dedb3388d9b171ed851b4cdeb228964d371"
+    ],
+    "cs.crash.kamp-no-animation": [
+      "7d589cd2284ce08879ea010e4ce8e7cfb6c4183133469a0ee945c7520658c6c4"
+    ],
+    "cs.crash.capture-task-missing-squad": [
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965"
+    ],
+    "cs.crash.squad-action-finished-twice": [
+      "5f21049a8d6ea319112b15b6d559d0a44abc5a32762e16dff9119284631b6bd7"
     ]
   }
 }

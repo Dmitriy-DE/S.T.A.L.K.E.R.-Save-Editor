@@ -43,6 +43,31 @@ public sealed class SaveLibraryEditingTests
     }
 
     [Fact]
+    public void Detects_a_save_changed_on_disk_and_reloads_it()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "changed.scop");
+        File.WriteAllBytes(path, ReadXRayFixture());
+        var viewModel = new SaveLibraryViewModel(
+            discoverLocalSaves: false,
+            backupDirectoryProvider: () => Path.Combine(directory.Path, "backups"),
+            draftsDirectory: Path.Combine(directory.Path, "drafts"));
+        Assert.True(viewModel.AddPreviewSave(path));
+
+        viewModel.CheckSelectedSaveOnDisk();
+        Assert.False(viewModel.SelectedSaveChangedOnDisk);
+
+        File.SetLastWriteTime(path, File.GetLastWriteTime(path).AddMinutes(5));
+        viewModel.CheckSelectedSaveOnDisk();
+        Assert.True(viewModel.SelectedSaveChangedOnDisk);
+
+        viewModel.ReloadChangedSave();
+        Assert.False(viewModel.SelectedSaveChangedOnDisk);
+        viewModel.CheckSelectedSaveOnDisk();
+        Assert.False(viewModel.SelectedSaveChangedOnDisk);
+    }
+
+    [Fact]
     public void Saves_s2_money_through_backup_and_readback()
     {
         using var directory = new TemporaryDirectory();

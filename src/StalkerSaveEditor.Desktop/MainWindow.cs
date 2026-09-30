@@ -804,7 +804,7 @@ public sealed class MainWindow : Window
     {
         var root = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
         };
 
         var breadcrumb = new Border
@@ -990,8 +990,31 @@ public sealed class MainWindow : Window
 
         contentGrid.Children.Add(screens);
 
-        Grid.SetRow(contentGrid, 1);
+        Grid.SetRow(contentGrid, 2);
         root.Children.Add(contentGrid);
+
+        // Edge state "changed outside the editor": the game or another tool rewrote the open save.
+        var changedText = new TextBlock
+        {
+            Text = L.T("Файл сейва изменился после открытия (игра или другая программа). Несохранённые правки относятся к старой версии."),
+            Foreground = StalkerTheme.BrushTextPrimary,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var reload = StalkerTheme.StalkerButton(L.T("Открыть заново"), isPrimary: true, minWidth: 150);
+        reload.Click += (_, _) => vm.ReloadChangedSave();
+        DockPanel.SetDock(reload, Dock.Right);
+        var changedBanner = new Border
+        {
+            Background = StalkerTheme.BrushBgPanel,
+            BorderBrush = StalkerTheme.BrushWarning,
+            BorderThickness = new Thickness(0, 0, 0, 2),
+            Padding = new Thickness(16, 8),
+            Child = new DockPanel { LastChildFill = true, Children = { reload, changedText } },
+        };
+        changedBanner.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.SelectedSaveChangedOnDisk)) { Source = vm });
+        Grid.SetRow(changedBanner, 1);
+        root.Children.Add(changedBanner);
 
         return root;
     }

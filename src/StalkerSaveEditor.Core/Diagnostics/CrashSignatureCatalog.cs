@@ -137,10 +137,11 @@ public static class CrashSignatureCatalog
         {
             Pattern = P(@"Can't find model file 'dynamics\\equipments\\item_rukzak\.ogf'"),
         },
-        new("cs.treasure-box-in-use", ClearSky, "Stash refilled while Stringov is alive", CrashAdvice.CommunityPatch,
+        new("cs.treasure-box-in-use", ClearSky, "Stash refilled while Stringov is alive", CrashAdvice.InstallFix,
             "Re-entering the Garbage tried to fill a stash that was already filled.", Srp)
         {
             Pattern = P(@"Unable to give treasure \[gar_treasure_quest_smuggler_weapons\]"),
+            FixId = "cs.crash.treasure-given-twice",
         },
         new("cs.red-forest-missing-squad", ClearSky, "Witch Circle ambush squad already dead", CrashAdvice.InstallFix,
             "Following Strelok's helper into the ambush after the ambush squad was killed.", Srp)

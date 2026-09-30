@@ -3222,6 +3222,107 @@
       "references": [
         "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
       ]
+    },
+    {
+      "id": "cs.crash.save-menu-deleted-last",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Deleting the last save in the save/load menu no longer crashes",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/ui_save_dialog.script",
+          "expectedText": "\tlocal item\t\t\t= self.list_box:GetItem(item_id)\r\n",
+          "replacementText": "\tlocal item\t\t\t= self.list_box:GetItem(item_id)\r\n\tif item == nil then return end\r\n",
+          "expectedFileSha256": "4986d7b2fbbff094aff5f15d434df88044e5fc18caa662c0de6a5b5197c2bc2c",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/ui_save_dialog.script",
+          "expectedText": "\tlocal item\t\t\t\t= self.list_box:GetItem(index)\r\n",
+          "replacementText": "\tlocal item\t\t\t\t= self.list_box:GetItem(index)\r\n\tif item == nil then return end\r\n",
+          "expectedFileSha256": "4986d7b2fbbff094aff5f15d434df88044e5fc18caa662c0de6a5b5197c2bc2c",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/ui_load_dialog.script",
+          "expectedText": "\tlocal item\t\t\t= self.list_box:GetItem(itm_index)\r\n",
+          "replacementText": "\tlocal item\t\t\t= self.list_box:GetItem(itm_index)\r\n\tif item == nil then return end\r\n",
+          "expectedFileSha256": "1c3154631f41f4b333679e5ff1b6b782f2ca85594210f387deebc743ae76b985",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/ui_load_dialog.script",
+          "expectedText": "\t\tlocal item  = self.list_box:GetItem(index)\r\n",
+          "replacementText": "\t\tlocal item  = self.list_box:GetItem(index)\r\n\t\tif item == nil then return end\r\n",
+          "expectedFileSha256": "1c3154631f41f4b333679e5ff1b6b782f2ca85594210f387deebc743ae76b985",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/ui_load_dialog.script",
+          "expectedText": "\t\t\r\n\tlocal item  = self.list_box:GetItem(index)\r\n",
+          "replacementText": "\t\t\r\n\tlocal item  = self.list_box:GetItem(index)\r\n\tif item == nil then return end\r\n",
+          "expectedFileSha256": "1c3154631f41f4b333679e5ff1b6b782f2ca85594210f387deebc743ae76b985",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/ui_load_dialog.script",
+          "expectedText": "\tlocal item\t\t= self.list_box:GetItem(index)\r\n",
+          "replacementText": "\tlocal item\t\t= self.list_box:GetItem(index)\r\n\tif item == nil then return end\r\n",
+          "expectedFileSha256": "1c3154631f41f4b333679e5ff1b6b782f2ca85594210f387deebc743ae76b985",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "After deleting the bottom-most save of the list, the menu still points at the removed row; the next click reads it and crashes (attempt to index local 'item' (a nil value)).",
+      "description": "Every save/load menu action checks that the selected row still exists.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
+    },
+    {
+      "id": "cs.crash.treasure-given-twice",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Re-entering the Garbage no longer crashes on Stringov's stash",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/treasure_manager.script",
+          "expectedText": "\t\t\tlocal active_treasure = get_active_treasure_by_target(treasures[treasure_id].target)\r\n\t\t\tabort(\"Unable to give treasure [%s] because inventory box is already in use by treasure [%s]\", treasure_id, active_treasure)",
+          "replacementText": "\t\t\tlocal active_treasure = get_active_treasure_by_target(treasures[treasure_id].target)\r\n\t\t\tif active_treasure ~= treasure_id then abort(\"Unable to give treasure [%s] because inventory box is already in use by treasure [%s]\", treasure_id, active_treasure) end",
+          "expectedFileSha256": "2bbeb69072ebfe63965c6f0739e47e1af0c50183e5dc148ffc3331cc176fc19e",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
+      "problem": "While Stringov is alive, re-entering the Garbage gives his smuggler stash again: ERROR: Unable to give treasure [gar_treasure_quest_smuggler_weapons] because inventory box is already in use by treasure [gar_treasure_quest_smuggler_weapons].",
+      "description": "Giving a stash that is already given is ignored; a real conflict between two different stashes still stops the game as before.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -3474,6 +3575,9 @@
     ],
     "cs.crash.robbery-squad-left": [
       "00866bb4dd190a1af83f7d2dffbe5b35bdb3be7107d5da4eb68ce47f2da18dd9"
+    ],
+    "cs.crash.treasure-given-twice": [
+      "7135ca6719a38fed4339d9e338eabfb0617e2e949e61f7804d1da0bf6c46cd89"
     ]
   }
 }

@@ -3323,6 +3323,60 @@
       "references": [
         "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
       ]
+    },
+    {
+      "id": "cs.crash.limansk-missing-logic",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Limansk defenders no longer crash on logic sections that do not exist",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_smart_terrain_3_csky_logic.ltx",
+          "expectedText": "on_signal = action | walker@gurad2",
+          "replacementText": "on_signal = action | walker@guard_work2",
+          "expectedFileSha256": "c497cb4e69857db7aaba2d3b87d1ffc0203f46b3a773dd231a5ffaf01b57510f",
+          "codePage": 1251
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_smart_terrain_3_csky_logic.ltx",
+          "expectedText": "[smartcover@work2]\r\nuse_in_combat = true\r\ncover_name = lim_smart_terrain_4_cover_2\r\n",
+          "replacementText": "[smartcover@work2]\r\nuse_in_combat = true\r\ncover_name = lim_smart_terrain_4_cover_2\r\n\r\n[walker@guard_work2]\r\nout_restr = lim_smart_terrain_4_defence\r\npath_walk = csky_retreat_2_walk\r\npath_look = csky_retreat_2_look\r\n",
+          "expectedFileSha256": "c497cb4e69857db7aaba2d3b87d1ffc0203f46b3a773dd231a5ffaf01b57510f",
+          "codePage": 1251
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_smart_terrain_3_csky_logic.ltx",
+          "expectedText": "[smartcover@work3]\r\nuse_in_combat = true\r\ncover_name = lim_smart_terrain_4_cover_3\r\n",
+          "replacementText": "[smartcover@work3]\r\nuse_in_combat = true\r\ncover_name = lim_smart_terrain_4_cover_3\r\n\r\n[walker@guard_work3]\r\nout_restr = lim_smart_terrain_4_defence\r\npath_walk = csky_retreat_3_walk\r\npath_look = csky_retreat_3_look\r\n",
+          "expectedFileSha256": "c497cb4e69857db7aaba2d3b87d1ffc0203f46b3a773dd231a5ffaf01b57510f",
+          "codePage": 1251
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/limansk/lim_smart_terrain_3_defender_2_logic.ltx",
+          "expectedText": "on_death = death@_work2",
+          "replacementText": "on_death = death@work2",
+          "expectedFileSha256": "e20ee55c3896eb415648e399143d72b39c82008fca15035d71a0b02309a79af3",
+          "codePage": 1251
+        }
+      ],
+      "source": "Our fix; our logic-reference check found the broken section names. SRP 1.1.5 (Decane, InnerGround) lists these Limansk crashes.",
+      "problem": "Two Limansk logic files point at sections that are not there: a Clear Sky soldier's retreat switches to walker@gurad2 (typo) and walker@guard_work3 (never written), and a defender's death handler points at death@_work2 (typo). Reaching them crashes the game.",
+      "description": "Fixes the two typos and adds the two missing guard sections, written the same way as the existing guard sections of that file. Found by our own logic-reference check; SRP 1.1.5 lists the same crashes.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
+      ]
     }
   ],
   "enhancedEditionSha256": {

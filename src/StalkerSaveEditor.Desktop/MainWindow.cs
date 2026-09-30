@@ -330,6 +330,7 @@ public sealed class MainWindow : Window
                 ("◇", L.T("ТАЙНИКИ"), "stashes"),
                 ("⇄", L.T("ПЕРЕХОДЫ"), "transitions"),
                 ("▣", L.T("БЭКАПЫ"), "backups"),
+                ("⇆", L.T("СРАВНЕНИЕ"), "compare"),
                 ("◷", L.T("ИСТОРИЯ СОХРАНЕНИЙ"), "timeline"),
             ]);
             if (!HostPlatform.IsBrowser)
@@ -899,6 +900,11 @@ public sealed class MainWindow : Window
         var backups = BackupsView.Build(vm);
         backups.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowBackupsScreen)));
         screens.Children.Add(backups);
+
+        var compare = CompareView.Build(vm.Compare);
+        compare.Bind(Visual.IsVisibleProperty,
+            new Binding(nameof(SaveLibraryViewModel.ShowCompareScreen)) { Source = vm });
+        screens.Children.Add(compare);
 
         var timeline = TimelineView.Build(vm.Timeline);
         timeline.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowTimelineScreen)) { Source = vm });

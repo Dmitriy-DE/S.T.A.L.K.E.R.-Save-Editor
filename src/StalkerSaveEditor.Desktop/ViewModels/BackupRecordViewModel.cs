@@ -89,7 +89,7 @@ public sealed class BackupRecordViewModel(LocalSaveBackupRecord record) : Observ
         {
             if (DateTimeOffset.TryParse(CreatedAt, out var dto))
             {
-                return dto.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss");
+                return dto.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
             }
             return CreatedAt;
         }

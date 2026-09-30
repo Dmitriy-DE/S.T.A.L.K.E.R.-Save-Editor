@@ -295,6 +295,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     private CompanionInstaller CreateInstaller() => new(_modSourceRoot);
 
     /// <summary>EXPERIMENTAL S.T.A.L.K.E.R. 2 mod (UE4SS): status, install and removal.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Instance API of the adapter the view model talks to.")]
     public Stalker2CompanionStatus Stalker2Status() => Stalker2CompanionInstaller.GetStatus();
 
     public Stalker2CompanionStatus InstallStalker2() => new Stalker2CompanionInstaller(_modSourceRoot).Install();

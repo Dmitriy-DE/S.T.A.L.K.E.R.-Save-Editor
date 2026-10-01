@@ -1,0 +1,19 @@
+<Project>
+  <!-- Every package version in one place; projects reference packages by name only. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Avalonia" Version="11.3.22" />
+    <PackageVersion Include="Avalonia.Browser" Version="11.3.22" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageVersion Include="Avalonia.Headless" Version="11.3.22" />
+    <PackageVersion Include="Avalonia.Skia" Version="11.3.22" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="NVorbis" Version="0.10.5" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>

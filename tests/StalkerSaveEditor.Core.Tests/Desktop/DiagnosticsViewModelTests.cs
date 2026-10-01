@@ -28,25 +28,19 @@ public sealed class DiagnosticsViewModelTests
     [Fact]
     public void Exports_a_bundle_and_reports_where()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "se-diag-" + Guid.NewGuid().ToString("N"));
-        try
-        {
-            AppLog.Configure(directory);
-            var vm = new DiagnosticsViewModel(() => [], pendingCrash: "boom");
-            Assert.True(vm.HasPendingCrash, "pending");
+        using var log = new TemporaryAppLog();
+        var directory = log.Directory;
+        Directory.CreateDirectory(directory);
+        var vm = new DiagnosticsViewModel(() => [], pendingCrash: "boom");
+        Assert.True(vm.HasPendingCrash, "pending");
 
-            var path = vm.ExportBundle(Path.Combine(directory, "report.txt.gz"));
+        var path = vm.ExportBundle(Path.Combine(directory, "report.txt.gz"));
 
-            Assert.NotNull(path);
-            Assert.True(new FileInfo(path).Length > 0, "length " + vm.Status);
-            Assert.Contains("report.txt.gz", vm.Status, StringComparison.Ordinal);
-            Assert.Null(vm.ExportBundle(directory));
-            vm.DismissCrash();
-            Assert.False(vm.HasPendingCrash);
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
+        Assert.NotNull(path);
+        Assert.True(new FileInfo(path).Length > 0, "length " + vm.Status);
+        Assert.Contains("report.txt.gz", vm.Status, StringComparison.Ordinal);
+        Assert.Null(vm.ExportBundle(directory));
+        vm.DismissCrash();
+        Assert.False(vm.HasPendingCrash);
     }
 }

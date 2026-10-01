@@ -17,7 +17,7 @@
     <TrimmerRootAssembly Include="StalkerSaveEditor.Core" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia.Browser" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Browser" />
     <ProjectReference Include="../StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" />
     <NativeFileReference Include="../../artifacts/native-wasm/stalker_ooz.a" />
     <!-- Item icons are fetched by the page on demand. -->

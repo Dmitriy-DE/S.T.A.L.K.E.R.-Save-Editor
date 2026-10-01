@@ -19,13 +19,14 @@ namespace StalkerSaveEditor.Cli;
 internal static class Program
 {
     private const string Usage =
-        "Usage: StalkerSaveEditor.Cli <version|companion|doctor|fixes|crash|mods|info|inventory|orphans|set-money|set-stack|move|detach|attach-orphan|raw|dump-record|diff-record|edit> ...";
+        "Usage: StalkerSaveEditor.Cli <version|companion|doctor|fixes|crash|mods|info|inventory|orphans|set-money|set-stack|dump-record|diff-record|edit> ...\n" +
+        "Exit codes: 0 done, 2 wrong arguments, 3 refused (unsupported or unsafe), 4 unreadable or damaged input, 5 file or system error.";
 
     internal static int Main(string[] args)
     {
         if (args is ["--steam-native-worker"])
         {
-            return SteamNativeWorkerHost.RunAsync().GetAwaiter().GetResult();
+            return RunWorker(SteamNativeWorkerHost.RunAsync);
         }
 
         if (args.Length >= 2 && args[0] == "--steam-native-op" && args[1] == "session")
@@ -33,42 +34,70 @@ internal static class Program
             var appId = ReadAppId(args[2..]);
             return appId is null
                 ? 2
-                : SteamNativeWorkerHost.RunGameSessionAsync(appId.Value).GetAwaiter().GetResult();
+                : RunWorker(() => SteamNativeWorkerHost.RunGameSessionAsync(appId.Value));
         }
 
         if (args is ["--steam-native-op", "achievements", "--app-id", var appIdText]
             && int.TryParse(appIdText, NumberStyles.None, CultureInfo.InvariantCulture, out var listAppId)
             && listAppId > 0)
         {
-            return SteamAchievementsWorkerHost.RunAchievementsAsync(listAppId).GetAwaiter().GetResult();
+            return RunWorker(() => SteamAchievementsWorkerHost.RunAchievementsAsync(listAppId));
         }
 
         if (args is ["--steam-native-op", "achievement", "--app-id", var setAppIdText, "--name", var apiName, "--achieved", "1"]
             && int.TryParse(setAppIdText, NumberStyles.None, CultureInfo.InvariantCulture, out var unlockAppId)
             && unlockAppId > 0)
         {
-            return SteamAchievementsWorkerHost.RunAchievementAsync(unlockAppId, apiName, achieved: true)
-                .GetAwaiter().GetResult();
+            return RunWorker(() => SteamAchievementsWorkerHost.RunAchievementAsync(unlockAppId, apiName, achieved: true));
         }
 
         if (args is ["--steam-native-op", "achievement", "--app-id", var clearAppIdText, "--name", var clearApiName, "--achieved", "0"]
             && int.TryParse(clearAppIdText, NumberStyles.None, CultureInfo.InvariantCulture, out var clearAppId)
             && clearAppId > 0)
         {
-            return SteamAchievementsWorkerHost.RunAchievementAsync(clearAppId, clearApiName, achieved: false)
-                .GetAwaiter().GetResult();
+            return RunWorker(() => SteamAchievementsWorkerHost.RunAchievementAsync(clearAppId, clearApiName, achieved: false));
         }
 
         try
         {
             return RunCommand(args);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or
-            ArgumentException or InvalidOperationException or FormatException or NotSupportedException or
-            KeyNotFoundException or OverflowException)
+        catch (Exception exception) when (ExitCodeFor(exception) is { } code)
         {
             Console.Error.WriteLine("Error: " + exception.Message);
-            return 2;
+            return code;
+        }
+    }
+
+    internal const int ExitUsage = 2;
+    internal const int ExitRefused = 3;
+    internal const int ExitInvalidInput = 4;
+    internal const int ExitIo = 5;
+
+    /// <summary>Stable exit codes for scripts; null for exceptions that are bugs and should crash loudly.</summary>
+    internal static int? ExitCodeFor(Exception exception) => exception switch
+    {
+        ArgumentException => ExitUsage,
+        NotSupportedException or InvalidOperationException => ExitRefused,
+        InvalidDataException or JsonException or FormatException or OverflowException or KeyNotFoundException => ExitInvalidInput,
+        IOException or UnauthorizedAccessException => ExitIo,
+        _ => null,
+    };
+
+    /// <summary>
+    /// Steam worker modes talk to the editor over pipes. A failure they did not report themselves must still end as
+    /// one line on stderr and a non-zero exit code, not as an unhandled-exception dump.
+    /// </summary>
+    private static int RunWorker(Func<Task<int>> worker)
+    {
+        try
+        {
+            return worker().GetAwaiter().GetResult();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException)
+        {
+            Console.Error.WriteLine("Error: " + exception.Message);
+            return 1;
         }
     }
 
@@ -84,12 +113,6 @@ internal static class Program
         {
             Console.WriteLine(Usage);
             return 0;
-        }
-
-        if (args.Length == 0)
-        {
-            Console.Error.WriteLine(Usage);
-            return 2;
         }
 
         return args[0] switch

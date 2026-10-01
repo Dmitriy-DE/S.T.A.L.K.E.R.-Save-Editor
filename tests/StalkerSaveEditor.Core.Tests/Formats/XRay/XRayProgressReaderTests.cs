@@ -67,6 +67,13 @@ public sealed class XRayProgressReaderTests
         Assert.NotNull(cop);
         Assert.Equal([XRayTaskState.Completed, XRayTaskState.Failed], cop.Tasks.Select(t => t.State));
         Assert.Empty(cop.Statistics);
+        Assert.True(cop.TasksKnown);
+
+        // Statistics alone: the task registry was not found, so "no tasks" is unknown rather than a fact.
+        var statisticsOnly = XRayProgressReader.Parse(Statistics(new Bytes()).ToArray(), soc: false, actorId: 0, from: 0);
+        Assert.NotNull(statisticsOnly);
+        Assert.Empty(statisticsOnly.Tasks);
+        Assert.False(statisticsOnly.TasksKnown);
 
         var cs = XRayProgressReader.Parse(Statistics(b).ToArray(), soc: false, actorId: 0, from: 0);
         Assert.NotNull(cs);

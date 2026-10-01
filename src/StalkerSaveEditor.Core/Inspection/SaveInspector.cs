@@ -62,7 +62,9 @@ public static class SaveInspector
     /// <summary>PDA task states by task id (a repeated id keeps its latest entry); null when the registry is unreadable.</summary>
     private static Dictionary<string, XRayTaskState>? TaskStates(XRayTrilogySave save)
     {
-        if (XRayProgressReader.Read(save) is not { Tasks.Count: > 0 } progress) return null;
+        // A registry that was read and holds no tasks is a known empty set (the first task appearing, or the last
+        // one going away, is then a real difference); a registry that was not found stays unknown.
+        if (XRayProgressReader.Read(save) is not { TasksKnown: true } progress) return null;
         var states = new Dictionary<string, XRayTaskState>(StringComparer.Ordinal);
         foreach (var task in progress.Tasks) states[task.Id] = task.State;
         return states;

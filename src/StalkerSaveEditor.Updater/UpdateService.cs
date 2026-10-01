@@ -142,6 +142,7 @@ public sealed class UpdateService : IDisposable
     public const string UpdateUserAgent = "SaveEditor-updater/1";
 
     private const int MaximumManifestBytes = 2 * 1024 * 1024;
+    private const long MaximumArtifactBytes = 2L * 1024 * 1024 * 1024;
     private const int MaximumRedirects = 5;
     private static readonly Regex StaleDownloadPattern = new("^SaveEditor-update-[0-9]+-.+", RegexOptions.CultureInvariant);
     private static readonly Regex VersionPattern = new(
@@ -601,6 +602,10 @@ public sealed class UpdateService : IDisposable
             }
 
             var publishedAt = ReadString(root, "published_at");
+            if (!DateTimeOffset.TryParse(publishedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _))
+            {
+                throw new UpdateManifestException("published_at must be a date and time.");
+            }
             if (!root.TryGetProperty("artifacts", out var artifactRoot) || artifactRoot.ValueKind != JsonValueKind.Object)
             {
                 throw new UpdateManifestException("Update manifest artifacts are missing.");
@@ -674,9 +679,9 @@ public sealed class UpdateService : IDisposable
         if (!value.TryGetProperty("size", out var sizeValue)
             || sizeValue.ValueKind != JsonValueKind.Number
             || !sizeValue.TryGetInt64(out var size)
-            || size < 0)
+            || size is <= 0 or > MaximumArtifactBytes)
         {
-            throw new UpdateManifestException("artifact.size must be a non-negative integer.");
+            throw new UpdateManifestException("artifact.size must be a positive size of at most 2 GiB.");
         }
 
         var sha256 = ReadString(value, "sha256");

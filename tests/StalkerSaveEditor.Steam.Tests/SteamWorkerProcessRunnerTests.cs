@@ -9,6 +9,19 @@ namespace StalkerSaveEditor.Steam.Tests;
 public sealed class SteamWorkerProcessRunnerTests
 {
     [Fact]
+    public async Task Worker_stderr_is_read_to_the_end_but_only_its_tail_is_kept()
+    {
+        var noise = new string('x', 300_000) + "the real error";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(noise));
+
+        var kept = await SteamWorkerProcessRunner.DrainErrorAsync(stream);
+
+        Assert.Equal(SteamWorkerProcessRunner.MaximumRetainedErrorChars, kept.Length);
+        Assert.EndsWith("the real error", kept, StringComparison.Ordinal);
+        Assert.False(stream.CanRead);
+    }
+
+    [Fact]
     public async Task List_sends_a_worker_request_and_parses_file_metadata()
     {
         var output = Encoding.UTF8.GetBytes(

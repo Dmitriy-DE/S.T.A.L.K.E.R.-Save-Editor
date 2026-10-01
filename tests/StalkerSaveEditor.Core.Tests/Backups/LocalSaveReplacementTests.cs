@@ -145,6 +145,25 @@ public sealed class LocalSaveReplacementTests
     }
 
     [Fact]
+    public void A_symbolic_link_is_not_edited_in_place()
+    {
+        if (OperatingSystem.IsWindows()) return; // creating links needs a privilege there
+        using var directory = new TemporaryDirectory();
+        var source = ReadFixture();
+        var saveDirectory = Directory.CreateDirectory(Path.Combine(directory.Path, "saves")).FullName;
+        var target = Path.Combine(saveDirectory, "source.sav");
+        var alias = Path.Combine(saveDirectory, "alias.sav");
+        File.WriteAllBytes(target, source);
+        File.CreateSymbolicLink(alias, target);
+
+        Assert.Throws<IOException>(() => LocalSaveReplacement.ReplaceLocal(
+            alias, Prepare(source), Path.Combine(directory.Path, "backups"), _ => { }));
+
+        Assert.Equal(source, File.ReadAllBytes(target));
+        Assert.NotNull(new FileInfo(alias).LinkTarget);
+    }
+
+    [Fact]
     public void Failed_field_verification_keeps_backup_and_recovery_and_leaves_journal_prepared()
     {
         using var directory = new TemporaryDirectory();

@@ -78,76 +78,68 @@ public static class XRayEditWriter
             return XRayStashWriter.Prepare(source, plan);
         }
 
-        var working = source.ToArray();
-        var currentSha256 = plan.SourceSha256;
+        // Each stage reads the previous stage's bytes in place and takes its hash from the stage result: the save
+        // is not copied and hashed again between stages.
+        PreparedEdit? stage = null;
         if ((editKinds & EditKind.Upgrades) != EditKind.None)
         {
             var upgradeCatalog = catalogs?.Upgrades
                 ?? throw new XRayFormatException("X-Ray edit: upgrade edits require a release-matched upgrade catalog.");
-            working = XRayUpgradeWriter.Prepare(
-                working,
-                new EditPlan(currentSha256, upgrades: plan.Upgrades),
-                upgradeCatalog).Data.ToArray();
-            currentSha256 = Sha256(working);
+            stage = XRayUpgradeWriter.Prepare(
+                stage is null ? source : stage.Bytes,
+                new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, upgrades: plan.Upgrades),
+                upgradeCatalog);
         }
 
         if ((editKinds & EditKind.Money) != EditKind.None)
         {
-            working = XRayMoneyWriter.Prepare(
-                working,
-                new EditPlan(currentSha256, money: plan.Money)).Data.ToArray();
-            currentSha256 = Sha256(working);
+            stage = XRayMoneyWriter.Prepare(
+                stage is null ? source : stage.Bytes,
+                new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, money: plan.Money));
         }
 
         if ((editKinds & EditKind.StackCounts) != EditKind.None)
         {
-            working = XRayStackWriter.Prepare(
-                working,
-                new EditPlan(currentSha256, stackCounts: plan.StackCounts)).Data.ToArray();
-            currentSha256 = Sha256(working);
+            stage = XRayStackWriter.Prepare(
+                stage is null ? source : stage.Bytes,
+                new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, stackCounts: plan.StackCounts));
         }
 
         if ((editKinds & EditKind.Durability) != EditKind.None)
         {
-            working = XRayDurabilityWriter.Prepare(
-                working,
-                new EditPlan(currentSha256, durability: plan.Durability)).Data.ToArray();
-            currentSha256 = Sha256(working);
+            stage = XRayDurabilityWriter.Prepare(
+                stage is null ? source : stage.Bytes,
+                new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, durability: plan.Durability));
         }
 
         if ((editKinds & EditKind.Placement) != EditKind.None)
         {
-            working = XRayPlacementWriter.Prepare(
-                working,
-                new EditPlan(currentSha256, placements: plan.Placements)).Data.ToArray();
-            currentSha256 = Sha256(working);
+            stage = XRayPlacementWriter.Prepare(
+                stage is null ? source : stage.Bytes,
+                new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, placements: plan.Placements));
         }
 
         if ((editKinds & EditKind.XRayStashTransfer) != EditKind.None)
         {
-            working = XRayStashWriter.Prepare(
-                working,
+            stage = XRayStashWriter.Prepare(
+                stage is null ? source : stage.Bytes,
                 new EditPlan(
-                    currentSha256,
+                    stage?.OutputSha256 ?? plan.SourceSha256,
                     stashTakes: plan.StashTakes,
-                    stashPuts: plan.StashPuts)).Data.ToArray();
-            currentSha256 = Sha256(working);
+                    stashPuts: plan.StashPuts));
         }
 
         if ((editKinds & EditKind.Faction) != EditKind.None)
         {
-            working = XRayFactionWriter.Prepare(
-                working,
+            stage = XRayFactionWriter.Prepare(
+                stage is null ? source : stage.Bytes,
                 new EditPlan(
-                    currentSha256,
+                    stage?.OutputSha256 ?? plan.SourceSha256,
                     playerFaction: plan.PlayerFaction,
                     factionRelations: plan.FactionRelations),
-                catalogs?.Factions).Data.ToArray();
+                catalogs?.Factions);
         }
 
-        return new PreparedEdit(plan, working);
+        return new PreparedEdit(plan, stage ?? throw new InvalidOperationException("The edit plan produced no stage."));
     }
-
-    private static string Sha256(ReadOnlySpan<byte> data) =>
-        Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
 }

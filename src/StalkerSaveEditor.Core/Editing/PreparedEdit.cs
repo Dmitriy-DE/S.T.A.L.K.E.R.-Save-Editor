@@ -14,6 +14,20 @@ public sealed class PreparedEdit
     }
 
     /// <summary>
+    /// The result of the last stage of a multi-stage edit under the whole plan: same bytes, same hash, nothing is
+    /// copied or hashed again.
+    /// </summary>
+    internal PreparedEdit(EditPlan plan, PreparedEdit lastStage)
+    {
+        Plan = plan;
+        _data = lastStage._data;
+        OutputSha256 = lastStage.OutputSha256;
+    }
+
+    /// <summary>The prepared bytes for the next stage of a multi-stage edit (no copy).</summary>
+    internal ReadOnlySpan<byte> Bytes => _data;
+
+    /// <summary>
     /// Bytes that replace a file as a whole (a local save sent to Steam Cloud, a cloud copy taken
     /// locally): no edits, only the hash of the file being replaced for the stale-source check.
     /// </summary>

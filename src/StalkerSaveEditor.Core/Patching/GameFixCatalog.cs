@@ -48,7 +48,10 @@ public static class GameFixCatalog
 
     private static IReadOnlyList<GameFixDefinition>? _all;
 
-    /// <summary>Retail definitions followed by their Enhanced Edition variants.</summary>
+    /// <summary>
+    /// Retail definitions followed by their Enhanced Edition variants. Every selector below (lookup, presets, counts)
+    /// works on this one list, so what a game's list shows is what can be found, counted and installed by preset.
+    /// </summary>
     public static IReadOnlyList<GameFixDefinition> All => _all ??= [.. Definitions, .. EnhancedEditionVariants()];
 
     public static IReadOnlyList<GameFixDefinition> ForGame(GameTarget game) =>
@@ -57,7 +60,7 @@ public static class GameFixCatalog
     public static IReadOnlyDictionary<GameFixCategory, int> CategoryCounts(GameTarget game) =>
         Enum.GetValues<GameFixCategory>().ToDictionary(
             category => category,
-            category => Definitions.Count(definition => definition.Game == game && definition.Category == category));
+            category => All.Count(definition => definition.Game == game && definition.Category == category));
 
     /// <summary>Preset counts at the previous shipped catalogue version; update alongside DatasetVersion.</summary>
     public static int PreviousPresetCount(GameTarget game, GameFixPreset preset) =>
@@ -75,7 +78,7 @@ public static class GameFixCatalog
     public static IReadOnlyList<GameFixDefinition> ForPreset(GameTarget game, GameFixPreset preset)
     {
         if (preset == GameFixPreset.Custom) return [];
-        return Definitions.Where(definition => definition.Game == game && IsIncludedInPreset(definition, preset)).ToArray();
+        return All.Where(definition => definition.Game == game && IsIncludedInPreset(definition, preset)).ToArray();
     }
 
     internal static bool IsIncludedInPreset(GameFixDefinition definition, GameFixPreset preset) =>
@@ -90,10 +93,13 @@ public static class GameFixCatalog
             _ => false,
         };
 
+    private static Dictionary<string, GameFixDefinition>? _byId;
+
+    /// <summary>Finds any catalogue entry, including the Enhanced Edition variants that <see cref="ForGame"/> lists.</summary>
     public static bool TryGet(string id, out GameFixDefinition? definition)
     {
-        definition = Definitions.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.Ordinal));
-        return definition is not null;
+        _byId ??= All.ToDictionary(candidate => candidate.Id, StringComparer.Ordinal);
+        return _byId.TryGetValue(id, out definition);
     }
 
     private static GameTarget EnhancedEditionOf(GameTarget game) => game switch

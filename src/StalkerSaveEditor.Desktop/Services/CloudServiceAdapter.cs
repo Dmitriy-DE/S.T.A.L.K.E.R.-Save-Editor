@@ -246,7 +246,8 @@ public sealed class CloudServiceAdapter : ICloudServiceAdapter
                 return CloudComparison.LocalNewer;
             }
 
-            return localInfo.Length == remoteSize ? CloudComparison.Identical : CloudComparison.Unknown;
+            // Without a remote time only the size is known, and saves change without changing size: unknown.
+            return CloudComparison.Unknown;
         }
         catch
         {

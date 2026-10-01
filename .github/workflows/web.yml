@@ -45,7 +45,7 @@ jobs:
           W=artifacts/web/wwwroot
           python3 -m http.server 8766 --directory "$W" >/dev/null 2>&1 &
           sleep 2
-          timeout 300 google-chrome --headless=new --no-sandbox --disable-gpu --virtual-time-budget=120000 \
+          timeout 300 google-chrome --headless=new --no-sandbox --disable-gpu --enable-unsafe-swiftshader --virtual-time-budget=120000 \
             --dump-dom http://127.0.0.1:8766/index.html > dom.html
           grep -q '<canvas' dom.html || { echo "the app did not start: no canvas"; head -c 3000 dom.html; exit 1; }
           if grep -q 'class="splash"' dom.html; then echo "the loading screen is still there"; exit 1; fi

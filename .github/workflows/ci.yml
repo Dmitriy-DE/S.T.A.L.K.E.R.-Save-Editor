@@ -1,7 +1,9 @@
 name: Build and test
 
 on:
+  # Branch pushes are checked through their pull request; a second identical run per push only doubled the queue.
   push:
+    branches: [main]
   pull_request:
 
 permissions:

@@ -165,7 +165,7 @@ public sealed partial class DraftStore
         try
         {
             Storage.DurableFile.WriteNew(temporaryPath, data, ownerOnly: true);
-            File.Move(temporaryPath, path, overwrite: true);
+            Storage.DurableFile.Move(temporaryPath, path, overwrite: true);
         }
         finally
         {

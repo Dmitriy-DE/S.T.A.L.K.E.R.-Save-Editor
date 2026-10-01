@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace StalkerSaveEditor.Core.Storage;
 
 /// <summary>
@@ -17,7 +19,7 @@ public static class AtomicFile
         try
         {
             DurableFile.WriteNew(temp, bytes, ownerOnly);
-            File.Move(temp, full, overwrite: true);
+            DurableFile.Move(temp, full, overwrite: true);
         }
         finally
         {
@@ -78,5 +80,54 @@ public static class DurableFile
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// Rename plus a flush of the destination folder. On POSIX a rename lives in the directory entry, so without
+    /// this a power loss shortly after "saved" can bring the old file back (or lose a new one).
+    /// </summary>
+    public static void Move(string source, string destination, bool overwrite)
+    {
+        File.Move(source, destination, overwrite);
+        SyncDirectory(Path.GetDirectoryName(Path.GetFullPath(destination)));
+    }
+
+    /// <summary>
+    /// Best effort: Windows has no directory flush (NTFS journals the rename), the browser has no disk, and a file
+    /// system that refuses fsync on a directory must not turn a finished write into an error.
+    /// </summary>
+    public static void SyncDirectory(string? directory)
+    {
+        if (string.IsNullOrEmpty(directory) || !(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())) return;
+        try
+        {
+            var descriptor = Posix.Open(System.Text.Encoding.UTF8.GetBytes(directory + "\0"), Posix.ReadOnly);
+            if (descriptor < 0) return;
+            try
+            {
+                _ = Posix.Fsync(descriptor);
+            }
+            finally
+            {
+                _ = Posix.Close(descriptor);
+            }
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+        }
+    }
+
+    private static class Posix
+    {
+        public const int ReadOnly = 0;
+
+        [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+        public static extern int Open(byte[] path, int flags);
+
+        [DllImport("libc", EntryPoint = "fsync", SetLastError = true)]
+        public static extern int Fsync(int descriptor);
+
+        [DllImport("libc", EntryPoint = "close", SetLastError = true)]
+        public static extern int Close(int descriptor);
     }
 }

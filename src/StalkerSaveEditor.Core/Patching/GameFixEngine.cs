@@ -67,12 +67,6 @@ public sealed record TextPatchOperation(string RelativePath, string ExpectedText
 
     /// <summary>Single-byte encoding for the target text; Latin-1 preserves legacy byte-oriented patches.</summary>
     public int CodePage { get; init; } = 28591;
-
-    /// <summary>
-    /// Byte patch for a binary file (e.g. a waypoint record in all.spawn): NUL is allowed, the code page must be
-    /// Latin-1 (one char per byte) and the replacement must keep the length, so no chunk size changes.
-    /// </summary>
-    public bool Binary { get; init; }
 }
 
 /// <summary>
@@ -115,6 +109,15 @@ public sealed record GameFixDefinition(
     }
 
     private readonly IReadOnlyList<FileOverlayOperation> _overlays = [];
+
+    /// <summary>Structural all.spawn edits (<see cref="GameFixImplementationType.Structured"/>).</summary>
+    public IReadOnlyList<SpawnEditOperation> SpawnEdits
+    {
+        get => _spawnEdits;
+        init => _spawnEdits = value ?? [];
+    }
+
+    private readonly IReadOnlyList<SpawnEditOperation> _spawnEdits = [];
 }
 
 public sealed record GameFixInstallResult(bool Changed, GameFixState State, IReadOnlyList<string> Files);
@@ -297,6 +300,7 @@ public sealed partial class GameFixEngine
             var existingPaths = priorManifest.Files.Select(file => NormalizeRelativePath(file.RelativePath)).ToHashSet(PathComparer);
             var requestedPaths = operations.Select(operation => operation.RelativePath)
                 .Concat(definition.Overlays.Select(overlay => NormalizeRelativePath(overlay.RelativePath)))
+                .Concat(definition.SpawnEdits.Select(edit => NormalizeRelativePath(edit.RelativePath)))
                 .ToHashSet(PathComparer);
             if (!existingPaths.SetEquals(requestedPaths))
                 throw new InvalidOperationException("A fix version transition must keep the same managed file set so its recovery state remains authoritative.");
@@ -309,9 +313,17 @@ public sealed partial class GameFixEngine
                 throw new InvalidOperationException($"Another active Game Fix manages {normalized}; layered transformations are not supported for this file.");
             return (Overlay: overlay, RelativePath: normalized);
         }).ToArray();
-        EnsureNoCompanionOverlap(root, operations.Select(operation => operation.RelativePath).Concat(overlayOperations.Select(overlay => overlay.RelativePath)));
+        var spawnPaths = definition.SpawnEdits.Select(edit => NormalizeRelativePath(edit.RelativePath)).Distinct(PathComparer).ToArray();
+        foreach (var spawnPath in spawnPaths)
+        {
+            if (activeManifests.SelectMany(manifest => manifest.Files).Any(file => PathComparer.Equals(file.RelativePath, spawnPath)))
+                throw new InvalidOperationException($"Another active Game Fix manages {spawnPath}; layered transformations are not supported for this file.");
+        }
+        EnsureNoCompanionOverlap(root, operations.Select(operation => operation.RelativePath).Concat(overlayOperations.Select(overlay => overlay.RelativePath)).Concat(spawnPaths));
         var changes = PrepareChanges(definition.Game, root, operations);
         changes.AddRange(overlayOperations.Select(overlay => PrepareOverlay(definition.Game, root, overlay.Overlay, overlay.RelativePath)));
+        changes.AddRange(spawnPaths.Select(spawnPath => PrepareSpawnEdits(definition.Game, root, spawnPath,
+            definition.SpawnEdits.Where(edit => PathComparer.Equals(NormalizeRelativePath(edit.RelativePath), spawnPath)).ToArray())));
         var fixDirectory = GetFixDirectory(root, definition.Id);
         var backupDirectory = Path.Combine(fixDirectory, "backups");
         var createdBackups = new List<string>();
@@ -827,6 +839,21 @@ public sealed partial class GameFixEngine
         }).ToList();
     }
 
+    private PreparedFileChange PrepareSpawnEdits(GameTarget game, string root, string relativePath, IReadOnlyList<SpawnEditOperation> edits)
+    {
+        var path = ResolveGamePath(root, relativePath);
+        var (before, existed, fingerprint) = ReadTargetSource(game, root, relativePath, path);
+        foreach (var edit in edits)
+        {
+            if (edit.ExpectedFileSha256 is { } expected && !string.Equals(Hash(before), expected, StringComparison.Ordinal))
+                throw new InvalidDataException($"The source file hash does not match the verified build for {relativePath}.");
+            if (edit.ExpectedFileSha256 is null && !_allowSyntheticDefinitions)
+                throw new InvalidDataException($"An all.spawn edit has no verified source hash: {relativePath}.");
+        }
+        var after = AllSpawnEditor.Apply(before, edits);
+        return new PreparedFileChange(relativePath, path, before, after, Hash(before), Hash(after), existed, fingerprint);
+    }
+
     private PreparedFileChange PrepareOverlay(GameTarget game, string root, FileOverlayOperation overlay, string relativePath)
     {
         var path = ResolveGamePath(root, relativePath);
@@ -1096,14 +1123,28 @@ public sealed partial class GameFixEngine
         if (!Enum.IsDefined(definition.Game) || !Enum.IsDefined(definition.Category) || !Enum.IsDefined(definition.Maturity) ||
             !Enum.IsDefined(definition.Implementation) || !Enum.IsDefined(definition.VerificationState) || !Enum.IsDefined(definition.SaveCompatibility))
             throw new ArgumentException("Fix target, category and maturity must be recognized values.", nameof(definition));
-        if (definition.Implementation is not (GameFixImplementationType.ExactTextReplacement or GameFixImplementationType.Overlay))
-            throw new NotSupportedException("This engine implements exact text replacements and whole-file overlays only.");
+        if (definition.Implementation is not (GameFixImplementationType.ExactTextReplacement or GameFixImplementationType.Overlay or GameFixImplementationType.Structured))
+            throw new NotSupportedException("This engine implements exact text replacements, whole-file overlays and structural all.spawn edits only.");
         if (definition.TextPatches is null)
             throw new ArgumentException("Operation lists cannot be null.", nameof(definition));
-        if (definition.Implementation == GameFixImplementationType.ExactTextReplacement
-                ? definition.TextPatches.Count == 0 || definition.Overlays.Count > 0
-                : definition.Overlays.Count == 0 || definition.TextPatches.Count > 0)
-            throw new ArgumentException("A fix has either text patches or whole-file overlays, and at least one.", nameof(definition));
+        var kinds = (definition.TextPatches.Count > 0 ? 1 : 0) + (definition.Overlays.Count > 0 ? 1 : 0) + (definition.SpawnEdits.Count > 0 ? 1 : 0);
+        var matches = definition.Implementation switch
+        {
+            GameFixImplementationType.ExactTextReplacement => definition.TextPatches.Count > 0,
+            GameFixImplementationType.Overlay => definition.Overlays.Count > 0,
+            _ => definition.SpawnEdits.Count > 0,
+        };
+        if (kinds != 1 || !matches)
+            throw new ArgumentException("A fix has exactly one kind of operation (text patches, whole-file overlays or all.spawn edits) matching its implementation.", nameof(definition));
+        foreach (var edit in definition.SpawnEdits)
+        {
+            if (edit is null) throw new ArgumentException("all.spawn edits cannot be null.", nameof(definition));
+            var normalized = NormalizeRelativePath(edit.RelativePath);
+            if (!normalized.EndsWith("all.spawn", StringComparison.OrdinalIgnoreCase) || !Enum.IsDefined(edit.Kind) || string.IsNullOrEmpty(edit.Target))
+                throw new ArgumentException("all.spawn edits need an all.spawn path, a known kind and a target.", nameof(definition));
+            if (edit.ExpectedFileSha256 is not null && !IsSha256(edit.ExpectedFileSha256))
+                throw new ArgumentException("Expected source-file SHA-256 values must be lowercase hexadecimal.", nameof(definition));
+        }
         foreach (var overlay in definition.Overlays)
         {
             if (overlay is null) throw new ArgumentException("Overlay operations cannot be null.", nameof(definition));
@@ -1119,12 +1160,7 @@ public sealed partial class GameFixEngine
             _ = NormalizeRelativePath(operation.RelativePath);
             if (string.IsNullOrEmpty(operation.ExpectedText) || operation.ReplacementText is null || operation.ExpectedText == operation.ReplacementText)
                 throw new ArgumentException("Text patches need a nonempty anchor and a distinct replacement.", nameof(definition));
-            if (operation.Binary)
-            {
-                if (operation.CodePage != 28591 || operation.ExpectedText.Length != operation.ReplacementText.Length)
-                    throw new ArgumentException("Binary patches must use Latin-1 and keep the length of the replaced bytes.", nameof(definition));
-            }
-            else if (operation.ExpectedText.Contains('\0') || operation.ReplacementText.Contains('\0'))
+            if (operation.ExpectedText.Contains('\0') || operation.ReplacementText.Contains('\0'))
                 throw new ArgumentException("Text patch anchors and replacements cannot contain NUL characters.", nameof(definition));
             try
             {
@@ -1209,6 +1245,7 @@ public sealed partial class GameFixEngine
     public static IEnumerable<string> ManagedPaths(GameFixDefinition definition) =>
         definition.TextPatches.Select(patch => NormalizeRelativePath(patch.RelativePath))
             .Concat(definition.Overlays.Select(overlay => NormalizeRelativePath(overlay.RelativePath)))
+            .Concat(definition.SpawnEdits.Select(edit => NormalizeRelativePath(edit.RelativePath)))
             .Distinct(PathComparer);
 
     private static string GetFixDirectory(string root, string id) => Path.Combine(root, StateDirectoryName, id);

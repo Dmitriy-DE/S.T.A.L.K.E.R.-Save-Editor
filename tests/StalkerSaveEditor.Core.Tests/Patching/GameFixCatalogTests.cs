@@ -8,6 +8,27 @@ namespace StalkerSaveEditor.Core.Tests.Patching;
 public sealed class GameFixCatalogTests
 {
     [Fact]
+    public void All_spawn_fix_is_structured_and_pinned_to_the_retail_file()
+    {
+        var fix = GameFixCatalog.All.Single(candidate => candidate.Id == "cs.crash.all-spawn-errors");
+
+        Assert.Equal(GameFixImplementationType.Structured, fix.Implementation);
+        Assert.Empty(fix.TextPatches);
+        Assert.Equal(43, fix.SpawnEdits.Count);
+        Assert.Single(fix.SpawnEdits.Select(edit => edit.ExpectedFileSha256).Distinct());
+        Assert.All(fix.SpawnEdits, edit =>
+        {
+            Assert.Equal("gamedata/spawns/all.spawn", edit.RelativePath);
+            Assert.Matches("^[0-9a-f]{64}$", edit.ExpectedFileSha256);
+            Assert.False(string.IsNullOrEmpty(edit.Expected));
+        });
+        var cordon = Assert.Single(fix.SpawnEdits, edit => edit.Target == "esc_smart_terrain_3_7_walker_1_walk");
+        Assert.Equal(135001u, cordon.LevelVertexId);
+        Assert.Contains(fix.SpawnEdits, edit => edit.Target == "mil_smart_terrain_2_1" && edit.Replacement!.Contains("squad_capacity = 1", StringComparison.Ordinal));
+        Assert.DoesNotContain(GameFixCatalog.All, candidate => candidate.Id == "cs.crash.all-spawn-errors.ee");
+    }
+
+    [Fact]
     public void Shipped_catalogue_contains_archive_verified_clear_sky_fixes_and_populates_safe_presets()
     {
         var fixes = GameFixCatalog.ForGame(GameTarget.ClearSky);

@@ -106,6 +106,12 @@ public static class CrashSignatureCatalog
             Pattern = P(@"esc_smart_terrain_3_7_walker_1_walk"),
             FixId = "cs.crash.cordon-bonfire-waypoint",
         },
+        new("cs.storyline-task-missing-npc", ClearSky, "Story task for an NPC who is not there (Wild Napr)", CrashAdvice.InstallFix,
+            "The game tried to give a story task whose target NPC is fighting or has died offline.", Srp)
+        {
+            Pattern = P(@"wrong target for storyline quest"),
+            FixId = "cs.crash.capture-task-missing-squad",
+        },
         new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)
         {

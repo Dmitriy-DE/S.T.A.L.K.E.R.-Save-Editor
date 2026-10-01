@@ -104,7 +104,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
 
         Cloud = new CloudViewModel(
             backupDirectoryProvider: _backupDirectoryProvider,
-            localSaveFilesProvider: () => Saves.Select(s => s.FilePath).ToArray(),
+            localSaveFilesProvider: () => Saves.Select(s => new LocalSaveReference(s.FilePath, s.ReleaseId)).ToArray(),
             onSaveDownloaded: path => AddPreviewSave(path));
         DismissWizardCommand = new RelayCommand(DismissFirstRunWizard);
         WizardAutoDetectCommand = new RelayCommand(async () => await WizardAutoDetectAsync());

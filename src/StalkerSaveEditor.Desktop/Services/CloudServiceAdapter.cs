@@ -60,9 +60,13 @@ public sealed class CloudServiceAdapter : ICloudServiceAdapter
         IEnumerable<string> localSavePaths,
         CancellationToken cancellationToken = default)
     {
+        // A cloud file is linked to a local one only when exactly one local save has that name: two profiles (or two
+        // folders) with the same file name are ambiguous, and a wrong link would let a download replace the wrong save.
         var localDict = localSavePaths
             .Where(File.Exists)
+            .Distinct(StringComparer.Ordinal)
             .GroupBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var releaseId = GetReleaseId(appId);
@@ -250,7 +254,7 @@ public sealed class CloudServiceAdapter : ICloudServiceAdapter
         }
     }
 
-    private static string GetReleaseId(int appId) => appId switch
+    internal static string GetReleaseId(int appId) => appId switch
     {
         4500 => "stalker-soc",
         20510 => "stalker-cs",

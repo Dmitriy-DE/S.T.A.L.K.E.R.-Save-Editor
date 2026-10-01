@@ -58,7 +58,13 @@ public static class Stalker2SaveReader
     /// <summary>Unpacks any S2 container file (campaign index, thumbnails) after its CRC check.</summary>
     internal static byte[] Unpack(ReadOnlySpan<byte> data) => ReadContainer(data).Raw;
 
-    private static ContainerData ReadContainer(ReadOnlySpan<byte> data)
+    /// <summary>
+    /// Unpacks a small container (thumbnail, campaign index) with its own ceiling: the advertised size is checked before
+    /// anything is allocated, so a few packed kilobytes cannot ask for the half-gigabyte a full save may need.
+    /// </summary>
+    internal static byte[] Unpack(ReadOnlySpan<byte> data, int maximumUnpackedBytes) => ReadContainer(data, maximumUnpackedBytes).Raw;
+
+    private static ContainerData ReadContainer(ReadOnlySpan<byte> data, int maximumUnpackedBytes = MaximumUnpackedSize)
     {
         if (data.Length < 8)
         {
@@ -75,7 +81,7 @@ public static class Stalker2SaveReader
         }
 
         var unpackedSize = BinaryPrimitives.ReadUInt32LittleEndian(snapshot);
-        if (unpackedSize == 0 || unpackedSize > MaximumUnpackedSize)
+        if (unpackedSize == 0 || unpackedSize > maximumUnpackedBytes)
         {
             throw Error($"Invalid unpacked size {unpackedSize}.");
         }

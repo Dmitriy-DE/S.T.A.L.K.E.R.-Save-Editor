@@ -3566,6 +3566,64 @@
       "references": [
         "https://github.com/Decane/SRP/blob/master/SRP%20v1.1.5%20-%20Version%20History.txt"
       ]
+    },
+    {
+      "id": "cs.crash.cordon-bonfire-waypoint",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Cordon 'Bonfire in forest' waypoint crash fixed (and three misplaced sleep spots)",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "expectedText": "name01\u0000pÂ&Æx@Ì\u0006À\u0002\u0000\u0000\u0000p¸\u0001\u0000J\u0001",
+          "replacementText": "name01\u0000\u0012­ÂP{@,NÀ\u0002\u0000\u0000\u0000n¸\u0001\u0000J\u0001",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "codePage": 28591,
+          "binary": true
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "expectedText": "name00\u0000\u00111èÂaÄïÁbQÁÃ\u0000\u0000\u0000\u0000R+\u0002\u00006\u0002",
+          "replacementText": "name00\u0000e0èÂ·ËïÁ?ÁÃ\u0000\u0000\u0000\u0000Q+\u0002\u00006\u0002",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "codePage": 28591,
+          "binary": true
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "expectedText": "name05\u0000LûÂï @,VC \u0000\u0000\u0000ÿÿÿÿ\u0002\u0002",
+          "replacementText": "name05\u0000¾\u0005õÂ\u001b\u000f@<ºRC \u0000\u0000\u0000Y\u000f\u0002\u0000\u0002\u0002",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "codePage": 28591,
+          "binary": true
+        },
+        {
+          "relativePath": "gamedata/spawns/all.spawn",
+          "expectedText": "name00\u0000íÍB\tÄB@ÏB\u0000\u0000\u0000\u0000¹\u0006\u0000]\u0002",
+          "replacementText": "name00\u0000³ÂB\u0011$G@î²B\u0000\u0000\u0000\u0000ë\u0006\u0000\u0002",
+          "expectedFileSha256": "274a7ba7fff1a75fcb40e8e43a040a2710dc153aa1747f60e35dd99cdc5c0946",
+          "codePage": 28591,
+          "binary": true
+        }
+      ],
+      "source": "Coordinates from SRP 1.1.5's documented all.spawn alterations (Decane, github.com/Decane/SRP, spawns/Alterations.txt); applied by us as exact byte replacements to the retail all.spawn.",
+      "problem": "In all.spawn, point name05 of patrol path esc_smart_terrain_3_7_walker_1_walk lies off the AI map (level vertex -1); an NPC walking to the Cordon 'Bonfire in forest' crashes the game: patrol path[esc_smart_terrain_3_7_walker_1_walk], point on path [name05]. Three sleep spots (Cordon x2, Garbage) are also slightly off.",
+      "description": "Moves the four waypoints onto the AI map (same size records in all.spawn, nothing else changes). Works on existing saves.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail all.spawn and one unique same-length byte record per waypoint.",
+      "references": [
+        "https://github.com/Decane/SRP"
+      ]
     }
   ],
   "enhancedEditionSha256": {

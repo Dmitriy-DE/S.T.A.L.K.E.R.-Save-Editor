@@ -9,6 +9,36 @@ namespace StalkerSaveEditor.Core.Tests.Formats.Stalker2;
 
 public sealed class Stalker2SaveReaderTests
 {
+    [Theory]
+    [InlineData("", 0x00000000u)]
+    [InlineData("a", 0xE8B7BE43u)]
+    [InlineData("123456789", 0xCBF43926u)]
+    [InlineData("The quick brown fox jumps over the lazy dog", 0x414FA339u)]
+    public void Crc32_matches_the_standard_check_values(string text, uint expected) =>
+        Assert.Equal(expected, Stalker2SaveReader.Crc32(System.Text.Encoding.ASCII.GetBytes(text)));
+
+    [Fact]
+    public void Crc32_gives_the_same_result_for_every_length_and_alignment()
+    {
+        var data = new byte[257];
+        new Random(7).NextBytes(data);
+        for (var start = 0; start < 9; start++)
+        {
+            for (var length = 0; length <= data.Length - start; length += 3)
+            {
+                var slice = data.AsSpan(start, length);
+                var crc = uint.MaxValue;
+                foreach (var value in slice)
+                {
+                    crc ^= value;
+                    for (var bit = 0; bit < 8; bit++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+                }
+
+                Assert.Equal(~crc, Stalker2SaveReader.Crc32(slice));
+            }
+        }
+    }
+
     [Fact]
     public void Reads_python_synthetic_save_and_matches_all_reader_golden_fields()
     {

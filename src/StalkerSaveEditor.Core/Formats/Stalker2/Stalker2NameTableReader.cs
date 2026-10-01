@@ -58,17 +58,16 @@ public static class Stalker2NameTableReader
             if (relative < 0) return null;
             var nameOffset = searchFrom + relative;
             var tableStart = nameOffset - sizeof(ushort);
-            var names = ParseTable(raw, tableStart);
+            var names = ParseTable(raw, tableStart, out var offset);
             if (names is not null && names[0] == "GunAK74_ST")
             {
                 var tables = new List<IReadOnlyList<string>> { names };
-                var offset = AdvanceTable(tableStart, names);
                 while (tables.Count < MaximumTables)
                 {
-                    var following = ParseTable(raw, offset);
+                    var following = ParseTable(raw, offset, out var next);
                     if (following is null) break;
                     tables.Add(following);
-                    offset = AdvanceTable(offset, following);
+                    offset = next;
                 }
 
                 var found = new Stalker2NameTables(tables);
@@ -81,8 +80,10 @@ public static class Stalker2NameTableReader
         return null;
     }
 
-    private static ReadOnlyCollection<string>? ParseTable(ReadOnlySpan<byte> raw, int start)
+    /// <param name="end">Where the table ends (the parser already knows it; nothing is re-encoded to find out).</param>
+    private static ReadOnlyCollection<string>? ParseTable(ReadOnlySpan<byte> raw, int start, out int end)
     {
+        end = start;
         if (start < 0 || raw.Length - start < sizeof(ushort)) return null;
         var count = BinaryPrimitives.ReadUInt16LittleEndian(raw[start..]);
         if (count is 0 or > MaximumEntries) return null;
@@ -109,18 +110,8 @@ public static class Stalker2NameTableReader
             offset += byteCount;
         }
 
+        end = offset;
         return Array.AsReadOnly(names);
-    }
-
-    private static int AdvanceTable(int start, IReadOnlyList<string> names)
-    {
-        var length = sizeof(ushort);
-        foreach (var name in names)
-        {
-            length = checked(length + sizeof(ushort) + StrictUtf8.GetByteCount(name));
-        }
-
-        return checked(start + length);
     }
 
     private static bool IsPrintable(string value)

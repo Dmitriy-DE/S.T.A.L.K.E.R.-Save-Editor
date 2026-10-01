@@ -107,16 +107,54 @@ public static class Stalker2SaveReader
             anchorCount);
     }
 
-    private static uint Crc32(ReadOnlySpan<byte> bytes)
+    // Standard CRC-32 (reflected 0xEDB88320), eight bytes per step: the checksum covers the whole packed save and
+    // runs on every read, so the one-bit-at-a-time form cost more than the rest of the header parsing together.
+    private static readonly uint[] CrcTable = BuildCrcTable();
+
+    private static uint[] BuildCrcTable()
     {
+        var table = new uint[8 * 256];
+        for (var index = 0u; index < 256; index++)
+        {
+            var crc = index;
+            for (var bit = 0; bit < 8; bit++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+            table[index] = crc;
+        }
+
+        for (var index = 0; index < 256; index++)
+        {
+            for (var slice = 1; slice < 8; slice++)
+            {
+                var previous = table[(slice - 1) * 256 + index];
+                table[slice * 256 + index] = (previous >> 8) ^ table[previous & 0xFF];
+            }
+        }
+
+        return table;
+    }
+
+    internal static uint Crc32(ReadOnlySpan<byte> bytes)
+    {
+        var table = CrcTable;
         var crc = uint.MaxValue;
+        while (bytes.Length >= 8)
+        {
+            var low = BinaryPrimitives.ReadUInt32LittleEndian(bytes) ^ crc;
+            var high = BinaryPrimitives.ReadUInt32LittleEndian(bytes[4..]);
+            crc = table[7 * 256 + (int)(low & 0xFF)] ^
+                table[6 * 256 + (int)((low >> 8) & 0xFF)] ^
+                table[5 * 256 + (int)((low >> 16) & 0xFF)] ^
+                table[4 * 256 + (int)(low >> 24)] ^
+                table[3 * 256 + (int)(high & 0xFF)] ^
+                table[2 * 256 + (int)((high >> 8) & 0xFF)] ^
+                table[1 * 256 + (int)((high >> 16) & 0xFF)] ^
+                table[(int)(high >> 24)];
+            bytes = bytes[8..];
+        }
+
         foreach (var value in bytes)
         {
-            crc ^= value;
-            for (var bit = 0; bit < 8; bit++)
-            {
-                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
-            }
+            crc = (crc >> 8) ^ table[(int)((crc ^ value) & 0xFF)];
         }
 
         return ~crc;

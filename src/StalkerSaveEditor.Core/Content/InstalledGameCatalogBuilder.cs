@@ -87,7 +87,9 @@ internal static partial class InstalledGameCatalogBuilder
             var itemKey = candidate is not null && itemKeys.Contains(candidate) ? candidate : null;
             var applicable = candidate is null
                 ? []
-                : aliases.Where(alias => alias == candidate || alias.StartsWith(candidate + "_", StringComparison.Ordinal)).ToArray();
+                // The sorted set is cut to the names that can match instead of being scanned for every upgrade.
+                : aliases.GetViewBetween(candidate, candidate + "_" + char.MaxValue)
+                    .Where(alias => alias == candidate || alias.StartsWith(candidate + "_", StringComparison.Ordinal)).ToArray();
             var nameKey = Get(values, "name");
             upgrades.Add(new UpgradeDefinition(
                 section.Name,

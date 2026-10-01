@@ -78,6 +78,7 @@ internal static class Program
     internal static int? ExitCodeFor(Exception exception) => exception switch
     {
         ArgumentException => ExitUsage,
+        StalkerSaveEditor.Core.Patching.GameFixOperationException { Failure: StalkerSaveEditor.Core.Patching.GameFixFailure.Refused } => ExitRefused,
         NotSupportedException or InvalidOperationException => ExitRefused,
         InvalidDataException or JsonException or FormatException or OverflowException or KeyNotFoundException => ExitInvalidInput,
         IOException or UnauthorizedAccessException => ExitIo,

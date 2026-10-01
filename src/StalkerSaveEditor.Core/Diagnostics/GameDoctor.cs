@@ -320,8 +320,14 @@ public static class GameDoctor
 
         try
         {
-            foreach (var file in new GameFixEngine().GetManagedFileStatus(gameDirectory))
+            var fixFiles = new GameFixEngine().GetManagedFileStatus(gameDirectory, out var stateIssues);
+            foreach (var file in fixFiles)
                 Add(file.RelativePath, "Game Fix: " + file.FixId, file.Exists, file.MatchesExpectedHash);
+            if (stateIssues.Count > 0)
+            {
+                checks.Add(new GameDoctorCheck("file-audit-game-fixes", GameDoctorStatus.Warning,
+                    "Some Game Fix state could not be read; the other fixes were audited.", string.Join("; ", stateIssues)));
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
         {

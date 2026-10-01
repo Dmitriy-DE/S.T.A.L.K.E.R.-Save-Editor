@@ -20,9 +20,39 @@ namespace StalkerSaveEditor.Desktop.ViewModels;
 /// </summary>
 internal static class SaveLibraryLoader
 {
-    /// <summary>A parsed save (null: not a save), reused while the file keeps its size and modification time.</summary>
-    /// <summary>Cache validity: size, write time and creation time (a file swapped in by rename gets a new one).</summary>
-    internal sealed record CachedSave(long Length, DateTime LastWriteUtc, DateTime CreationUtc, SaveFileSummary? Summary);
+    /// <summary>
+    /// A parsed save (null: not a save), reused while the file keeps its size, write time, creation time and
+    /// <see cref="Probe"/> — a hash of its first and last 4 KiB. A copy tool or a cloud client can put different
+    /// bytes in place with the same size and times; the probe catches that for the price of two small reads
+    /// (the save header and its checksum trailer are in those blocks).
+    /// </summary>
+    internal sealed record CachedSave(long Length, DateTime LastWriteUtc, DateTime CreationUtc, SaveFileSummary? Summary, ulong Probe = 0);
+
+    internal static ulong ContentProbe(string path)
+    {
+        const int Block = 4096;
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, Block);
+            Span<byte> buffer = stackalloc byte[2 * Block];
+            var head = stream.ReadAtLeast(buffer[..Block], Block, throwOnEndOfStream: false);
+            var tail = 0;
+            if (stream.Length > Block)
+            {
+                stream.Seek(Math.Max(Block, stream.Length - Block), SeekOrigin.Begin);
+                tail = stream.ReadAtLeast(buffer.Slice(head, Block), Block, throwOnEndOfStream: false);
+            }
+
+            Span<byte> hash = stackalloc byte[32];
+            System.Security.Cryptography.SHA256.HashData(buffer[..(head + tail)], hash);
+            // Never 0: that value means "no probe was taken".
+            return System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(hash) | 1;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
 
     internal const long HeavySaveBytes = 16L * 1024 * 1024;
     private static readonly SemaphoreSlim HeavySaves = new(2, 2);
@@ -52,8 +82,9 @@ internal static class SaveLibraryLoader
             Parallel.For(start, end, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, index =>
             {
                 var info = files[index];
+                var probe = ContentProbe(info.FullName);
                 if (cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc &&
-                    hit.CreationUtc == info.CreationTimeUtc)
+                    hit.CreationUtc == info.CreationTimeUtc && hit.Probe == probe && probe != 0)
                 {
                     entries[index] = hit;
                     return;
@@ -65,7 +96,7 @@ internal static class SaveLibraryLoader
                 if (heavy) HeavySaves.Wait();
                 try
                 {
-                    entries[index] = new CachedSave(info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, TryReadSave(info.FullName));
+                    entries[index] = new CachedSave(info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, TryReadSave(info.FullName), probe);
                 }
                 finally
                 {

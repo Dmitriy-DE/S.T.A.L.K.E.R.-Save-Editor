@@ -145,10 +145,13 @@ export default {
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
     const manifest = key === "latest.json";
-    headers.set(
-      "cache-control",
-      manifest ? "public, max-age=60, must-revalidate" : "public, max-age=31536000, immutable",
-    );
+    // Every published name is reused by the next release (latest.json, its signature, the APT indices and the
+    // packages themselves), so nothing here is immutable. The publisher stores the policy on the object; an object
+    // without one still gets a short, revalidated lifetime. A year-long "immutable" made clients pair a new manifest
+    // with an old signature or package and fail verification.
+    if (!headers.has("cache-control") || /immutable/i.test(headers.get("cache-control"))) {
+      headers.set("cache-control", "public, max-age=60, must-revalidate");
+    }
     if (manifest) {
       headers.set("content-type", "application/json; charset=utf-8");
       headers.set("content-disposition", "inline");

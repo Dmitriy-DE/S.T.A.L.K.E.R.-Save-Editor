@@ -159,9 +159,23 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
       APT_SIGNING_KEY_ID: ${{ secrets.APT_SIGNING_KEY_ID }}
+      UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Clients from 1.2.1 refuse an unsigned manifest, so a release without the signing key must stop here,
+      # before anything is uploaded. The key is the PEM of ~/.config/stalker-save-editor/update-signing-key.pem.
+      - name: Check the update signing key
+        run: |
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then
+            echo "::error::UPDATE_SIGNING_KEY is not set: the update manifest cannot be signed (the owner sets secrets)."
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$UPDATE_SIGNING_KEY" > "$RUNNER_TEMP/update-signing-key.pem"
+          python3 tools/release/publish_release.py --output release-output --check-signing-key \
+            --signing-key "$RUNNER_TEMP/update-signing-key.pem"
 
       - name: Download all built packages
         uses: actions/download-artifact@v4
@@ -175,6 +189,11 @@ jobs:
           python3 tools/release/publish_release.py --artifacts release-artifacts \
             --version "$VERSION" --commit "$GITHUB_SHA" --output release-output
 
+      - name: Sign the update manifest
+        run: |
+          python3 tools/release/publish_release.py --prepared --output release-output --sign \
+            --signing-key "$RUNNER_TEMP/update-signing-key.pem"
+
       - name: Build signed APT repository
         if: env.APT_SIGNING_KEY != '' && env.APT_SIGNING_KEY_ID != ''
         run: |
@@ -186,7 +205,13 @@ jobs:
 
       - name: Publish to R2 and read back
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
-        run: python3 tools/release/publish_release.py --prepared --output release-output --publish-r2 --verify-r2
+        run: |
+          python3 tools/release/publish_release.py --prepared --output release-output --publish-r2 --verify-r2 \
+            --signing-key "$RUNNER_TEMP/update-signing-key.pem"
+
+      - name: Remove the signing key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/update-signing-key.pem"
 
       - name: Report skipped publication
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
@@ -204,6 +229,7 @@ jobs:
             release-output/*.dmg
             release-output/SHA256SUMS
             release-output/latest.json
+            release-output/latest.json.sig
             release-artifacts/*.AppImage
           draft: false
           prerelease: false

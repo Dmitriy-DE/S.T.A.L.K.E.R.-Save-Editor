@@ -260,6 +260,7 @@
  "В сохранении не отмечено, что надето; показано снаряжение из инвентаря.": "The save does not mark what is equipped; gear from the inventory is shown.",
  "В сохранении нет тайников": "The save has no stashes",
  "В сохранении нет тайников с предметами или операция не поддерживается": "The save has no stashes with items or the operation is not supported",
+ "В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).": "The draft holds edits from another version of the editor that this version cannot read. Discard the draft to continue (it is kept next to the drafts).",
  "В этом сохранении нет предметов.": "This save contains no items.",
  "ВАНИЛЬНЫЙ ФАЙЛ": "Vanilla file",
  "ВЕРНУТЬ ПРЕДМЕТ": "RESTORE ITEM",

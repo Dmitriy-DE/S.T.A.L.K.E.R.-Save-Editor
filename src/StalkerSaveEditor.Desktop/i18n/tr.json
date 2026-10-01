@@ -260,6 +260,7 @@
  "В сохранении не отмечено, что надето; показано снаряжение из инвентаря.": "Kayıt neyin kuşanıldığını belirtmiyor; envanterdeki teçhizat gösteriliyor.",
  "В сохранении нет тайников": "Kayıtta zula yok",
  "В сохранении нет тайников с предметами или операция не поддерживается": "Kayıtta eşyalı zula yok veya işlem desteklenmiyor",
+ "В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).": "Taslakta, bu sürümün okuyamadığı başka bir düzenleyici sürümüne ait değişiklikler var. Devam etmek için taslağı atın (yanında saklanır).",
  "В этом сохранении нет предметов.": "Bu kayıtta hiç eşya yok.",
  "ВАНИЛЬНЫЙ ФАЙЛ": "VANİLLA DOSYA",
  "ВЕРНУТЬ ПРЕДМЕТ": "EŞYAYI GERİ AL",

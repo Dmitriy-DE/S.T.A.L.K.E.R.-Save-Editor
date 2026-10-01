@@ -260,6 +260,7 @@
  "В сохранении не отмечено, что надето; показано снаряжение из инвентаря.": "Der Spielstand vermerkt nicht, was ausgerüstet ist; es wird die Ausrüstung aus dem Inventar gezeigt.",
  "В сохранении нет тайников": "Der Spielstand hat keine Verstecke",
  "В сохранении нет тайников с предметами или операция не поддерживается": "Der Spielstand hat keine Verstecke mit Gegenständen oder der Vorgang wird nicht unterstützt",
+ "В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).": "Der Entwurf enthält Änderungen aus einer anderen Editor-Version, die diese Version nicht lesen kann. Verwirf den Entwurf, um fortzufahren (er wird daneben aufbewahrt).",
  "В этом сохранении нет предметов.": "Dieser Spielstand enthält keine Gegenstände.",
  "ВАНИЛЬНЫЙ ФАЙЛ": "VANILLA-DATEI",
  "ВЕРНУТЬ ПРЕДМЕТ": "GEGENSTAND ZURÜCKHOLEN",

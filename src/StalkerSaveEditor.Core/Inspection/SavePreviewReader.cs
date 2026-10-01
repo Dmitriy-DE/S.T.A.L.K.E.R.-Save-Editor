@@ -31,7 +31,12 @@ public static class SavePreviewReader
     private const int MaxDdsBytes = 8 * 1024 * 1024;
     private const int MaxThumbnailBytes = 4 * 1024 * 1024;
     private const int MaxCampaignBytes = 8 * 1024 * 1024;
+    private const int MaxThumbnailUnpackedBytes = 16 * 1024 * 1024;
+    private const int MaxCampaignUnpackedBytes = 32 * 1024 * 1024;
     private const int RecordFixed = 40;
+
+    /// <summary>Parsed campaign index per file, valid while its size and write time are unchanged.</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Length, long WriteTicks, IReadOnlyDictionary<string, Stalker2SlotMeta> Slots)> Campaigns = new(StringComparer.Ordinal);
 
     /// <summary>PNG for X-Ray saves, JPEG for S2 saves; null when the game left no preview.</summary>
     public static byte[]? Preview(string savePath, bool stalker2)
@@ -42,7 +47,7 @@ public static class SavePreviewReader
             {
                 var thumbnail = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(savePath)!)!, "Thumbnails", SlotGuid(savePath) + ".sav");
                 if (!File.Exists(thumbnail) || new FileInfo(thumbnail).Length > MaxThumbnailBytes) return null;
-                var raw = Stalker2SaveReader.Unpack(File.ReadAllBytes(thumbnail));
+                var raw = Stalker2SaveReader.Unpack(File.ReadAllBytes(thumbnail), MaxThumbnailUnpackedBytes);
                 var start = raw.AsSpan().IndexOf((ReadOnlySpan<byte>)[0xFF, 0xD8, 0xFF]);
                 return start is >= 0 and < 64 ? raw[start..] : null;
             }
@@ -64,8 +69,16 @@ public static class SavePreviewReader
         var index = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(savePath)!)!, "CampaignsSave.sav");
         try
         {
-            if (!File.Exists(index) || new FileInfo(index).Length > MaxCampaignBytes) return null;
-            return ParseCampaigns(Stalker2SaveReader.Unpack(File.ReadAllBytes(index))).GetValueOrDefault(SlotGuid(savePath));
+            var info = new FileInfo(index);
+            if (!info.Exists || info.Length > MaxCampaignBytes) return null;
+            // Every save row of a folder asks for the same index: it is unpacked and parsed once, not once per row.
+            if (!Campaigns.TryGetValue(info.FullName, out var cached) || cached.Length != info.Length || cached.WriteTicks != info.LastWriteTimeUtc.Ticks)
+            {
+                cached = (info.Length, info.LastWriteTimeUtc.Ticks,
+                    ParseCampaigns(Stalker2SaveReader.Unpack(File.ReadAllBytes(index), MaxCampaignUnpackedBytes)));
+                Campaigns[info.FullName] = cached;
+            }
+            return cached.Slots.GetValueOrDefault(SlotGuid(savePath));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or Stalker2FormatException)
         {

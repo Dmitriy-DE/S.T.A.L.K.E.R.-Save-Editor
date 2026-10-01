@@ -208,6 +208,19 @@ public sealed partial class DraftStore
 
     public void Remove(string sourceSha256) => File.Delete(PathFor(sourceSha256));
 
+    /// <summary>
+    /// Sets the draft aside instead of deleting it: used when it holds edits this version cannot interpret, so a
+    /// newer version (or the user) can still read them. Returns the kept file, or null when there was no draft.
+    /// </summary>
+    public string? SetAside(string sourceSha256)
+    {
+        var path = PathFor(sourceSha256);
+        if (!File.Exists(path)) return null;
+        var kept = path + ".unsupported-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture);
+        File.Move(path, kept);
+        return kept;
+    }
+
     private static DraftJournal? LoadCurrent(JsonElement root, string expectedSha256)
     {
         RequireProperties(root, "index", "plans", "schema", "source_sha256");

@@ -102,6 +102,38 @@ public sealed class DraftStoreTests
     }
 
     [Fact]
+    public void A_draft_with_edits_this_version_cannot_read_is_not_edited_saved_or_deleted()
+    {
+        using var directory = new TemporaryDirectory();
+        var store = new DraftStore(directory.Path);
+        var sourceSha256 = Sha256(LegacySource);
+        var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "drafts", "python-v1-draft.json"), Encoding.UTF8)
+            .Replace("\"durability\":[]", "\"durability\":[],\"future_operation\":{\"opaque\":true}", StringComparison.Ordinal);
+        File.WriteAllText(store.PathFor(sourceSha256), json, new UTF8Encoding(false));
+        var session = new StalkerSaveEditor.Desktop.ViewModels.DraftSession(store);
+
+        var opened = session.Open(sourceSha256);
+        Assert.NotNull(opened);
+        Assert.True(session.HasUnsupportedEdits);
+        // Editing on top is refused without throwing and without touching the stored draft.
+        Assert.False(session.Record(sourceSha256, new EditPlan(sourceSha256, money: 1)));
+        Assert.Equal(json, File.ReadAllText(store.PathFor(sourceSha256), Encoding.UTF8));
+
+        // The write boundary refuses the save even if a caller builds a plan from the visible fields.
+        var save = new StalkerSaveEditor.Desktop.ViewModels.SaveFileSummary(Path.Combine(directory.Path, "none.sav"), "SoC", "stalker-soc", sourceSha256, 0, true, []);
+        Assert.Throws<InvalidOperationException>(() => StalkerSaveEditor.Desktop.ViewModels.SaveEditSession.WritePlan(
+            save, new EditPlan(sourceSha256, money: 1), catalog: null, directory.Path, store));
+        Assert.True(File.Exists(store.PathFor(sourceSha256)));
+
+        // Discarding keeps the unreadable draft next to the store instead of deleting it.
+        session.Discard(sourceSha256);
+        Assert.False(session.HasUnsupportedEdits);
+        Assert.False(File.Exists(store.PathFor(sourceSha256)));
+        var kept = Assert.Single(Directory.GetFiles(directory.Path, "*.unsupported-*"));
+        Assert.Equal(json, File.ReadAllText(kept, Encoding.UTF8));
+    }
+
+    [Fact]
     public void Preserves_unmapped_legacy_edits_and_rejects_an_invalid_schema_version()
     {
         using var directory = new TemporaryDirectory();

@@ -20,6 +20,10 @@ internal static class SaveEditSession
         string backupDirectory,
         DraftStore drafts)
     {
+        // The write boundary repeats the UI rule: a draft with edits this version cannot read is never written
+        // (the visible fields would be saved and the rest silently dropped with the draft).
+        if (drafts.Load(selected.SourceSha256) is { CanApplyCurrent: false })
+            throw new InvalidOperationException("The draft of this save holds edits this version cannot interpret; discard it first.");
         var source = File.ReadAllBytes(selected.FilePath);
         var prepared = EditService.PrepareEdit(source, plan, selected.ReleaseId, catalog);
         var receipt = LocalSaveReplacement.ReplaceLocal(

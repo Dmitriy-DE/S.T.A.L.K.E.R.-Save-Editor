@@ -260,6 +260,7 @@
  "В сохранении не отмечено, что надето; показано снаряжение из инвентаря.": "La sauvegarde n’indique pas ce qui est équipé ; l’équipement de l’inventaire est affiché.",
  "В сохранении нет тайников": "La sauvegarde n'a pas de caches",
  "В сохранении нет тайников с предметами или операция не поддерживается": "La sauvegarde n'a pas de caches avec objets ou l'opération n'est pas prise en charge",
+ "В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).": "Le brouillon contient des modifications d'une autre version de l'éditeur que cette version ne sait pas lire. Abandonnez le brouillon pour continuer (il est conservé à côté).",
  "В этом сохранении нет предметов.": "Cette sauvegarde ne contient aucun objet.",
  "ВАНИЛЬНЫЙ ФАЙЛ": "FICHIER VANILLA",
  "ВЕРНУТЬ ПРЕДМЕТ": "RESTAURER L’OBJET",

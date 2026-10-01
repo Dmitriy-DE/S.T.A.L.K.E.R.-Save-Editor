@@ -22,16 +22,44 @@ public static class HostPlatform
     /// <summary>Set by the web host: offers a written file to the user as a download.</summary>
     public static Func<string, Task>? ExportFile { get; set; }
 
-    /// <summary>Copies an opened file into <see cref="OpenedSavesDirectory"/> and returns its path there.</summary>
-    public static async Task<string> ImportAsync(Stream source, string fileName)
+    /// <summary>
+    /// The web edition keeps opened saves in memory, and parsing allocates the unpacked save on top, so an opened file
+    /// gets a budget well below the format ceiling.
+    /// </summary>
+    public const long MaximumImportBytes = 256L * 1024 * 1024;
+
+    /// <summary>
+    /// Copies an opened file into its own folder under <see cref="OpenedSavesDirectory"/> and returns its path there.
+    /// Each import gets a fresh folder, so two saves with the same name (quicksave.sav from two games) never overwrite
+    /// each other; the file keeps its name for display.
+    /// </summary>
+    public static async Task<string> ImportAsync(Stream source, string fileName, long maximumBytes = MaximumImportBytes)
     {
         ArgumentNullException.ThrowIfNull(source);
         var name = Path.GetFileName(fileName);
-        if (string.IsNullOrWhiteSpace(name)) name = "save.sav";
-        Directory.CreateDirectory(OpenedSavesDirectory);
-        var path = Path.Combine(OpenedSavesDirectory, name);
-        await using var target = File.Create(path);
-        await source.CopyToAsync(target).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(name) || name is "." or "..") name = "save.sav";
+        var directory = Path.Combine(OpenedSavesDirectory, Guid.NewGuid().ToString("N")[..12]);
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, name);
+        try
+        {
+            await using var target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            var buffer = new byte[81920];
+            long total = 0;
+            int read;
+            while ((read = await source.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+            {
+                total += read;
+                if (total > maximumBytes)
+                    throw new IOException($"The file is larger than {maximumBytes / (1024 * 1024)} MiB.");
+                await target.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            try { Directory.Delete(directory, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            throw;
+        }
         return path;
     }
 }

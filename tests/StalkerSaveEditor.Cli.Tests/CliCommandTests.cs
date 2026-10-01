@@ -283,7 +283,7 @@ public sealed class CliCommandTests
         {
             var result = Run("fixes", "apply-preset", "recommended", "cs", root, "--json");
 
-            Assert.Equal(2, result.ExitCode);
+            Assert.Equal(3, result.ExitCode);
             Assert.False(string.IsNullOrWhiteSpace(result.Error));
             Assert.Contains("Safety snapshot", result.Error, StringComparison.OrdinalIgnoreCase);
             Assert.False(Directory.Exists(Path.Combine(root, ".save-editor-game-fixes")));
@@ -310,9 +310,9 @@ public sealed class CliCommandTests
             var update = Run("fixes", "update", "cs.not-reviewed", root);
             var remove = Run("fixes", "remove", "cs.not-reviewed", root);
 
-            Assert.Equal(2, install.ExitCode);
+            Assert.Equal(4, install.ExitCode);
             Assert.Contains("not present in the evidence-validated catalogue", install.Error, StringComparison.Ordinal);
-            Assert.Equal(2, update.ExitCode);
+            Assert.Equal(4, update.ExitCode);
             Assert.Contains("not present in the evidence-validated catalogue", update.Error, StringComparison.Ordinal);
             Assert.Equal(0, remove.ExitCode);
             Assert.Contains("NotInstalled", remove.Output, StringComparison.Ordinal);
@@ -460,7 +460,7 @@ public sealed class CliCommandTests
     {
         using var fixture = Fixture.CreateS2();
         var result = Run(new[] { command, fixture.SourcePath }.Concat(operationArgs).ToArray());
-        Assert.Equal(2, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Contains("not supported", result.Error, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(fixture.OutputPath));
     }
@@ -470,7 +470,7 @@ public sealed class CliCommandTests
     {
         using var fixture = Fixture.CreateS2();
         var result = Run("edit", fixture.SourcePath, "--backup-dir", fixture.BackupDirectory);
-        Assert.Equal(2, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Contains("No changes", result.Error, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(fixture.OutputPath));
     }
@@ -491,7 +491,7 @@ public sealed class CliCommandTests
         var result = Run("edit", fixture.SourcePath, option, value, "-o", fixture.OutputPath,
             "--backup-dir", fixture.BackupDirectory);
 
-        Assert.Equal(2, result.ExitCode);
+        Assert.Equal(3, result.ExitCode);
         Assert.Contains("not supported", result.Error, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(original, File.ReadAllBytes(fixture.SourcePath));
         Assert.False(File.Exists(fixture.OutputPath));
@@ -502,7 +502,7 @@ public sealed class CliCommandTests
     {
         var missing = Run("info", "missing.sav");
         var unknown = Run("not-a-command");
-        Assert.Equal(2, missing.ExitCode);
+        Assert.Equal(5, missing.ExitCode);
         Assert.DoesNotContain("Traceback", missing.Error);
         Assert.Equal(2, unknown.ExitCode);
         Assert.Contains("Usage:", unknown.Error);

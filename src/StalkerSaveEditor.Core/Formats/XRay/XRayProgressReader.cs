@@ -28,6 +28,12 @@ public sealed record XRayStatisticLine(string Section, string Key, int Count, in
 
 public sealed record XRayProgress(IReadOnlyList<XRayTask> Tasks, IReadOnlyList<XRayStatisticLine> Statistics)
 {
+    /// <summary>
+    /// False when only the statistics were read and the task registry was not found: <see cref="Tasks"/> is then
+    /// empty because it is unknown, not because the player has no tasks.
+    /// </summary>
+    public bool TasksKnown { get; init; } = true;
+
     public int Count(string section) => Statistics.Where(line => line.Section == section).Sum(line => line.Count);
 }
 
@@ -107,7 +113,7 @@ public static class XRayProgressReader
             }
         }
 
-        return statistics.Count > 0 ? new XRayProgress([], statistics) : null;
+        return statistics.Count > 0 ? new XRayProgress([], statistics) { TasksKnown = false } : null;
     }
 
     private static bool ActorRegistryPrefix(ReadOnlySpan<byte> data, int start, ushort actorId)

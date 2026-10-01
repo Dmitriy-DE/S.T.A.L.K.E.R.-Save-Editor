@@ -15,9 +15,9 @@
     <InternalsVisibleTo Include="StalkerSaveEditor.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.22" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
-    <PackageReference Include="NVorbis" Version="0.10.5" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="NVorbis" />
     <ProjectReference Include="../StalkerSaveEditor.Core/StalkerSaveEditor.Core.csproj" />
     <ProjectReference Include="../StalkerSaveEditor.Steam/StalkerSaveEditor.Steam.csproj" />
     <ProjectReference Include="../StalkerSaveEditor.Updater/StalkerSaveEditor.Updater.csproj" />

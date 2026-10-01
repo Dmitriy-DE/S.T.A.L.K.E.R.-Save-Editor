@@ -27,7 +27,7 @@ proven stay read-only; the **Capabilities** tab shows, per game, what can be wri
   upgrades, adding items from the catalogue and removing items. Item names and icons come from the
   installed game (mods such as OGSM included) or from the shipped pack.
 - **Stashes, factions, level changers** — take loot out of stashes, change faction goodwill; level
-  changers are read-only.
+  changers are listed, and the player can be moved to a known safe point of a level (X-Ray, with a backup).
 - **S.T.A.L.K.E.R. 2** — reading, official item names and icons; writing stays off in the interface
   until changes are confirmed in the game.
 - **Drafts** — edits are kept as a draft with undo/redo (`Ctrl+Z`, `Ctrl+Y`) and written with `Ctrl+S`.
@@ -40,12 +40,13 @@ proven stay read-only; the **Capabilities** tab shows, per game, what can be wri
   Companion and toolkit Game Fix ownership hashes, and labels other loose files unclassified rather
   than guessing they conflict. S.T.A.L.K.E.R. 2 custom mods can be moved out of Paks and restored by
   an explicit action.
-- **Save Doctor** — read-only structural parsing for a selected save. Quest semantics and repairs are
-  reported as unknown until a validated rule exists.
+- **Save Doctor** — structural parsing of a selected save plus quest checks from validated rules. A
+  rule with a confirmed repair can be applied on request (a new file or a backed-up replacement);
+  everything without a validated rule is reported as unknown, not guessed.
 - **Game Fixes** — explicit catalogue, per-target/build gates, source and maturity details, and
   guarded install/remove actions and transactional Essential, Recommended and All safe presets
-  through the shared atomic game-file layer. The current Recommended preset contains 23 Clear Sky,
-  15 SoC 1.0006, and 10 CoP fixes; no game-runtime result is claimed.
+  through the shared atomic game-file layer. The number of fixes per game is shown in the app and by
+  `fixes list`; no game-runtime result is claimed.
 - **Crash Analyzer** — extracts X-Ray fatal fields, Lua errors, script file/line references and common
   engine exceptions from a selected log and discovers recent logs from supported installs. Unknown
   logs receive no fix recommendation.

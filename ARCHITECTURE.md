@@ -40,8 +40,10 @@ tests/
   StalkerSaveEditor.Steam.Tests/   fakes only; never a live Steam session in CI
 ```
 
-`ISaveSource` (`LocalSaveSource`, `SteamCloudSaveSource`) keeps Core free of
-Steam and UI. Detection is by content, never by path (AGENTS rule).
+Core has no reference to Steam or the UI: local files go through
+`Backups/LocalSaveStorage` and `LocalSaveReplacement`, Steam Cloud through the
+separate `StalkerSaveEditor.Steam` project (worker process). Detection is by
+content, never by path (AGENTS rule).
 
 `Editing/DraftStore` keeps undoable, unapplied `EditPlan` snapshots under the
 application data directory, keyed by the source save's lowercase SHA256. Its

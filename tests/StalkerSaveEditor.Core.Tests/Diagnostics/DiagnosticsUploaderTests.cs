@@ -9,11 +9,16 @@ namespace StalkerSaveEditor.Core.Tests.Diagnostics;
 [Collection("AppLog")]
 public sealed class DiagnosticsUploaderTests : IDisposable
 {
-    private readonly string _directory = Directory.CreateTempSubdirectory("se-upload-").FullName;
+    private readonly TemporaryAppLog _log = new();
+    private readonly string _directory;
 
-    public DiagnosticsUploaderTests() => AppLog.Configure(_directory);
+    public DiagnosticsUploaderTests()
+    {
+        _directory = _log.Directory;
+        Directory.CreateDirectory(_directory);
+    }
 
-    public void Dispose() => Directory.Delete(_directory, recursive: true);
+    public void Dispose() => _log.Dispose();
 
     [Fact]
     public void Sends_once_a_day_and_right_after_a_crash()

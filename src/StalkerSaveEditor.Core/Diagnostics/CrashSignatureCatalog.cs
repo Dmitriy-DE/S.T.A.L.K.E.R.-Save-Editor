@@ -88,6 +88,12 @@ public static class CrashSignatureCatalog
             Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index local 'task' \(a nil value\)"),
             FixId = "cs.crash.squad-action-finished-twice",
         },
+        new("cs.marsh-creature-no-squad", ClearSky, "Marsh creature attacked a stalker without a squad", CrashAdvice.InstallFix,
+            "The marsh creature ambush tried to make the victim's squad react, but the victim had no squad.", Srp)
+        {
+            Pattern = P(@"sr_bloodsucker\.script:\d+:\s*attempt to index field 'npc_squad'"),
+            FixId = "cs.crash.marsh-creature-no-squad",
+        },
         new("cs.kamp-empty-interval", ClearSky, "Campfire with nobody to talk", CrashAdvice.InstallFix,
             "The campfire story scheme picked a random speaker from an empty list.", Srp)
         {

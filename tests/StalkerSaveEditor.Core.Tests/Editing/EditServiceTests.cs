@@ -20,6 +20,39 @@ public sealed class EditServiceTests
         "writer-s2-money",
         "s2-money-source.sav"));
 
+    [Fact]
+    public void A_plan_that_edits_and_removes_the_same_item_is_refused_before_any_output()
+    {
+        var plan = new EditPlan(Sha256(XRayCoPSource), stackCounts: new Dictionary<uint, uint> { [0x1234] = 100 }, detachHandles: [0x1234]);
+
+        var error = Assert.Throws<InvalidOperationException>(() => EditService.PrepareEdit(XRayCoPSource, plan, "stalker-cop"));
+
+        Assert.Contains("0x1234", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_xray_save_refuses_a_stalker2_operation_instead_of_dropping_it()
+    {
+        var plan = new EditPlan(Sha256(XRayCoPSource), money: 1, stalker2StashTakeHandle: 123);
+
+        Assert.Throws<NotSupportedException>(() => EditService.PrepareEdit(XRayCoPSource, plan, "stalker-cop"));
+    }
+
+    [Fact]
+    public void Prepare_and_read_back_agree_on_the_release_including_aliases()
+    {
+        var plan = new EditPlan(Sha256(XRayCoPSource), money: 4_242);
+
+        // A wrong explicit release is refused before anything is prepared.
+        Assert.Throws<InvalidOperationException>(() => EditService.PrepareEdit(XRayCoPSource, plan, "stalker-soc"));
+
+        // An alias is accepted by both sides.
+        var prepared = EditService.PrepareEdit(XRayCoPSource, plan, "cop");
+        EditService.VerifyReadBack(prepared.Data.Span, "cop", plan);
+        EditService.VerifyReadBack(prepared.Data.Span, "stalker-cop", plan);
+        Assert.Throws<InvalidDataException>(() => EditService.VerifyReadBack(prepared.Data.Span, "stalker-soc", plan));
+    }
+
     [Theory]
     [InlineData("stalker-soc", true)]
     [InlineData("stalker-soc-ee", true)]

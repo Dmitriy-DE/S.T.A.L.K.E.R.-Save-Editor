@@ -128,8 +128,9 @@ public static class EditService
         CatalogBundle? catalogs = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
+        ValidatePlan(plan);
 
-        var detectedRelease = releaseId;
+        var detectedRelease = CanonicalReleaseId(releaseId);
         if (string.IsNullOrWhiteSpace(detectedRelease))
         {
             detectedRelease = DetectFormat(source)
@@ -138,7 +139,25 @@ public static class EditService
 
         if (IsXRayRelease(detectedRelease))
         {
-            return PrepareXRay(source, plan, catalogs);
+            if (plan.Stalker2StashTakeHandle is not null)
+                throw new NotSupportedException("The plan holds a S.T.A.L.K.E.R. 2 stash transfer, which an X-Ray save cannot take.");
+            // The requested release must be the one the bytes actually are, before anything is written:
+            // the read-back after the replacement compares against the same canonical id.
+            var actual = DetectXRayFormat(source);
+            if (!string.IsNullOrWhiteSpace(releaseId) && !string.Equals(actual, detectedRelease, StringComparison.Ordinal))
+                throw new InvalidOperationException($"The save is '{actual}', not the requested release '{detectedRelease}'.");
+            var prepared = PrepareXRay(source, plan, catalogs);
+            // The prepared bytes must already satisfy the plan: a mismatch found only by the read-back after the
+            // replacement would leave a changed file and a recovery to do. (The S2 writer round-trips its own output.)
+            try
+            {
+                VerifyReadBack(prepared.Data.Span, actual, plan);
+            }
+            catch (InvalidDataException exception)
+            {
+                throw new InvalidOperationException("The prepared save does not match the requested edits; nothing was written. " + exception.Message, exception);
+            }
+            return prepared;
         }
 
         if (IsStalker2Release(detectedRelease))
@@ -147,6 +166,54 @@ public static class EditService
         }
 
         throw new NotSupportedException($"Unsupported release for editing: '{detectedRelease}'.");
+    }
+
+    /// <summary>The canonical release id for the aliases the API accepts ("cop" → "stalker-cop"); null stays null.</summary>
+    public static string? CanonicalReleaseId(string? releaseId)
+    {
+        if (string.IsNullOrWhiteSpace(releaseId)) return null;
+        var normalized = releaseId.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "soc" => "stalker-soc",
+            "clear_sky" => "stalker-cs",
+            "cop" => "stalker-cop",
+            "s2" => "stalker2",
+            _ => normalized,
+        };
+    }
+
+    private static string DetectXRayFormat(ReadOnlySpan<byte> source)
+    {
+        try
+        {
+            return XRayTrilogyReader.FromBytes(source).FormatId;
+        }
+        catch (XRayFormatException)
+        {
+            return XRayEnhancedReader.FromBytes(source).FormatId;
+        }
+    }
+
+    /// <summary>
+    /// Refuses a plan that edits and removes the same item: the writers would run both, and the read-back after the
+    /// file was already replaced would then fail on the removed item.
+    /// </summary>
+    private static void ValidatePlan(EditPlan plan)
+    {
+        if (plan.DetachHandles.Count == 0) return;
+        var removed = plan.DetachHandles.Select(handle => (uint)handle).ToHashSet();
+        var edited = plan.StackCounts.Keys
+            .Concat(plan.Durability.Keys)
+            .Concat(plan.Upgrades.Keys.Select(handle => (uint)handle))
+            .Concat(plan.Placements.Select(placement => placement.Handle))
+            .Concat(plan.StashPuts.Select(put => (uint)put.ObjectId))
+            .Concat(plan.StashTakes.Select(handle => (uint)handle));
+        foreach (var handle in edited)
+        {
+            if (removed.Contains(handle))
+                throw new InvalidOperationException($"The plan both edits and removes item 0x{handle:X4}; remove the item or keep the edit, not both.");
+        }
     }
 
     /// <summary>
@@ -203,6 +270,7 @@ public static class EditService
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedReleaseId);
+        expectedReleaseId = CanonicalReleaseId(expectedReleaseId)!;
 
         if (IsXRayRelease(expectedReleaseId))
         {

@@ -82,11 +82,16 @@ public static class SteamVdfParser
         return false;
     }
 
+    /// <summary>Steam's own files nest a handful of levels; a deeper file is malformed and must not exhaust the stack.</summary>
+    internal const int MaximumDepth = 64;
+
     private static ReadOnlyDictionary<string, object> ReadObject(
         IReadOnlyList<Token> tokens,
         ref int index,
-        bool expectClose)
+        bool expectClose,
+        int depth = 0)
     {
+        if (depth > MaximumDepth) throw new FormatException("Valve KeyValues nesting is too deep.");
         var result = new Dictionary<string, object>(StringComparer.Ordinal);
         while (index < tokens.Count)
         {
@@ -110,7 +115,7 @@ public static class SteamVdfParser
             object value = next.Kind switch
             {
                 TokenKind.Value => next.Value,
-                TokenKind.Open => ReadObject(tokens, ref index, expectClose: true),
+                TokenKind.Open => ReadObject(tokens, ref index, expectClose: true, depth + 1),
                 _ => throw new FormatException("Expected a Valve KeyValues value or object."),
             };
             result[key.Value] = value;

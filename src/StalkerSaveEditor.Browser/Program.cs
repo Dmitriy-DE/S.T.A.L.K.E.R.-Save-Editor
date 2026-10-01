@@ -62,7 +62,7 @@ internal static partial class Program
             await using var stream = await client.GetStreamAsync(target);
             HostPlatform.StartupFiles.Add(await HostPlatform.ImportAsync(stream, Path.GetFileName(target.AbsolutePath)));
         }
-        catch (HttpRequestException exception)
+        catch (Exception exception) when (exception is HttpRequestException or IOException)
         {
             Console.Error.WriteLine("open link failed: " + exception.Message);
         }

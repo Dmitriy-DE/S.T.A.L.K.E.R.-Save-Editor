@@ -454,7 +454,9 @@ public sealed class GameFixesViewModel : ObservableViewModel
         {
             try
             {
-                installed = new GameFixEngine().ListInstalled(GameDirectory);
+                // One damaged state folder is reported; the other fixes still show their real state.
+                installed = new GameFixEngine().ListInstalled(GameDirectory, out var issues);
+                if (issues.Count > 0) Status = L.T("ОШИБКА: {0}", string.Join("; ", issues));
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException)
             {

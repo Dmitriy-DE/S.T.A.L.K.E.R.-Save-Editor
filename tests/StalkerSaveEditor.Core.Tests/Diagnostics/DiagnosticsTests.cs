@@ -24,6 +24,31 @@ public sealed class DiagnosticsTests : IDisposable
     }
 
     [Fact]
+    public void The_tail_cap_counts_utf8_bytes_and_never_splits_a_character()
+    {
+        Assert.Equal("abc", DiagnosticsBundle.TailWithinBytes("abc", 3));
+        Assert.Equal("bc", DiagnosticsBundle.TailWithinBytes("abc", 2));
+        // Two bytes per Cyrillic letter: five bytes hold two letters, not five.
+        Assert.Equal("ог", DiagnosticsBundle.TailWithinBytes("сталкер лог", 5));
+        // A surrogate pair is four bytes and is kept whole or not at all.
+        Assert.Equal("b", DiagnosticsBundle.TailWithinBytes("a\U0001F600b", 4));
+        Assert.Equal("\U0001F600b", DiagnosticsBundle.TailWithinBytes("a\U0001F600b", 5));
+        Assert.Empty(DiagnosticsBundle.TailWithinBytes("abc", 0));
+    }
+
+    [Fact]
+    public void A_huge_non_latin_environment_report_does_not_push_the_bundle_past_its_byte_cap()
+    {
+        var bundle = DiagnosticsBundle.Create(new string('ж', 3 * 1024 * 1024));
+
+        using var gzip = new System.IO.Compression.GZipStream(new MemoryStream(bundle), System.IO.Compression.CompressionMode.Decompress);
+        using var plain = new MemoryStream();
+        gzip.CopyTo(plain);
+        Assert.InRange(plain.Length, 1, 2 * 1024 * 1024);
+        Assert.Contains("--- environment ---", System.Text.Encoding.UTF8.GetString(plain.ToArray()), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Redacts_home_directories_and_steam_ids()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

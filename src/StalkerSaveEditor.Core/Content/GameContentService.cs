@@ -66,7 +66,7 @@ public static class GameContentService
         var releaseId = ReleaseIdFor(game);
         var tree = GameFileTree.Load(game, gameDirectory, IsWanted);
         var modName = DetectMod(tree);
-        var cacheRoot = Path.Combine(cacheDirectory, $"{releaseId}-v{BuilderVersion}-{tree.Fingerprint[..16]}");
+        var cacheRoot = Path.Combine(cacheDirectory, $"{releaseId}-v{BuilderVersion}-{tree.Fingerprint[..32]}");
         var catalogPath = Path.Combine(cacheRoot, $"catalog-{SafeLanguage(uiLanguage)}.json");
 
         CatalogBundle? bundle = null;
@@ -206,6 +206,18 @@ public static class GameContentService
         return value.Length > 0 ? value : "ru";
     }
 
+    /// <summary>
+    /// A readable prefix plus a hash of the exact key: "weapon/a" and "weapon:a" both sanitise to "weapon_a", and
+    /// without the hash the second would be shown the first one's cached icon.
+    /// </summary>
+    internal static string IconCacheFileName(string key)
+    {
+        var readable = new string(key.Take(48).Select(character =>
+            char.IsAsciiLetterOrDigit(character) || character is '_' or '-' ? character : '_').ToArray());
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key)))[..16].ToLowerInvariant();
+        return $"{readable}-{hash}";
+    }
+
     /// <summary>Crops item icons from the game's icon atlas on demand and caches them as PNG.</summary>
     private sealed class IconSource(GameFileTree tree, CatalogBundle bundle, string cacheDirectory)
     {
@@ -215,7 +227,7 @@ public static class GameContentService
         {
             var item = bundle.Items.Resolve(itemKey);
             if (item?.IconX is not { } iconX || item.IconY is not { } iconY) return null;
-            var cachePath = Path.Combine(cacheDirectory, SafeFileName(itemKey) + ".png");
+            var cachePath = Path.Combine(cacheDirectory, IconCacheFileName(itemKey) + ".png");
             try
             {
                 if (File.Exists(cachePath)) return File.ReadAllBytes(cachePath);
@@ -261,7 +273,5 @@ public static class GameContentService
             }
         }
 
-        private static string SafeFileName(string key) =>
-            new(key.Select(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-' ? character : '_').ToArray());
     }
 }

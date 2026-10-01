@@ -42,7 +42,7 @@ internal sealed class GameFileTree
 
     public IReadOnlyDictionary<string, GameFile> Files { get; }
 
-    /// <summary>SHA-256 over archive and loose-file names, sizes and modification times.</summary>
+    /// <summary>SHA-256 over the install path, archive names/sizes/times, the checksums of the used archive entries, and loose-file names/sizes/times.</summary>
     public string Fingerprint { get; }
 
     /// <summary>True when loose files in gamedata override at least one wanted path (a mod or unpacked data).</summary>
@@ -68,6 +68,9 @@ internal sealed class GameFileTree
         var issues = new List<string>(search.Issues);
         var files = new Dictionary<string, GameFile>(StringComparer.OrdinalIgnoreCase);
         var stamp = new StringBuilder();
+        // The install itself is part of the identity: two installs with equal names, sizes and times are still two
+        // installs, and a cache built for one must not be served for the other.
+        stamp.Append(CultureInvariant($"R|{Path.GetFullPath(gameDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)}\n"));
 
         foreach (var archivePath in search.ArchivePaths)
         {
@@ -81,6 +84,9 @@ internal sealed class GameFileTree
                 {
                     var relative = Normalize(entry.Name);
                     if (relative.Length == 0 || relative.EndsWith('/') || !wanted(relative)) continue;
+                    // The archive's own checksum of every file that is used: a repacked archive with the same size
+                    // and time still changes the fingerprint, without hashing gigabytes.
+                    stamp.Append(CultureInvariant($"E|{relative}|{entry.UncompressedSize}|{entry.CompressedSize}|{entry.Crc32}|{entry.Offset}\n"));
                     var bytes = archive.ReadFile(entry.Name);
                     files[relative] = new GameFile(relative, archivePath, () => bytes);
                 }

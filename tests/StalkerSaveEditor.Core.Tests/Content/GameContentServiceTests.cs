@@ -163,6 +163,71 @@ public sealed class GameContentServiceTests
         Assert.Throws<InvalidDataException>(() => DdsImage.Decode("NOTADDS"u8));
     }
 
+    [Fact]
+    public void A_second_install_with_the_same_names_sizes_and_times_does_not_get_the_first_ones_cache()
+    {
+        using var first = new TemporaryDirectory();
+        using var second = new TemporaryDirectory();
+        using var cache = new TemporaryDirectory();
+        var stamp = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        foreach (var (root, name) in new[] { (first.Path, "a"), (second.Path, "b") })
+        {
+            File.WriteAllText(Path.Combine(root, "fsgame.ltx"),
+                "$game_data$ = false| true| $fs_root$| gamedata\\\n$game_config$ = true| false| $game_data$| configs\\\n$arch_dir$ = false| false| $fs_root$\n");
+            Write(root, "gamedata/configs/system.ltx", $"[medkit_{name}]\nclass = II_MEDKI\ninv_name = x\n");
+            File.SetLastWriteTimeUtc(Path.Combine(root, "gamedata/configs/system.ltx"), stamp);
+        }
+
+        var one = GameContentService.Load(CompanionGame.CallOfPripyat, first.Path, cache.Path)!;
+        var two = GameContentService.Load(CompanionGame.CallOfPripyat, second.Path, cache.Path)!;
+
+        Assert.False(two.Status.FromCache);
+        Assert.NotNull(one.Bundle.Items.Resolve("medkit_a"));
+        Assert.NotNull(two.Bundle.Items.Resolve("medkit_b"));
+        Assert.Null(two.Bundle.Items.Resolve("medkit_a"));
+    }
+
+    [Theory]
+    [InlineData("weapons.ltx", "*.ltx", true)]
+    [InlineData("WEAPONS.LTX", "*.ltx", true)]
+    [InlineData("w_ak74.ltx", "w_*.ltx", true)]
+    [InlineData("w_ak74_up.ltx", "w_*_up.ltx", true)]
+    [InlineData("w_ak74.ltx", "w_*_up.ltx", false)]
+    [InlineData("weapons.ltx", "weapons.ltx", true)]
+    [InlineData("weapons.ltx.bak", "*.ltx", false)]
+    [InlineData("", "*", true)]
+    [InlineData("a", "", false)]
+    public void Include_masks_match_like_a_simple_glob(string name, string mask, bool expected) =>
+        Assert.Equal(expected, LtxDocument.MatchesMask(name, mask));
+
+    [Fact]
+    public void Wildcard_includes_take_only_the_files_of_their_own_directory()
+    {
+        var files = Files(
+            ("configs/system.ltx", "#include \"weapons\\w_*.ltx\"\n#include \"MISC\\Items.ltx\"\n"),
+            ("configs/weapons/w_b.ltx", "[b]\nx = 1\n"),
+            ("configs/weapons/w_a.ltx", "[a]\nx = 1\n"),
+            ("configs/weapons/other.ltx", "[other]\nx = 1\n"),
+            ("configs/weapons/deep/w_c.ltx", "[deep]\nx = 1\n"),
+            ("configs/misc/items.ltx", "[item]\nx = 1\n"));
+
+        var sections = LtxDocument.ParseIncludeGraph("configs/system.ltx", files)!;
+
+        Assert.Equal("a,b,item", string.Join(",", sections.Keys.Order(StringComparer.Ordinal)));
+    }
+
+    private static readonly string[] CollidingIconKeys = ["weapon/a", "weapon:a", "weapon?a", "weapon_a"];
+
+    [Fact]
+    public void Icon_cache_names_differ_for_keys_that_sanitise_to_the_same_text()
+    {
+        var names = CollidingIconKeys.Select(GameContentService.IconCacheFileName).ToArray();
+
+        Assert.Equal(names.Length, names.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(names, name => Assert.Matches("^[A-Za-z0-9_-]+$", name));
+        Assert.Equal(GameContentService.IconCacheFileName("weapon/a"), GameContentService.IconCacheFileName("weapon/a"));
+    }
+
     private static Dictionary<string, GameFile> Files(params (string Path, string Text)[] entries) =>
         entries.ToDictionary(
             entry => entry.Path,

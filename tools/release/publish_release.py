@@ -64,11 +64,16 @@ def sha256(path: Path) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
+# Every save extension the editor opens (SaveLibraryLoader.IsSupportedSaveFile) plus backups and keys.
+SAVE_SUFFIXES = {".sav", ".scop", ".scs"}
+PRIVATE_SUFFIXES = SAVE_SUFFIXES | {".bak", ".pem", ".key"}
+
+
 def reject_private_inputs(root: Path) -> None:
     rejected = [
         path
         for path in root.rglob("*")
-        if path.is_file() and (path.suffix.casefold() in {".sav", ".scop", ".sacs", ".bak", ".pem", ".key"} or ".git" in path.parts)
+        if path.is_file() and (path.suffix.casefold() in PRIVATE_SUFFIXES or ".git" in path.parts)
     ]
     if rejected:
         names = ", ".join(str(path.relative_to(root)) for path in rejected[:5])
@@ -177,12 +182,32 @@ def publication_files(output_dir: Path) -> list[tuple[str, Path]]:
 DEFAULT_SIGNING_KEY = Path.home() / ".config" / "stalker-save-editor" / "update-signing-key.pem"
 
 
+def embedded_public_key() -> str:
+    """The base64 body of the public key compiled into the app (UpdateSignature.PublicKeyPem)."""
+
+    source = (Path(__file__).resolve().parents[2] / "src" / "StalkerSaveEditor.Updater" / "UpdateSignature.cs").read_text(encoding="utf-8")
+    match = re.search(r"-----BEGIN PUBLIC KEY-----(.*?)-----END PUBLIC KEY-----", source, re.S)
+    if match is None:
+        raise ValueError("the app's embedded update public key was not found")
+    return "".join(match.group(1).split())
+
+
+def check_signing_key(key: Path = DEFAULT_SIGNING_KEY) -> None:
+    """The key must exist and be the private half of the key the app trusts; a wrong key would lock every client out."""
+
+    if not key.is_file():
+        raise ValueError(f"update signing key not found: {key}")
+    public = subprocess.run(["openssl", "pkey", "-in", str(key), "-pubout"], check=True, capture_output=True).stdout.decode("ascii")
+    body = "".join(line for line in public.splitlines() if not line.startswith("-----"))
+    if body != embedded_public_key():
+        raise ValueError("the update signing key does not match the public key embedded in the app")
+
+
 def sign_manifest(output_dir: Path, key: Path = DEFAULT_SIGNING_KEY) -> Path:
     """ECDSA P-256/SHA-256 over latest.json (openssl, DER, base64) -> latest.json.sig; verified by the app's embedded key."""
 
     manifest = output_dir / "latest.json"
-    if not key.is_file():
-        raise ValueError(f"update signing key not found: {key}")
+    check_signing_key(key)
     der = subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(key), str(manifest)],
                          check=True, capture_output=True).stdout
     signature = output_dir / "latest.json.sig"
@@ -198,17 +223,26 @@ def content_type(path: Path) -> str:
     return CONTENT_TYPES.get(path.suffix.casefold(), "application/octet-stream")
 
 
+def is_index(name: str) -> bool:
+    return name in ("latest.json", "latest.json.sig") or name.startswith("apt/dists/") or name == "apt/repository-key.asc"
+
+
+def cache_control(name: str) -> str:
+    """No published name is immutable: the next release reuses all of them. Packages may be cached a little longer
+    than the manifest, its signature and the APT indices, but always with revalidation (the ETag changes)."""
+
+    return "public, max-age=60, must-revalidate" if is_index(name) else "public, max-age=300, must-revalidate"
+
+
 def publish_r2(output_dir: Path, runner: str = "npx", wrangler_version: str = "4") -> None:
     for name, path in publication_files(output_dir):
         command = [
             runner, "--yes", f"wrangler@{wrangler_version}", "r2", "object", "put", f"{BUCKET}/{name}",
             "--file", str(path), "--remote", "--content-type", content_type(path),
         ]
-        if name in ("latest.json", "latest.json.sig") or name.startswith("apt/dists/") or name == "apt/repository-key.asc":
-            command += ["--cache-control", "public, max-age=60, must-revalidate"]
-        else:
-            command += ["--cache-control", "public, max-age=31536000, immutable",
-                        "--content-disposition", f'attachment; filename="{path.name}"']
+        command += ["--cache-control", cache_control(name)]
+        if not is_index(name):
+            command += ["--content-disposition", f'attachment; filename="{path.name}"']
         subprocess.run(command, check=True)
 
 
@@ -236,8 +270,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verify-r2", action="store_true")
     parser.add_argument("--signing-key", type=Path, default=DEFAULT_SIGNING_KEY,
                         help="ECDSA P-256 key for latest.json.sig (required to publish)")
+    parser.add_argument("--check-signing-key", action="store_true",
+                        help="only check that the signing key exists and matches the app's public key")
+    parser.add_argument("--sign", action="store_true", help="write latest.json.sig without publishing")
     args = parser.parse_args(argv)
     try:
+        if args.check_signing_key:
+            check_signing_key(args.signing_key)
+            print("signing key ok")
+            return 0
         if args.prepared:
             output = args.output.resolve()
             if not (output / "latest.json").is_file():
@@ -246,9 +287,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.artifacts is None or args.version is None or args.commit is None:
                 parser.error("--artifacts, --version and --commit are required unless --prepared")
             output = prepare_release(args.artifacts, args.output, args.version, args.commit, args.published_at)
-        if args.publish_r2:
+        if args.publish_r2 or args.sign:
             # 1.2.1+ refuses an unsigned manifest; never publish one.
             sign_manifest(output, args.signing_key)
+        if args.publish_r2:
             publish_r2(output)
         if args.verify_r2:
             verify_r2(output)

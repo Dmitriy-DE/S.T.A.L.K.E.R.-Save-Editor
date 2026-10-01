@@ -119,7 +119,17 @@ public static class LocalSaveStorage
         }
     }
 
-    public static LocalSaveBackupRecord InspectBackup(string journalPath)
+    /// <summary>SHA-256 of backups already hashed in this session, valid while size and write time are unchanged.</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Length, long WriteTicks, string Sha256)> VerifiedBackups = new(PathComparer);
+
+    /// <summary>
+    /// Reads the journal and checks the backup's content hash. <paramref name="reuseSessionHash"/> lets a list refresh
+    /// reuse the hash computed earlier in this session for an unchanged file (same size and write time) instead of
+    /// reading every backup again; restore and delete always hash the file anew.
+    /// </summary>
+    public static LocalSaveBackupRecord InspectBackup(string journalPath) => InspectBackup(journalPath, reuseSessionHash: false);
+
+    private static LocalSaveBackupRecord InspectBackup(string journalPath, bool reuseSessionHash)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(journalPath);
         var fullJournalPath = Path.GetFullPath(journalPath);
@@ -176,10 +186,23 @@ public static class LocalSaveStorage
                     Path.IsPathRooted(backupPathValue)
                         ? backupPathValue
                         : Path.Combine(Path.GetDirectoryName(fullJournalPath)!, backupPathValue));
-                byte[] backupBytes;
+                string actualSha256;
                 try
                 {
-                    backupBytes = File.ReadAllBytes(backupPath);
+                    var info = new FileInfo(backupPath);
+                    if (!info.Exists) throw new FileNotFoundException(backupPath);
+                    if (reuseSessionHash && VerifiedBackups.TryGetValue(backupPath, out var known) &&
+                        known.Length == info.Length && known.WriteTicks == info.LastWriteTimeUtc.Ticks)
+                    {
+                        actualSha256 = known.Sha256;
+                    }
+                    else
+                    {
+                        // Streamed: a backup is never loaded whole just to be hashed.
+                        using var stream = new FileStream(backupPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
+                        actualSha256 = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+                        VerifiedBackups[backupPath] = (info.Length, info.LastWriteTimeUtc.Ticks, actualSha256);
+                    }
                 }
                 catch (FileNotFoundException)
                 {
@@ -210,7 +233,6 @@ public static class LocalSaveStorage
                         Error: $"Backup cannot be read: {exception.Message}");
                 }
 
-                var actualSha256 = Sha256(backupBytes);
                 if (!string.Equals(actualSha256, sourceSha256, StringComparison.Ordinal))
                 {
                     return new LocalSaveBackupRecord(
@@ -283,7 +305,7 @@ public static class LocalSaveStorage
                     continue;
                 }
 
-                var record = InspectBackup(journalPath);
+                var record = InspectBackup(journalPath, reuseSessionHash: true);
                 records.Add(record);
                 knownBackupKeys.Add(Path.GetFullPath(record.BackupPath));
             }

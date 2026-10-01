@@ -41,34 +41,93 @@ internal static partial class LtxDocument
         if (!files.ContainsKey(rootPath)) return null;
         var sections = new Dictionary<string, LtxSection>(StringComparer.Ordinal);
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var paths = files.Keys.ToArray();
+        // One pass over the tree instead of one per #include: exact names by case-insensitive lookup, wildcards
+        // against the files of their own directory only.
+        var byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var byDirectory = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in files.Keys)
+        {
+            byName.TryAdd(candidate, candidate);
+            var folder = DirectoryOf(candidate);
+            if (!byDirectory.TryGetValue(folder, out var list)) byDirectory[folder] = list = [];
+            list.Add(candidate);
+        }
 
         void Visit(string path)
         {
             if (!visited.Add(path) || !files.TryGetValue(path, out var file)) return;
-            var directory = path.Contains('/', StringComparison.Ordinal) ? path[..(path.LastIndexOf('/') + 1)] : string.Empty;
+            var directory = DirectoryOf(path);
             Parse(Decode(file.Read()), path, include =>
             {
                 var target = NormalizeRelative(directory + include.Replace('\\', '/'));
-                if (target.Contains('*', StringComparison.Ordinal))
+                if (!target.Contains('*', StringComparison.Ordinal))
                 {
+                    Visit(byName.GetValueOrDefault(target, target));
+                    return;
+                }
+
+                var folder = DirectoryOf(target);
+                IEnumerable<string> candidates;
+                if (folder.Contains('*', StringComparison.Ordinal))
+                {
+                    // A wildcard in the folder part: rare, so the whole tree is matched the slow way.
                     var pattern = new Regex(
                         "^" + Regex.Escape(target).Replace("\\*", "[^/]*", StringComparison.Ordinal) + "$",
                         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-                    foreach (var match in paths.Where(candidate => pattern.IsMatch(candidate)).Order(StringComparer.OrdinalIgnoreCase))
-                    {
-                        Visit(match);
-                    }
+                    candidates = files.Keys.Where(candidate => pattern.IsMatch(candidate));
                 }
                 else
                 {
-                    Visit(files.Keys.FirstOrDefault(candidate => string.Equals(candidate, target, StringComparison.OrdinalIgnoreCase)) ?? target);
+                    var mask = target[folder.Length..];
+                    candidates = byDirectory.TryGetValue(folder, out var inFolder)
+                        ? inFolder.Where(candidate => MatchesMask(candidate.AsSpan(folder.Length), mask))
+                        : [];
+                }
+
+                foreach (var match in candidates.Order(StringComparer.OrdinalIgnoreCase).ToArray())
+                {
+                    Visit(match);
                 }
             }, sections);
         }
 
         Visit(rootPath);
         return sections;
+    }
+
+    private static string DirectoryOf(string path) =>
+        path.LastIndexOf('/') is var slash and >= 0 ? path[..(slash + 1)] : string.Empty;
+
+    /// <summary>File-name mask where <c>*</c> stands for any run of characters; case-insensitive, like the engine's.</summary>
+    internal static bool MatchesMask(ReadOnlySpan<char> name, ReadOnlySpan<char> mask)
+    {
+        int nameIndex = 0, maskIndex = 0, star = -1, resume = 0;
+        while (nameIndex < name.Length)
+        {
+            if (maskIndex < mask.Length && mask[maskIndex] == '*')
+            {
+                star = maskIndex++;
+                resume = nameIndex;
+            }
+            else if (maskIndex < mask.Length &&
+                     char.ToUpperInvariant(mask[maskIndex]) == char.ToUpperInvariant(name[nameIndex]))
+            {
+                maskIndex++;
+                nameIndex++;
+            }
+            else if (star >= 0)
+            {
+                maskIndex = star + 1;
+                nameIndex = ++resume;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        while (maskIndex < mask.Length && mask[maskIndex] == '*') maskIndex++;
+        return maskIndex == mask.Length;
     }
 
     private static Dictionary<string, LtxSection> Parse(
@@ -164,19 +223,35 @@ internal static partial class LtxDocument
                 return new Dictionary<string, string>(StringComparer.Ordinal);
             }
             var section = sections[name];
-            var values = new Dictionary<string, string>(StringComparer.Ordinal);
+            // Most sections have no parent or only add a few keys to one: the first is returned as it is, the
+            // second starts from a bulk copy of the parent instead of re-inserting every inherited key.
+            Dictionary<string, string>? values = null;
             foreach (var parent in section.Bases)
             {
                 if (!sections.ContainsKey(parent)) continue;
-                foreach (var (key, value) in ResolveOne(parent, stack))
+                var inherited = ResolveOne(parent, stack);
+                if (values is null)
+                {
+                    values = new Dictionary<string, string>(inherited, StringComparer.Ordinal);
+                    continue;
+                }
+
+                foreach (var (key, value) in inherited)
                 {
                     values[key] = value;
                 }
             }
 
-            foreach (var (key, value) in section.Values)
+            if (values is null)
             {
-                values[key] = value;
+                values = section.Values;
+            }
+            else
+            {
+                foreach (var (key, value) in section.Values)
+                {
+                    values[key] = value;
+                }
             }
 
             stack.Remove(name);

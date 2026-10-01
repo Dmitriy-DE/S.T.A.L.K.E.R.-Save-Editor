@@ -197,6 +197,7 @@ public static class CrashReporter
 public static class DiagnosticsBundle
 {
     private const int MaxBytes = 2 * 1024 * 1024;
+    private const int PartBytes = 256 * 1024;
 
     /// <summary>
     /// The last <paramref name="maximumBytes"/> of a text file, read from its end: a game or mod log can be gigabytes,
@@ -218,23 +219,34 @@ public static class DiagnosticsBundle
     /// <param name="since">Only log lines written after this time (the daily report sends what is new).</param>
     public static byte[] Create(string? environmentReport = null, IEnumerable<string>? extraLogs = null, DateTime? since = null)
     {
+        // The cap is in bytes of the final UTF-8 text, and every part counts against it: a log full of Cyrillic is
+        // twice as large in bytes as in characters, and a huge crash text or environment report is cut like a log.
         var builder = new StringBuilder();
-        builder.Append("S.T.A.L.K.E.R. Save Editor ").Append(ApplicationVersion.Current).Append(", ")
-            .Append(System.Runtime.InteropServices.RuntimeInformation.OSDescription).Append(", ")
-            .Append(System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture).Append('\n');
-        if (CrashReporter.Pending() is { } crash) builder.Append("--- crash ---\n").Append(crash).Append('\n');
-        if (!string.IsNullOrWhiteSpace(environmentReport)) builder.Append("--- environment ---\n").Append(AppLog.Redact(environmentReport)).Append('\n');
+        var remaining = MaxBytes;
+        void Add(string title, string text, int partLimit = MaxBytes)
+        {
+            if (text.Length == 0) return;
+            var header = title.Length == 0 ? string.Empty : "--- " + title + " ---\n";
+            var room = Math.Min(partLimit, remaining - Encoding.UTF8.GetByteCount(header) - 1);
+            if (room <= 0) return;
+            var kept = TailWithinBytes(text, room);
+            builder.Append(header).Append(kept).Append('\n');
+            remaining -= Encoding.UTF8.GetByteCount(header) + Encoding.UTF8.GetByteCount(kept) + 1;
+        }
+
+        Add(string.Empty, "S.T.A.L.K.E.R. Save Editor " + ApplicationVersion.Current + ", " +
+            System.Runtime.InteropServices.RuntimeInformation.OSDescription + ", " +
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
+        if (CrashReporter.Pending() is { } crash) Add("crash", crash, PartBytes);
+        if (!string.IsNullOrWhiteSpace(environmentReport)) Add("environment", AppLog.Redact(environmentReport), PartBytes);
         var directory = AppLog.Directory;
         foreach (var name in new[] { AppLog.FileName, AppLog.FileName + ".1", AppLog.FileName + ".2", AppLog.FileName + ".3" })
         {
             var path = Path.Combine(directory, name);
-            if (builder.Length >= MaxBytes || !File.Exists(path)) continue;
+            if (remaining <= 0 || !File.Exists(path)) continue;
             try
             {
-                var text = AppLog.Redact(since is { } after ? LinesAfter(File.ReadAllText(path), after) : File.ReadAllText(path));
-                if (text.Length == 0) continue;
-                var room = MaxBytes - builder.Length;
-                builder.Append("--- ").Append(name).Append(" ---\n").Append(text.Length > room ? text[^room..] : text).Append('\n');
+                Add(name, AppLog.Redact(since is { } after ? LinesAfter(File.ReadAllText(path), after) : File.ReadAllText(path)));
             }
             catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
             {
@@ -244,12 +256,10 @@ public static class DiagnosticsBundle
         // Other logs worth reading with ours, e.g. the experimental S.T.A.L.K.E.R. 2 mod's; last 256 KB each.
         foreach (var path in extraLogs ?? [])
         {
-            if (builder.Length >= MaxBytes || !File.Exists(path)) continue;
+            if (remaining <= 0 || !File.Exists(path)) continue;
             try
             {
-                var text = AppLog.Redact(ReadTail(path, 256 * 1024));
-                var room = Math.Min(MaxBytes - builder.Length, 256 * 1024);
-                builder.Append("--- ").Append(Path.GetFileName(path)).Append(" ---\n").Append(text.Length > room ? text[^room..] : text).Append('\n');
+                Add(Path.GetFileName(path), AppLog.Redact(ReadTail(path, PartBytes)), PartBytes);
             }
             catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
             {
@@ -264,6 +274,26 @@ public static class DiagnosticsBundle
         }
 
         return output.ToArray();
+    }
+
+    /// <summary>The end of <paramref name="text"/> that fits in <paramref name="maximumBytes"/> of UTF-8, never splitting a character.</summary>
+    internal static string TailWithinBytes(string text, int maximumBytes)
+    {
+        if (maximumBytes <= 0) return string.Empty;
+        // Cheap bound first: a UTF-16 unit is at most 3 UTF-8 bytes.
+        if (text.Length <= maximumBytes / 3 || Encoding.UTF8.GetByteCount(text) <= maximumBytes) return text;
+        var start = text.Length;
+        var bytes = 0;
+        while (start > 0)
+        {
+            var status = Rune.DecodeLastFromUtf16(text.AsSpan(0, start), out var rune, out var consumed);
+            var size = status == System.Buffers.OperationStatus.Done ? rune.Utf8SequenceLength : 3;
+            if (bytes + size > maximumBytes) break;
+            bytes += size;
+            start -= consumed;
+        }
+
+        return text[start..];
     }
 
     /// <summary>The part of a log whose lines (each starts with its UTC time) are later than <paramref name="after"/>.</summary>

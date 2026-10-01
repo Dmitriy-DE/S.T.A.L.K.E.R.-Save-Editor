@@ -13,7 +13,41 @@ public sealed class CompanionProtocolClient
     private const string TemporaryCommandFileName = "save_editor_cmd.tmp";
     private const string ReplyFileName = "save_editor_out.txt";
     private static readonly Encoding ProtocolEncoding = CreateProtocolEncoding();
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> SendGates = new(PathComparer);
+    // One sender at a time per game folder, across client instances. Entries are counted and removed with their last
+    // user: the registry does not grow with every folder the process has ever talked to.
+    private static readonly Dictionary<string, SendGate> SendGates = new(PathComparer);
+
+    private sealed class SendGate
+    {
+        public SemaphoreSlim Semaphore { get; } = new(1, 1);
+        public int Users;
+    }
+
+    internal static bool HasSendGate(string directory)
+    {
+        lock (SendGates) return SendGates.ContainsKey(directory);
+    }
+
+    private static SendGate RentGate(string directory)
+    {
+        lock (SendGates)
+        {
+            if (!SendGates.TryGetValue(directory, out var gate)) SendGates[directory] = gate = new SendGate();
+            gate.Users++;
+            return gate;
+        }
+    }
+
+    private static void ReturnGate(string directory, SendGate gate, bool entered)
+    {
+        if (entered) gate.Semaphore.Release();
+        lock (SendGates)
+        {
+            if (--gate.Users > 0) return;
+            SendGates.Remove(directory);
+            gate.Semaphore.Dispose();
+        }
+    }
     private readonly TimeSpan _timeout;
     private readonly TimeSpan _pollInterval;
     private readonly Func<string> _createId;
@@ -86,10 +120,12 @@ public sealed class CompanionProtocolClient
         CancellationToken cancellationToken = default)
     {
         var formattedCommand = FormatCommand(command, arguments ?? Array.Empty<string>());
-        var gate = SendGates.GetOrAdd(AppDataDirectory, static _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var gate = RentGate(AppDataDirectory);
+        var entered = false;
         try
         {
+            await gate.Semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            entered = true;
             var commandPath = Path.Combine(AppDataDirectory, CommandFileName);
             var temporaryPath = Path.Combine(AppDataDirectory, TemporaryCommandFileName);
             var replyPath = Path.Combine(AppDataDirectory, ReplyFileName);
@@ -149,7 +185,7 @@ public sealed class CompanionProtocolClient
         }
         finally
         {
-            gate.Release();
+            ReturnGate(AppDataDirectory, gate, entered);
         }
     }
 

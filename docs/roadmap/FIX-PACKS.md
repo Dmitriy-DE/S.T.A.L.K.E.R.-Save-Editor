@@ -39,18 +39,69 @@ in scripts.
 | # | Task | Status | PR |
 |---|---|---|---|
 | FP-1 | Engine: whole-file overlay operation + content store | done | #185 |
-| FP-2 | Research tool: diff a source pack against vanilla installs (`fixes build-pack`) | done | #187 |
+| FP-2 | Research tools: pack diff (`fixes build-pack`), missing logic-section checker (`tools/check_logic_refs.py`) | done | #187, #192 |
 | FP-3 | Hunk extractor: split each source diff into minimal anchored text changes, grouped per file, mapped to changelog entries | todo | |
-| FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | todo | |
+| FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | in progress (SRP crash list: 26 of 33 done) | #189–#193 |
 | FP-5 | SRP desirable fixes (quests, rewards, NPC logic) | todo | |
 | FP-6 | SRP optional fixes (balance, sound, extras), off by default | todo | |
 | FP-7 | ZRP critical + desirable fixes as our own entries | todo | |
 | FP-8 | ZRP optional fixes | todo | |
 | FP-9 | CoP: remaining stalker-cop-patch items; PRP source mirror | todo | |
-| FP-10 | EE variants for every ported fix where the EE file allows | todo | |
+| FP-10 | EE variants for every ported fix where the EE file allows | in progress (full EE dump + `tools/ee_variants.py`; CS EE 36) | #200 |
 | FP-11 | Steam Workshop package of the companion (.pack writer + upload after owner OK) | todo | |
+| FP-12 | Structural all.spawn editor (`AllSpawnEditor`, `Structured` fixes) + SRP's all.spawn errors | done: 43 edits; SRP clean-ups/gameplay not ported | #201 |
+
+## FP-4 progress (SRP 1.1.5 crash list)
+
+| SRP crash | Our entry | State |
+|---|---|---|
+| Stringov's stash given twice | `cs.crash.treasure-given-twice` | done #191 |
+| Robbers leave during a hold-up | `cs.crash.robbery-squad-left` | done #190 |
+| Robber leader is a mutant / offline | `cs.crash.robbery-leader-offline` | done #190 |
+| Attitude of a missing squad | `cs.crash.relation-to-missing-squad` | done #190 |
+| 'Help' task evaluation | `cs.crash.sim-combat`, `cs.crash.squad-action-finished-twice` (2nd patch) | done #189, #193 |
+| Missing logic sections | `cs.crash.limansk-missing-logic` (+4 refs proven unreachable) | done #192 |
+| Capture task for a missing squad | `cs.crash.capture-task-missing-squad` | done #189 |
+| Load/delete an already deleted save | `cs.crash.save-menu-deleted-last` | done #191 |
+| Squad captures a smart terrain | `cs.crash.squad-action-finished-twice` | done #189 |
+| Campfire with nobody / no animation | `cs.crash.kamp-no-animation` | done #189 |
+| Anomaly zone without an artefact | `cs.crash.anomaly-zone-missing-artefact` | done #189 |
+| Orest strays (Agroprom) | `cs.crash.agroprom-orest-path` (published log: path inaccessible) | done #197 |
+| Red Forest mine trader strays | `cs.crash.red-forest-mine-trader-path` | done #197 |
+| Wild Napr task (`wrong target for storyline quest`) | `cs.crash.capture-task-missing-squad` (2 more patches) | done #200 |
+| NPC offline during dialogue/trade | `cs.crash.npc-offline-during-dialog` (own `pda.dialog_open` flag) | done #195 |
+| Smart terrain overloading: Army Warehouses camp 2_1 | `cs.crash.all-spawn-errors` (capacity, new game) | done #201 |
+| Smart terrain overloading: Dark Valley wagon 9_6, scripted target + joining squad | — | todo: SRP reworks the simulation (sim_board / sim_squad_generic); needs its own analysis |
+| Marsh creature scene (Agroprom, Swamps) | `cs.crash.marsh-creature-no-squad` (log: `npc_squad` nil) | done #196 |
+| Buggy dialog trees | — (`tools/check_dialogs.py`: none reachable in retail) | closed #195/#196 |
+| Waypoint: Cordon bonfire | `cs.crash.all-spawn-errors` | done #198 → #201 |
+| Army Warehouses path when mutants attack | `cs.crash.all-spawn-errors` (missing target link, new game) | done #201 |
+| Malformed conditions (found by our checker) | `cs.crash.condlist-syntax` | done #199 |
+| Two rare crashes on reload (`sim_combat` 419/968) | `cs.crash.sim-combat` | done #189 |
+| Missing mesh (`item_rukzak`) | `cs.crash.missing-backpack-model` (points at the game's own `dev_rukzak`) | done #202 |
+| Save corruption: corpse cleanup deletes a reused ID | `cs.save.corpse-cleanup-wrong-object` | done #203 |
+| Red Forest ambush squad missing (`There is no squad … in sim_board`) | `cs.crash.relation-to-missing-squad` | done #190 |
+| Marsh creature entity deleted right after creation (race) | — | todo: no log; SRP rewrote sr_bloodsucker |
+| 'You are saving too much' | — | research: a guard against the engine's packet buffer; removing it is unsafe without engine RE |
+| Logic loaded before the player exists (save corruption) | — | todo: cause not pinned down |
+| Flea Market basement mugging corrupts the game | — | todo: SRP replaces a story-id deletion with effectors |
 
 ## Change log
+
+- 2026-09-30 — batches 11–13 (#200–#203) and FP-12 (#201): Wild Napr story task; structural all.spawn editor with 43 fixes
+  (25 waypoints on existing saves, 18 object settings for new games) verified by re-parsing the real retail file; missing
+  backpack model via the game's own model; corpse cleanup save corruption. EE: full dump, 8 more EE variants. Source of
+  exact crash texts: SRP 1.1.5 version history. Tools: `spawn_diff.py`, `ee_variants.py`.
+
+- 2026-09-30 — FP-4 batches 6–10 (#195–#199): NPC offline in dialogue, marsh creature, Orest, mine trader, Cordon
+  waypoint, malformed conditions. Engine: same-length binary patches (`binary: true`) for all.spawn records.
+  Research tools: `check_dialogs.py`, `check_condlists.py`, `spawn_points.py`. Real crash logs found online were used to
+  prove causes (STCS Redux notes, GameFAQs). Remaining CS crashes: Wild Napr, smart overloading, Army Warehouses
+  waypoint, missing backpack mesh.
+
+- 2026-09-30 — FP-4 batches 1–5 (#189–#193): 12 Clear Sky crash entries, 6 Game Doctor signatures. Four suspected
+  missing logic sections checked against all.spawn and script flow: unreachable, no fix. Stacked branches rebuilt
+  on main after the queue broke; a leftover pack downloader removed from #188.
 
 - 2026-09-30 — owner: no third-party packs in the product; the fixes must be ours. Pack-install direction dropped
   (the zips uploaded to R2 `fixpacks/` are unused). Overlay engine (#185) and diff tool (#187) kept.

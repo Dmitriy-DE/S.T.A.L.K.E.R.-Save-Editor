@@ -363,6 +363,7 @@ public static class Stalker2InventoryReader
         Stalker2InventoryLayout? layout = null)
     {
         layout ??= LocateLayout(raw);
+        var objects = BuildObjectIndex(raw);
         var cellsByHandle = new Dictionary<uint, List<Stalker2GridCell>>();
         foreach (var cell in layout.GridCells)
         {
@@ -378,7 +379,7 @@ public static class Stalker2InventoryReader
         var starts = new Dictionary<uint, int>();
         foreach (var handle in layout.OwnedHandles)
         {
-            var candidates = FindObjectCandidates(raw, handle);
+            var candidates = FindObjectCandidates(objects, handle);
             if (candidates.Count == 1) starts.TryAdd(handle, candidates[0].Offset);
         }
 
@@ -395,7 +396,7 @@ public static class Stalker2InventoryReader
 
         foreach (var pair in cellsByHandle)
         {
-            var candidates = FindObjectCandidates(raw, pair.Key);
+            var candidates = FindObjectCandidates(objects, pair.Key);
             if (candidates.Count != 1)
             {
                 unresolved.Add(pair.Key);
@@ -476,7 +477,7 @@ public static class Stalker2InventoryReader
         foreach (var handle in layout.OwnedHandles)
         {
             if (handle == Tombstone || gridHandles.Contains(handle) || unresolved.Contains(handle)) continue;
-            var candidates = FindObjectCandidates(raw, handle);
+            var candidates = FindObjectCandidates(objects, handle);
             if (candidates.Count != 1) continue;
             var record = candidates[0];
             var carried = CarriedKinds.Contains(record.Kind);
@@ -551,12 +552,12 @@ public static class Stalker2InventoryReader
         foreach (var handle in layout.OwnedHandles)
         {
             if (handle == Tombstone || gridHandles.Contains(handle) || unresolved.Contains(handle)) continue;
-            if (FindObjectCandidates(raw, handle).Count == 1) continue;
+            if (FindObjectCandidates(objects, handle).Count == 1) continue;
             unresolved.Add(handle);
             warnings.Add($"Owned handle {FormatHandle(handle)}: отсутствует однозначный object record");
         }
 
-        var orphans = LocateOrphans(raw, layout, gridHandles, unresolved);
+        var orphans = LocateOrphans(raw, objects, layout, gridHandles, unresolved);
         foreach (var orphan in orphans)
         {
             if (!KnownKinds.Contains(orphan.KindCode))
@@ -577,6 +578,7 @@ public static class Stalker2InventoryReader
 
     private static ReadOnlyCollection<Stalker2OrphanItem> LocateOrphans(
         ReadOnlySpan<byte> raw,
+        Dictionary<uint, List<ObjectCandidate>> objects,
         Stalker2InventoryLayout layout,
         HashSet<uint> gridHandles,
         HashSet<uint> unresolved)
@@ -585,7 +587,7 @@ public static class Stalker2InventoryReader
         foreach (var handle in layout.OwnedHandles)
         {
             if (handle == Tombstone || gridHandles.Contains(handle) || unresolved.Contains(handle)) continue;
-            var candidates = FindObjectCandidates(raw, handle);
+            var candidates = FindObjectCandidates(objects, handle);
             if (candidates.Count != 1) continue;
             var record = candidates[0];
             if (HasEquipmentShape(raw, handle, record.Offset, record.Kind)) continue;
@@ -606,29 +608,39 @@ public static class Stalker2InventoryReader
         return Array.AsReadOnly(result.ToArray());
     }
 
-    private static List<ObjectCandidate> FindObjectCandidates(ReadOnlySpan<byte> raw, uint handle)
+    private static readonly List<ObjectCandidate> NoCandidates = [];
+
+    /// <summary>
+    /// Every plausible object record in the save, by handle, found in one pass. A record has the stack marker 0x38 at a
+    /// fixed distance from its handle, so the pass visits the marker bytes instead of searching the whole save once per
+    /// handle (which was O(handles × save size), with up to 4096 handles).
+    /// </summary>
+    private static Dictionary<uint, List<ObjectCandidate>> BuildObjectIndex(ReadOnlySpan<byte> raw)
     {
-        Span<byte> needle = stackalloc byte[sizeof(uint)];
-        BinaryPrimitives.WriteUInt32LittleEndian(needle, handle);
-        var candidates = new List<ObjectCandidate>();
-        var searchFrom = 0;
-        while (searchFrom <= raw.Length - needle.Length)
+        var index = new Dictionary<uint, List<ObjectCandidate>>();
+        var position = StackMarkerOffset;
+        while (position < raw.Length)
         {
-            var relative = raw[searchFrom..].IndexOf(needle);
+            var relative = raw[position..].IndexOf((byte)0x38);
             if (relative < 0) break;
-            var offset = searchFrom + relative;
-            searchFrom = offset + 1;
-            if (raw.Length - offset < MinimumObjectCandidateLength || raw[offset + StackMarkerOffset] != 0x38) continue;
+            var offset = position + relative - StackMarkerOffset;
+            position += relative + 1;
+            if (raw.Length - offset < MinimumObjectCandidateLength) break;
             var count = BinaryPrimitives.ReadUInt32LittleEndian(raw[(offset + StackCountOffset)..]);
+            if (count is < 1 or > 10_000_000) continue;
             var weight = BitConverter.Int32BitsToSingle(
                 BinaryPrimitives.ReadInt32LittleEndian(raw[(offset + StackWeightOffset)..]));
-            var kind = raw[offset + StackKindOffset];
-            if (count is < 1 or > 10_000_000 || !float.IsFinite(weight) || weight < 0 || weight > 10_000_000) continue;
-            candidates.Add(new ObjectCandidate(offset, count, weight, kind));
+            if (!float.IsFinite(weight) || weight < 0 || weight > 10_000_000) continue;
+            var handle = BinaryPrimitives.ReadUInt32LittleEndian(raw[offset..]);
+            if (!index.TryGetValue(handle, out var candidates)) index[handle] = candidates = [];
+            candidates.Add(new ObjectCandidate(offset, count, weight, raw[offset + StackKindOffset]));
         }
 
-        return candidates;
+        return index;
     }
+
+    private static List<ObjectCandidate> FindObjectCandidates(Dictionary<uint, List<ObjectCandidate>> index, uint handle) =>
+        index.TryGetValue(handle, out var candidates) ? candidates : NoCandidates;
 
     private static Dictionary<uint, int> RecordEndGuesses(int rawLength, Dictionary<uint, int> starts)
     {

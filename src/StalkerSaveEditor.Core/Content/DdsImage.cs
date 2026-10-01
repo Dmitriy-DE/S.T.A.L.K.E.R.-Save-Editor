@@ -134,10 +134,22 @@ internal static class DdsImage
         var bits = U32(header, 88);
         if (bits is not (24 or 32)) throw new InvalidDataException("Unsupported uncompressed DDS pixel size.");
         var bytesPerPixel = (int)bits / 8;
-        var pitch = (int)U32(header, 20);
-        if (pitch == 0) pitch = width * bytesPerPixel;
+        // The pitch comes from the file: it must cover a row and the rows must fit the payload, otherwise the offsets
+        // below overflow or go negative and index outside the data.
+        var minimumPitch = checked(width * bytesPerPixel);
+        var storedPitch = U32(header, 20);
+        if (storedPitch == 0) storedPitch = (uint)minimumPitch;
+        if (storedPitch > int.MaxValue || storedPitch < minimumPitch) throw new InvalidDataException("DDS pitch is invalid.");
+        var pitch = (int)storedPitch;
+        if ((long)pitch * (height - 1) + minimumPitch > payload.Length) throw new InvalidDataException("DDS pixel data is truncated.");
         uint red = U32(header, 92), green = U32(header, 96), blue = U32(header, 100), alpha = U32(header, 104);
-        var rgba = new byte[width * height * 4];
+        foreach (var mask in (ReadOnlySpan<uint>)[red, green, blue, alpha])
+        {
+            // A channel is a run of at most 16 adjacent bits; a full 32-bit mask made the scale divide by zero.
+            if (mask != 0 && (BitOperations.PopCount(mask) > 16 || (mask >> BitOperations.TrailingZeroCount(mask)) + 1 != 1u << BitOperations.PopCount(mask)))
+                throw new InvalidDataException("Unsupported DDS channel mask.");
+        }
+        var rgba = new byte[checked(width * height * 4)];
         for (var y = 0; y < height; y++)
         {
             for (var x = 0; x < width; x++)

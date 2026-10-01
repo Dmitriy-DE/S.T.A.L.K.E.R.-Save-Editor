@@ -13,6 +13,24 @@ public static class XRayArchiveReader
     private static readonly Encoding Windows1251 = CreateWindows1251();
     private static readonly byte[] Utf8Preamble = [0xEF, 0xBB, 0xBF];
 
+    /// <summary>
+    /// Opens an archive whose entry table is already known (read earlier from the same, unchanged file), without
+    /// decoding the table again. Every file read is still bounds-checked and verified against its CRC, so a table
+    /// that no longer matches the bytes fails the read instead of returning wrong data.
+    /// </summary>
+    internal static XRayArchive OpenWithEntries(Stream source, IReadOnlyList<XRayArchiveEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(entries);
+        if (!source.CanRead || !source.CanSeek)
+        {
+            source.Dispose();
+            throw new ArgumentException("X-Ray archives require a readable, seekable stream.", nameof(source));
+        }
+
+        return new XRayArchive(source, source.Position, source.Length - source.Position, entries, leaveOpen: false);
+    }
+
     public static XRayArchive Open(Stream source, bool leaveOpen = false)
     {
         ArgumentNullException.ThrowIfNull(source);

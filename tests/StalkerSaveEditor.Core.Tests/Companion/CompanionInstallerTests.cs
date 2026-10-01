@@ -541,6 +541,25 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
+    public void A_deferred_file_tree_has_the_same_identity_and_the_same_bytes_as_an_eager_one()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        static bool Wanted(string path) => path.EndsWith(".script", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".ltx", StringComparison.OrdinalIgnoreCase);
+
+        var eager = StalkerSaveEditor.Core.Content.GameFileTree.Load(CompanionGame.CallOfPripyat, game.GameDirectory, Wanted);
+        var deferred = StalkerSaveEditor.Core.Content.GameFileTree.Load(CompanionGame.CallOfPripyat, game.GameDirectory, Wanted, deferArchiveContent: true);
+
+        Assert.NotEmpty(eager.Files);
+        Assert.Equal(eager.Fingerprint, deferred.Fingerprint);
+        Assert.Equal(eager.Files.Keys.Order(StringComparer.Ordinal), deferred.Files.Keys.Order(StringComparer.Ordinal));
+        foreach (var (path, file) in eager.Files)
+        {
+            Assert.Equal(file.Origin, deferred.Files[path].Origin);
+            Assert.Equal(file.Read(), deferred.Files[path].Read());
+        }
+    }
+
+    [Fact]
     public void An_install_killed_half_way_is_undone_before_the_next_install()
     {
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);

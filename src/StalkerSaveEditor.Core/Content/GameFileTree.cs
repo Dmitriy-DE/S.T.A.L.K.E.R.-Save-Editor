@@ -56,12 +56,33 @@ internal sealed class GameFileTree
     /// <summary>Absolute <c>$game_data$</c> directory, when fsgame defines it.</summary>
     public string? DataDirectory { get; }
 
+    private const int MaximumArchiveTables = 128;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, long Length, long WriteTicks), XRayArchiveEntry[]> ArchiveTables = new();
+
+    private static byte[] ReadArchiveEntry(IGameFileSystem fileSystem, string archivePath, XRayArchiveEntry[] table, string entryName)
+    {
+        try
+        {
+            using var archive = XRayArchiveReader.OpenWithEntries(fileSystem.OpenRead(archivePath), table);
+            return archive.ReadFile(entryName);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or XRayFormatException)
+        {
+            throw new InvalidDataException($"Could not read {entryName} from {Path.GetFileName(archivePath)}: {exception.Message}", exception);
+        }
+    }
+
+    /// <param name="deferArchiveContent">
+    /// Read only the archive tables now and unpack a file when it is asked for. The fingerprint is the same in both
+    /// modes; use it when the caller will most likely not need the contents (a content-cache hit).
+    /// </param>
     public static GameFileTree Load(
         CompanionGame game,
         string gameDirectory,
         Func<string, bool> wanted,
         IGameFileSystem? fileSystem = null,
-        IReadOnlyList<string>? fsgameFileNames = null)
+        IReadOnlyList<string>? fsgameFileNames = null,
+        bool deferArchiveContent = false)
     {
         fileSystem ??= new PhysicalGameFileSystem();
         var search = CompanionArchiveLocator.Discover(fileSystem, gameDirectory, fsgameFileNames ?? ["fsgame.ltx"], game);
@@ -78,15 +99,38 @@ internal sealed class GameFileTree
             {
                 var info = new FileInfo(archivePath);
                 stamp.Append(CultureInvariant($"A|{Path.GetFileName(archivePath)}|{info.Length}|{info.LastWriteTimeUtc.Ticks}\n"));
-                using var stream = fileSystem.OpenRead(archivePath);
-                using var archive = XRayArchiveReader.Open(stream);
-                foreach (var entry in archive.Entries)
+                // The table of an unchanged archive is remembered: a fix that patches one script used to make every
+                // archive of the game be opened and its table decoded again, for each file it touches.
+                var tableKey = (archivePath, info.Length, info.LastWriteTimeUtc.Ticks);
+                if (!ArchiveTables.TryGetValue(tableKey, out var table))
                 {
-                    var relative = Normalize(entry.Name);
-                    if (relative.Length == 0 || relative.EndsWith('/') || !wanted(relative)) continue;
+                    using var tableStream = fileSystem.OpenRead(archivePath);
+                    using var tableArchive = XRayArchiveReader.Open(tableStream);
+                    table = tableArchive.Entries.ToArray();
+                    if (ArchiveTables.Count >= MaximumArchiveTables) ArchiveTables.Clear();
+                    ArchiveTables[tableKey] = table;
+                }
+
+                var wantedEntries = table
+                    .Select(entry => (Entry: entry, Relative: Normalize(entry.Name)))
+                    .Where(pair => pair.Relative.Length > 0 && !pair.Relative.EndsWith('/') && wanted(pair.Relative))
+                    .ToArray();
+                if (wantedEntries.Length == 0) continue;
+                using var archive = deferArchiveContent ? null : XRayArchiveReader.OpenWithEntries(fileSystem.OpenRead(archivePath), table);
+                foreach (var (entry, relative) in wantedEntries)
+                {
                     // The archive's own checksum of every file that is used: a repacked archive with the same size
                     // and time still changes the fingerprint, without hashing gigabytes.
                     stamp.Append(CultureInvariant($"E|{relative}|{entry.UncompressedSize}|{entry.CompressedSize}|{entry.Crc32}|{entry.Offset}\n"));
+                    if (archive is null)
+                    {
+                        // Only the archive's table was read. The few files somebody later asks for (an icon atlas)
+                        // are unpacked then, by opening the archive again; nothing is kept in memory meanwhile.
+                        var (capturedArchive, capturedEntry, capturedTable) = (archivePath, entry.Name, table);
+                        files[relative] = new GameFile(relative, archivePath, () => ReadArchiveEntry(fileSystem, capturedArchive, capturedTable, capturedEntry));
+                        continue;
+                    }
+
                     var bytes = archive.ReadFile(entry.Name);
                     files[relative] = new GameFile(relative, archivePath, () => bytes);
                 }

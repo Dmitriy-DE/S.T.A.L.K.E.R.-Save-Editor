@@ -185,6 +185,47 @@ public sealed class CompanionProtocolClientTests
         Assert.False(File.Exists(Path.Combine(game.AppDataRoot, "save_editor_cmd.tmp")));
     }
 
+    [Fact]
+    public async Task A_cancelled_request_withdraws_its_own_command_but_never_a_foreign_one()
+    {
+        using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
+        var commandPath = Path.Combine(game.AppDataRoot, "save_editor_cmd.txt");
+        var client = game.CreateClient("request-1", timeout: TimeSpan.FromSeconds(30));
+
+        using (var cancellation = new CancellationTokenSource())
+        {
+            var pending = client.SendAsync("info", cancellationToken: cancellation.Token);
+            while (!File.Exists(commandPath)) await Task.Delay(10);
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        }
+        Assert.False(File.Exists(commandPath));
+
+        // The next request is not blocked by a leftover command.
+        using (var cancellation = new CancellationTokenSource())
+        {
+            var pending = game.CreateClient("request-2", timeout: TimeSpan.FromSeconds(30)).SendAsync("info", cancellationToken: cancellation.Token);
+            while (!File.Exists(commandPath)) await Task.Delay(10);
+            // Another writer replaced the command meanwhile: it must survive our cleanup.
+            File.WriteAllText(commandPath, "v1 foreign ping\n");
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        }
+        Assert.Equal("v1 foreign ping\n", File.ReadAllText(commandPath));
+    }
+
+    [Fact]
+    public async Task An_oversized_reply_file_is_ignored_instead_of_being_loaded()
+    {
+        using var game = SyntheticGame.Create("$app_data_root$ = true| false| $fs_root$| user-data\\\n");
+        Directory.CreateDirectory(game.AppDataRoot);
+        File.WriteAllBytes(Path.Combine(game.AppDataRoot, "save_editor_out.txt"), new byte[CompanionProtocolClient.MaximumReplyBytes + 1]);
+        var client = game.CreateClient("request-1", timeout: TimeSpan.FromMilliseconds(300));
+
+        await Assert.ThrowsAsync<CompanionProtocolTimeoutException>(() => client.SendAsync("info"));
+        Assert.False(File.Exists(Path.Combine(game.AppDataRoot, "save_editor_cmd.txt")));
+    }
+
     [Theory]
     [InlineData("give", "medkit|101")]
     [InlineData("money", "1.5")]

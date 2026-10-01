@@ -26,7 +26,8 @@ public static partial class SteamNativeWorkerHost
 
     public static async Task<int> RunAsync()
     {
-        await using var input = Console.OpenStandardInput();
+        // Buffered: the request line is framed byte by byte and its payload follows on the same stream.
+        await using var input = new BufferedStream(Console.OpenStandardInput(), 64 * 1024);
         await using var output = Console.OpenStandardOutput();
         return await RunAsync(input, output, _ => new SteamNativeRemoteStorage(), CancellationToken.None)
             .ConfigureAwait(false);
@@ -34,7 +35,8 @@ public static partial class SteamNativeWorkerHost
 
     public static async Task<int> RunGameSessionAsync(int appId)
     {
-        await using var input = Console.OpenStandardInput();
+        // Buffered: the request line is framed byte by byte and its payload follows on the same stream.
+        await using var input = new BufferedStream(Console.OpenStandardInput(), 64 * 1024);
         await using var output = Console.OpenStandardOutput();
         return await RunGameSessionAsync(
             appId,

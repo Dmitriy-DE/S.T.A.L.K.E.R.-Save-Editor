@@ -220,9 +220,10 @@ internal sealed partial class SteamWorkerProcessRunner : ISteamWorkerProcessRunn
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(timeout);
 
+        Task<string>? stderrTask = null;
         try
         {
-            var stderrTask = DrainErrorAsync(process.StandardError);
+            stderrTask = DrainErrorAsync(process.StandardError);
             process.StandardInput.Dispose();
             var responseBytes = await ReadHeaderAsync(process.StandardOutput, timeoutSource.Token)
                 .ConfigureAwait(false);
@@ -246,12 +247,12 @@ internal sealed partial class SteamWorkerProcessRunner : ISteamWorkerProcessRunn
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            process.KillTree();
+            await StopAsync(process, stderrTask).ConfigureAwait(false);
             throw new TimeoutException($"Steam worker exceeded the {timeout.TotalSeconds:0.###} second timeout.");
         }
         catch
         {
-            process.KillTree();
+            await StopAsync(process, stderrTask).ConfigureAwait(false);
             throw;
         }
     }
@@ -268,9 +269,10 @@ internal sealed partial class SteamWorkerProcessRunner : ISteamWorkerProcessRunn
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(timeout);
 
+        Task<string>? stderrTask = null;
         try
         {
-            var stderrTask = DrainErrorAsync(process.StandardError);
+            stderrTask = DrainErrorAsync(process.StandardError);
             var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, SteamWorkerJsonContext.Default.WorkerRequest);
             await process.StandardInput.WriteAsync(requestBytes, timeoutSource.Token).ConfigureAwait(false);
             await process.StandardInput.WriteAsync("\n"u8.ToArray(), timeoutSource.Token).ConfigureAwait(false);
@@ -321,12 +323,12 @@ internal sealed partial class SteamWorkerProcessRunner : ISteamWorkerProcessRunn
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            process.KillTree();
+            await StopAsync(process, stderrTask).ConfigureAwait(false);
             throw new TimeoutException($"Steam worker exceeded the {timeout.TotalSeconds:0.###} second timeout.");
         }
         catch
         {
-            process.KillTree();
+            await StopAsync(process, stderrTask).ConfigureAwait(false);
             throw;
         }
     }
@@ -457,10 +459,41 @@ internal sealed partial class SteamWorkerProcessRunner : ISteamWorkerProcessRunn
         }
     }
 
-    private static async Task<string> DrainErrorAsync(Stream stream)
+    /// <summary>One way to stop a worker: the caller returns only after the child is gone and its stderr reader ended.</summary>
+    private static async Task StopAsync(ISteamWorkerChildProcess process, Task<string>? stderrTask)
+    {
+        await KillAndWaitAsync(process).ConfigureAwait(false);
+        if (stderrTask is null) return;
+        try
+        {
+            // A grandchild may still hold the pipe; the kill above is what matters, so this wait is short.
+            _ = await stderrTask.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is TimeoutException or IOException or ObjectDisposedException)
+        {
+        }
+    }
+
+    internal const int MaximumRetainedErrorChars = 64 * 1024;
+
+    /// <summary>
+    /// stderr has to be read to the end or the child blocks on a full pipe, but only its tail is kept: a worker that
+    /// floods stderr must not grow the editor's memory.
+    /// </summary>
+    internal static async Task<string> DrainErrorAsync(Stream stream)
     {
         using var reader = new StreamReader(stream, Encoding.UTF8);
-        return await reader.ReadToEndAsync().ConfigureAwait(false);
+        var tail = new StringBuilder();
+        var buffer = new char[4096];
+        int count;
+        while ((count = await reader.ReadAsync(buffer.AsMemory()).ConfigureAwait(false)) > 0)
+        {
+            tail.Append(buffer, 0, count);
+            if (tail.Length > 2 * MaximumRetainedErrorChars) tail.Remove(0, tail.Length - MaximumRetainedErrorChars);
+        }
+
+        if (tail.Length > MaximumRetainedErrorChars) tail.Remove(0, tail.Length - MaximumRetainedErrorChars);
+        return tail.ToString();
     }
 
     private sealed record WorkerRequest(string Operation, int AppId, string? FileName, int? Size = null);
@@ -547,7 +580,11 @@ internal sealed class SteamWorkerChildProcess(ProcessStartInfo startInfo) : ISte
 
     public Stream StandardInput => _process.StandardInput.BaseStream;
 
-    public Stream StandardOutput => _process.StandardOutput.BaseStream;
+    // Buffered once and reused: the response header is framed byte by byte, and the payload that follows it must come
+    // from the same buffer. Without it every header byte is a separate read of the pipe.
+    public Stream StandardOutput => _standardOutput ??= new BufferedStream(_process.StandardOutput.BaseStream, 64 * 1024);
+
+    private Stream? _standardOutput;
 
     public Stream StandardError => _process.StandardError.BaseStream;
 

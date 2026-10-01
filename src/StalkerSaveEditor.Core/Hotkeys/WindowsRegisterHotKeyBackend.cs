@@ -144,13 +144,18 @@ internal sealed class WindowsRegisterHotKeyBackend : IGlobalHotkeyBackend
                 id++;
             }
 
-            _started?.TrySetResult();
-
             // The keys are registered only while the game is the foreground window (checked every 300 ms),
-            // so Ctrl+S, Ctrl+R… keep working in every other program.
-            var active = true;
-            SyncWithForeground();
+            // so Ctrl+S, Ctrl+R… keep working in every other program. Without the timer nothing would ever
+            // release them, so a failed timer is a failed start.
             var timer = NativeMethods.SetTimer(IntPtr.Zero, UIntPtr.Zero, 300, IntPtr.Zero);
+            if (timer == UIntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create the hotkey foreground timer.");
+            }
+
+            _started?.TrySetResult();
+            var registration = new FocusBoundRegistration(TrySetRegistered, active: true);
+            SyncWithForeground();
             int messageResult;
             while ((messageResult = NativeMethods.GetMessage(out var message, IntPtr.Zero, 0, 0)) > 0)
             {
@@ -166,16 +171,33 @@ internal sealed class WindowsRegisterHotKeyBackend : IGlobalHotkeyBackend
 
             _ = NativeMethods.KillTimer(IntPtr.Zero, timer);
 
-            void SyncWithForeground()
+            void SyncWithForeground() => registration.Sync(GameIsForeground());
+
+            bool TrySetRegistered(bool register)
             {
-                var game = GameIsForeground();
-                if (game == active) return;
-                active = game;
+                if (!register)
+                {
+                    foreach (var hotkeyId in _bindings.Keys) _ = NativeMethods.UnregisterHotKey(IntPtr.Zero, hotkeyId);
+                    return true;
+                }
+
+                var done = new List<int>();
                 foreach (var (hotkeyId, binding) in _bindings)
                 {
-                    if (game) _ = NativeMethods.RegisterHotKey(IntPtr.Zero, hotkeyId, GetNativeModifiers(binding.Gesture.Modifiers), (uint)char.ToUpperInvariant(binding.Gesture.Key));
-                    else _ = NativeMethods.UnregisterHotKey(IntPtr.Zero, hotkeyId);
+                    if (NativeMethods.RegisterHotKey(IntPtr.Zero, hotkeyId, GetNativeModifiers(binding.Gesture.Modifiers), (uint)char.ToUpperInvariant(binding.Gesture.Key)))
+                    {
+                        done.Add(hotkeyId);
+                        continue;
+                    }
+
+                    // Another program took the key while the game was in the background: all or nothing, retried later.
+                    var error = Marshal.GetLastWin32Error();
+                    foreach (var registeredId in done) _ = NativeMethods.UnregisterHotKey(IntPtr.Zero, registeredId);
+                    Diagnostics.AppLog.Warn($"Hotkey {binding.Gesture} could not be registered again (error {error}); it will be retried.");
+                    return false;
                 }
+
+                return true;
             }
 
             if (messageResult < 0)

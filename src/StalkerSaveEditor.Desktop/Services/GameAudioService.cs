@@ -49,6 +49,7 @@ public sealed class GameAudioService
     private string _family = "cop";
     private bool _musicEnabled;
     private Process? _musicProcess;
+    private long _musicGeneration;
     private string? _musicFamily;
 
     public GameAudioService(string? soundRoot = null, string? cacheDirectory = null)
@@ -128,7 +129,10 @@ public sealed class GameAudioService
 
     private string? PrepareLocked(string family, string[] files, string name)
     {
-        var target = Path.Combine(_cacheDirectory, $"{name}-v{Volume}.wav");
+        // One reading of the setting for both the file name and the gain: a volume change during the decode must not
+        // leave a file named after one volume holding another.
+        var volume = Volume;
+        var target = Path.Combine(_cacheDirectory, $"{name}-v{volume}.wav");
         if (File.Exists(target)) return target;
         var sources = files.Select(file => Path.Combine(_soundRoot, family, file)).ToArray();
         if (!sources.All(File.Exists)) return null;
@@ -137,7 +141,7 @@ public sealed class GameAudioService
         var readers = sources.Select(path => new NVorbis.VorbisReader(path)).ToArray();
         try
         {
-            WriteWav(temp, readers, Volume / 100f);
+            WriteWav(temp, readers, volume / 100f);
         }
         catch
         {
@@ -234,6 +238,7 @@ public sealed class GameAudioService
         lock (service._musicLock)
         {
             service._musicFamily = null;
+            service._musicGeneration++;
             service.StopMusicLocked();
         }
     }
@@ -241,11 +246,13 @@ public sealed class GameAudioService
     private void UpdateMusic()
     {
         var wanted = _musicEnabled && Volume > 0 ? _family : null;
+        long generation;
         lock (_musicLock)
         {
             if (wanted == _musicFamily) return;
             StopMusicLocked();
             _musicFamily = wanted;
+            generation = ++_musicGeneration;
         }
 
         if (wanted is null) return;
@@ -256,7 +263,10 @@ public sealed class GameAudioService
                 if (Prepare(wanted, MusicFiles[wanted], $"{wanted}-music") is not { } wav) return;
                 lock (_musicLock)
                 {
-                    if (_musicFamily != wanted) return;
+                    // The request number, not the family name: after A → B → A an older "A" request would otherwise
+                    // start a second loop and orphan the first.
+                    if (generation != _musicGeneration) return;
+                    StopMusicLocked();
                     _musicProcess = StartLoop(wav);
                 }
             }
@@ -306,7 +316,16 @@ public sealed class GameAudioService
         }
 
         using var process = Start(wav);
-        process?.WaitForExit(5000);
+        if (process is null || process.WaitForExit(5000)) return;
+        // Disposing the handle does not stop the player; a stuck one would pile up with every click.
+        try
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(2000);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+        }
     }
 
     /// <summary>The music loop: winmm SND_LOOP on Windows, a looping shell on macOS/Linux (killed on stop).</summary>

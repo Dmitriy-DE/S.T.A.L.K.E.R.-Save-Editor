@@ -27,6 +27,8 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
     private UIntPtr _rootWindow;
     private Action<CompanionHotkeyBinding>? _onPressed;
     private static int _lastXErrorCode;
+    private static IntPtr _handlerDisplay;
+    private static IntPtr _previousHandler;
 
     public async Task StartAsync(
         IReadOnlyList<CompanionHotkeyBinding> bindings,
@@ -100,6 +102,8 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
     {
         try
         {
+            // Xlib wants this before any other Xlib call in the process. The UI toolkit already makes that call at
+            // start-up; repeating it is harmless and covers the headless hosts that have no toolkit.
             if (NativeMethods.XInitThreads() == 0)
             {
                 throw new HotkeyRegistrationException("Xlib could not enable thread-safe access.", new InvalidOperationException());
@@ -120,15 +124,11 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
             _rootWindow = NativeMethods.XDefaultRootWindow(_display);
             RegisterBindings(bindings);
             _started?.TrySetResult();
-            var grabbed = true;
+            var registration = new FocusBoundRegistration(TrySetGrabbed, active: true);
             for (var tick = 0; Volatile.Read(ref _stopRequested) == 0; tick++)
             {
                 // The keys are held only while the game has the focus (checked every ~300 ms).
-                if (tick % 10 == 0 && GameHasFocus() is var game && game != grabbed)
-                {
-                    SetGrabbed(game);
-                    grabbed = game;
-                }
+                if (tick % 10 == 0) registration.Sync(GameHasFocus());
 
                 DrainEvents();
                 Thread.Sleep(30);
@@ -177,7 +177,7 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         lock (XErrorHandlerGate)
         {
             _ = Interlocked.Exchange(ref _lastXErrorCode, 0);
-            var previousHandler = NativeMethods.XSetErrorHandler(ErrorHandler);
+            var previousHandler = InstallErrorHandler();
             try
             {
                 foreach (var (keyCode, keyBindings) in byKey)
@@ -199,7 +199,7 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
             }
             finally
             {
-                _ = NativeMethods.XSetErrorHandler(previousHandler);
+                RestoreErrorHandler(previousHandler);
             }
 
             var error = Interlocked.Exchange(ref _lastXErrorCode, 0);
@@ -219,14 +219,22 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         }
     }
 
-    private void SetGrabbed(bool grab)
+    /// <summary>False when X11 refused a grab: nothing stays half-grabbed and the caller retries later.</summary>
+    private bool TrySetGrabbed(bool grab)
+    {
+        if (SetGrabbed(grab) || !grab) return true;
+        _ = SetGrabbed(grab: false);
+        return false;
+    }
+
+    private bool SetGrabbed(bool grab)
     {
         // Same guard as the first registration: without our handler Xlib's default one exits the process when another
         // application took the key while the editor had released it (BadAccess on re-grab).
         lock (XErrorHandlerGate)
         {
             _ = Interlocked.Exchange(ref _lastXErrorCode, 0);
-            var previousHandler = NativeMethods.XSetErrorHandler(ErrorHandler);
+            var previousHandler = InstallErrorHandler();
             try
             {
                 foreach (var (keyCode, modifiers) in _grabbedKeys)
@@ -239,13 +247,16 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
             }
             finally
             {
-                _ = NativeMethods.XSetErrorHandler(previousHandler);
+                RestoreErrorHandler(previousHandler);
             }
 
             if (Interlocked.Exchange(ref _lastXErrorCode, 0) is var error and not 0)
             {
                 AppLog.Warn($"X11 hotkey {(grab ? "re-grab" : "release")} failed (error {error}); another application may hold the key.");
+                return false;
             }
+
+            return true;
         }
     }
 
@@ -348,11 +359,38 @@ internal sealed class LinuxX11HotkeyBackend : IGlobalHotkeyBackend
         }
     }
 
+    /// <summary>
+    /// The X error handler is one per process, and the UI toolkit has its own connection and its own handler. While
+    /// ours is installed, only errors of this backend's connection are taken; anything else goes to the handler that
+    /// was there before, so an unrelated toolkit error is neither swallowed nor mistaken for a refused grab.
+    /// </summary>
     private static int CaptureXError(IntPtr display, ref NativeXErrorEvent errorEvent)
     {
-        _ = display;
-        Interlocked.Exchange(ref _lastXErrorCode, errorEvent.ErrorCode);
-        return 0;
+        if (display == Volatile.Read(ref _handlerDisplay))
+        {
+            Interlocked.Exchange(ref _lastXErrorCode, errorEvent.ErrorCode);
+            return 0;
+        }
+
+        var previous = Volatile.Read(ref _previousHandler);
+        return previous == IntPtr.Zero
+            ? 0
+            : Marshal.GetDelegateForFunctionPointer<XErrorHandler>(previous)(display, ref errorEvent);
+    }
+
+    private IntPtr InstallErrorHandler()
+    {
+        Volatile.Write(ref _handlerDisplay, _display);
+        var previous = NativeMethods.XSetErrorHandler(ErrorHandler);
+        Volatile.Write(ref _previousHandler, previous);
+        return previous;
+    }
+
+    private static void RestoreErrorHandler(IntPtr previous)
+    {
+        _ = NativeMethods.XSetErrorHandler(previous);
+        Volatile.Write(ref _previousHandler, IntPtr.Zero);
+        Volatile.Write(ref _handlerDisplay, IntPtr.Zero);
     }
 
     [StructLayout(LayoutKind.Sequential)]

@@ -52,7 +52,7 @@ public sealed class UpdateInstallationDetectorTests
         var installation = UpdateInstallationDetector.Detect(executable, "macos");
 
         Assert.Equal(bundle, installation.Root);
-        Assert.Equal("portable", installation.Kind);
+        Assert.Equal("app-bundle", installation.Kind);
         Assert.Equal("arm64", installation.Architecture);
     }
 

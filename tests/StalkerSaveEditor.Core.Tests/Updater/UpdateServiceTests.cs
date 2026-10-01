@@ -254,6 +254,102 @@ public sealed class UpdateServiceTests
     }
 
     [Theory]
+    [InlineData("arm64", "macos-arm64")]
+    [InlineData("x86_64", "macos-x86_64")]
+    public async Task A_macos_app_bundle_is_detected_checked_validated_and_handed_its_disk_image(string architecture, string key)
+    {
+        using var directory = new TemporaryDirectory();
+        var bundle = Path.Combine(directory.Path, "SaveEditor.app");
+        var executable = Path.Combine(bundle, "Contents", "MacOS", "SaveEditor");
+        Directory.CreateDirectory(Path.GetDirectoryName(executable)!);
+        Directory.CreateDirectory(Path.Combine(bundle, "Contents", "Resources"));
+        File.WriteAllText(executable, "synthetic executable");
+        File.WriteAllText(Path.Combine(bundle, "Contents", "Resources", "BUILD_MANIFEST.json"), $"{{\"target\":\"macos\",\"architecture\":\"{architecture}\"}}");
+        var installation = UpdateInstallationDetector.Detect(executable, "macos");
+        Assert.Equal("app-bundle", installation.Kind);
+
+        var body = "verified disk image"u8.ToArray();
+        object Dmg(string target, string cpu) => new
+        {
+            target, architecture = cpu, kind = "disk-image", file = $"SaveEditor-{target}.dmg", size = body.LongLength,
+            sha256 = Convert.ToHexString(SHA256.HashData(body)).ToLowerInvariant(), url = $"http://updates.test/SaveEditor-{target}.dmg",
+        };
+        var manifest = JsonSerializer.Serialize(new
+        {
+            schema = 1, channel = "stable", version = "9.0.0", source_commit = new string('a', 40), published_at = "2026-09-26T12:00:00Z",
+            artifacts = new Dictionary<string, object>
+            {
+                ["windows-x86_64"] = Artifact("windows-x86_64", "portable", "SaveEditor-windows-x86_64.zip", body),
+                ["linux-x86_64"] = Artifact("linux-x86_64", "portable", "SaveEditor-linux-x86_64.tar.gz", body),
+                ["linux-deb-amd64"] = Artifact("linux-deb-amd64", "package", "editor.deb", body),
+            },
+            optional_artifacts = new Dictionary<string, object>
+            {
+                ["macos-arm64"] = Dmg("macos-arm64", "arm64"),
+                ["macos-x86_64"] = Dmg("macos-x86_64", "x86_64"),
+            },
+        });
+        var runner = new FakeUpdateProcessRunner(0);
+        using var service = new UpdateService(
+            "1.0.0", ManifestUrl, installation.Target, installation.Architecture, "disk-image",
+            new FakeHandler(_ => JsonResponse(manifest)), ["updates.test"], ["http", "https"],
+            Path.Combine(directory.Path, "cache"), static name => name == "open" ? "/usr/bin/open" : null, runner,
+            signingPublicKeyPem: TestSigningKey.PublicPem);
+
+        var check = await service.CheckAsync();
+        Assert.True(check.State == UpdateState.Available, check.Error);
+        Assert.Equal(key, check.Artifact!.Target);
+        var image = Path.Combine(directory.Path, check.Artifact.File);
+        await File.WriteAllBytesAsync(image, body);
+
+        var result = await service.InstallAsync(check.Artifact, image, installation);
+
+        Assert.Equal(UpdateInstallState.OpenedExternally, result.State);
+        Assert.Equal(1, runner.CallCount);
+        Assert.Equal("/usr/bin/open", runner.LastStartInfo!.FileName);
+        Assert.Equal([image], runner.LastStartInfo.ArgumentList);
+    }
+
+    [Fact]
+    public async Task A_body_that_stops_after_the_headers_times_out_for_the_check_and_the_download()
+    {
+        using var directory = new TemporaryDirectory();
+        using var service = new UpdateService(
+            "1.0.0", ManifestUrl, "windows", "x86_64", "portable",
+            new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new StalledStream()) }),
+            ["updates.test"], ["http", "https"], Path.Combine(directory.Path, "cache"), static _ => null, new FakeUpdateProcessRunner(0),
+            timeout: TimeSpan.FromMilliseconds(100), signingPublicKeyPem: TestSigningKey.PublicPem);
+
+        var check = await service.CheckAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(UpdateState.Unavailable, check.State);
+
+        var artifact = new UpdateArtifact("windows-x86_64", "x86_64", "portable", "SaveEditor-windows-x86_64.zip", 10, new string('0', 64), "http://updates.test/SaveEditor-windows-x86_64.zip");
+        var target = Path.Combine(directory.Path, artifact.File);
+        await Assert.ThrowsAnyAsync<Exception>(() => service.DownloadAsync(artifact, target).WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.False(File.Exists(target));
+        Assert.Empty(Directory.GetFiles(directory.Path, "*.part"));
+    }
+
+    private sealed class StalledStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    [Theory]
     [InlineData("1.2.3", "1.2.3", 0)]
     [InlineData("1.2.3-rc.1", "1.2.3", -1)]
     [InlineData("1.2.3", "1.2.3-rc.1", 1)]

@@ -75,17 +75,23 @@ public sealed record UpdateManifest(
     string PublishedAt,
     IReadOnlyDictionary<string, UpdateArtifact> Artifacts)
 {
+    /// <summary>
+    /// The one place that names the manifest entry for a platform, CPU and artifact kind. Selection, validation and the
+    /// installer handoff all use it, so they cannot disagree (macOS x64 used to be validated as arm64).
+    /// </summary>
+    public static string ArtifactKey(string target, string architecture, string kind) => (target, kind) switch
+    {
+        ("windows", "portable") => "windows-x86_64",
+        ("windows", "installer") => "windows-installer-x86_64",
+        ("linux", "portable") => "linux-x86_64",
+        ("linux", "package") => "linux-deb-amd64",
+        ("macos", "disk-image") => architecture == "arm64" ? "macos-arm64" : "macos-x86_64",
+        _ => throw new UpdateManifestException($"No update artifact exists for {target}/{kind}.")
+    };
+
     public UpdateArtifact Select(string target, string architecture, string kind)
     {
-        var key = (target, kind) switch
-        {
-            ("windows", "portable") => "windows-x86_64",
-            ("windows", "installer") => "windows-installer-x86_64",
-            ("linux", "portable") => "linux-x86_64",
-            ("linux", "package") => "linux-deb-amd64",
-            ("macos", "disk-image") => architecture == "arm64" ? "macos-arm64" : "macos-x86_64",
-            _ => throw new UpdateManifestException($"No update artifact exists for {target}/{kind}.")
-        };
+        var key = ArtifactKey(target, architecture, kind);
 
         if (!Artifacts.TryGetValue(key, out var artifact) || artifact.Architecture != architecture || artifact.Kind != kind)
         {
@@ -243,7 +249,7 @@ public sealed class UpdateService : IDisposable
         try
         {
             using var response = await SendTrustedAsync(_manifestUri, cancellationToken).ConfigureAwait(false);
-            var bytes = await ReadBoundedAsync(response.Content, MaximumManifestBytes, cancellationToken)
+            var bytes = await ReadBoundedAsync(response.Content, MaximumManifestBytes, _timeout, cancellationToken)
                 .ConfigureAwait(false);
             await VerifyManifestSignatureAsync(bytes, cancellationToken).ConfigureAwait(false);
             var manifest = ParseManifest(new UTF8Encoding(false, true).GetString(bytes));
@@ -323,7 +329,7 @@ public sealed class UpdateService : IDisposable
                 long total = 0;
                 while (true)
                 {
-                    var read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                    var read = await ReadWithIdleTimeoutAsync(input, buffer, _timeout, cancellationToken).ConfigureAwait(false);
                     if (read == 0)
                     {
                         break;
@@ -555,7 +561,7 @@ public sealed class UpdateService : IDisposable
         try
         {
             using var response = await SendTrustedAsync(signatureUri, cancellationToken).ConfigureAwait(false);
-            signature = await ReadBoundedAsync(response.Content, UpdateSignature.MaximumSignatureBytes, cancellationToken)
+            signature = await ReadBoundedAsync(response.Content, UpdateSignature.MaximumSignatureBytes, _timeout, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (HttpRequestException exception)
@@ -700,9 +706,28 @@ public sealed class UpdateService : IDisposable
         return new UpdateArtifact(target, architecture, kind, file, size, sha256, uri.AbsoluteUri);
     }
 
+    /// <summary>
+    /// One read of a response body with the request timeout as an idle limit: the request timeout itself ends when the
+    /// headers arrive, so a server that then stops sending would otherwise hang the check or the download forever.
+    /// </summary>
+    private static async ValueTask<int> ReadWithIdleTimeoutAsync(Stream stream, Memory<byte> buffer, TimeSpan idleTimeout, CancellationToken cancellationToken)
+    {
+        using var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        idle.CancelAfter(idleTimeout);
+        try
+        {
+            return await stream.ReadAsync(buffer, idle.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("Update server stopped sending data.");
+        }
+    }
+
     private static async Task<byte[]> ReadBoundedAsync(
         HttpContent content,
         int maximumBytes,
+        TimeSpan idleTimeout,
         CancellationToken cancellationToken)
     {
         if (content.Headers.ContentLength is { } length && length > maximumBytes)
@@ -715,7 +740,7 @@ public sealed class UpdateService : IDisposable
         var buffer = new byte[16 * 1024];
         while (true)
         {
-            var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            var read = await ReadWithIdleTimeoutAsync(stream, buffer, idleTimeout, cancellationToken).ConfigureAwait(false);
             if (read == 0)
             {
                 break;
@@ -754,16 +779,14 @@ public sealed class UpdateService : IDisposable
 
     private static void ValidateInstallationPair(UpdateArtifact artifact, UpdateInstallation installation)
     {
-        var expectedTarget = (installation.Target, installation.Kind) switch
+        if (installation.Kind == "development")
         {
-            ("windows", "portable") => "windows-x86_64",
-            ("windows", "installer") => "windows-installer-x86_64",
-            ("linux", "portable") => "linux-x86_64",
-            ("linux", "package") => "linux-deb-amd64",
-            ("macos", "portable") => "macos-arm64",
-            _ => throw new UpdateManifestException("Update installation type is unsupported.")
-        };
-        var expectedKind = installation.Target == "macos" ? "disk-image" : installation.Kind;
+            throw new UpdateManifestException("Update installation type is unsupported.");
+        }
+
+        // How the app is installed (portable folder, installer, package, app bundle) decides which artifact updates it.
+        var expectedKind = GetArtifactKind(installation);
+        var expectedTarget = UpdateManifest.ArtifactKey(installation.Target, installation.Architecture, expectedKind);
         if (artifact.Target != expectedTarget
             || artifact.Architecture != installation.Architecture
             || artifact.Kind != expectedKind)
@@ -815,7 +838,7 @@ public sealed class UpdateService : IDisposable
             return (ConfigureProgress(new ProcessStartInfo(fullArchive)), false);
         }
 
-        if (installation.Target == "macos" && installation.Kind == "disk-image" && artifact.File.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase))
+        if (installation.Target == "macos" && artifact.Kind == "disk-image" && artifact.File.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase))
         {
             var open = _findExecutable("open")
                 ?? throw new UpdateManifestException("macOS installer handoff is unavailable.");

@@ -541,6 +541,26 @@ public sealed class CompanionInstallerTests
     }
 
     [Fact]
+    public void Extracting_game_files_can_leave_out_loose_files_to_get_the_game_as_shipped()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        new CompanionInstaller(ModSourceRoot).Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+        var withLoose = Path.Combine(game.AppDataDirectory, "extract-all");
+        var shipped = Path.Combine(game.AppDataDirectory, "extract-shipped");
+
+        var all = StalkerSaveEditor.Core.Patching.GameFileExtractor.Extract(
+            StalkerSaveEditor.Core.Diagnostics.GameTarget.CallOfPripyat, game.GameDirectory, withLoose, ["scripts/"]);
+        var original = StalkerSaveEditor.Core.Patching.GameFileExtractor.Extract(
+            StalkerSaveEditor.Core.Diagnostics.GameTarget.CallOfPripyat, game.GameDirectory, shipped, ["scripts/"], archivesOnly: true);
+
+        // The companion patched bind_stalker.script as a loose file; the archive still holds the original.
+        Assert.True(all.Files > original.Files);
+        Assert.Contains("save_editor", File.ReadAllText(Path.Combine(withLoose, "scripts", "bind_stalker.script")), StringComparison.Ordinal);
+        Assert.DoesNotContain("save_editor", File.ReadAllText(Path.Combine(shipped, "scripts", "bind_stalker.script")), StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(shipped, "scripts", "save_editor_companion.script")));
+    }
+
+    [Fact]
     public void A_deferred_file_tree_has_the_same_identity_and_the_same_bytes_as_an_eager_one()
     {
         using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);

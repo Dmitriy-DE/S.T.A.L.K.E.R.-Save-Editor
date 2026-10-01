@@ -76,13 +76,15 @@ internal sealed class GameFileTree
     /// Read only the archive tables now and unpack a file when it is asked for. The fingerprint is the same in both
     /// modes; use it when the caller will most likely not need the contents (a content-cache hit).
     /// </param>
+    /// <param name="archivesOnly">Ignore loose files in gamedata: the game as shipped, without mods or our own files.</param>
     public static GameFileTree Load(
         CompanionGame game,
         string gameDirectory,
         Func<string, bool> wanted,
         IGameFileSystem? fileSystem = null,
         IReadOnlyList<string>? fsgameFileNames = null,
-        bool deferArchiveContent = false)
+        bool deferArchiveContent = false,
+        bool archivesOnly = false)
     {
         fileSystem ??= new PhysicalGameFileSystem();
         var search = CompanionArchiveLocator.Discover(fileSystem, gameDirectory, fsgameFileNames ?? ["fsgame.ltx"], game);
@@ -143,7 +145,7 @@ internal sealed class GameFileTree
 
         var overlay = false;
         var dataRoot = search.GameDataDirectory;
-        if (dataRoot is not null && fileSystem.DirectoryExists(dataRoot))
+        if (!archivesOnly && dataRoot is not null && fileSystem.DirectoryExists(dataRoot))
         {
             foreach (var path in fileSystem.EnumerateFiles(dataRoot, "*", SearchOption.AllDirectories)
                          .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))

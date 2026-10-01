@@ -3624,6 +3624,46 @@
       "references": [
         "https://github.com/Decane/SRP"
       ]
+    },
+    {
+      "id": "cs.crash.condlist-syntax",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Two broken script conditions fixed (Army Warehouses mercenaries, Garbage messenger)",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/military/mil_smart_terrain_7_7_logic.ltx",
+          "expectedText": "-mil_destroy_house_military {=check_npc_name(sim_default_military_)} true",
+          "replacementText": "-mil_destroy_house_military =check_npc_name(sim_default_military_)} true",
+          "expectedFileSha256": "c9cfd502152a232d2c0b8c22eaef1e93833cae341bf90e0377b657101a61a419",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_digger_messenger_man.ltx",
+          "expectedText": "walker@time %+gar_story_spawn_messenger_dogs%%",
+          "replacementText": "walker@time %+gar_story_spawn_messenger_dogs%",
+          "expectedFileSha256": "8584347d7367b253313366eba7b3d48c788cf66d33569bc9c864bd5a924141bc",
+          "codePage": 28591
+        }
+      ],
+      "source": "Found by our condition checker (tools/check_condlists.py); SRP 1.1.5 (Decane) makes the same two corrections.",
+      "problem": "Two retail logic conditions are malformed: a nested '{...}' in the Army Warehouses mercenary job condition (mil_smart_terrain_7_7_logic.ltx) and a stray '%' after the Garbage digger messenger's dog ambush (gar_digger_messenger_man.ltx). The logic parser misreads them when they are evaluated.",
+      "description": "Removes the extra brace pair and the stray '%'.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://github.com/Decane/SRP"
+      ]
     }
   ],
   "enhancedEditionSha256": {

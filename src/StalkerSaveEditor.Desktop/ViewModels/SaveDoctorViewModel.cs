@@ -119,14 +119,16 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
         Status = string.Empty;
         CanRepairQuests = false;
         PreventingFixId = null;
+        var path = SavePath;
         try
         {
-            var path = SavePath;
             var (report, quests) = await Task.Run(() =>
             {
                 var bytes = File.ReadAllBytes(path);
                 return (SaveDoctor.Analyze(bytes), QuestDoctor.Analyze(bytes));
             });
+            // Another save was selected meanwhile: this report (and its repair button) belongs to the old file.
+            if (!string.Equals(path, SavePath, StringComparison.Ordinal)) return;
             if (report.Overview is { } overview)
             {
                 Checks.Add(new SaveDoctorCheckRow("✓", L.T("СТРУКТУРНАЯ ПРОВЕРКА"),
@@ -159,15 +161,21 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            Checks.Clear();
-            Status = L.T("Ошибка");
-            Checks.Add(new SaveDoctorCheckRow("×", L.T("СТРУКТУРНАЯ ПРОВЕРКА"), exception.Message, SaveDoctorStatus.Error));
-            HasReport = true;
+            if (string.Equals(path, SavePath, StringComparison.Ordinal))
+            {
+                Checks.Clear();
+                Status = L.T("Ошибка");
+                Checks.Add(new SaveDoctorCheckRow("×", L.T("СТРУКТУРНАЯ ПРОВЕРКА"), exception.Message, SaveDoctorStatus.Error));
+                HasReport = true;
+            }
         }
         finally
         {
             IsAnalyzing = false;
         }
+
+        // The selection changed while the old file was being read: analyse what is selected now.
+        if (!string.Equals(path, SavePath, StringComparison.Ordinal)) await AnalyzeAsync();
     }
 
     private void AddQuestRows(QuestDoctorReport quests)

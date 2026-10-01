@@ -109,7 +109,9 @@ public static partial class ManagedUserLtxSettings
             var definition = Definitions[key];
             current.TryGetValue(key, out var oldLine);
             manifest.Settings.TryGetValue(key, out var existing);
-            var originalLine = existing?.OriginalLine ?? oldLine?.RawLine;
+            // A null OriginalLine in the manifest is a fact ("the setting was absent"), not missing data: a second
+            // override must keep it, or "restore default" would bring back our own first value.
+            var originalLine = existing is not null ? existing.OriginalLine : oldLine?.RawLine;
             var nextText = SetLine(text, oldLine, definition.Key, value);
             text = nextText;
             lines = ParseLines(text);
@@ -118,7 +120,7 @@ public static partial class ManagedUserLtxSettings
             manifest.Settings[key] = new ManagedSetting(definition.Key, originalLine, ownedLine);
         }
 
-        var nextBytes = encoding.GetBytes(text);
+        var nextBytes = Encode(text, encoding);
         try
         {
             AtomicGameFileWriter.Write(new PhysicalGameFileSystem(), path, nextBytes, overwrite: true);
@@ -164,7 +166,7 @@ public static partial class ManagedUserLtxSettings
             ? SetRawLine(text, currentLine, originalLine)
             : RemoveLine(text, currentLine);
         manifest.Settings.Remove(definition.Key);
-        var nextBytes = encoding.GetBytes(text);
+        var nextBytes = Encode(text, encoding);
         try
         {
             AtomicGameFileWriter.Write(new PhysicalGameFileSystem(), path, nextBytes, overwrite: true);
@@ -399,6 +401,13 @@ public static partial class ManagedUserLtxSettings
         encoding = Cp1251;
         return encoding.GetString(bytes);
     }
+
+    /// <summary>
+    /// The inverse of <see cref="Decode"/>: a file read as UTF-8 was recognised by its BOM, so the BOM is written back
+    /// (GetBytes never emits it). Without it the next read would take the same bytes for CP1251.
+    /// </summary>
+    private static byte[] Encode(string text, Encoding encoding) =>
+        ReferenceEquals(encoding, Utf8) ? [.. Encoding.UTF8.Preamble, .. encoding.GetBytes(text)] : encoding.GetBytes(text);
 
     private static Encoding CreateCp1251()
     {

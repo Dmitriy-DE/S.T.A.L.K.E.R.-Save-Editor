@@ -18,6 +18,43 @@ public sealed class ManagedUserLtxSettingsTests
     }
 
     [Fact]
+    public void A_setting_that_was_absent_is_absent_again_after_two_overrides_and_a_restore()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "user.ltx");
+        var state = Path.Combine(directory.Path, "toolkit-state");
+        const string original = "custom_setting stays\r\n";
+        File.WriteAllText(path, original);
+
+        ManagedUserLtxSettings.SetOverrides(path, state, new Dictionary<string, string> { ["g_fov"] = "90" });
+        ManagedUserLtxSettings.SetOverrides(path, state, new Dictionary<string, string> { ["g_fov"] = "100" });
+        Assert.Contains("g_fov 100", File.ReadAllText(path), StringComparison.Ordinal);
+        ManagedUserLtxSettings.RestoreDefault(path, state, "g_fov");
+
+        Assert.Equal(original, File.ReadAllText(path));
+    }
+
+    [Fact]
+    public void A_utf8_file_keeps_its_bom_and_is_read_the_same_way_after_a_write()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "user.ltx");
+        var state = Path.Combine(directory.Path, "toolkit-state");
+        var bom = System.Text.Encoding.UTF8.Preamble.ToArray();
+        File.WriteAllBytes(path, [.. bom, .. System.Text.Encoding.UTF8.GetBytes("; настройки игрока\r\ng_fov 67.5\r\n")]);
+
+        ManagedUserLtxSettings.SetOverrides(path, state, new Dictionary<string, string> { ["g_fov"] = "90" });
+
+        var written = File.ReadAllBytes(path);
+        Assert.True(written.AsSpan().StartsWith(bom));
+        Assert.Contains("; настройки игрока", System.Text.Encoding.UTF8.GetString(written), StringComparison.Ordinal);
+        Assert.False(ManagedUserLtxSettings.Inspect(path, state).HasConflict);
+        ManagedUserLtxSettings.SetOverrides(path, state, new Dictionary<string, string> { ["g_fov"] = "95" });
+        ManagedUserLtxSettings.RestoreDefault(path, state, "g_fov");
+        Assert.Equal([.. bom, .. System.Text.Encoding.UTF8.GetBytes("; настройки игрока\r\ng_fov 67.5\r\n")], File.ReadAllBytes(path));
+    }
+
+    [Fact]
     public void Applies_known_overrides_and_restore_default_restores_exact_original_line()
     {
         using var directory = new TemporaryDirectory();

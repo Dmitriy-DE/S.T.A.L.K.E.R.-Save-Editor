@@ -172,7 +172,7 @@ public sealed partial class ToolkitSnapshotService
             var path = Path.Combine(child, "snapshot.json");
             if (!File.Exists(path)) continue;
             RejectLink(path);
-            results.Add(ReadSnapshot(path, validateObjects: true));
+            results.Add(ReadSnapshot(path, validateObjects: true, reuseSessionHash: true));
         }
         return results.OrderByDescending(snapshot => snapshot.CreatedUtc).ThenBy(snapshot => snapshot.Id, StringComparer.Ordinal).ToArray();
     }
@@ -524,7 +524,15 @@ public sealed partial class ToolkitSnapshotService
             JsonSerializer.SerializeToUtf8Bytes(new SnapshotDocument(SchemaVersion, info), SnapshotJsonContext.Default.SnapshotDocument));
     }
 
-    private ToolkitSnapshotInfo ReadSnapshot(string path, bool validateObjects)
+    /// <summary>Objects already hashed in this session, valid while size and write time are unchanged.</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Length, long WriteTicks)> VerifiedObjects = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// <paramref name="reuseSessionHash"/> is for listing: the store is content-addressed, so snapshots share objects, and
+    /// hashing every object again for every snapshot on every refresh threw that benefit away. Inspect, restore and
+    /// delete still hash each object.
+    /// </summary>
+    private ToolkitSnapshotInfo ReadSnapshot(string path, bool validateObjects, bool reuseSessionHash = false)
     {
         RejectLink(SnapshotDirectory);
         RejectLink(Path.GetDirectoryName(path)!);
@@ -548,9 +556,17 @@ public sealed partial class ToolkitSnapshotService
             {
                 var objectPath = Path.Combine(ObjectDirectory, file.Sha256);
                 RejectLink(objectPath);
-                var bytes = File.ReadAllBytes(objectPath);
-                if (bytes.LongLength != file.Length || Hash(bytes) != file.Sha256)
+                var objectInfo = new FileInfo(objectPath);
+                if (!objectInfo.Exists || objectInfo.Length != file.Length)
                     throw new InvalidDataException($"Snapshot object {file.Sha256} is missing or corrupt.");
+                var stamp = (objectInfo.Length, objectInfo.LastWriteTimeUtc.Ticks);
+                if (reuseSessionHash && VerifiedObjects.TryGetValue(objectPath, out var known) && known == stamp) continue;
+                using (var stream = new FileStream(objectPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan))
+                {
+                    if (!string.Equals(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)), file.Sha256, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException($"Snapshot object {file.Sha256} is missing or corrupt.");
+                }
+                VerifiedObjects[objectPath] = stamp;
             }
         }
         return info;

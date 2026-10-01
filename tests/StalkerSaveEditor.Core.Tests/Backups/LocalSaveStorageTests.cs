@@ -114,6 +114,21 @@ public sealed class LocalSaveStorageTests
         Assert.Equal(BackupVerificationStatus.Corrupt, byJournal["malformed.json"].Status);
         Assert.Equal(BackupVerificationStatus.Corrupt, byJournal["orphan_ORIGINAL.json"].Status);
         Assert.Equal(sha, byJournal["valid_ORIGINAL.sav.json"].ActualSha256);
+
+        // A changed backup is noticed on the next listing (its size or write time differs from the hashed one) …
+        File.WriteAllBytes(valid, "changed afterwards"u8.ToArray());
+        Assert.Equal(BackupVerificationStatus.Corrupt,
+            LocalSaveStorage.ListBackups([backupDirectory]).Single(record => record.BackupPath == valid).Status);
+        // … and restore-time inspection never trusts the session's earlier hash, even for identical size and time.
+        File.WriteAllBytes(valid, data);
+        var stamp = File.GetLastWriteTimeUtc(valid);
+        Assert.Equal(BackupVerificationStatus.Verified,
+            LocalSaveStorage.ListBackups([backupDirectory]).Single(record => record.BackupPath == valid).Status);
+        var tampered = data.ToArray();
+        tampered[^1] ^= 0xFF;
+        File.WriteAllBytes(valid, tampered);
+        File.SetLastWriteTimeUtc(valid, stamp);
+        Assert.Equal(BackupVerificationStatus.Corrupt, LocalSaveStorage.InspectBackup(valid + ".json").Status);
         Assert.Throws<IOException>(() => LocalSaveStorage.RestoreBackup(
             byJournal["missing_ORIGINAL.sav.json"].JournalPath,
             Path.Combine(directory.Path, "missing-restored.sav")));

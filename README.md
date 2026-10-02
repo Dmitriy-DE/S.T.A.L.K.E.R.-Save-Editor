@@ -170,7 +170,6 @@ In accordance with our [Reliability Charter](docs/roadmap/RL-reliability.md), ev
 - [In-Game Companion Mod & Protocol Guide](docs/COMPANION.md)
 - [Companion Protocol Specification (v1)](docs/MOD_COMPANION_PROTOCOL.md)
 - [Cross-Platform Packaging & Distribution Guide](docs/PACKAGING.md)
-- [Local Save Editing & Recovery Flow](docs/CS6_LOCAL_EDITING.md)
 - [Architecture Guidelines](ARCHITECTURE.md)
 - [Installed-game patching architecture](docs/PATCHING_ARCHITECTURE.md)
 - [Game Fix catalogue and safety model](docs/GAME_FIXES.md)

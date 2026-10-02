@@ -58,7 +58,10 @@ harness over all real saves, `dotnet-stack` samples), then fixed. "Not checked" 
 | Companion scripts, translations (14 languages, 2 297 strings), sounds | `tools/check_companion.sh`, `--test-i18n`, `--test-audio` | pass |
 | Names in an English interface | every real save read through the application's loader | no Russian text left in item, upgrade, faction, stash or level names; remaining raw keys are items of mods and Clear Sky upgrade groups |
 | Level-changer destinations and the move | 148 real X-Ray saves, 7 270 destination × save pairs, in memory | all read back at the destination, numbers within a level's range |
-| Money, stack, condition edits; S2 stacks; damaged input | all real saves, in memory | see the numbers below |
+| Money edit and undo, in memory | all real saves that parse as current formats | 277 saves: only money changes, the undo describes the original save; 15 old-layout S2 saves refused, as intended |
+| Stack and condition edits, in memory | the same X-Ray saves | 253 stack edits, 259 condition edits: only the edited item changes |
+| S2 stack edit on every editable item | one real save, 29 items | all written and read back |
+| Readers under damage | 1 012 mutated saves | 825 rejected, 187 still parse; no unexpected exception type |
 | Interface timing | `tools/ui_probe measure` on a 4.6 MB mod save with the six installed games visible | longest gap 0.2–0.4 s (was 3–5 s) |
 | Renders | 940 px at 125%, 1260 px, 1920 px | Save visible, no overlap |
 | Real saves and game folders | never opened for writing | — |

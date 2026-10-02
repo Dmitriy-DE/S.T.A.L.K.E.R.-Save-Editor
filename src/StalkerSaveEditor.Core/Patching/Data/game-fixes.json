@@ -6607,6 +6607,39 @@
       "references": [
         "Sky Reclamation Project 1.1.5, version history (Swamp faction war standstill; bandit squad at the Depot; Flea Market squad)"
       ]
+    },
+    {
+      "id": "cs.render.msaa-edge-compare",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "DX10 anti-aliasing: the edge-marking shader compares whole vectors",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/shaders/r3/mark_msaa_edges.ps",
+          "expectedText": "\tif( P == P0 && N == N0 )\r\n",
+          "replacementText": "\tif( all( P == P0 && N == N0 ) )\r\n",
+          "expectedFileSha256": "6acfb47619eb10f3fe3833557be5c02e38f899995008790b684797e333407898",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. GSC made the same correction in Call of Pripyat; SRP 1.1.5 lists it as a CoP import.",
+      "problem": "With MSAA on the DX10 renderer a shader marks the pixels that lie on geometry edges by comparing the averaged position and normal with those of the first sample. It writes the comparison of two three-component vectors straight into an 'if', which needs a single yes/no value: depending on the shader compiler this is an error or only the first component is tested, so edges are marked wrongly.",
+      "description": "The comparison is wrapped in all(), as GSC did in the same shader of Call of Pripyat. A text change of one line; it has not been checked on screen.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history ((CoP import) invalid compound vector comparison in mark_msaa_edges.ps)"
+      ]
     }
   ],
   "enhancedEditionSha256": {

@@ -1,10 +1,8 @@
-# S.T.A.L.K.E.R. Save Editor — C# architecture
+# S.T.A.L.K.E.R. Save Editor — architecture
 
-The Python editor (`Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor`) is the **oracle**.
-Every reader and writer here must reproduce its results byte for byte on the
-golden vectors (`tests/golden/fixture-vectors.json` there, CS-1) before it is
-used. The Python repo is frozen for new features once this port reaches parity
-(decision D5); until then it takes fixes only.
+The archived Python editor (`Dmitriy-DE/S.T.A.L.K.E.R.-Save_Editor`) was the oracle for the port: readers and writers
+reproduce its results on the vectors in `tests/Fixtures` and `tests/golden` (175 scenarios, `docs/PARITY.csv`). The
+generators under `tools/generate_*_fixtures.py` record where each vector came from; they need that repository to run.
 
 ## Stack
 
@@ -18,30 +16,38 @@ used. The Python repo is frozen for new features once this port reaches parity
 
 ```text
 src/
-  StalkerSaveEditor.Core/          no UI or Steam; narrow filesystem boundaries for saves and game files
-    Formats/XRay/                  container (LZO), ALIFE chunks, actor, inventory
-    Formats/Enhanced/              EE = XRay container + own ALIFE versions
-    Formats/Stalker2/              GVAS/Kraken container, name tables, inventory, stash
-    Codecs/                        Kraken (P/Invoke to native ooz), LZO1X (managed)
-    Editing/                       immutable EditPlan, PreparedEdit, drafts, validation
-    Catalogs/                      item names, icons, official names (same JSON as Python)
-    Capabilities/                  CapabilityMaturity, FeatureCapability (+ evidence)
-    Backups/                       backup + recovery artifacts, fresh-SHA checks
-    Localization/                  tr(), 15 languages, same locale JSON as Python
-    Patching/                      atomic installed-game writes and Game Fix transactions
-  StalkerSaveEditor.Steam/         thin P/Invoke to steam_api: RemoteStorage,
-                                   UserStats (achievements), Auto-Cloud game session
-  StalkerSaveEditor.Updater/       state machine: Checking → Downloading →
-                                   Verifying → WaitingForPermission → Installing →
-                                   Restarting → Completed | Failed (real exit code)
-  StalkerSaveEditor.Desktop/       Avalonia UI library (views, view models), shared with the web edition;
-                                   knows Steam and the updater only as interfaces (HostPlatform factories)
+  StalkerSaveEditor.Core/          no UI and no Steam; narrow filesystem boundaries for saves and game files
+    Formats/XRay/                  container (LZO), ALIFE chunks, actor, inventory, writers, game archives
+    Formats/Enhanced/              Enhanced Editions: the X-Ray container with their own ALIFE versions
+    Formats/Stalker2/              Kraken container, name tables, inventory, stash, writers
+    Codecs/                        Kraken (P/Invoke to the bundled native ooz), LZO1X (managed)
+    Editing/                       EditPlan, PreparedEdit, EditService, drafts
+    Catalogs/                      item names, official names, S2 items
+    Capabilities/                  what can be read and written per release, with its maturity
+    Backups/                       backup journal, local save replacement, recovery
+    Storage/                       save folders, Steam libraries, atomic file writes
+    Inspection/                    save summary and preview
+    Content/                       files of an installed game: archive tree, LTX, string tables, DDS icons
+    Companion/                     installer of the in-game mod, hook patcher, file protocol client
+    Hotkeys/                       global hotkeys while the game window is in front (Windows; X11 helper process)
+    Patching/                      Game Fix catalogue and engine, all.spawn editor, snapshots, profiles, user.ltx
+    Diagnostics/                   Game Doctor, Save Doctor, Quest Doctor, crash logs, app log
+  StalkerSaveEditor.Steam/         worker process around steam_api: RemoteStorage, UserStats, Auto-Cloud
+  StalkerSaveEditor.Updater/       update check, signed manifest, download, install per platform
+  StalkerSaveEditor.Desktop/       Avalonia UI library (views, view models, 15 languages), shared with the web
+                                   edition; knows Steam and the updater only as interfaces (HostPlatform factories)
   StalkerSaveEditor.Host/          desktop-only services behind those interfaces: Steam cloud, achievements,
                                    self-update; referenced by the App, never by the Browser host
-  StalkerSaveEditor.Cli/           inspect / prepare / verify, JSON output
+  StalkerSaveEditor.App/           desktop executable; also the Steam worker and the X11 hotkey helper entry points
+  StalkerSaveEditor.Browser/       WebAssembly host of the same UI (not in the .sln)
+  StalkerSaveEditor.Cli/           NativeAOT command line: saves, doctor, fixes, companion, crash logs
+mods/companion/                    the in-game mod: soc, cs, cop (Lua), s2 (UE4SS)
 tests/
-  StalkerSaveEditor.Core.Tests/    parity with golden vectors, negative cases
+  StalkerSaveEditor.Core.Tests/    formats, editing, patching, diagnostics, view models
   StalkerSaveEditor.Steam.Tests/   fakes only; never a live Steam session in CI
+  StalkerSaveEditor.Cli.Tests/
+tools/                             fixture generators, companion generators and checks, Game Fix research tools
+                                   (static checkers, fix_regress.py, fix_realcheck.sh, lua_harness/), release scripts
 ```
 
 Core has no reference to Steam or the UI: local files go through
@@ -66,42 +72,20 @@ Game Doctor and Save Doctor stay read-only except for the explicit S2 custom-mod
 as a separate troubleshooting action. Save Doctor delegates to the supported format readers and
 does not create a new writer or capability.
 
-## Rules carried over from the Python repo
+## Rules
 
 - Unknown or ambiguous fields stay read-only; no write from a guessed offset.
 - Every write: fresh SHA of the source, backup, round-trip, CRC/framing check.
-- Steam Cloud writes are explicit and never retried automatically. S2 writes go
-  through the local Auto-Cloud folder plus a game session (SC-1).
+- Steam Cloud writes are explicit and never retried automatically. The S2 path (local Auto-Cloud folder plus a game
+  session, `SteamAutoCloudWriter`) exists but is switched off in the UI until it is verified in the game.
 - Capabilities per release are explicit: `verified`, `experimental`,
   `research`, `unsupported`. A capability becomes writable only with game
   evidence (L5).
 
-## Python modules → C#
+## Game Fixes
 
-| Python | C# | Plan |
-|---|---|---|
-| `xray_container.py` | `Formats/XRay/XRayContainer` | KEEP (port) |
-| `xray_save.py` (+ `xray_item_state`, `xray_relations`, `xray_factions`, `xray_slots`, `xray_delete`, `xray_level_changer`) | `Formats/XRay/*` | KEEP; split the 2 000-line module by concern |
-| EE specs in `xray_save.py` | `Formats/Enhanced` | KEEP |
-| `save_format.py`, `s2_*`, `kraken_blocks.py`, `codec.py` | `Formats/Stalker2/*`, `Codecs/*` | KEEP |
-| `models.py`, `prepare.py`, `transactions.py`, `compare.py`, `drafts.py` | `Editing/*` | KEEP |
-| `catalog*.py`, `item_names.py`, `official_names.py`, `icon_donor.py`, `s2_items.py` | `Catalogs/*` | KEEP; data JSON shared |
-| `capabilities.py`, `capability_types.py`, `cloud_capabilities.py`, `equipment*.py`, `releases.py` | `Capabilities/*` | REDESIGN: one registry type |
-| `i18n.py` | `Localization` | KEEP; same locale files |
-| `steam_native.py`, `steam_autocloud.py`, `steam_achievements.py`, `steam_profiles.py`, `steam_vdf.py` | `StalkerSaveEditor.Steam` | KEEP; subprocess isolation → worker process |
-| `steam_cdp.py` (Steam web via CEF) | `Steam/CloudWeb` | KEEP |
-| `steam_backend.py` + SteamCloudFileManager helper | — | DROP (SC-2) |
-| `updater.py`, `update_manifest.py`, `release_artifacts.py` | `StalkerSaveEditor.Updater` | REDESIGN (state machine) |
-| `platforms.py`, `storage.py`, `settings.py`, `preferences.py` | Desktop/Infrastructure | KEEP |
-| `diagnostics.py` | Desktop/Diagnostics | KEEP |
-| `service.py` | `Core/EditorService` | REDESIGN: thin facade over Formats + Editing |
-| `ui/*` (PySide6) | `StalkerSaveEditor.Desktop` | REDESIGN in Avalonia |
-| `web/*` (Pyodide) | `StalkerSaveEditor.Browser` | DONE: the same Avalonia UI compiled to WebAssembly (decision D15) |
-
-## Order (roadmap CS-2 … CS-8)
-
-1. CS-2 skeleton: solution, projects, CI on 3 OS, empty tests pass.
-2. CS-3 codecs: LZO managed, Kraken native; byte parity with Python.
-3. CS-4 readers module by module, golden-vector parity per PR.
-4. CS-5 writers one capability at a time, Python writer as oracle.
-5. CS-6 Avalonia UI, CS-7 Steam/updater/packages, CS-8 switch-over.
+`Patching/Data/game-fixes.json` is data: exact text replacements bound to the SHA-256 of the original file, structured
+all.spawn edits, and per-fix Enhanced Edition file hashes from which the EE variants are derived. `GameFixEngine`
+installs only onto the exact original, keeps it as a backup, journals the operation and restores on failure or
+removal. A writer asks `GameDoctor.Identify` (folder marker, Steam build) before touching a game; the full
+`GameDoctor.Analyze` is for display.

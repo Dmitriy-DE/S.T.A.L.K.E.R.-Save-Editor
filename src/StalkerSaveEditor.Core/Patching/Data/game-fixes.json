@@ -5082,8 +5082,8 @@
     {
       "id": "cs.logic.upgrade-task-id-leak",
       "game": "ClearSky",
-      "version": "1.0.0",
-      "title": "Mechanics no longer take a new task id every time their upgrade tasks are checked",
+      "version": "1.1.0",
+      "title": "Mechanics no longer take a new task id every time their upgrade tasks are checked; loading a save no longer turns offered faction-war tasks into active ones",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -5098,11 +5098,18 @@
           "replacementText": "\t\t\tif self.inited_find_upgrade_tasks[obj:id()][v.base_id] == nil then\r\n\t\t\t\tlocal task = v:get_inited_task(obj, faction, self.id_generator:get_id())\r\n",
           "expectedFileSha256": "92efd3d7c7f347c192fa94e8c4ad7023564b82a88772f09f5387d5da1218adb1",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_manager.script",
+          "expectedText": "\t\t\tif(t==\"eliminate_smart\") or (t==\"capture_smart\") or (t==\"defend_smart\") or (t==\"defend_smart_delay\") then\r\n\t\t\t\tself.tasks_by_smarts[obj.target] = obj\r\n",
+          "replacementText": "\t\t\tif(obj.status==\"selected\") and ((t==\"eliminate_smart\") or (t==\"capture_smart\") or (t==\"defend_smart\") or (t==\"defend_smart_delay\")) then\r\n\t\t\t\tself.tasks_by_smarts[obj.target] = obj\r\n",
+          "expectedFileSha256": "92efd3d7c7f347c192fa94e8c4ad7023564b82a88772f09f5387d5da1218adb1",
+          "codePage": 28591
         }
       ],
       "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
-      "problem": "Every time a mechanic is asked which \"find the tool\" tasks he can give, the script first builds a new task and takes a new id from the task id pool, and only then notices that this task already exists. The pool is saved with the game and is never given back.",
-      "description": "The existing task is looked up first; a task and an id are created only for a task that does not exist yet. The key stays the same, so saves are unaffected.",
+      "problem": "Every time a mechanic is asked which \"find the tool\" tasks he can give, the script first builds a new task and takes a new id from the task id pool, and only then notices that this task already exists. The pool is saved with the game and is never given back. Loading a save: the table of camps that have an active capture, eliminate or defend task is filled from every saved task of those kinds, including tasks that were only offered and never accepted. In play that table gets a task only when it is accepted. After a load the game therefore believes dozens of camps are under an active player task: squads wait for the player, the faction war stalls and the hold-up scheme stops working at those camps.",
+      "description": "The existing task is looked up first; a task and an id are created only for a task that does not exist yet. The key stays the same, so saves are unaffected. On load only accepted tasks are put into the table, as in play (SRP and the Enhanced Edition do the same).",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -5950,6 +5957,39 @@
         "tools/check_infos.py run over the retail configs",
         "Sky Reclamation Project 1.1.5 (same lines corrected)"
       ]
+    },
+    {
+      "id": "cs.save.flea-market-basement-object",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Garbage: the Flea Market basement scene no longer deletes an object by a stale story id",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_space_restrictor_fang_pda_cellar.ltx",
+          "expectedText": "+gar_story_ambush_remove =destroy_object(700) =teleport_actor(",
+          "replacementText": "+gar_story_ambush_remove =teleport_actor(",
+          "expectedFileSha256": "81c28586ef5b5306705bb9350b5ac05ef852a6d4eba3a86a271587bfb844ce33",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build; the fault and the remedy are described in SRP 1.1.5 (Decane).",
+      "problem": "When the player wakes up after the mugging in the Flea Market basement, the scene deletes the story object 700 (the charge that knocked him out). By then the charge has already gone off and the engine has removed it, so the script asks to delete whatever the story id resolves to now. SRP traced crashes on loading any later save made in the Garbage, and on entering the Garbage, to this call.",
+      "description": "The call '=destroy_object(700)' is removed from the scene; everything else in the line stays. The exact engine cause is not proven: this is the remedy SRP has shipped since 2018.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history and the note in gar_space_restrictor_fang_pda_cellar.ltx"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -6292,6 +6332,9 @@
       "ec17c7a453ac3914a9ab7247a03d157433fec8b05dee1fe7362ad6063ea4ed9f",
       "63dd28f6be0d6a1b038b2611d8a84bc2dadf6b4caa838ebc8860cf7c4b90f904",
       "63dd28f6be0d6a1b038b2611d8a84bc2dadf6b4caa838ebc8860cf7c4b90f904"
+    ],
+    "cs.save.flea-market-basement-object": [
+      "81c28586ef5b5306705bb9350b5ac05ef852a6d4eba3a86a271587bfb844ce33"
     ]
   }
 }

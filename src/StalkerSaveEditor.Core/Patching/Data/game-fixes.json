@@ -4425,6 +4425,185 @@
         "https://www.metacognix.com/stlkrsoc/",
         "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
       ]
+    },
+    {
+      "id": "cs.crash.monster-squad-missing",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Crash when a mutant belongs to a squad that no longer exists",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/se_monster.script",
+          "expectedText": "\t\t\t\tsquad:switch_online(true, self.id)\r\n",
+          "replacementText": "\t\t\t\tif squad ~= nil then squad:switch_online(true, self.id) end\r\n",
+          "expectedFileSha256": "630325b17161eb45d5a6545a692222216307db5ce8c41f6b081d936f4536ea86",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/se_monster.script",
+          "expectedText": "\t\t\t\tsquad:switch_online(false, self.id)\r\n",
+          "replacementText": "\t\t\t\tif squad ~= nil then squad:switch_online(false, self.id) end\r\n",
+          "expectedFileSha256": "630325b17161eb45d5a6545a692222216307db5ce8c41f6b081d936f4536ea86",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/se_monster.script",
+          "expectedText": "\t\t\t\tsquad:on_npc_death(self)\r\n",
+          "replacementText": "\t\t\t\tif squad ~= nil then squad:on_npc_death(self) end\r\n",
+          "expectedFileSha256": "630325b17161eb45d5a6545a692222216307db5ce8c41f6b081d936f4536ea86",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "A mutant keeps the id of its squad. When the squad was removed meanwhile (a task callback can do that), going online, going offline or dying calls a method of nothing and the game crashes in se_monster.script: attempt to index local 'squad' (a nil value).",
+      "description": "The three places tell the squad only when it still exists.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.crash.heli-save-search",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Crash when saving while a helicopter searches for you",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/heli_combat.script",
+          "expectedText": "\t\t\tpacket:w_u32 ( self.change_dir_time - t )\r\n\t\t\tpacket:w_u32 ( self.change_pos_time - t )\r\n\t\t\tpacket:w_bool( self.flight_direction )\r\n\t\t\tpacket:w_vec3( self.center_pos )\r\n",
+          "replacementText": "\t\t\tpacket:w_u32 ( (self.change_dir_time or t) - t )\r\n\t\t\tpacket:w_u32 ( (self.change_pos_time or t) - t )\r\n\t\t\tpacket:w_bool( self.flight_direction == true )\r\n\t\t\tpacket:w_vec3( self.center_pos or self.enemy_last_seen_pos )\r\n",
+          "expectedFileSha256": "e4d56ce485f14363906f977225b7753a83ff031cb1b4328935820f6b56abed2c",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "A helicopter that goes straight into its search pattern never sets one of the timers the save code writes. Saving at that moment crashes: heli_combat.script: attempt to perform arithmetic on field 'change_dir_time' (a nil value).",
+      "description": "Saving writes neutral values for the timers and the search centre that are not set yet; on load the helicopter starts its search again as it already does.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.crash.patrol-last-index",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Crash when an NPC asks whether waypoint -1 ends its patrol path",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/move_mgr.script",
+          "expectedText": "\tif self.last_index and self.patrol_walk:terminal(self.last_index) then\r\n",
+          "replacementText": "\tif self.last_index and self.last_index ~= -1 and self.patrol_walk:terminal(self.last_index) then\r\n",
+          "expectedFileSha256": "1761b66ae3f3a4068e8db7c570a43f69f9f956d3ea9a8117dd72560cbb6abe39",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "After a path change the movement manager remembers waypoint index -1 (no waypoint reached yet) and then asks the engine whether that waypoint is the last one of the path. The engine does not accept index -1 and the game crashes.",
+      "description": "The question is asked only for a real waypoint index.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.crash.trade-conditions-missing",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Crash when a trader has no buy or sell conditions",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/trade_manager.script",
+          "expectedText": "\ttt.update_time = time_global() + 3600000\r\n\r\n\tlocal str = xr_logic.pick_section_from_condlist(db.actor, npc, tt.buy_condition)\r\n",
+          "replacementText": "\ttt.update_time = time_global() + 3600000\r\n\r\n\tif tt.buy_condition == nil or tt.sell_condition == nil then\r\n\t\treturn\r\n\tend\r\n\r\n\tlocal str = xr_logic.pick_section_from_condlist(db.actor, npc, tt.buy_condition)\r\n",
+          "expectedFileSha256": "9730c9a71dec71993ead725225d1ca155180df2febb2639607eb32c8c1554846",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "The hourly trade update picks the price lists from condition lists. A trader record without them makes the pick fail: bad argument #1 to 'pairs' (table expected, got nil).",
+      "description": "The update is skipped for a trader without both condition lists.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.save.signal-flare-timer",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Signal flare restarts as long burnt out after a load",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/bind_signal_light.script",
+          "expectedText": "\tif time ~= 4294967296 then\r\n",
+          "replacementText": "\tif time ~= 4294967295 then\r\n",
+          "expectedFileSha256": "7b3b5c4110b7a21e0f9e3e94450652e82529374f1f230df19b571950359e8208",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "A signal flare that has not been fired saves the marker 4294967295, but loading compares it with 4294967296, which can never match. Every loaded flare is then treated as fired about fifty days ago.",
+      "description": "Loading compares with the value that saving writes.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
     }
   ],
   "enhancedEditionSha256": {

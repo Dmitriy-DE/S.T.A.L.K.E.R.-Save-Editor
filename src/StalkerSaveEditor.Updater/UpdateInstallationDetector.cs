@@ -79,9 +79,10 @@ public static class UpdateInstallationDetector
                 architecture = architectureElement.GetString()!;
             }
 
+            // Kind is how the app is installed, not which file updates it: a macOS .app is updated by a disk image.
             var kind = target == "windows" && File.Exists(Path.Combine(root, "INSTALLER_MARKER"))
                 ? "installer"
-                : "portable";
+                : target == "macos" && appBundle is not null ? "app-bundle" : "portable";
             return new UpdateInstallation(target, architecture, kind, root, path);
         }
         catch (UpdateManifestException)

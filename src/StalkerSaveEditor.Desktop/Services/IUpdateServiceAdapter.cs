@@ -13,7 +13,8 @@ public interface IUpdateServiceAdapter
 public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
 {
     private readonly UpdateService? _service;
-    private readonly UpdateInstallation _installation;
+    private readonly UpdateInstallation? _installation;
+    private readonly string? _unavailableReason;
     private readonly string _downloadDirectory;
 
     public UpdateServiceAdapter(string? currentVersion = null, string? downloadDirectory = null)
@@ -28,10 +29,11 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
         }
         catch (Exception exception) when (exception is UpdateManifestException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            // The web host (and any unknown platform) has no self-update.
-            var fallbackPath = Environment.ProcessPath ?? AppContext.BaseDirectory;
-            _installation = new UpdateInstallation("linux", "x64", "package", AppContext.BaseDirectory, fallbackPath);
-            _service = OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UpdateService(CurrentVersion) : null;
+            // The web host, an unknown platform, or an installation that cannot be identified: no self-update.
+            // Nothing is guessed (a made-up installation would check, download and then fail to install).
+            _installation = null;
+            _service = null;
+            _unavailableReason = exception.Message;
         }
 
         _downloadDirectory = downloadDirectory ?? Path.Combine(Path.GetTempPath(), "stalker-save-editor-updates");
@@ -50,7 +52,9 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
     public Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default) =>
         Service.CheckAsync(cancellationToken);
 
-    private UpdateService Service => _service ?? throw new PlatformNotSupportedException("Updates are not available on this platform.");
+    private UpdateService Service => _service ?? throw new PlatformNotSupportedException(_unavailableReason is null
+        ? "Updates are not available on this platform."
+        : "Updates are not available: " + _unavailableReason);
 
     public Task<string> DownloadAsync(
         UpdateArtifact artifact,
@@ -66,7 +70,7 @@ public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
         UpdateArtifact artifact,
         IProgress<UpdateProgress>? progress = null,
         CancellationToken cancellationToken = default) =>
-        Service.InstallAsync(artifact, downloadedPath, _installation, progress, cancellationToken);
+        Service.InstallAsync(artifact, downloadedPath, _installation ?? throw new PlatformNotSupportedException("Updates are not available on this platform."), progress, cancellationToken);
 
     public void Dispose() => _service?.Dispose();
 }

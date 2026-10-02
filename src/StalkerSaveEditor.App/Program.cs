@@ -10,9 +10,32 @@ namespace StalkerSaveEditor.Desktop;
 
 internal static class Program
 {
+    /// <summary>This executable started as the X11 hotkey helper (through the dotnet host when run from a build folder).</summary>
+    private static System.Diagnostics.ProcessStartInfo? HelperStartInfo()
+    {
+        if (Environment.ProcessPath is not { Length: > 0 } executable) return null;
+        var info = new System.Diagnostics.ProcessStartInfo(executable);
+        if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+        {
+            var entry = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+            if (string.IsNullOrEmpty(entry)) return null;
+            info.ArgumentList.Add(entry);
+        }
+
+        info.ArgumentList.Add(StalkerSaveEditor.Core.Hotkeys.X11HotkeyHelper.Argument);
+        return info;
+    }
+
     [STAThread]
     public static void Main(string[] args)
     {
+        if (args is [StalkerSaveEditor.Core.Hotkeys.X11HotkeyHelper.Argument])
+        {
+            // Before anything touches the UI toolkit: this process only talks to its own X display.
+            Environment.Exit(StalkerSaveEditor.Core.Hotkeys.X11HotkeyHelper.Run(Console.In, Console.Out));
+            return;
+        }
+
         if (args is ["--steam-native-worker"])
         {
             SteamNativeWorkerHost.RunAsync().GetAwaiter().GetResult();
@@ -21,6 +44,10 @@ internal static class Program
 
         // Steam and self-update exist only in the installed application; the UI library asks the host for them.
         StalkerSaveEditor.Host.DesktopHost.Register();
+        if (OperatingSystem.IsLinux() && HelperStartInfo() is { } helper)
+        {
+            StalkerSaveEditor.Core.Hotkeys.X11HotkeyHelper.UseHelperProcess(() => HelperStartInfo() ?? helper);
+        }
 
         if (args.Length > 0 && args[0] == "--test-i18n")
         {

@@ -62,3 +62,28 @@ public sealed class SaveLibraryLoaderCacheTests
         }
     }
 }
+
+public sealed class SaveLibraryMemoryWeightTests
+{
+    [Fact]
+    public void A_small_packed_container_weighs_what_it_unpacks_to()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "save-editor-weight-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var header = new byte[64];
+            BitConverter.GetBytes(uint.MaxValue).CopyTo(header, 0);
+            BitConverter.GetBytes(6u).CopyTo(header, 4);
+            BitConverter.GetBytes(300u * 1024 * 1024).CopyTo(header, 8);
+            File.WriteAllBytes(path, header);
+            Assert.Equal(300L * 1024 * 1024, StalkerSaveEditor.Desktop.ViewModels.SaveLibraryLoader.MemoryWeight(new FileInfo(path)));
+
+            File.WriteAllBytes(path, new byte[64]);     // not a container: its size on disk
+            Assert.Equal(64, StalkerSaveEditor.Desktop.ViewModels.SaveLibraryLoader.MemoryWeight(new FileInfo(path)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+}

@@ -200,45 +200,79 @@ public sealed class CompareViewModel : ObservableViewModel
             return;
         }
 
+        var catalog = _catalog(_currentReleaseId);
+        string selectedPath = _selected.Path, currentPath = _currentPath;
+        var version = ++_runVersion;
+        if (!SaveLibraryViewModel.InteractiveApp)
+        {
+            Show(Read(selectedPath, currentPath, catalog));
+            return;
+        }
+
+        // Two saves are read and unpacked: off the interface thread, and only the latest request is shown.
+        Status = L.T("Сравнение…");
+        RefreshComparisonState();
+        BackgroundTask.Run(
+            Task.Run(() =>
+            {
+                var result = Read(selectedPath, currentPath, catalog);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (version == _runVersion) Show(result);
+                });
+            }),
+            "compare saves");
+    }
+
+    private int _runVersion;
+
+    private static (IReadOnlyList<SaveDifference>? Differences, string? Problem) Read(string selectedPath, string currentPath, CatalogBundle? catalog)
+    {
         try
         {
-            var catalog = _catalog(_currentReleaseId);
-            var before = SaveInspector.Inspect(File.ReadAllBytes(_selected.Path), catalog);
-            var after = SaveInspector.Inspect(File.ReadAllBytes(_currentPath), catalog);
-            if (before.ReleaseId != after.ReleaseId)
-            {
-                Status = L.T("Это сейвы разных игр.");
-                RefreshComparisonState();
-                return;
-            }
-
-            foreach (var difference in SaveComparer.Compare(before, after))
-            {
-                var (categoryId, categoryDisplay) = Category(difference.Kind);
-                var changeTypeId = difference.Before is null ? "added" : difference.After is null ? "removed" : "changed";
-                var label = difference.Kind == "task"
-                    ? L.T("Задание: {0}", difference.Label)
-                    : Label(difference);
-                var oldValue = difference.Kind == "task" ? TaskState(difference.Before) : difference.Before ?? "—";
-                var newValue = difference.Kind == "task" ? TaskState(difference.After) : difference.After ?? "—";
-                Rows.Add(new CompareRow(label, oldValue, newValue)
-                {
-                    CategoryId = categoryId,
-                    CategoryDisplay = categoryDisplay,
-                    ChangeTypeId = changeTypeId,
-                    ChangeTypeDisplay = ChangeType(changeTypeId),
-                });
-            }
-
-            Status = Rows.Count == 0
-                ? L.T("Различий нет.")
-                : L.T("Различий: {0}. Показаны только данные, доступные для сравнения.", Rows.Count);
+            var before = SaveInspector.Inspect(File.ReadAllBytes(selectedPath), catalog);
+            var after = SaveInspector.Inspect(File.ReadAllBytes(currentPath), catalog);
+            return before.ReleaseId != after.ReleaseId
+                ? (null, L.T("Это сейвы разных игр."))
+                : (SaveComparer.Compare(before, after), null);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            Status = L.T("Не удалось прочитать: ") + exception.Message;
+            return (null, L.T("Не удалось прочитать: ") + exception.Message);
+        }
+    }
+
+    private void Show((IReadOnlyList<SaveDifference>? Differences, string? Problem) result)
+    {
+        Rows.Clear();
+        if (result.Differences is null)
+        {
+            Status = result.Problem ?? string.Empty;
+            RefreshComparisonState();
+            return;
         }
 
+        foreach (var difference in result.Differences)
+        {
+            var (categoryId, categoryDisplay) = Category(difference.Kind);
+            var changeTypeId = difference.Before is null ? "added" : difference.After is null ? "removed" : "changed";
+            var label = difference.Kind == "task"
+                ? L.T("Задание: {0}", difference.Label)
+                : Label(difference);
+            var oldValue = difference.Kind == "task" ? TaskState(difference.Before) : difference.Before ?? "—";
+            var newValue = difference.Kind == "task" ? TaskState(difference.After) : difference.After ?? "—";
+            Rows.Add(new CompareRow(label, oldValue, newValue)
+            {
+                CategoryId = categoryId,
+                CategoryDisplay = categoryDisplay,
+                ChangeTypeId = changeTypeId,
+                ChangeTypeDisplay = ChangeType(changeTypeId),
+            });
+        }
+
+        Status = Rows.Count == 0
+            ? L.T("Различий нет.")
+            : L.T("Различий: {0}. Показаны только данные, доступные для сравнения.", Rows.Count);
         RefreshComparisonState();
     }
 

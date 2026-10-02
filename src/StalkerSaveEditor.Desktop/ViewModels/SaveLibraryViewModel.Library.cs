@@ -250,7 +250,7 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
     public bool AddPreviewSave(string path) => ShowOpenedSave(SaveLibraryLoader.TryReadSave(path));
 
     /// <summary>Same as <see cref="AddPreviewSave"/>, but parses off the UI thread (a large S2 save takes ~0.7 s).</summary>
-    public async Task<bool> AddPreviewSaveAsync(string path) => ShowOpenedSave(await Task.Run(() => SaveLibraryLoader.TryReadSave(path)));
+    public async Task<bool> AddPreviewSaveAsync(string path) => ShowOpenedSave(await Task.Run(() => SaveLibraryLoader.TryReadSaveWithinBudget(path)));
 
     private bool ShowOpenedSave(SaveFileSummary? parsed)
     {

@@ -51,6 +51,29 @@ internal static class SaveLibraryLoader
     }
 
     internal const long HeavySaveBytes = 16L * 1024 * 1024;
+
+    /// <summary>
+    /// What a save costs in memory while it is read: its size on disk or, for an X-Ray container, the unpacked size
+    /// its header declares (a small packed file can unpack to hundreds of megabytes).
+    /// </summary>
+    internal static long MemoryWeight(FileInfo info)
+    {
+        try
+        {
+            Span<byte> header = stackalloc byte[12];
+            using var stream = new FileStream(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length &&
+                System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(header) == Core.Formats.XRay.XRayContainer.Signature)
+            {
+                return Math.Max(info.Length, System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(header[8..]));
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        return info.Length;
+    }
     private static readonly SemaphoreSlim HeavySaves = new(2, 2);
 
     /// <summary>
@@ -88,7 +111,7 @@ internal static class SaveLibraryLoader
 
                 // Memory, not CPU, limits big saves: a large one needs several times its size while it is unpacked
                 // and parsed, so only a couple of those run at once while small saves keep the full parallelism.
-                var heavy = info.Length >= HeavySaveBytes;
+                var heavy = MemoryWeight(info) >= HeavySaveBytes;
                 if (heavy) HeavySaves.Wait();
                 try
                 {
@@ -137,6 +160,22 @@ internal static class SaveLibraryLoader
                 var fullPath = Path.GetFullPath(file);
                 if (seen.Add(fullPath)) yield return fullPath;
             }
+        }
+    }
+
+    /// <summary>Reads one save under the same limit on large saves the library load obeys.</summary>
+    internal static SaveFileSummary? TryReadSaveWithinBudget(string path)
+    {
+        var info = new FileInfo(path);
+        var heavy = info.Exists && MemoryWeight(info) >= HeavySaveBytes;
+        if (heavy) HeavySaves.Wait();
+        try
+        {
+            return TryReadSave(path);
+        }
+        finally
+        {
+            if (heavy) HeavySaves.Release();
         }
     }
 

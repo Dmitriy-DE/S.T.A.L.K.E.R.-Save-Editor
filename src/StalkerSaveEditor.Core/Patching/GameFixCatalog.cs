@@ -123,7 +123,8 @@ public static class GameFixCatalog
         foreach (var fix in Definitions)
         {
             if (!Data.EnhancedEditionSha256.TryGetValue(fix.Id, out var hashes)) continue;
-            if (hashes.Length != fix.TextPatches.Count + fix.SpawnEdits.Count)
+            var shared = fix.TextPatches.Where(operation => !operation.RetailOnly).ToArray();
+            if (hashes.Length != shared.Length + fix.SpawnEdits.Count)
                 throw new InvalidOperationException("EE hash count does not match the operations of " + fix.Id);
             var build = EnhancedEditionBuild(fix.Game);
             yield return fix with
@@ -131,8 +132,8 @@ public static class GameFixCatalog
                 Id = fix.Id + ".ee",
                 Game = EnhancedEditionOf(fix.Game),
                 SupportedSteamBuildIds = [build],
-                TextPatches = fix.TextPatches.Select((operation, index) => operation with { ExpectedFileSha256 = hashes[index] }).ToArray(),
-                SpawnEdits = fix.SpawnEdits.Select((edit, index) => edit with { ExpectedFileSha256 = hashes[fix.TextPatches.Count + index] }).ToArray(),
+                TextPatches = shared.Select((operation, index) => operation with { ExpectedFileSha256 = hashes[index] }).ToArray(),
+                SpawnEdits = fix.SpawnEdits.Select((edit, index) => edit with { ExpectedFileSha256 = hashes[shared.Length + index] }).ToArray(),
                 Source = fix.Source + " Enhanced Edition variant: same anchors, EE file hashes.",
                 DetectionMethod = $"Steam build {build}, exact archived EE source-file SHA-256 per operation, and unique exact text anchors.",
                 DependsOn = fix.DependsOn.Select(id => id + ".ee").ToArray(),

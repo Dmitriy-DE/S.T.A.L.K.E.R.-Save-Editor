@@ -67,6 +67,12 @@ public sealed record TextPatchOperation(string RelativePath, string ExpectedText
 
     /// <summary>Single-byte encoding for the target text; Latin-1 preserves legacy byte-oriented patches.</summary>
     public int CodePage { get; init; } = 28591;
+
+    /// <summary>
+    /// The Enhanced Edition file already has this change (GSC fixed it there), so the EE variant of the fix is made
+    /// from the other patches only.
+    /// </summary>
+    public bool RetailOnly { get; init; }
 }
 
 /// <summary>

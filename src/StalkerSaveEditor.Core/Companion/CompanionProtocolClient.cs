@@ -108,6 +108,9 @@ public sealed class CompanionProtocolClient
 
             var line = $"{ProtocolVersion} {id} {formattedCommand}\n";
             PublishCommand(temporaryPath, commandPath, line);
+            var answered = false;
+            try
+            {
             var elapsed = Stopwatch.StartNew();
             while (elapsed.Elapsed < _timeout)
             {
@@ -123,6 +126,7 @@ public sealed class CompanionProtocolClient
                             Diagnostics.AppLog.Info($"companion {formattedCommand} -> {reply.Status} in {elapsed.ElapsedMilliseconds} ms");
                         }
 
+                        answered = true;
                         return reply with { ReplyFileLastWriteTimeUtc = GetReplyLastWriteTimeUtc(replyPath) };
                     }
                 }
@@ -132,9 +136,16 @@ public sealed class CompanionProtocolClient
                     .ConfigureAwait(false);
             }
 
-            CancelCommandIfStillOwned(commandPath, id);
             if (command != "ping") Diagnostics.AppLog.Warn($"companion {formattedCommand} timed out after {_timeout.TotalSeconds:0} s (game not running or mod not loaded)");
             throw new CompanionProtocolTimeoutException(id, _timeout);
+            }
+            finally
+            {
+                // Timeout, cancellation or any error: a command the game has not taken yet is withdrawn, otherwise
+                // every later request fails as "previous command still pending" until the game runs. Only our own
+                // command (same request id) is removed.
+                if (!answered) CancelCommandIfStillOwned(commandPath, id);
+            }
         }
         finally
         {
@@ -261,13 +272,30 @@ public sealed class CompanionProtocolClient
     internal static FileStream OpenReplyReadStream(string replyPath) =>
         new(replyPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
+    internal const int MaximumReplyBytes = 1024 * 1024;
+
     private static bool TryReadReplyText(string replyPath, out string replyText)
     {
         try
         {
             using var stream = OpenReplyReadStream(replyPath);
-            using var reader = new StreamReader(stream, ProtocolEncoding);
-            replyText = reader.ReadToEnd();
+            // The reply is a small text file; a runaway or foreign file must not be loaded whole. The length is checked
+            // first (no megabyte buffer per poll) and the read stays bounded in case the file grows meanwhile.
+            var length = stream.Length;
+            if (length > MaximumReplyBytes)
+            {
+                // Not a reply of this protocol (it cannot be matched to a request): ignored like an unreadable file.
+                replyText = string.Empty;
+                return false;
+            }
+            var buffer = new byte[(int)length + 1];
+            var read = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+            if (read > length)
+            {
+                replyText = string.Empty; // still being written; the next poll reads it whole
+                return false;
+            }
+            replyText = ProtocolEncoding.GetString(buffer, 0, read);
             return true;
         }
         catch (IOException)

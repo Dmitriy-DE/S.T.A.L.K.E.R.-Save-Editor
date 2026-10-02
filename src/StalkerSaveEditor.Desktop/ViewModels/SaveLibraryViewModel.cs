@@ -558,7 +558,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     {
         get
         {
-            if (_isSaving || SelectedSave is null) return false;
+            if (_isSaving || SelectedSave is null || _draft.HasUnsupportedEdits) return false;
             var plan = BuildCurrentEditPlan(SelectedSave);
             if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds)) return false;
             return HasDraftChanges && InputsAreValid(SelectedSave);
@@ -571,6 +571,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         {
             if (SelectedSave is null)
                 return L.T("Выберите сохранение для редактирования.");
+            if (_draft.HasUnsupportedEdits)
+                return L.T("В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).");
             var plan = BuildCurrentEditPlan(SelectedSave);
             if (!EditService.CanEdit(SelectedSave.ReleaseId, plan.EditKinds))
             {
@@ -592,7 +594,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         get
         {
             if (SelectedSave is null) return false;
-            if (_draft.Steps > 0) return true;
+            if (_draft.Steps > 0 || _draft.HasUnsupportedEdits) return true;
             return HasPendingChanges(SelectedSave);
         }
     }
@@ -1278,6 +1280,14 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void RecordPlan(EditPlan plan)
     {
         if (SelectedSave is null) return;
+        if (_draft.HasUnsupportedEdits)
+        {
+            // Nothing may be edited on top of edits we cannot read: put the fields back and say why.
+            if (_draft.Current is { } current && !current.HasSameEdits(plan)) ApplyPlanToUI(current);
+            StatusMessage = L.T("В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).");
+            UpdateDraftState();
+            return;
+        }
         if (_draft.Record(SelectedSave.SourceSha256, plan)) UpdateDraftState();
     }
 

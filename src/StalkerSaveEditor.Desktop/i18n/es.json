@@ -260,6 +260,7 @@
  "В сохранении не отмечено, что надето; показано снаряжение из инвентаря.": "La partida no indica qué está equipado; se muestra el equipo del inventario.",
  "В сохранении нет тайников": "La partida no tiene alijos",
  "В сохранении нет тайников с предметами или операция не поддерживается": "La partida no tiene alijos con objetos o la operación no está admitida",
+ "В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).": "El borrador contiene cambios de otra versión del editor que esta versión no puede leer. Descarta el borrador para continuar (se conserva al lado).",
  "В этом сохранении нет предметов.": "Esta partida no contiene objetos.",
  "ВАНИЛЬНЫЙ ФАЙЛ": "ARCHIVO VANILLA",
  "ВЕРНУТЬ ПРЕДМЕТ": "RECUPERAR OBJETO",

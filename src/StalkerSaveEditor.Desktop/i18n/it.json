@@ -260,6 +260,7 @@
  "В сохранении не отмечено, что надето; показано снаряжение из инвентаря.": "Il salvataggio non indica cosa è equipaggiato; viene mostrato l’equipaggiamento dell’inventario.",
  "В сохранении нет тайников": "Il salvataggio non ha nascondigli",
  "В сохранении нет тайников с предметами или операция не поддерживается": "Il salvataggio non ha nascondigli con oggetti o l'operazione non è supportata",
+ "В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).": "La bozza contiene modifiche di un'altra versione dell'editor che questa versione non sa leggere. Scarta la bozza per continuare (viene conservata accanto).",
  "В этом сохранении нет предметов.": "Questo salvataggio non contiene oggetti.",
  "ВАНИЛЬНЫЙ ФАЙЛ": "FILE VANILLA",
  "ВЕРНУТЬ ПРЕДМЕТ": "RIPRISTINA OGGETTO",

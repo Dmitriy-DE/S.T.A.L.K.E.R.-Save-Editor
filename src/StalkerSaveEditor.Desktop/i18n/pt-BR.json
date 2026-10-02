@@ -260,6 +260,7 @@
  "В сохранении не отмечено, что надето; показано снаряжение из инвентаря.": "O save não indica o que está equipado; é mostrado o equipamento do inventário.",
  "В сохранении нет тайников": "O save não tem esconderijos",
  "В сохранении нет тайников с предметами или операция не поддерживается": "O save não tem esconderijos com itens ou a operação não é suportada",
+ "В черновике есть правки из другой версии редактора, которые эта версия не понимает. Сбросьте черновик, чтобы продолжить (он сохранится рядом).": "O rascunho contém alterações de outra versão do editor que esta versão não consegue ler. Descarte o rascunho para continuar (ele é mantido ao lado).",
  "В этом сохранении нет предметов.": "Este salvamento não contém itens.",
  "ВАНИЛЬНЫЙ ФАЙЛ": "ARQUIVO VANILLA",
  "ВЕРНУТЬ ПРЕДМЕТ": "RESTAURAR ITEM",

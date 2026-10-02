@@ -455,19 +455,19 @@ public static class GamesOverviewView
             ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
             ColumnSpacing = 8,
         };
-        var fixes = MakeActionButton(L.T("Исправления"), L.T("Проверить и установить вручную"), "⚒", () => vm.SelectedTab = "game-fixes");
+        var fixes = MakeActionButton(L.T("Исправления"), L.T("Проверить и установить вручную"), "⚒", () => vm.SelectedTab = AppTabs.GameFixes);
         grid.Children.Add(fixes);
         var doctor = MakeActionButton(L.T("Доктор игры"), L.T("Проверить выбранную установку"), "⌖", () => OpenGameDoctor(vm));
         Grid.SetColumn(doctor, 1);
         grid.Children.Add(doctor);
-        var environment = MakeActionButton(L.T("Среда игры"), L.T("Снимки, профили и конфигурация"), "⚙", () => vm.SelectedTab = "toolkit-environment");
+        var environment = MakeActionButton(L.T("Среда игры"), L.T("Снимки, профили и конфигурация"), "⚙", () => vm.SelectedTab = AppTabs.ToolkitEnvironment);
         Grid.SetColumn(environment, 2);
         grid.Children.Add(environment);
-        var companion = MakeActionButton(L.T("Компаньон"), L.T("Состояние и управление компаньоном"), "●", () => vm.SelectedTab = "companion");
+        var companion = MakeActionButton(L.T("Компаньон"), L.T("Состояние и управление компаньоном"), "●", () => vm.SelectedTab = AppTabs.Companion);
         companion.Name = "open-companion";
         Grid.SetColumn(companion, 3);
         grid.Children.Add(companion);
-        var achievements = MakeActionButton(L.T("Достижения"), L.T("Просмотр и управление достижениями Steam"), "★", () => vm.SelectedTab = "achievements");
+        var achievements = MakeActionButton(L.T("Достижения"), L.T("Просмотр и управление достижениями Steam"), "★", () => vm.SelectedTab = AppTabs.Achievements);
         Grid.SetColumn(achievements, 4);
         grid.Children.Add(achievements);
 
@@ -568,7 +568,7 @@ public static class GamesOverviewView
         if (vm.GameDoctor.Targets.FirstOrDefault(option => option.Target == target) is { } doctorTarget)
             vm.GameDoctor.SelectedTarget = doctorTarget;
         vm.GameDoctor.GameDirectory = vm.GameFixes.GameDirectory;
-        vm.SelectedTab = "game-doctor";
+        vm.SelectedTab = AppTabs.GameDoctor;
     }
 
     private sealed class BoolVisibilityConverter(bool invert) : Avalonia.Data.Converters.IValueConverter

@@ -4604,6 +4604,171 @@
       "references": [
         "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
       ]
+    },
+    {
+      "id": "cop.crash.heli-save-search",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Crash when saving while a helicopter searches for you",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/heli_combat.script",
+          "expectedText": "\t\t\tpacket:w_u32 ( self.change_dir_time - t )\r\n\t\t\tpacket:w_u32 ( self.change_pos_time - t )\r\n\t\t\tpacket:w_bool( self.flight_direction )\r\n\t\t\tpacket:w_vec3( self.center_pos )\r\n",
+          "replacementText": "\t\t\tpacket:w_u32 ( (self.change_dir_time or t) - t )\r\n\t\t\tpacket:w_u32 ( (self.change_pos_time or t) - t )\r\n\t\t\tpacket:w_bool( self.flight_direction == true )\r\n\t\t\tpacket:w_vec3( self.center_pos or self.enemy_last_seen_pos )\r\n",
+          "expectedFileSha256": "e4d56ce485f14363906f977225b7753a83ff031cb1b4328935820f6b56abed2c",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "A helicopter that goes straight into its search pattern never sets one of the timers the save code writes. Saving at that moment crashes: heli_combat.script: attempt to perform arithmetic on field 'change_dir_time' (a nil value).",
+      "description": "Saving writes neutral values for the timers and the search centre that are not set yet; on load the helicopter starts its search again as it already does.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cop.crash.patrol-last-index",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Crash when an NPC asks whether waypoint -1 ends its patrol path",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/move_mgr.script",
+          "expectedText": "\tif self.last_index and self.patrol_walk:terminal(self.last_index) then\r\n",
+          "replacementText": "\tif self.last_index and self.last_index ~= -1 and self.patrol_walk:terminal(self.last_index) then\r\n",
+          "expectedFileSha256": "3f2c888414d30addb57d01713260d070634ee2491da63a1638542ceac9cdbb21",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "After a path change the movement manager remembers waypoint index -1 (no waypoint reached yet) and then asks the engine whether that waypoint is the last one of the path. The engine does not accept index -1 and the game crashes.",
+      "description": "The question is asked only for a real waypoint index.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cop.save.signal-flare-timer",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Signal flare restarts as long burnt out after a load",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/bind_signal_light.script",
+          "expectedText": "\tif time ~= 4294967296 then\r\n",
+          "replacementText": "\tif time ~= 4294967295 then\r\n",
+          "expectedFileSha256": "73aaf1253dd05e7a3ab568ae6c474c3ff57220b31501989530bed42f587bb28e",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "A signal flare that has not been fired saves the marker 4294967295, but loading compares it with 4294967296, which can never match. Every loaded flare is then treated as fired about fifty days ago.",
+      "description": "Loading compares with the value that saving writes.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cop.crash.dialog-close-without-player",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Crash when a dialog window closes while the player object is gone",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/pda.script",
+          "expectedText": "\t\tif npc ~= nil then\r\n\t\t\tlocal npc_id = npc:id()\r\n\t\t\tif npc:is_talking() and npc_id ~= db.actor:id() then\r\n",
+          "replacementText": "\t\tif npc ~= nil and db.actor ~= nil then\r\n\t\t\tlocal npc_id = npc:id()\r\n\t\t\tif npc:is_talking() and npc_id ~= db.actor:id() then\r\n",
+          "expectedFileSha256": "95d41206eabf90e89769c606fad73e691e3b439d5247671f0c493786c9a03b2b",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "Closing a dialog window walks over every NPC and compares it with the player. During a level change or while the game is loading the player object does not exist and the comparison crashes: pda.script: attempt to index field 'actor' (a nil value).",
+      "description": "The walk is skipped while there is no player object.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cop.crash.base-alarm-without-player",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Crash when a base checks for a drawn weapon while the player object is gone",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/smart_terrain_control.script",
+          "expectedText": "\tif zone == nil then\r\n\t\treturn false\r\n\tend\r\n\r\n\tif not zone:inside(db.actor:position()) then\r\n",
+          "replacementText": "\tif zone == nil or db.actor == nil then\r\n\t\treturn false\r\n\tend\r\n\r\n\tif not zone:inside(db.actor:position()) then\r\n",
+          "expectedFileSha256": "678e5848fe285ecb77c394dbb15a64e920e905246ff8a5774351a2810ec151e6",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "A base with a no-weapon zone asks where the player is on every update. While the player object does not exist (loading, level change) this crashes: smart_terrain_control.script: attempt to index field 'actor' (a nil value).",
+      "description": "Without a player object the base sees no threat.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
     }
   ],
   "enhancedEditionSha256": {

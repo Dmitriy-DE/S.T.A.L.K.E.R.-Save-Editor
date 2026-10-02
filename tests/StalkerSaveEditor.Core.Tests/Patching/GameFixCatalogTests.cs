@@ -53,7 +53,7 @@ public sealed class GameFixCatalogTests
     public void Shipped_catalogue_contains_archive_verified_clear_sky_fixes_and_populates_safe_presets()
     {
         var fixes = GameFixCatalog.ForGame(GameTarget.ClearSky);
-        Assert.Equal(60, fixes.Count);
+        Assert.Equal(61, fixes.Count);
         var fix = Assert.Single(fixes, candidate => candidate.Id == "cs.quest.dead-wild-napr");
         Assert.Equal("cs.quest.dead-wild-napr", fix.Id);
         Assert.Equal(GameFixCategory.Essential, fix.Category);
@@ -77,7 +77,7 @@ public sealed class GameFixCatalogTests
         Assert.All(pathOwners, group => Assert.Single(group.Select(entry => entry.Id).Distinct(StringComparer.Ordinal)));
         Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.EssentialOnly));
         Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended));
-        Assert.Equal(58, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
+        Assert.Equal(59, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
         Assert.Contains(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Id == fix.Id);
         Assert.DoesNotContain(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Category == GameFixCategory.Community);
 
@@ -141,8 +141,12 @@ public sealed class GameFixCatalogTests
             Assert.Equal(["11567845"], fix.SupportedSteamBuildIds);
             Assert.Equal(GameFixMaturity.Validated, fix.Maturity);
             Assert.Equal(GameFixVerificationState.RetailFilesVerified, fix.VerificationState);
-            Assert.Contains("ZRP", fix.Source, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(fix.References, reference => reference.Contains("metacognix.com/stlkrsoc", StringComparison.Ordinal));
+            Assert.True(
+                fix.Source.Contains("ZRP", StringComparison.OrdinalIgnoreCase) ||
+                fix.Source.Contains("static check", StringComparison.Ordinal));
+            Assert.Contains(fix.References, reference =>
+                reference.Contains("metacognix.com/stlkrsoc", StringComparison.Ordinal) ||
+                reference.Contains("tools/lua_globals.py", StringComparison.Ordinal));
             Assert.All(fix.TextPatches, patch => Assert.Matches("^[0-9a-f]{64}$", patch.ExpectedFileSha256));
         });
 
@@ -238,6 +242,6 @@ public sealed class GameFixCatalogTests
         Assert.Equal(5, viewModel.Categories.Count);
         Assert.Equal(27, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Essential).Count);
         Assert.Equal(0, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Experimental).Count);
-        Assert.Contains("60", viewModel.CatalogueStatus, StringComparison.Ordinal);
+        Assert.Contains("61", viewModel.CatalogueStatus, StringComparison.Ordinal);
     }
 }

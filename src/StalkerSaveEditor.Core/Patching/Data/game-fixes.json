@@ -2968,8 +2968,8 @@
     {
       "id": "cs.crash.sim-combat",
       "game": "ClearSky",
-      "version": "1.0.0",
-      "title": "Squad-combat script no longer crashes on a missing player or a vanished squad",
+      "version": "1.1.0",
+      "title": "Squad-combat script no longer crashes on a missing player or a vanished squad; weak squads no longer fight for ever offline",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -2998,11 +2998,18 @@
           "replacementText": "if attack_squad_obj ~= nil and attack_squad_obj.squad_power >= squad.squad_power then",
           "expectedFileSha256": "78b19aef9e179a00c0b128a554907b10ba18bdb36f307f1a6bf7ca8e53b96061",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/sim_combat.script",
+          "expectedText": "\t\t\tlocal casualities = math.random(data._squad_power/5,data._squad_power/3)\r\n",
+          "replacementText": "\t\t\tlocal casualities = data._squad_power * (0.2 + 0.13 * math.random())\r\n",
+          "expectedFileSha256": "78b19aef9e179a00c0b128a554907b10ba18bdb36f307f1a6bf7ca8e53b96061",
+          "codePage": 28591
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
-      "problem": "sim_combat.script crashes when it runs before the player is loaded (attempt to index field 'actor' (a nil value)) or when the attacking squad of a 'help' task no longer exists (attempt to index local 'attack_squad_obj' (a nil value)).",
-      "description": "Cover calculation and the \"player arrived\" check wait until the player exists; a help task is only considered while the attacking squad exists.",
+      "problem": "sim_combat.script crashes when it runs before the player is loaded (attempt to index field 'actor' (a nil value)) or when the attacking squad of a 'help' task no longer exists (attempt to index local 'attack_squad_obj' (a nil value)). Offline fights: the damage a squad deals is drawn with math.random(power/5, power/3), which cuts both bounds down to whole numbers. For a squad weaker than 3 both become 0, so two weak squads deal no damage to each other, the fight never ends and the camp stays 'in combat' for ever, which stalls the faction war around it.",
+      "description": "Cover calculation and the \"player arrived\" check wait until the player exists; a help task is only considered while the attacking squad exists. The offline damage is drawn as a fraction between one fifth and one third of the squad power, as the original line intended.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -5670,7 +5677,7 @@
       "verificationState": "RetailFilesVerified",
       "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
       "references": [
-        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "tools/check_condlists.py and tools/check_logic_refs.py run over the retail configs",
         "xr_logic.script: activate_by_section aborts when the section does not exist"
       ]
     },
@@ -5711,7 +5718,7 @@
       "verificationState": "RetailFilesVerified",
       "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
       "references": [
-        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "tools/check_condlists.py and tools/check_logic_refs.py run over the retail configs",
         "xr_logic.script: activate_by_section aborts when the section does not exist"
       ]
     },
@@ -5759,7 +5766,7 @@
       "verificationState": "RetailFilesVerified",
       "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
       "references": [
-        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "tools/check_condlists.py and tools/check_logic_refs.py run over the retail configs",
         "xr_logic.script: activate_by_section aborts when the section does not exist"
       ]
     },
@@ -5793,8 +5800,107 @@
       "verificationState": "RetailFilesVerified",
       "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
       "references": [
-        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "tools/check_condlists.py and tools/check_logic_refs.py run over the retail configs",
         "xr_logic.script: activate_by_section aborts when the section does not exist"
+      ]
+    },
+    {
+      "id": "soc.crash.mutant-killed-by-nobody",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "No crash when a scripted mutant dies without a killer",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/mob_death.script",
+          "expectedText": "\tif who ~= nil then\r\n\t\tprintf(\"mob_death: [%s] killed by [%s]\", victim:name(), who:name())\r\n\t\tlocal death = db.storage[victim:id()].death\r\n\t\tif not death then\r\n\t\t\tdeath = {}\r\n\t\t\tdb.storage[victim:id()].death = death\r\n\t\tend\r\n",
+          "replacementText": "\tlocal death = db.storage[victim:id()].death\r\n\tif not death then\r\n\t\tdeath = {}\r\n\t\tdb.storage[victim:id()].death = death\r\n\tend\r\n\tif who ~= nil then\r\n\t\tprintf(\"mob_death: [%s] killed by [%s]\", victim:name(), who:name())\r\n",
+          "expectedFileSha256": "9b293eb1789733d3870c8170b01223bdc061280b9dae0e1f77c30acaf2ce58b4",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check of the scripts for variables that are read but never defined. The Enhanced Edition has the same fault.",
+      "problem": "A mutant whose logic has an 'on_death' section can die with no killer: from an anomaly, from bleeding, from a script. The death handler then writes to a table that was only created in the other branch of the code, and the game stops with 'attempt to index global 'death' (a nil value)'.",
+      "description": "The table is created before both branches.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/lua_globals.py run over the retail scripts"
+      ]
+    },
+    {
+      "id": "soc.crash.hit-without-attacker",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "No crash when an NPC with an 'on_hit' reaction is hit by nobody",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_hit.script",
+          "expectedText": "\t\tprintf(\"[%s] hit by [Unknown]\", victim:name())\r\n",
+          "replacementText": "\t\tprintf(\"[%s] hit by [Unknown]\", obj:name())\r\n",
+          "expectedFileSha256": "641ff29a49a32e9940ec76b6175e5a8c4fde93ded7a6e0707096547d0773d137",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check of the scripts for variables that are read but never defined. The Enhanced Edition has the same fault.",
+      "problem": "Many NPCs have an 'on_hit' section in their logic. When such an NPC takes damage that has no attacker (the thrower of a grenade is already gone, for example), the handler asks for the name of a variable that does not exist ('victim' instead of 'obj') and the game stops with 'attempt to index global 'victim' (a nil value)'.",
+      "description": "The line uses the variable the function really has.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/lua_globals.py run over the retail scripts"
+      ]
+    },
+    {
+      "id": "cs.crash.remark-target-not-ready",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "No crash when an NPC cannot find the target of his remark yet",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_remark.script",
+          "expectedText": "\t\tif st.target_init == false then\r\n",
+          "replacementText": "\t\tif self.st.target_init == false then\r\n",
+          "expectedFileSha256": "290a2533ce5eabf8721a42c6b9f11d5aac20fa96da4731f0cf8215e70fb09dba",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check of the scripts for variables that are read but never defined. The Enhanced Edition has the same fault.",
+      "problem": "An NPC in the 'remark' scheme looks at a target that may be a job of his camp. When that job is not taken yet, the code tests the result through a variable that does not exist ('st' instead of 'self.st') and the game stops with 'attempt to index global 'st' (a nil value)'.",
+      "description": "The test reads the same variable as the line above it.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/lua_globals.py run over the retail scripts"
       ]
     }
   ],
@@ -6124,6 +6230,15 @@
     ],
     "cop.logic.x8-poltergeist-toilet-burer": [
       "6b5584018010bd0a249443dab79dde3e9ea509542f2b82c4e473d61b60d335d3"
+    ],
+    "soc.crash.mutant-killed-by-nobody": [
+      "a736591bd948f7d80ddd808e34d48c3e414e871771739a24f83b393e265423e2"
+    ],
+    "soc.crash.hit-without-attacker": [
+      "2e7aede0464fff6ad8ed4a8346902e5941910f60fd5e703a682606d461ac2d72"
+    ],
+    "cs.crash.remark-target-not-ready": [
+      "fe19e927517f2da1fd5129f80a2c6977ff48297ebce72bfca1d3eba4be37c7ee"
     ]
   }
 }

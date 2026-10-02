@@ -38,9 +38,13 @@ public static class Stalker2StashReader
     private static readonly byte[] Marker = [0xFF, 0xFF, 0xFF, 0xFF, 0x06, 0x01, 0x00, 0x00, 0x00, 0x06];
     private static readonly byte[] HeaderTail = [0x03, 0x00, 0x00, 0x00];
 
-    public static Stalker2StashLayout Locate(ReadOnlySpan<byte> raw)
+    public static Stalker2StashLayout Locate(ReadOnlySpan<byte> raw) =>
+        Locate(raw, Stalker2InventoryReader.LocateLayout(raw));
+
+    /// <summary>For callers that already located the player's inventory in the same bytes (it is a scan of the save).</summary>
+    public static Stalker2StashLayout Locate(ReadOnlySpan<byte> raw, Stalker2InventoryLayout player)
     {
-        var player = Stalker2InventoryReader.LocateLayout(raw);
+        ArgumentNullException.ThrowIfNull(player);
         var searchStart = player.GridEndOffset;
         var searchEnd = Math.Min(raw.Length, checked(searchStart + SearchWindow));
         var markerOffset = FindUniqueMarker(raw, searchStart, searchEnd);

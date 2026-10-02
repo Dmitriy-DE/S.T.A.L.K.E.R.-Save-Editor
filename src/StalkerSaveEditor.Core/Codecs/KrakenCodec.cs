@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace StalkerSaveEditor.Core.Codecs;
@@ -20,16 +21,24 @@ public static class KrakenCodec
             throw new InvalidDataException("Kraken stream is empty.");
         }
 
-        var source = stream.ToArray();
-        var target = GC.AllocateUninitializedArray<byte>(checked(expectedSize + DecoderSafeSpace));
-        var written = InvokeNativeDecoder(source, target, expectedSize);
-        if (written != expectedSize)
+        // The input is passed in place (pinned for the call) instead of being copied, and the padded work buffer the
+        // decoder needs is reused between saves.
+        var target = RentWork(checked(expectedSize + DecoderSafeSpace), out var pooled);
+        try
         {
-            throw new InvalidDataException(
-                $"Kraken decoder returned {written} bytes; expected {expectedSize}.");
-        }
+            var written = InvokeNativeDecoder(stream, target, expectedSize);
+            if (written != expectedSize)
+            {
+                throw new InvalidDataException(
+                    $"Kraken decoder returned {written} bytes; expected {expectedSize}.");
+            }
 
-        return target.AsSpan(0, expectedSize).ToArray();
+            return target.AsSpan(0, expectedSize).ToArray();
+        }
+        finally
+        {
+            if (pooled) ArrayPool<byte>.Shared.Return(target);
+        }
     }
 
     public static byte[] Compress(ReadOnlySpan<byte> payload, int level = 5)
@@ -46,22 +55,37 @@ public static class KrakenCodec
 
         var quanta = (payload.Length + 0x3FFFF) / BlockSize;
         var capacity = checked(payload.Length + 1024 + 512 * quanta);
-        var source = payload.ToArray();
-        var target = GC.AllocateUninitializedArray<byte>(capacity);
-        var written = InvokeNativeEncoder(source, level, target);
-        if (written <= 0 || written > target.Length)
+        var target = RentWork(capacity, out var pooled);
+        try
         {
-            throw new InvalidDataException($"Kraken encoder returned invalid size {written}.");
-        }
+            var written = InvokeNativeEncoder(payload, level, target, capacity);
+            if (written <= 0 || written > capacity)
+            {
+                throw new InvalidDataException($"Kraken encoder returned invalid size {written}.");
+            }
 
-        return target.AsSpan(0, written).ToArray();
+            return target.AsSpan(0, written).ToArray();
+        }
+        finally
+        {
+            if (pooled) ArrayPool<byte>.Shared.Return(target);
+        }
     }
 
-    private static int InvokeNativeDecoder(byte[] source, byte[] target, int expectedSize)
+    private const int LargestPooledWork = 64 * 1024 * 1024;
+
+    /// <summary>Ordinary saves reuse a pooled buffer; a huge one gets its own so the pool does not keep it afterwards.</summary>
+    private static byte[] RentWork(int size, out bool pooled)
+    {
+        pooled = size <= LargestPooledWork;
+        return pooled ? ArrayPool<byte>.Shared.Rent(size) : GC.AllocateUninitializedArray<byte>(size);
+    }
+
+    private static int InvokeNativeDecoder(ReadOnlySpan<byte> source, byte[] target, int expectedSize)
     {
         try
         {
-            return NativeMethods.Decompress(source, source.Length, target, expectedSize);
+            return NativeMethods.Decompress(in MemoryMarshal.GetReference(source), source.Length, target, expectedSize);
         }
         catch (Exception exception) when (IsNativeLibraryError(exception))
         {
@@ -69,11 +93,11 @@ public static class KrakenCodec
         }
     }
 
-    private static int InvokeNativeEncoder(byte[] source, int level, byte[] target)
+    private static int InvokeNativeEncoder(ReadOnlySpan<byte> source, int level, byte[] target, int capacity)
     {
         try
         {
-            return NativeMethods.Compress(source, source.Length, level, target, target.Length);
+            return NativeMethods.Compress(in MemoryMarshal.GetReference(source), source.Length, level, target, capacity);
         }
         catch (Exception exception) when (IsNativeLibraryError(exception))
         {
@@ -92,7 +116,7 @@ public static class KrakenCodec
             CallingConvention = CallingConvention.Cdecl,
             ExactSpelling = true)]
         internal static extern int Decompress(
-            [In] byte[] source,
+            in byte source,
             int sourceLength,
             [Out] byte[] target,
             int targetLength);
@@ -103,7 +127,7 @@ public static class KrakenCodec
             CallingConvention = CallingConvention.Cdecl,
             ExactSpelling = true)]
         internal static extern int Compress(
-            [In] byte[] source,
+            in byte source,
             int sourceLength,
             int level,
             [Out] byte[] target,

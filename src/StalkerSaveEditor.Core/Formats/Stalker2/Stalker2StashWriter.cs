@@ -80,7 +80,9 @@ public static class Stalker2StashWriter
             throw Error("S2 stash item handle must not be zero or the tombstone value.");
         }
 
-        var stash = Stalker2StashReader.Locate(raw);
+        // The player's inventory is located once here and once in the result; the stash is read next to it.
+        var player = Stalker2InventoryReader.LocateLayout(raw);
+        var stash = Stalker2StashReader.Locate(raw, player);
         var stashSlots = stash.OwnedHandles
             .Select((value, index) => (value, index))
             .Where(pair => pair.value == handle)
@@ -91,7 +93,6 @@ public static class Stalker2StashWriter
             throw Error($"Handle 0x{handle:X8} must occur exactly once in the S2 stash.");
         }
 
-        var player = Stalker2InventoryReader.LocateLayout(raw);
         if (player.UnresolvedHandles.Count > 0)
         {
             throw Error("Transfer stopped because player inventory has unresolved handles.");
@@ -151,7 +152,15 @@ public static class Stalker2StashWriter
             stashHandles,
             remainingStashCells);
 
-        player = Stalker2InventoryReader.LocateLayout(stashEnd);
+        // The stash arrays lie after the player's, so rebuilding them cannot move or change the player's arrays:
+        // checked byte for byte instead of scanning the save again. The result is located afresh in VerifyTransfer.
+        if (stash.OwnedCountOffset < player.GridEndOffset ||
+            !stashEnd.AsSpan(player.OwnedCountOffset, player.GridEndOffset - player.OwnedCountOffset)
+                .SequenceEqual(raw.Slice(player.OwnedCountOffset, player.GridEndOffset - player.OwnedCountOffset)))
+        {
+            throw Error("Rebuilding the stash changed the player's inventory arrays.");
+        }
+
         var playerHandles = player.OwnedHandles.Append(handle).ToArray();
         var playerCells = player.GridCells.Concat(shape.Select(cell => new Stalker2GridCell(
             handle,
@@ -274,13 +283,13 @@ public static class Stalker2StashWriter
         (ushort X, ushort Y) position,
         (int X, int Y)[] shape)
     {
-        var stash = Stalker2StashReader.Locate(raw);
+        var player = Stalker2InventoryReader.LocateLayout(raw);
+        var stash = Stalker2StashReader.Locate(raw, player);
         if (stash.LiveHandles.Contains(handle) || stash.GridCells.Any(cell => cell.Handle == handle))
         {
             throw Error($"Stash transfer round-trip left handle 0x{handle:X8} in the stash.");
         }
 
-        var player = Stalker2InventoryReader.LocateLayout(raw);
         if (player.UnresolvedHandles.Count > 0 || player.OwnedHandles.Count(item => item == handle) != 1)
         {
             throw Error($"Stash transfer round-trip did not add handle 0x{handle:X8} to the player.");

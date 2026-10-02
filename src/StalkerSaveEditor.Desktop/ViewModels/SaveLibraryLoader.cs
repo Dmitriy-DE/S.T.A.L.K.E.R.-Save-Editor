@@ -24,6 +24,9 @@ internal static class SaveLibraryLoader
     /// <summary>Cache validity: size, write time and creation time (a file swapped in by rename gets a new one).</summary>
     internal sealed record CachedSave(long Length, DateTime LastWriteUtc, DateTime CreationUtc, SaveFileSummary? Summary);
 
+    internal const long HeavySaveBytes = 16L * 1024 * 1024;
+    private static readonly SemaphoreSlim HeavySaves = new(2, 2);
+
     /// <summary>
     /// Lists and parses the save files, newest first, in parallel batches; unchanged files (and files
     /// known not to be saves) come from <paramref name="cache"/>. <paramref name="batchLoaded"/> sees
@@ -49,10 +52,25 @@ internal static class SaveLibraryLoader
             Parallel.For(start, end, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, index =>
             {
                 var info = files[index];
-                entries[index] = cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc &&
-                    hit.CreationUtc == info.CreationTimeUtc
-                    ? hit
-                    : new CachedSave(info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, TryReadSave(info.FullName));
+                if (cache.TryGetValue(info.FullName, out var hit) && hit.Length == info.Length && hit.LastWriteUtc == info.LastWriteTimeUtc &&
+                    hit.CreationUtc == info.CreationTimeUtc)
+                {
+                    entries[index] = hit;
+                    return;
+                }
+
+                // Memory, not CPU, limits big saves: a large one needs several times its size while it is unpacked
+                // and parsed, so only a couple of those run at once while small saves keep the full parallelism.
+                var heavy = info.Length >= HeavySaveBytes;
+                if (heavy) HeavySaves.Wait();
+                try
+                {
+                    entries[index] = new CachedSave(info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, TryReadSave(info.FullName));
+                }
+                finally
+                {
+                    if (heavy) HeavySaves.Release();
+                }
             });
             batchLoaded?.Invoke(entries[start..end].Select(entry => entry.Summary).OfType<SaveFileSummary>().ToArray());
         }

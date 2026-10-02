@@ -602,25 +602,55 @@ public sealed partial class ToolkitSnapshotService
         }
     }
 
+    /// <summary>Dependencies first; among the fixes that are ready, the smallest id (so the order is stable).</summary>
     private List<string> TopologicalOrder(IEnumerable<string> ids)
     {
         var requested = ids.ToHashSet(StringComparer.Ordinal);
-        var emitted = new HashSet<string>(StringComparer.Ordinal);
-        var result = new List<string>();
-        while (result.Count < requested.Count)
+        var waitingFor = new Dictionary<string, int>(StringComparer.Ordinal);
+        var dependents = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var ready = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var id in requested)
         {
-            var next = requested.Where(id => !emitted.Contains(id))
-                .Where(id => _definitions.TryGetValue(id, out var definition) &&
-                    definition.DependsOn.All(requested.Contains) && definition.DependsOn.All(emitted.Contains))
-                .Order(StringComparer.Ordinal).FirstOrDefault();
-            if (next is null) throw new InvalidDataException("Snapshot Game Fix dependencies contain a cycle or an unknown fix.");
-            emitted.Add(next);
-            result.Add(next);
+            if (!_definitions.TryGetValue(id, out var definition) || !definition.DependsOn.All(requested.Contains)) continue;
+            var dependencies = definition.DependsOn.Distinct(StringComparer.Ordinal).ToArray();
+            waitingFor[id] = dependencies.Length;
+            if (dependencies.Length == 0) ready.Add(id);
+            foreach (var dependency in dependencies)
+            {
+                if (!dependents.TryGetValue(dependency, out var list)) dependents[dependency] = list = [];
+                list.Add(id);
+            }
         }
+
+        var result = new List<string>(requested.Count);
+        while (ready.Min is { } next)
+        {
+            ready.Remove(next);
+            result.Add(next);
+            foreach (var dependent in dependents.GetValueOrDefault(next) ?? [])
+            {
+                if (--waitingFor[dependent] == 0) ready.Add(dependent);
+            }
+        }
+
+        if (result.Count < requested.Count) throw new InvalidDataException("Snapshot Game Fix dependencies contain a cycle or an unknown fix.");
         return result;
     }
 
-    private int DependencyDepth(string id) => !_definitions.TryGetValue(id, out var definition) ? 0 : 1 + (definition.DependsOn.Count == 0 ? 0 : definition.DependsOn.Max(DependencyDepth));
+    private readonly Dictionary<string, int> _dependencyDepths = new(StringComparer.Ordinal);
+
+    private int DependencyDepth(string id) => DependencyDepth(id, new HashSet<string>(StringComparer.Ordinal));
+
+    private int DependencyDepth(string id, HashSet<string> path)
+    {
+        if (!_definitions.TryGetValue(id, out var definition)) return 0;
+        if (_dependencyDepths.TryGetValue(id, out var known)) return known;
+        // A cycle in a definition set must not recurse forever; installing such a set is refused elsewhere.
+        if (!path.Add(id)) return 0;
+        var depth = 1 + (definition.DependsOn.Count == 0 ? 0 : definition.DependsOn.Max(dependency => DependencyDepth(dependency, path)));
+        path.Remove(id);
+        return _dependencyDepths[id] = depth;
+    }
 
     private string SnapshotDirectory => Path.Combine(_root, "snapshots");
     private string ObjectDirectory => Path.Combine(_root, "objects");

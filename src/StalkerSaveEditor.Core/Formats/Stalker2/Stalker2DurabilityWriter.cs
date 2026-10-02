@@ -186,25 +186,24 @@ public static class Stalker2DurabilityWriter
         ReadOnlySpan<byte> output,
         IReadOnlyList<(int Start, int Length)> allowedRanges)
     {
-        var ranges = allowedRanges.OrderBy(range => range.Start).ToArray();
-        var rangeIndex = 0;
-        for (var offset = 0; offset < source.Length; offset++)
+        // Everything outside the confirmed ranges must be identical: compared block by block (vectorised), not byte
+        // by byte, since this runs over the whole unpacked save.
+        var position = 0;
+        foreach (var (start, length) in allowedRanges.OrderBy(range => range.Start))
         {
-            if (source[offset] == output[offset])
-            {
-                continue;
-            }
-
-            while (rangeIndex < ranges.Length && offset - ranges[rangeIndex].Start >= ranges[rangeIndex].Length)
-            {
-                rangeIndex++;
-            }
-
-            if (rangeIndex == ranges.Length || offset < ranges[rangeIndex].Start)
-            {
-                throw Error($"S2 durability edit changed unconfirmed raw byte at offset {offset}.");
-            }
+            if (start > position) EnsureEqual(source, output, position, start);
+            position = Math.Max(position, start + length);
         }
+
+        if (position < source.Length) EnsureEqual(source, output, position, source.Length);
+    }
+
+    private static void EnsureEqual(ReadOnlySpan<byte> source, ReadOnlySpan<byte> output, int start, int end)
+    {
+        var left = source[start..end];
+        var right = output[start..end];
+        if (left.SequenceEqual(right)) return;
+        throw Error($"S2 durability edit changed unconfirmed raw byte at offset {start + left.CommonPrefixLength(right)}.");
     }
 
     private static string Sha256(ReadOnlySpan<byte> data) =>

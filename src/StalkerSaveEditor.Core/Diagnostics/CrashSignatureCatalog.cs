@@ -202,6 +202,36 @@ public static class CrashSignatureCatalog
         {
             Pattern = P(@"Path between \[mil_smart_terrain_7_11\] and \[mil_smart_terrain_7_10\] doesnt exist"),
         },
+        new("soc.gulag-job-nil", Shadow, "Camp member without a job", CrashAdvice.InstallFix,
+            "A camp checked a job swap for a member that had no job at that moment.", Zrp)
+        {
+            Pattern = P(@"xr_gulag\.script:\d+:\s*attempt to index local 'job' \(a nil value\)"),
+            FixId = "soc.crash.gulag-job-nil",
+        },
+        new("soc.heli-save-search", Shadow, "Saving while a helicopter searches for you", CrashAdvice.InstallFix,
+            "The helicopter's search timers were not set yet when the game was saved.", Zrp)
+        {
+            Pattern = P(@"heli_combat\.script:\d+:\s*attempt to perform arithmetic on field 'change_(?:dir|pos)_time'"),
+            FixId = "soc.crash.heli-save-search",
+        },
+        new("soc.kamp-remove-unseated", Shadow, "Campfire with more stalkers than places", CrashAdvice.InstallFix,
+            "A stalker joined a full campfire and got no place.", Zrp)
+        {
+            Pattern = P(@"xr_kamp\.script:\d+:\s*attempt to index field '\?' \(a nil value\)|get dest Vertex: nil"),
+            FixId = "soc.crash.kamp-remove-unseated",
+        },
+        new("soc.danger-ignore-types", Shadow, "NPC without danger settings", CrashAdvice.InstallFix,
+            "An NPC whose danger settings were never set up noticed a grenade, a body, a hit or a sound.", Zrp)
+        {
+            Pattern = P(@"xr_danger\.script:\d+:\s*attempt to index field 'ignore_types' \(a nil value\)"),
+            FixId = "soc.crash.danger-ignore-types",
+        },
+        new("soc.garbage-robbers-dead-bandit", Shadow, "Garbage robbery with the first robber dead", CrashAdvice.InstallFix,
+            "The fight at the Garbage entrance used a robber who was already dead.", Zrp)
+        {
+            Pattern = P(@"xr_effects\.script:\d+:\s*attempt to index local 'bandit1' \(a nil value\)"),
+            FixId = "soc.crash.garbage-robbers-and-duty-raid",
+        },
         new("soc.controller-body-state", Shadow, "Controller animation crash", CrashAdvice.ReloadEarlierSave,
             "A bad controller animation, usually while it is under attack. Kill controllers before they reach this state.", Zrp)
         {

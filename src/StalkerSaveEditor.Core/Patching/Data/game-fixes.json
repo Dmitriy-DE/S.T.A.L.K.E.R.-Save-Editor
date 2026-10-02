@@ -3022,7 +3022,7 @@
     {
       "id": "cs.crash.capture-task-missing-squad",
       "game": "ClearSky",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "title": "Task crashes fixed: capture task for a missing squad, story task for a missing NPC (Wild Napr); 'capture' and 'defend' tasks no longer stop the game on a missing squad or call time",
       "supportedSteamBuildIds": [
         "11450472"
@@ -3102,11 +3102,25 @@
           "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
           "codePage": 28591,
           "retailOnly": true
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\tlocal enemy_squad = self.board.squads[self.src_squad_id]\r\n\tlocal target_squads = self.board.smarts[self.target].squads\r\n",
+          "replacementText": "\tlocal enemy_squad = self.board.squads[self.src_squad_id]\r\n\tif enemy_squad == nil then\r\n\t\treturn\r\n\tend\r\n\tlocal target_squads = self.board.smarts[self.target].squads\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\t\tlocal source_smart_squads = self.board.smarts[self.board.squads[self.src_squad_id].smart_id].squads\r\n",
+          "replacementText": "\t\tlocal source_smart = self.board.smarts[self.board.squads[self.src_squad_id].smart_id]\r\n\t\tlocal source_smart_squads = source_smart and source_smart.squads or {}\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code; the Wild Napr crash message is from the SRP 1.1.5 version history.",
       "problem": "Giving a 'capture' task to a squad that was already removed crashes: task_objects.script: attempt to index field '?' (a nil value). Also: a story task whose target NPC is not on his job (Wild Napr while the Flea Market is fighting, or after he died offline) aborts the game: wrong target for storyline quest: logic@work5,gar_smart_terrain_6_3. 'Capture' tasks: when the camp is taken, the script announces the counter-attack through the first allied squad in the camp. If no squad is there any more, or the former owner is unknown, it indexes a missing value and the game stops; and it waits for the announcement to end without a time limit, so the task can hang for ever. 'Defend' tasks: the time of the last call for help is set only when a defending squad is in the camp; without one the next check compares with a missing time and the game stops.",
-      "description": "The capture task is given only if the squad still exists; a story task whose target NPC is missing is simply not given for now. The counter-attack is skipped when there is nobody to announce it, the wait for the announcement ends after a minute, and the 'defend' call time is always set (also when an older save is loaded without it).",
+      "description": "The capture task is given only if the squad still exists; a story task whose target NPC is missing is simply not given for now. The counter-attack is skipped when there is nobody to announce it, the wait for the announcement ends after a minute, and the 'defend' call time is always set (also when an older save is loaded without it). The delayed 'defend' task also tolerates an attacking squad that has vanished or is between camps.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -6302,6 +6316,152 @@
         "Sky Reclamation Project 1.1.5, version history (wounded start time saved incorrectly)",
         "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
       ]
+    },
+    {
+      "id": "cs.save.npc-spawn-before-player",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "A stalker that comes online before the player exists finishes his set-up when the player appears",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_motivator.script",
+          "expectedText": "\r\n\tif not object_binder.net_spawn(self, sobject) then\r\n",
+          "replacementText": "\r\n\tif not base_done and not object_binder.net_spawn(self, sobject) then\r\n",
+          "expectedFileSha256": "4ee0e3613f58d1bbd835229eb27155e2cb87f0991c905eef32684a2129e85f72",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_motivator.script",
+          "expectedText": "function motivator_binder:net_spawn(sobject)\r\n",
+          "replacementText": "function motivator_binder:net_spawn(sobject)\r\n\tif db.actor == nil then\r\n\t\t-- the player does not exist yet: the rest of the set-up runs on the first update after he appears\r\n\t\tif not object_binder.net_spawn(self, sobject) then\r\n\t\t\treturn false\r\n\t\tend\r\n\t\tself.deferred_spawn = true\r\n\t\treturn true\r\n\tend\r\n\treturn self:net_spawn_with_actor(sobject, false)\r\nend\r\n\r\nfunction motivator_binder:net_spawn_with_actor(sobject, base_done)\r\n",
+          "expectedFileSha256": "4ee0e3613f58d1bbd835229eb27155e2cb87f0991c905eef32684a2129e85f72",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_motivator.script",
+          "expectedText": "function motivator_binder:update(delta)\r\n\tobject_binder.update(self, delta)\r\n",
+          "replacementText": "function motivator_binder:update(delta)\r\n\tobject_binder.update(self, delta)\r\n\tif self.deferred_spawn then\r\n\t\tif db.actor == nil then\r\n\t\t\treturn\r\n\t\tend\r\n\t\tself.deferred_spawn = nil\r\n\t\tself:net_spawn_with_actor(alife():object(self.object:id()), true)\r\n\tend\r\n",
+          "expectedFileSha256": "4ee0e3613f58d1bbd835229eb27155e2cb87f0991c905eef32684a2129e85f72",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "While a save or a level is loading, a stalker can come online before the player object exists. His set-up then runs with no player: relations to the player are skipped or written to nothing and schemes that look at the player are initialised wrongly. SRP traced damaged NPCs and, through them, damaged saves to this order.",
+      "description": "When there is no player yet, only the engine part of the spawn is done; the rest of the set-up runs on the stalker's first update after the player has appeared. With a player present nothing changes. Our own, smaller version of SRP's deferred spawn; it has not been run in the game.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
+    },
+    {
+      "id": "cs.quest.hog-death-after-task",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Army Warehouses: the story goes on when Hog dies after you were sent to him",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/military/mil_quest_line.ltx",
+          "expectedText": "[sr_idle@mil_talk_2_fr_com]\r\non_info = {+mil_merc_talked_f1_f2_wt1 -mil_merc_talked_i_hate_freedom} sr_idle@help_battle %=give_inited_task(storyline:mil_talk_2_fr_com:killer) =remove_squad(mil_zombied_1) =remove_squad(mil_zombied_2) =remove_squad(mil_zombied_3) =remove_squad(mil_squard_with_zombiers) =remove_squad(mil_dogs_lair_3) =create_squad(mil_military_7_7_1_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_2_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_3_squad:mil_smart_terrain_7_7) =create_squad(mil_freedom_attack_base_1:mil_smart_terrain_7_8)%\r\non_info2 = {+mil_merc_talked_f1_f2_wt1 +mil_merc_talked_i_hate_freedom} sr_idle@mil_contact_with_clear_sky_commander %=give_inited_task(storyline:mil_transfer_coo:csky) =remove_squad(mil_zombied_1) =remove_squad(mil_zombied_2) =remove_squad(mil_zombied_3) =remove_squad(mil_squard_with_zombiers) =remove_squad(mil_dogs_lair_3) =create_squad(mil_military_7_7_1_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_2_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_3_squad:mil_smart_terrain_7_7) +mil_alone_mission%\r\n",
+          "replacementText": "[sr_idle@mil_talk_2_fr_com]\r\non_info = {+mil_merc_talked_f1_f2_wt1 -mil_merc_talked_i_hate_freedom} sr_idle@help_battle %=give_inited_task(storyline:mil_talk_2_fr_com:killer) =remove_squad(mil_zombied_1) =remove_squad(mil_zombied_2) =remove_squad(mil_zombied_3) =remove_squad(mil_squard_with_zombiers) =remove_squad(mil_dogs_lair_3) =create_squad(mil_military_7_7_1_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_2_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_3_squad:mil_smart_terrain_7_7) =create_squad(mil_freedom_attack_base_1:mil_smart_terrain_7_8)%\r\non_info2 = {+mil_merc_talked_f1_f2_wt1 +mil_merc_talked_i_hate_freedom} sr_idle@mil_contact_with_clear_sky_commander %=give_inited_task(storyline:mil_transfer_coo:csky) =remove_squad(mil_zombied_1) =remove_squad(mil_zombied_2) =remove_squad(mil_zombied_3) =remove_squad(mil_squard_with_zombiers) =remove_squad(mil_dogs_lair_3) =create_squad(mil_military_7_7_1_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_2_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_3_squad:mil_smart_terrain_7_7) +mil_alone_mission%\r\non_info3 = {+mil_hog_death -mil_merc_talked_f1_f2_wt1} sr_idle@mil_contact_with_clear_sky_commander %+mil_merc_talked_f1_f2_wt1 +mil_merc_talked_i_hate_freedom =give_inited_task(storyline:mil_transfer_coo:csky) =remove_squad(mil_zombied_1) =remove_squad(mil_zombied_2) =remove_squad(mil_zombied_3) =remove_squad(mil_squard_with_zombiers) =remove_squad(mil_dogs_lair_3) =create_squad(mil_military_7_7_1_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_2_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_3_squad:mil_smart_terrain_7_7) +mil_alone_mission%, {=is_squad_enemy_to_actor(mil_killer_invaders) -mil_merc_talked_f1_f2_wt1} sr_idle@mil_contact_with_clear_sky_commander %+mil_merc_talked_f1_f2_wt1 +mil_merc_talked_i_hate_freedom =give_inited_task(storyline:mil_transfer_coo:csky) =remove_squad(mil_zombied_1) =remove_squad(mil_zombied_2) =remove_squad(mil_zombied_3) =remove_squad(mil_squard_with_zombiers) =remove_squad(mil_dogs_lair_3) =create_squad(mil_military_7_7_1_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_2_squad:mil_smart_terrain_7_7) =create_squad(mil_military_7_7_3_squad:mil_smart_terrain_7_7) +mil_alone_mission%\r\n",
+          "expectedFileSha256": "7a3103ea5a616d1efa9e5cf34959a38963131b5046916baf495a85dd4acb38cd",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "The story handles Hog being dead before Forester sends the player to the mercenaries: the player then transmits the coordinates alone. If Hog dies, or his squad turns hostile, after that task was given, nothing moves the story on: the talk that continues it can no longer happen.",
+      "description": "The same 'alone' branch is taken when Hog dies or his squad becomes hostile while the task is active.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
+    },
+    {
+      "id": "cs.quest.compass-task-order",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Red Forest: no 'find the Compass' task when you already carry it",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/red_forest/red_quest_line.ltx",
+          "expectedText": "on_info = {+red_forester_search_compas_task} sr_idle@bring_compass_task %=give_inited_task(storyline:red_find_compass:csky)%",
+          "replacementText": "on_info = {+red_forester_search_compas_task +red_forester_actor_has_compas} sr_idle@bring_compass_task, {+red_forester_search_compas_task} sr_idle@bring_compass_task %=give_inited_task(storyline:red_find_compass:csky)%",
+          "expectedFileSha256": "3cc8ff08dee1de96093d7f61a1cc54107f70d9ade695cc654c804949e805e901",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "If the player already has the Compass when Forester asks for it, the 'find the Compass' task is given and completed at once, before the 'bring it to Forester' task appears.",
+      "description": "With the Compass already in the inventory only the 'bring' task is given.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
+    },
+    {
+      "id": "cs.quest.red-forest-bridge-unlock",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Red Forest: the bridge scene starts after the coordinates are transmitted, not on arrival at the Army Warehouses",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/misc/tm_red_forest.ltx",
+          "expectedText": "condlist_0 = {+forester_talked_2 =actor_on_level(military)} complete\r\non_complete = %+red_bridge_scene_begin%\r\n",
+          "replacementText": "condlist_0 = {+forester_talked_2 =actor_on_level(military)} complete\r\n",
+          "expectedFileSha256": "67f96dfd2f86d8775dc3ffa1627b0f1d8c779eb015b0322eaad23842c6e97bde",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "The scene at the Limansk bridge is unlocked by the task 'transmit the coordinates'. The earlier task 'go to the army base' sets the same mark when it completes, so the bridge scene becomes available as soon as the player sets foot on the Army Warehouses.",
+      "description": "The earlier task no longer sets the mark. A game in which it was already set is not changed.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -6565,6 +6725,8 @@
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965"
     ],
     "cs.crash.limansk-missing-logic": [
@@ -6678,6 +6840,17 @@
     ],
     "cop.logic.wounded-autoheal-after-load": [
       "c72f695d3fb134c473a878c4b7deaf1f9404117b452a7af3f97822e2fa601a29"
+    ],
+    "cs.save.npc-spawn-before-player": [
+      "f058b42725c19fc9db4da1c549a971b4c25e691ee447530da1219ba9266214d8",
+      "f058b42725c19fc9db4da1c549a971b4c25e691ee447530da1219ba9266214d8",
+      "f058b42725c19fc9db4da1c549a971b4c25e691ee447530da1219ba9266214d8"
+    ],
+    "cs.quest.hog-death-after-task": [
+      "7a3103ea5a616d1efa9e5cf34959a38963131b5046916baf495a85dd4acb38cd"
+    ],
+    "cs.quest.compass-task-order": [
+      "0a75be1144f216d834b40aa24d790a958a0226ca6d696232981c80208b0b9899"
     ]
   }
 }

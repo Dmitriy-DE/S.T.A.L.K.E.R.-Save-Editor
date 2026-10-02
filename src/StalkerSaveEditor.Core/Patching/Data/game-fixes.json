@@ -4769,6 +4769,122 @@
       "references": [
         "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
       ]
+    },
+    {
+      "id": "soc.logic.bunker-camper-after-antenna",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Brain Scorcher bunker: the last Monolith post reacts to the antenna being switched off",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/gulag_radar_u.script",
+          "expectedText": "\t\t\tif has_alife_info(\"+bun_actor_vstal\") then\r\n",
+          "replacementText": "\t\t\tif has_alife_info(\"bun_antenna_off\") then\r\n",
+          "expectedFileSha256": "fdee37b743b93eefe37a225902044864f5f5b0e9e33fa40cc9240e5be6628cf3",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) fixes the same places.",
+      "problem": "Twenty Monolith posts in the Brain Scorcher bunker change their behaviour when the antenna is switched off. One of them (bun_camper19) tests a name that cannot exist (\"+bun_actor_vstal\", with a plus sign), so it never changes.",
+      "description": "The post tests the same event as the other nineteen.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.quest.duty-job-fails-when-skull-dies",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Army Warehouses: Skull's task fails when Skull dies",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/mil_tasks.script",
+          "expectedText": "function dolg_job_fail1 (task_id, subtask)\r\n    return this.is_actor_enemy_dolg ()\r\n",
+          "replacementText": "function dolg_job_fail1 (task_id, subtask)\r\n    return this.is_actor_enemy_dolg () or has_alife_info(\"mil_scull_dead\")\r\n",
+          "expectedFileSha256": "0c35afbeb991f809da2906e09b7df9fc65fb87e7ee029f14ad8d1099834f964f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/mil_tasks.script",
+          "expectedText": "function dolg_job_fail2 (task_id, subtask)\r\n    return this.is_actor_enemy_dolg ()\r\n",
+          "replacementText": "function dolg_job_fail2 (task_id, subtask)\r\n    return this.is_actor_enemy_dolg () or has_alife_info(\"mil_scull_dead\")\r\n",
+          "expectedFileSha256": "0c35afbeb991f809da2906e09b7df9fc65fb87e7ee029f14ad8d1099834f964f",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) fixes the same places.",
+      "problem": "Skull's tasks for the attack on Freedom are failed only when the player becomes Duty's enemy. When Skull himself is killed nobody can finish or fail them and they stay in the PDA for the rest of the game.",
+      "description": "The two fail checks also fail the task when Skull is dead.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.logic.cordon-camp-and-factory-guard",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Cordon: the rookie camp leaves its defence after the attack; Nimble's guard keeps his post",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/gulag_escape.script",
+          "expectedText": "\t\t\tif has_alife_info(\"escape_lager_help\") and has_alife_info(\"escape_lager_killers_die\") then\r\n",
+          "replacementText": "\t\t\tif has_alife_info(\"escape_lager_help\") and not has_alife_info(\"escape_lager_killers_die\") then\r\n",
+          "expectedFileSha256": "ee198b35a5c0de9b5a38ef88c0e5148f4f61c2291329e83c84408223896b7522",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/gulag_escape.script",
+          "expectedText": "\t\t\t\tredicate = function(obj_info)\r\n",
+          "replacementText": "\t\t\t\tpredicate = function(obj_info)\r\n",
+          "expectedFileSha256": "ee198b35a5c0de9b5a38ef88c0e5148f4f61c2291329e83c84408223896b7522",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) fixes the same places.",
+      "problem": "Two faults in the Cordon camp script. (1) The rookie camp is meant to defend itself while the mercenaries attack. The condition is inverted: the camp goes into defence only after the attackers are dead and then stays in it for the rest of the game, day and night. (2) At the factory, the post next to the prisoner is reserved for his guard by a rule spelled 'redicate' instead of 'predicate', so the game ignores it and any bandit may take the post.",
+      "description": "(1) The camp defends while the attackers are alive and returns to its day and night routine afterwards. (2) The rule is spelled correctly.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
     }
   ],
   "enhancedEditionSha256": {

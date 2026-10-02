@@ -430,6 +430,20 @@ internal static class Program
             return FixesBuildPack(args);
         }
 
+        if (args.Length >= 5 && args[1] == "extract")
+        {
+            // fixes extract TARGET GAME_DIR OUT_DIR [--archives-only] [PREFIX...]: research only — the game's own
+            // files as the game resolves them (archives, loose files on top; or the archives alone), to write and
+            // check a fix against the real originals.
+            if (!GameTargetCatalog.TryParse(args[2], out var extractTarget)) throw new ArgumentException(usage);
+            var archivesOnly = args.Skip(5).Contains("--archives-only");
+            var (files, issues) = GameFileExtractor.Extract(extractTarget, args[3], args[4],
+                args.Skip(5).Where(argument => argument != "--archives-only").ToArray(), archivesOnly);
+            foreach (var issue in issues) Console.Error.WriteLine("Warning: " + issue);
+            Console.WriteLine($"{files} files -> {args[4]}");
+            return 0;
+        }
+
         if (args.Length >= 2 && args[1] == "list")
         {
             GameTarget? selectedTarget = null;

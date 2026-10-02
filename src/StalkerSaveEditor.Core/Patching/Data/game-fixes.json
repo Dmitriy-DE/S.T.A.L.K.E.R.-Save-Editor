@@ -4103,6 +4103,328 @@
       "references": [
         "https://github.com/Decane/SRP/issues/120"
       ]
+    },
+    {
+      "id": "soc.crash.gulag-job-nil",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Crash when a camp member has no job (\"job=nil\")",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_gulag.script",
+          "expectedText": "\tif not job then\r\n\t\tprintf( \"job=nil! obj=%s obj_id=%d\", self.npc_info[obj_id].name, obj_id )\r\n\t\tself:print()\r\n\tend\r\n",
+          "replacementText": "\tif not job then\r\n\t\treturn false\r\n\tend\r\n",
+          "expectedFileSha256": "44e05eb6c4e717d2e72190e19f37f6d7978da7228bf92e1a378fc16a0aec623b",
+          "codePage": 28591
+        }
+      ],
+      "source": "ZRP 1.07 R5 (NatVac), gamedata/docs change logs — used as the list of known problems; the change is ours.",
+      "problem": "When a camp (gulag) checks whether two members can swap jobs and one of them has no job at that moment, the script reads a field of nothing and the game crashes: xr_gulag.script:537: attempt to index local 'job' (a nil value).",
+      "description": "The check now answers \"no swap\" for a member without a job instead of reading the missing job.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "ZRP_Changes_1.0_to_1.05_R10.txt: rare \"job not found\" crash"
+      ]
+    },
+    {
+      "id": "soc.crash.heli-save-search",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Crash when saving while a helicopter searches for you",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/heli_combat.script",
+          "expectedText": "\t\t\tpacket:w_u32 ( self.change_dir_time - t )\r\n\t\t\tpacket:w_u32 ( self.change_pos_time - t )\r\n\t\t\tpacket:w_bool( self.flight_direction )\r\n\t\t\tpacket:w_vec3( self.center_pos )\r\n",
+          "replacementText": "\t\t\tpacket:w_u32 ( (self.change_dir_time or t) - t )\r\n\t\t\tpacket:w_u32 ( (self.change_pos_time or t) - t )\r\n\t\t\tpacket:w_bool( self.flight_direction == true )\r\n\t\t\tpacket:w_vec3( self.center_pos or self.enemy_last_seen_pos )\r\n",
+          "expectedFileSha256": "773abfab3b2ed4bad5261608719e6475d18bfbaf2985e86d2cb693596c3f7b0d",
+          "codePage": 28591
+        }
+      ],
+      "source": "ZRP 1.07 R5 (NatVac), gamedata/docs change logs — used as the list of known problems; the change is ours.",
+      "problem": "A helicopter that goes straight into its search pattern never sets one of the timers the save code writes. Saving at that moment crashes: heli_combat.script:193: attempt to perform arithmetic on field 'change_dir_time' (a nil value). If the search has not started yet, two more values are missing.",
+      "description": "Saving writes neutral values for the timers and the search centre that are not set yet; on load the helicopter starts its search again as it already does.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "ZRP_Changes_1.05_RC2_to_1.07_R4.txt: heli_combat initialization bug"
+      ]
+    },
+    {
+      "id": "soc.crash.kamp-remove-unseated",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Campfire crashes when a camp has more stalkers than places",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_kamp.script",
+          "expectedText": "\t\tprintf(\"-------debug_info-------------\")\r\n\t\tprint_table(self.npc)\r\n\t\tprintf(\"-------debug_info-------------\")\r\n\t\tprint_table(self.position)\r\n\t\tprintf(\"-------debug_info-------------\")\r\n\t\tabort(\"get dest Vertex: nil [%s]\", npc_id)\r\n\t\treturn nil\r\n",
+          "replacementText": "\t\treturn self.center\r\n",
+          "expectedFileSha256": "10e8707eaf4b16a7b4f1e4d72a0667de36cea0d650df2eeea6120a3ca3c70814",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_kamp.script",
+          "expectedText": "\t\tself.position[self.npc[npc_id].position].used = nil\r\n",
+          "replacementText": "\t\tlocal position = self.npc[npc_id].position\r\n\t\tif position ~= nil and self.position[position] ~= nil then\r\n\t\t\tself.position[position].used = nil\r\n\t\tend\r\n",
+          "expectedFileSha256": "10e8707eaf4b16a7b4f1e4d72a0667de36cea0d650df2eeea6120a3ca3c70814",
+          "codePage": 28591
+        }
+      ],
+      "source": "ZRP 1.07 R5 (NatVac), gamedata/docs change logs — used as the list of known problems; the change is ours.",
+      "problem": "A campfire has a fixed number of places. A stalker who joins a full camp gets none, and the script then stops the game on purpose (\"get dest Vertex: nil\") or, when he leaves, frees a place that does not exist: xr_kamp.script:672: attempt to index field '?' (a nil value). Seen at the Army Warehouses camps after skipping the border defence.",
+      "description": "A stalker without a place stands at the centre of the camp, and a place is freed only when he actually had one.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "ZRP_Changes_1.0_to_1.05_R10.txt: crash on returning to Army Warehouses after not defending the border"
+      ]
+    },
+    {
+      "id": "soc.crash.garbage-robbers-and-duty-raid",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Garbage robbery crash; Duty raid kills counted across saves",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_effects.script",
+          "expectedText": "\t\t\tbandit3:set_relation(game_object.enemy, actor)\r\n\t\tend\r\n\t\tbandit1:set_relation(game_object.enemy, novice)\r\n",
+          "replacementText": "\t\t\tbandit3:set_relation(game_object.enemy, actor)\r\n\t\tend\r\n\t\tbandit3:set_relation(game_object.enemy, novice)\r\n",
+          "expectedFileSha256": "01fb468b9e389dbe8443c98e80525c42318c8120c3ae9906784995286380c735",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_effects.script",
+          "expectedText": "    db.storage[id].mil_dolg_killed = db.storage[id].mil_dolg_killed + 1\r\n",
+          "replacementText": "    db.storage[id].mil_dolg_killed = xr_logic.pstor_retrieve(actor, \"mil_dolg_killed\", 0) + 1\r\n    xr_logic.pstor_store(actor, \"mil_dolg_killed\", db.storage[id].mil_dolg_killed)\r\n",
+          "expectedFileSha256": "01fb468b9e389dbe8443c98e80525c42318c8120c3ae9906784995286380c735",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_effects.script",
+          "expectedText": "    if st.death.killer == -1 then return end\r\n    if id == st.death.killer then \r\n",
+          "replacementText": "    if st ~= nil and st.death ~= nil and id == st.death.killer then \r\n",
+          "expectedFileSha256": "01fb468b9e389dbe8443c98e80525c42318c8120c3ae9906784995286380c735",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_effects.script",
+          "expectedText": "    if db.storage[id].mil_dolg_killed == 8 then\r\n",
+          "replacementText": "    if db.storage[id].mil_dolg_killed >= 8 then\r\n",
+          "expectedFileSha256": "01fb468b9e389dbe8443c98e80525c42318c8120c3ae9906784995286380c735",
+          "codePage": 28591
+        }
+      ],
+      "source": "ZRP 1.07 R5 (NatVac), gamedata/docs change logs — used as the list of known problems; the change is ours.",
+      "problem": "Two faults in one script. (1) At the Garbage entrance, when the first of the three robbers is already dead and the third is alive, the fight setup uses the dead one and crashes: xr_effects.script:536: attempt to index local 'bandit1' (a nil value). (2) The Army Warehouses Duty raid is finished after eight kills, but the counter is not saved: after a reload in the middle it starts from zero and the task can never complete; a kill with an unknown killer also skipped the final check.",
+      "description": "(1) The third robber is the one made hostile to the rookie. (2) The kill counter is kept in the saved player data, counts every kill, and the raid completes at eight or more.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "ZRP_Changes_1.05_R11_to_1.05_RC1.txt: crash when killing the robbers at the Garbage entry (copy/paste bug)",
+        "ZRP 1.07: mil_dolg kill counter in pstor"
+      ]
+    },
+    {
+      "id": "soc.crash.danger-ignore-types",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Crash when an NPC without danger settings notices a grenade, a body, a hit or a sound",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_danger.script",
+          "expectedText": "\t\tif self.a.ignore_types[\"grenade\"] == true then\r\n",
+          "replacementText": "\t\tif self.a.ignore_types ~= nil and self.a.ignore_types[\"grenade\"] == true then\r\n",
+          "expectedFileSha256": "de046cd2ffe1648a4fb3e97db3726889f2335bbfc52da709bae7958ae7a87b6d",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_danger.script",
+          "expectedText": "\t\tif self.a.ignore_types[\"corpse\"] == true then\r\n",
+          "replacementText": "\t\tif self.a.ignore_types ~= nil and self.a.ignore_types[\"corpse\"] == true then\r\n",
+          "expectedFileSha256": "de046cd2ffe1648a4fb3e97db3726889f2335bbfc52da709bae7958ae7a87b6d",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_danger.script",
+          "expectedText": "\t\tif self.a.ignore_types[\"hit\"] == true then\r\n",
+          "replacementText": "\t\tif self.a.ignore_types ~= nil and self.a.ignore_types[\"hit\"] == true then\r\n",
+          "expectedFileSha256": "de046cd2ffe1648a4fb3e97db3726889f2335bbfc52da709bae7958ae7a87b6d",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_danger.script",
+          "expectedText": "\t\tif self.a.ignore_types[\"sound\"] == true then\r\n",
+          "replacementText": "\t\tif self.a.ignore_types ~= nil and self.a.ignore_types[\"sound\"] == true then\r\n",
+          "expectedFileSha256": "de046cd2ffe1648a4fb3e97db3726889f2335bbfc52da709bae7958ae7a87b6d",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) lists the crash class.",
+      "problem": "The danger check reads the list of ignored danger kinds without checking that the NPC has one. For an NPC whose danger settings were never set up the game crashes: xr_danger.script: attempt to index field 'ignore_types' (a nil value).",
+      "description": "An NPC without the list ignores nothing, which is the default behaviour.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.crash.wounded-scheme-missing",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Crash when a wounded NPC has no data for its active scheme",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_wounded.script",
+          "expectedText": "\tif tt.active_scheme and not self.object:is_talking() then\r\n",
+          "replacementText": "\tif tt.active_scheme and tt[tt.active_scheme] and not self.object:is_talking() then\r\n",
+          "expectedFileSha256": "4c8e843f6f94f5c19614ef8c8ef8e0dad788cecdd344a2fb87cb694ae9e53271",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) lists the crash class.",
+      "problem": "A wounded NPC checks whether its logic should switch section using the data of its active scheme. When that data does not exist (the scheme was reset while the NPC lay wounded) the switch code reads nothing and the game crashes in xr_logic.script.",
+      "description": "The switch is tried only when the active scheme has data.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.crash.trade-conditions-missing",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Crash when a trader has no buy or sell conditions",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/trade_manager.script",
+          "expectedText": "\ttt.update_time = time_global() + 3600000\r\n\t\r\n\tlocal str = xr_logic.pick_section_from_condlist(db.actor, npc, tt.buy_condition)\r\n",
+          "replacementText": "\ttt.update_time = time_global() + 3600000\r\n\t\r\n\tif tt.buy_condition == nil or tt.sell_condition == nil then\r\n\t\treturn\r\n\tend\r\n\r\n\tlocal str = xr_logic.pick_section_from_condlist(db.actor, npc, tt.buy_condition)\r\n",
+          "expectedFileSha256": "b2d240f87b833f56378e7140326ef8705b4d626350b118fc45758c62aaea6042",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) lists the crash class.",
+      "problem": "The hourly trade update picks the buy and sell price lists from condition lists. A trader record without them (loaded from a save made before the trade was set up) makes the pick fail: bad argument #1 to 'pairs' (table expected, got nil).",
+      "description": "The update is skipped for a trader without both condition lists.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.crash.patrol-last-index",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Crash when an NPC asks whether waypoint -1 ends its patrol path",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/move_mgr.script",
+          "expectedText": "\tif self.last_index and self.patrol_walk:terminal(self.last_index) then\r\n",
+          "replacementText": "\tif self.last_index and self.last_index ~= -1 and self.patrol_walk:terminal(self.last_index) then\r\n",
+          "expectedFileSha256": "1cfb7eb20b670b51e0ade710080858eacef77c34e6fe768c5e47ee663876c33f",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) lists the crash class.",
+      "problem": "After a path change the movement manager remembers waypoint index -1 (no waypoint reached yet) and then asks the engine whether that waypoint is the last one of the path. The engine does not accept index -1 and the game crashes.",
+      "description": "The question is asked only for a real waypoint index.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -4396,6 +4718,9 @@
     ],
     "cs.save.corpse-cleanup-wrong-object": [
       "0588482ddc8a41a525858431bea30c53a7d8e6bfaea8a71ccc3016360536d962"
+    ],
+    "soc.crash.gulag-job-nil": [
+      "aba7dc0f50399ec05a826f49d25b71710114cdf256592bf6fe975a820031ce43"
     ]
   }
 }

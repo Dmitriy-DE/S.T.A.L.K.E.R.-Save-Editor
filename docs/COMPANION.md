@@ -34,7 +34,8 @@ The spawn list is written by the installer from the game's own configs, so items
 Companion → «Горячие клавиши» turns on Ctrl+H (heal), Ctrl+R (repair), Ctrl+M (mark), Ctrl+J (return to
 the mark) and Ctrl+S (quick save) while the game runs. The editor holds these keys only while the game
 window is in front (`XR_3DA` / `xrEngine`), so they keep their usual meaning in every other program.
-Linux needs X11 or XWayland. The layout is fixed.
+Linux needs X11 or XWayland. Each key can be changed on the same card (one or more of Ctrl/Alt/Shift plus a
+letter, no duplicates); «Сохранить» writes the layout to the application settings folder, «Сбросить» returns the defaults.
 
 ## Installing
 

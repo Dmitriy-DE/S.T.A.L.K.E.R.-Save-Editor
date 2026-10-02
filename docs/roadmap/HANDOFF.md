@@ -1,4 +1,4 @@
-# Handoff — state on 2026-10-02 (v1.3.0)
+# Handoff — state on 2026-10-02 (v1.3.1)
 
 Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap/STATE.md`, and
 `docs/roadmap/AUDIT_2026-10-02.md` (what the documents promise against what the code has).
@@ -8,7 +8,7 @@ Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap
 | What | Where |
 |---|---|
 | Code (only live repo) | `github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor` (renamed from `-Next`). Python repo `S.T.A.L.K.E.R.-Save_Editor` is archived, ignore it. |
-| Released | v1.3.0 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
+| Released | v1.3.1 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
 | Web edition | `stalker-save-editor.pages.dev` (C# WASM, deployed by hand) |
 | Local worktrees | `~/Projects/save-editor-next-claude` (Claude merge queue), `~/Projects/save-editor-review-claude` (Claude edits — never edit where a queue script runs: it resets hard), `~/Projects/save-editor-next` (Codex) |
 | Owner's games (Linux, Proton) | `~/.local/share/Steam/steamapps/common/` — SoC, CS (+OGSM mod), CoP, three EE; S2 via GFN only (no mods there) |
@@ -28,7 +28,12 @@ dotnet test StalkerSaveEditor.sln -c Release --no-build
 ./tools/check_companion.sh
 dotnet run --project src/StalkerSaveEditor.App -c Release --no-build -- --test-i18n   (and --test-audio)
 git diff --check
+dotnet run --project tools/ui_probe -c Release -- measure <save> 8 en    # longest interface-thread gap; run it on a large real save
 ```
+`tools/ui_probe` also renders the Companion and first-launch screens (`companion PNG`, `wizard PNG`). Never run an
+installed build with a service mode to "compare": builds before 1.3.1 play interface sounds through the speakers.
+Level and stash names come from the games' string tables: `python3 tools/generate_place_names.py <dumps>` rewrites the
+`levels` and `stashes` kinds of `catalog_names.json` from the Enhanced Edition dumps (all languages).
 CI: ubuntu/windows/macOS + web (boots in headless Chrome) + companion; branch protection = green + up to date; merge one PR at a time.
 A stack of PRs is merged with `tools`-style cherry-picking of each PR's own commits onto main (never `rebase -X theirs` of a stacked branch: it silently dropped catalogue entries on 2026-10-01). The perf benchmark (ubuntu) flaps at ~1.3× — rerun the failed job. `gh pr edit` fails silently: use `gh api -X PATCH`.
 

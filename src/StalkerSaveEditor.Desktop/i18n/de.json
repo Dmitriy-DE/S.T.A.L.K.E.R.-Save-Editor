@@ -1846,6 +1846,7 @@
  "Сохранение проверено; исходный файл не изменён": "Spielstand geprüft; die Quelldatei ist unverändert",
  "Сохранение распознано, но безопасное редактирование для этой версии ещё не готово.": "Der Spielstand wurde erkannt, aber sicheres Bearbeiten für diese Version ist noch nicht bereit.",
  "Сохранение старой версии игры": "Spielstand aus einer älteren Spielversion",
+ "Сохранение…": "Speichern…",
  "Сохранений: {0}": "Spielstände: {0}",
  "Сохранения S.T.A.L.K.E.R. (*.sav *.scop *.scs);;Все файлы (*)": "S.T.A.L.K.E.R.-Spielstände (*.sav *.scop *.scs);;Alle Dateien (*)",
  "Сохранения S.T.A.L.K.E.R. не были найдены в стандартных каталогах.\nУкажите папку с файлами сохранений (savedgames или SaveGames) или запустите автоматический поиск на диске.": "In den üblichen Ordnern wurden keine S.T.A.L.K.E.R.-Spielstände gefunden.\nWähle den Ordner mit den Spielständen (savedgames oder SaveGames) oder starte die automatische Suche.",

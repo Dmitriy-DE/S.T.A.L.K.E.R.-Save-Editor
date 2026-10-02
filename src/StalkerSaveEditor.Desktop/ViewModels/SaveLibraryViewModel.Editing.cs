@@ -1,6 +1,7 @@
 using StalkerSaveEditor.Core.Diagnostics;
 using System.Globalization;
 using StalkerSaveEditor.Core.Backups;
+using StalkerSaveEditor.Core.Catalogs;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.XRay;
 using StalkerSaveEditor.Desktop.Services;
@@ -263,47 +264,95 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         }
     }
 
-    public void SaveSelected()
-    {
-        var selected = SelectedSave;
-        if (!CanSave || selected is null) return;
+    /// <summary>A save is being written: the editing screens are disabled until it is replaced and re-read.</summary>
+    public bool IsSaving => _isSaving;
 
-        var plan = BuildCurrentEditPlan(selected);
-        _isSaving = true;
+    private void SetSaving(bool saving)
+    {
+        _isSaving = saving;
+        OnPropertyChanged(nameof(IsSaving));
         OnPropertyChanged(nameof(CanSave));
         SaveCommand.NotifyCanExecuteChanged();
+    }
 
+    public void SaveSelected()
+    {
+        if (InteractiveApp)
+        {
+            BackgroundTask.Run(SaveSelectedAsync(), "save");
+            return;
+        }
+
+        var selected = SelectedSave;
+        if (!CanSave || selected is null) return;
+        var plan = BuildCurrentEditPlan(selected);
+        var catalog = TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null;
+        SetSaving(true);
         try
         {
-            var (receipt, refreshed) = SaveEditSession.WritePlan(
-                selected,
-                plan,
-                TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null,
-                _backupDirectoryProvider(),
-                _draftStore);
-
-            var index = Saves.IndexOf(selected);
-            if (index >= 0) ReplaceSave(index, refreshed);
-            else Saves.Add(refreshed);
-
-            SelectedSave = refreshed;
-            RefreshBackups();
-            StatusMessage = L.T("Сохранено успешно. Backup: {0}", Path.GetFileName(receipt.BackupPath));
-            GameAudioService.Instance.Play(SoundEvent.Save);
-            if (HostPlatform.ExportFile is { } export) _ = ExportSavedAsync(export, refreshed.FilePath);
+            ShowSaved(selected, SaveEditSession.WritePlan(selected, plan, catalog, _backupDirectoryProvider(), _draftStore));
         }
         catch (Exception exception)
         {
-            StatusMessage = L.T("Не удалось сохранить: {0}", exception.Message);
-            AppLog.Error("save failed", exception);
-            GameAudioService.Instance.Play(SoundEvent.Error);
+            ShowSaveFailure(exception);
         }
         finally
         {
-            _isSaving = false;
-            OnPropertyChanged(nameof(CanSave));
-            SaveCommand.NotifyCanExecuteChanged();
+            SetSaving(false);
         }
+    }
+
+    /// <summary>
+    /// The running application's save: packing, the backup, the durable replace and the read-back take seconds on a
+    /// large save, so they run off the interface thread as one uninterrupted transaction, and the screens stay
+    /// disabled (<see cref="IsSaving"/>) until its result is shown.
+    /// </summary>
+    internal Task SaveSelectedAsync()
+    {
+        var selected = SelectedSave;
+        if (!CanSave || selected is null) return Task.CompletedTask;
+        var plan = BuildCurrentEditPlan(selected);
+        var catalog = TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null;
+        SetSaving(true);
+        StatusMessage = L.T("Сохранение…");
+        return SaveInBackgroundAsync(selected, plan, catalog, _backupDirectoryProvider());
+    }
+
+    private async Task SaveInBackgroundAsync(SaveFileSummary selected, EditPlan plan, CatalogBundle? catalog, string backupDirectory)
+    {
+        try
+        {
+            var written = await Task.Run(() => SaveEditSession.WritePlan(selected, plan, catalog, backupDirectory, _draftStore));
+            ShowSaved(selected, written);
+        }
+        catch (Exception exception)
+        {
+            ShowSaveFailure(exception);
+        }
+        finally
+        {
+            SetSaving(false);
+        }
+    }
+
+    private void ShowSaved(SaveFileSummary selected, (LocalSaveReplacementReceipt Receipt, SaveFileSummary Refreshed) written)
+    {
+        var index = Saves.IndexOf(selected);
+        if (index >= 0) ReplaceSave(index, written.Refreshed);
+        else Saves.Add(written.Refreshed);
+
+        SelectedSave = written.Refreshed;
+        RefreshBackups();
+        StatusMessage = L.T("Сохранено успешно. Backup: {0}", Path.GetFileName(written.Receipt.BackupPath));
+        GameAudioService.Instance.Play(SoundEvent.Save);
+        if (HostPlatform.ExportFile is { } export) _ = ExportSavedAsync(export, written.Refreshed.FilePath);
+    }
+
+    private void ShowSaveFailure(Exception exception)
+    {
+        StatusMessage = L.T("Не удалось сохранить: {0}", exception.Message);
+        AppLog.Error("save failed", exception);
+        GameAudioService.Instance.Play(SoundEvent.Error);
     }
 
     private EditPlan BuildCurrentEditPlan(SaveFileSummary save)

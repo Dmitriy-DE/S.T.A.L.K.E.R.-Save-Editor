@@ -1846,6 +1846,7 @@
  "Сохранение проверено; исходный файл не изменён": "Save verified; the source file is unchanged",
  "Сохранение распознано, но безопасное редактирование для этой версии ещё не готово.": "The save is recognized, but safe editing for this version is not ready yet.",
  "Сохранение старой версии игры": "Save from an older game version",
+ "Сохранение…": "Saving…",
  "Сохранений: {0}": "Saves: {0}",
  "Сохранения S.T.A.L.K.E.R. (*.sav *.scop *.scs);;Все файлы (*)": "S.T.A.L.K.E.R. saves (*.sav *.scop *.scs);;All files (*)",
  "Сохранения S.T.A.L.K.E.R. не были найдены в стандартных каталогах.\nУкажите папку с файлами сохранений (savedgames или SaveGames) или запустите автоматический поиск на диске.": "No S.T.A.L.K.E.R. saves were found in the usual folders.\nChoose the folder with your saves (savedgames or SaveGames) or run the automatic search.",

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -157,6 +158,12 @@ public sealed partial class MainWindow : Window
         var workspacePane = BuildWorkspacePane(vm);
         Grid.SetColumn(workspacePane, 2);
         middle.Children.Add(workspacePane);
+
+        // While a save is being written nothing may be edited or selected: the rows on screen belong to the old file.
+        var idle = new Binding(nameof(SaveLibraryViewModel.IsSaving)) { Source = vm, Converter = Avalonia.Data.Converters.BoolConverters.Not };
+        savesPane.Bind(InputElement.IsEnabledProperty, idle);
+        workspacePane.Bind(InputElement.IsEnabledProperty, idle);
+        topBar.Bind(InputElement.IsEnabledProperty, idle);
 
         void UpdateSavesColumn()
         {

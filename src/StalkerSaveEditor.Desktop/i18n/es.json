@@ -1846,6 +1846,7 @@
  "Сохранение проверено; исходный файл не изменён": "Partida verificada; el archivo de origen no se ha modificado",
  "Сохранение распознано, но безопасное редактирование для этой версии ещё не готово.": "La partida se reconoce, pero la edición segura para esta versión aún no está lista.",
  "Сохранение старой версии игры": "Partida de una versión antigua del juego",
+ "Сохранение…": "Guardando…",
  "Сохранений: {0}": "Partidas guardadas: {0}",
  "Сохранения S.T.A.L.K.E.R. (*.sav *.scop *.scs);;Все файлы (*)": "Partidas de S.T.A.L.K.E.R. (*.sav *.scop *.scs);;Todos los archivos (*)",
  "Сохранения S.T.A.L.K.E.R. не были найдены в стандартных каталогах.\nУкажите папку с файлами сохранений (savedgames или SaveGames) или запустите автоматический поиск на диске.": "No se encontraron partidas de S.T.A.L.K.E.R. en las carpetas habituales.\nIndica la carpeta de partidas (savedgames o SaveGames) o inicia la búsqueda automática.",

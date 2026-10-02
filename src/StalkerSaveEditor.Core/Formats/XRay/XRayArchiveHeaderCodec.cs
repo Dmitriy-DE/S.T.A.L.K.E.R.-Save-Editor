@@ -62,12 +62,20 @@ internal static class XRayArchiveHeaderCodec
         var writePosition = LzhufWindowSize - LzhufLookaheadSize;
         var outputLength = 0;
 
+        // The bit buffer is refilled ahead of use, so a complete stream is read at most two bytes past its end; those
+        // read as zero. Anything further means the compressed data is cut short, and decoding on would invent output.
+        int NextSourceByte()
+        {
+            if (sourcePosition < source.Length) return source[sourcePosition++];
+            if (sourcePosition++ >= source.Length + 2) throw Error("LZ-Huffman payload is truncated");
+            return 0;
+        }
+
         int ReadBit()
         {
             while (bitCount <= 8)
             {
-                var value = sourcePosition < source.Length ? source[sourcePosition] : 0;
-                sourcePosition++;
+                var value = NextSourceByte();
                 bitBuffer |= (uint)value << (8 - bitCount);
                 bitCount += 8;
             }
@@ -82,8 +90,7 @@ internal static class XRayArchiveHeaderCodec
         {
             while (bitCount <= 8)
             {
-                var value = sourcePosition < source.Length ? source[sourcePosition] : 0;
-                sourcePosition++;
+                var value = NextSourceByte();
                 bitBuffer |= (uint)value << (8 - bitCount);
                 bitCount += 8;
             }

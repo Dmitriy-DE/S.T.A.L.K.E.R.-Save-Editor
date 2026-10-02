@@ -149,11 +149,20 @@ internal static partial class LtxDocument
         IReadOnlyDictionary<string, LtxSection> sections)
     {
         var cache = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        var cut = false; // the walk met a section that inherits from itself through others
+        var reported = new HashSet<string>(StringComparer.Ordinal);
 
         Dictionary<string, string> ResolveOne(string name, HashSet<string> stack)
         {
             if (cache.TryGetValue(name, out var cached)) return cached;
-            if (!stack.Add(name)) return new Dictionary<string, string>(StringComparer.Ordinal);
+            if (!stack.Add(name))
+            {
+                // An inheritance cycle (broken mod config). The edge back is ignored, but nothing computed during this
+                // walk is cached: a cached partial value would make the result depend on which section came first.
+                cut = true;
+                if (reported.Add(name)) Diagnostics.AppLog.Warn($"ltx: section [{name}] inherits from itself; the cycle is ignored");
+                return new Dictionary<string, string>(StringComparer.Ordinal);
+            }
             var section = sections[name];
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var parent in section.Bases)
@@ -171,12 +180,13 @@ internal static partial class LtxDocument
             }
 
             stack.Remove(name);
-            cache[name] = values;
+            if (!cut) cache[name] = values;
             return values;
         }
 
         foreach (var section in sections.Values)
         {
+            cut = false;
             yield return (section, ResolveOne(section.Name, new HashSet<string>(StringComparer.Ordinal)));
         }
     }

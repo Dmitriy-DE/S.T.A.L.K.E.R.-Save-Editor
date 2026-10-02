@@ -18,7 +18,10 @@ public static class Stalker2SaveReader
         0x06, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00,
     ];
 
-    public static Stalker2Save FromBytes(ReadOnlySpan<byte> data)
+    public static Stalker2Save FromBytes(ReadOnlySpan<byte> data) =>
+        ParseSession.GetOrParse<Stalker2Save>("s2", data, static bytes => FromBytesUncached(bytes));
+
+    private static Stalker2Save FromBytesUncached(ReadOnlySpan<byte> data)
     {
         var container = ReadContainer(data);
         if (container.MoneyAnchorCount != 1)

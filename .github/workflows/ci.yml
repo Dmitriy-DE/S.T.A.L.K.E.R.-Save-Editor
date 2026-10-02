@@ -55,9 +55,18 @@ jobs:
       - name: Check CLI version command
         run: dotnet src/StalkerSaveEditor.Cli/bin/Release/net10.0/StalkerSaveEditor.Cli.dll version
 
+      # The release publishes a NativeAOT CLI for every platform, so every platform proves it here: trimming and
+      # AOT problems differ per runtime identifier and used to show up only at release time on Windows and macOS.
       - name: Publish the CLI with NativeAOT (as the release packages do)
-        if: runner.os == 'Linux'
-        run: dotnet publish src/StalkerSaveEditor.Cli/StalkerSaveEditor.Cli.csproj -c Release -r linux-x64 -p:PublishAot=true -o artifacts/aot-cli
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux) RID=linux-x64 ;;
+            Windows) RID=win-x64 ;;
+            macOS) RID=osx-arm64 ;;
+          esac
+          dotnet publish src/StalkerSaveEditor.Cli/StalkerSaveEditor.Cli.csproj -c Release -r "$RID" -p:PublishAot=true -o artifacts/aot-cli
+          artifacts/aot-cli/StalkerSaveEditor.Cli version
 
       - name: Render read-only UI screenshot
         run: dotnet src/StalkerSaveEditor.App/bin/Release/net10.0/StalkerSaveEditor.dll --screenshot artifacts/ui/${{ runner.os }}.png --fixture tests/Fixtures/xray-call-of-pripyat.sav

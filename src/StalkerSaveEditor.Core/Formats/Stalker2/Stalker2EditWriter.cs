@@ -57,52 +57,43 @@ public static class Stalker2EditWriter
         // Composite edits pipeline
         // The first specialized writer verifies SourceSha256. Keep the input copy only for
         // multi-stage edits, where each stage produces the next stage's source.
-        var working = source.ToArray();
-        var currentSha256 = plan.SourceSha256;
+        // Each stage reads the previous stage's bytes in place and takes its hash from the stage result: the save
+        // is not copied and hashed again between stages.
+        PreparedEdit? stage = null;
 
         if ((editKinds & EditKind.Stalker2StashTransfer) != EditKind.None)
         {
-            var stashPlan = new EditPlan(currentSha256, stalker2StashTakeHandle: plan.Stalker2StashTakeHandle);
-            var stashResult = Stalker2StashWriter.Prepare(working, stashPlan);
-            working = stashResult.Data.ToArray();
-            currentSha256 = Sha256(working);
+            var stashPlan = new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, stalker2StashTakeHandle: plan.Stalker2StashTakeHandle);
+            stage = Stalker2StashWriter.Prepare(stage is null ? source : stage.Bytes, stashPlan);
         }
 
         if ((editKinds & EditKind.Durability) != EditKind.None)
         {
             var durPlan = new EditPlan(
-                currentSha256,
+                (stage?.OutputSha256 ?? plan.SourceSha256),
                 money: plan.Money,
                 stackCounts: plan.StackCounts,
                 durability: plan.Durability);
-            var durResult = Stalker2DurabilityWriter.Prepare(working, durPlan);
-            working = durResult.Data.ToArray();
-            currentSha256 = Sha256(working);
+            stage = Stalker2DurabilityWriter.Prepare(stage is null ? source : stage.Bytes, durPlan);
         }
         else
         {
             if ((editKinds & EditKind.Money) != EditKind.None)
             {
-                var moneyPlan = new EditPlan(currentSha256, money: plan.Money);
-                var moneyResult = Stalker2MoneyWriter.Prepare(working, moneyPlan);
-                working = moneyResult.Data.ToArray();
-                currentSha256 = Sha256(working);
+                var moneyPlan = new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, money: plan.Money);
+                stage = Stalker2MoneyWriter.Prepare(stage is null ? source : stage.Bytes, moneyPlan);
             }
 
             if ((editKinds & EditKind.StackCounts) != EditKind.None)
             {
-                var stackPlan = new EditPlan(currentSha256, stackCounts: plan.StackCounts);
-                var stackResult = Stalker2StackWriter.Prepare(working, stackPlan);
-                working = stackResult.Data.ToArray();
-                currentSha256 = Sha256(working);
+                var stackPlan = new EditPlan(stage?.OutputSha256 ?? plan.SourceSha256, stackCounts: plan.StackCounts);
+                stage = Stalker2StackWriter.Prepare(stage is null ? source : stage.Bytes, stackPlan);
             }
         }
 
-        return new PreparedEdit(plan, working);
+        return new PreparedEdit(plan, stage ?? throw new InvalidOperationException("The edit plan produced no stage."));
     }
 
-    private static string Sha256(ReadOnlySpan<byte> data) =>
-        Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
 
     private static Stalker2FormatException Error(string message) =>
         new($"S.T.A.L.K.E.R. 2 edit: {message}");

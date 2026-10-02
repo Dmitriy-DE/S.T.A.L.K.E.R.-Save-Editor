@@ -38,6 +38,17 @@ jobs:
           python3 -m http.server 8765 --directory "$W" >/dev/null 2>&1 &
           sleep 2
           for f in index.html main.js "$JS"; do test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/$f)" = 200; done
+      # Files being there says nothing about the app starting. A real browser loads the page, runs the runtime and
+      # must end with Avalonia's canvas on the page and the loading text gone.
+      - name: Boot the web edition in a headless browser
+        run: |
+          W=artifacts/web/wwwroot
+          python3 -m http.server 8766 --directory "$W" >/dev/null 2>&1 &
+          sleep 2
+          timeout 300 google-chrome --headless=new --no-sandbox --disable-gpu --enable-unsafe-swiftshader --virtual-time-budget=120000 \
+            --dump-dom http://127.0.0.1:8766/index.html > dom.html
+          grep -q '<canvas' dom.html || { echo "the app did not start: no canvas"; head -c 3000 dom.html; exit 1; }
+          if grep -q 'class="splash"' dom.html; then echo "the loading screen is still there"; exit 1; fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web

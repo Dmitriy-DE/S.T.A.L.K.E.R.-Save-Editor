@@ -88,6 +88,18 @@ public static class CrashSignatureCatalog
             Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index local 'task' \(a nil value\)"),
             FixId = "cs.crash.squad-action-finished-twice",
         },
+        new("cs.monster-squad-missing", ClearSky, "Mutant whose squad no longer exists", CrashAdvice.InstallFix,
+            "A mutant went online, offline or died after its squad had been removed.", Srp)
+        {
+            Pattern = P(@"se_monster\.script:\d+:\s*attempt to index local 'squad' \(a nil value\)"),
+            FixId = "cs.crash.monster-squad-missing",
+        },
+        new("cs.heli-save-search", ClearSky, "Saving while a helicopter searches for you", CrashAdvice.InstallFix,
+            "The helicopter's search timers were not set yet when the game was saved.", Srp)
+        {
+            Pattern = P(@"heli_combat\.script:\d+:\s*attempt to perform arithmetic on field 'change_(?:dir|pos)_time'"),
+            FixId = "cs.crash.heli-save-search",
+        },
         new("cs.marsh-creature-no-squad", ClearSky, "Marsh creature attacked a stalker without a squad", CrashAdvice.InstallFix,
             "The marsh creature ambush tried to make the victim's squad react, but the victim had no squad.", Srp)
         {

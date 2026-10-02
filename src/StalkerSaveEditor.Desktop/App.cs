@@ -35,7 +35,12 @@ public sealed class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
-            desktop.Exit += (_, _) => Services.GameAudioService.ShutdownIfStarted();
+            desktop.ShutdownRequested += (_, _) => Core.Diagnostics.CrashReporter.MarkClosing();
+            desktop.Exit += (_, _) =>
+            {
+                Core.Diagnostics.CrashReporter.MarkClosing();
+                Services.GameAudioService.ShutdownIfStarted();
+            };
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
         {

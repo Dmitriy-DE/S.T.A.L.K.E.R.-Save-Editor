@@ -134,6 +134,13 @@ public static class CrashReporter
     public const string CrashFileName = "last-crash.txt";
     private const int MaxCrashChars = 64 * 1024;
     private static int _installed;
+    private static volatile bool _closing;
+
+    /// <summary>
+    /// The application is closing: a cancellation raised from here on is the toolkit tearing itself down (the D-Bus
+    /// connection posts to a UI thread that is already gone), not a failure to offer a report about.
+    /// </summary>
+    public static void MarkClosing(bool closing = true) => _closing = closing;
 
     public static void Install()
     {
@@ -149,6 +156,12 @@ public static class CrashReporter
 
     public static void Record(string context, Exception? exception)
     {
+        if (_closing && exception is OperationCanceledException or AggregateException { InnerException: OperationCanceledException })
+        {
+            AppLog.Info($"{context} while closing: {exception.GetType().Name}");
+            return;
+        }
+
         AppLog.Error(context, exception);
         try
         {

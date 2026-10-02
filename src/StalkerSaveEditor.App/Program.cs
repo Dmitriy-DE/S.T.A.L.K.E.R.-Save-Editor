@@ -35,9 +35,10 @@ internal static class Program
             return;
         }
 
-        if (args is ["--steam-native-worker"])
+        // A Steam worker child is this same executable: it must answer on its pipes and never reach the UI below.
+        if (SteamWorkerCommandLine.TryRun(args, out var workerExit))
         {
-            SteamNativeWorkerHost.RunAsync().GetAwaiter().GetResult();
+            Environment.Exit(workerExit);
             return;
         }
 
@@ -89,6 +90,8 @@ internal static class Program
             return;
         }
 
+        // Everything below this line and above the real start renders without a window: no sound from those.
+        Services.GameAudioService.Silent = true;
         if (args.Length >= 2 && args[0] == "--measure-ui")
         {
             var seconds = args.Length > 2 && int.TryParse(args[2], out var parsed) ? parsed : 10;
@@ -142,6 +145,7 @@ internal static class Program
             return;
         }
 
+        Services.GameAudioService.Silent = false;
         ViewModels.SaveLibraryViewModel.InteractiveApp = true;
         Core.Diagnostics.CrashReporter.Install();
         Core.Diagnostics.AppLog.Info($"start {Core.ApplicationVersion.Current} on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}, .NET {Environment.Version}, UI culture {System.Globalization.CultureInfo.CurrentUICulture.Name}");

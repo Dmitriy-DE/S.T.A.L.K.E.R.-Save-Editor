@@ -75,6 +75,28 @@ public sealed class DiagnosticsTests : IDisposable
     }
 
     [Fact]
+    public void A_cancellation_while_the_application_closes_is_not_a_crash()
+    {
+        CrashReporter.MarkClosing();
+        try
+        {
+            CrashReporter.Record("Unhandled exception", new TaskCanceledException());
+            Assert.Null(CrashReporter.Pending());
+            CrashReporter.Record("Unhandled exception", new InvalidOperationException("real"));
+            Assert.Contains("real", CrashReporter.Pending(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            CrashReporter.MarkClosing(false);
+            CrashReporter.Dismiss();
+        }
+
+        CrashReporter.Record("Unhandled exception", new TaskCanceledException());
+        Assert.NotNull(CrashReporter.Pending());
+        CrashReporter.Dismiss();
+    }
+
+    [Fact]
     public void Crash_is_kept_for_the_next_start_and_can_be_dismissed()
     {
         CrashReporter.Record("test crash", new InvalidOperationException("boom"));

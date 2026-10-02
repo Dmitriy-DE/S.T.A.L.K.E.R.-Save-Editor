@@ -60,6 +60,9 @@ public sealed class GameAudioService
 
     public static GameAudioService Instance => LazyInstance.Value;
 
+    /// <summary>Set by the windowless service modes (screenshots, measurements): they must not play through the speakers.</summary>
+    public static bool Silent { get; set; }
+
     public bool IsEnabled { get; private set; } = true;
     public int Volume { get; private set; } = 80;
 
@@ -88,7 +91,7 @@ public sealed class GameAudioService
 
     public void Play(SoundEvent sound)
     {
-        if (!IsEnabled || Volume == 0) return;
+        if (Silent || !IsEnabled || Volume == 0) return;
         var family = _family;
         var name = $"{family}-{sound}";
         // One task per sound at a time: fast hovering must not queue a pile of decode/play tasks.
@@ -245,7 +248,7 @@ public sealed class GameAudioService
 
     private void UpdateMusic()
     {
-        var wanted = _musicEnabled && Volume > 0 ? _family : null;
+        var wanted = _musicEnabled && Volume > 0 && !Silent ? _family : null;
         long generation;
         lock (_musicLock)
         {

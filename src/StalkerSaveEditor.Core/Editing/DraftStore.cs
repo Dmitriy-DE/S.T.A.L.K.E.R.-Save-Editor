@@ -58,6 +58,9 @@ public sealed class DraftJournal
 
     public DraftJournal Redo() => CanRedo ? new DraftJournal(Plans, Index + 1, UnmappedLegacyPlans) : this;
 
+    /// <summary>How many edits can be undone one by one; older ones merge into the step back to the untouched save.</summary>
+    public const int MaximumSteps = 100;
+
     public DraftJournal Record(EditPlan plan, bool discardUnmappedEdits = false)
     {
         ArgumentNullException.ThrowIfNull(plan);
@@ -71,19 +74,20 @@ public sealed class DraftJournal
             throw new ArgumentException("Recorded plan must match the journal source SHA256.", nameof(plan));
         }
 
-        var next = new EditPlan[Index + 2];
-        for (var i = 0; i <= Index; i++)
+        // The history keeps the untouched state (step 0) and the latest MaximumSteps edits: a long session used to
+        // carry, copy and serialize every state it ever had.
+        var kept = Math.Min(Index, MaximumSteps - 1);
+        var next = new EditPlan[kept + 2];
+        var nextLegacy = new JsonElement?[next.Length];
+        next[0] = Plans[0];
+        nextLegacy[0] = UnmappedLegacyPlans[0];
+        for (var i = 1; i <= kept; i++)
         {
-            next[i] = Plans[i];
+            next[i] = Plans[Index - kept + i];
+            nextLegacy[i] = UnmappedLegacyPlans[Index - kept + i];
         }
 
         next[^1] = plan;
-        var nextLegacy = new JsonElement?[next.Length];
-        for (var i = 0; i <= Index; i++)
-        {
-            nextLegacy[i] = UnmappedLegacyPlans[i];
-        }
-
         return new DraftJournal(next, next.Length - 1, nextLegacy);
     }
 }
@@ -133,7 +137,12 @@ public sealed partial class DraftStore
         return Path.Combine(_directory, $"{sourceSha256}.json");
     }
 
-    public void Save(DraftJournal journal)
+    /// <summary>
+    /// Writes the draft and returns the journal that was written: when the full history does not fit the file, only
+    /// the untouched state and the current one are kept, and the session must go on with that shorter history
+    /// (it used to keep the long one and serialize it in full on every next edit).
+    /// </summary>
+    public DraftJournal Save(DraftJournal journal)
     {
         ArgumentNullException.ThrowIfNull(journal);
         var sourceSha256 = journal.Current.SourceSha256;
@@ -141,7 +150,7 @@ public sealed partial class DraftStore
         if (!HasChanges(journal.Current) && !journal.CurrentHasUnmappedEdits)
         {
             File.Delete(path);
-            return;
+            return journal;
         }
 
         var persisted = journal;
@@ -170,6 +179,8 @@ public sealed partial class DraftStore
         {
             DeleteIfExists(temporaryPath);
         }
+
+        return persisted;
     }
 
     public DraftJournal? Load(string sourceSha256)

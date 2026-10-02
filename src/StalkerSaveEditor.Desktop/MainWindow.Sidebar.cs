@@ -22,9 +22,11 @@ public sealed partial class MainWindow : Window
         private readonly SaveLibraryViewModel _vm;
         private readonly Button _toggleButton;
         private readonly TextBlock _toggleGlyph;
+        /// <summary>Below this the workspace has no room for a labelled menu; from <see cref="RoomyWidth"/> it opens by itself.</summary>
+        private const double NarrowWidth = 900;
+        private const double RoomyWidth = 1150;
         private double _availableWidth;
         private bool _expanded = true;
-        private bool _manualChoice;
 
         public SidebarNavigation(SaveLibraryViewModel vm, ColumnDefinition column, Grid host)
         {
@@ -41,10 +43,11 @@ public sealed partial class MainWindow : Window
 
             var toggle = new Button
             {
-                Height = 38,
-                Margin = new Thickness(8, 6),
-                Padding = new Thickness(8, 4),
-                HorizontalContentAlignment = HorizontalAlignment.Center,
+                Height = 34,
+                Margin = new Thickness(6, 0, 6, 4),
+                Padding = new Thickness(4, 3),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Background = StalkerTheme.BrushBgElevated,
                 Foreground = StalkerTheme.BrushTextSecondary,
                 BorderBrush = StalkerTheme.BrushBorderSubtle,
@@ -54,24 +57,34 @@ public sealed partial class MainWindow : Window
             _toggleButton = toggle;
             _toggleGlyph = new TextBlock
             {
-                Text = "‹",
-                FontSize = 20,
+                Text = "☰",
+                FontSize = 17,
                 Foreground = StalkerTheme.BrushAccentAmber,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
             };
-            toggle.Content = _toggleGlyph;
+            var toggleLabel = new TextBlock
+            {
+                Text = L.T("Свернуть меню"),
+                FontFamily = StalkerTheme.HeadingFont,
+                FontSize = 12,
+                Foreground = StalkerTheme.BrushTextSecondary,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Grid.SetColumn(toggleLabel, 1);
+            _expandedOnly.Add(toggleLabel);
+            toggle.Content = new Grid { ColumnDefinitions = new ColumnDefinitions("36,*"), Children = { _toggleGlyph, toggleLabel } };
             toggle.Click += (_, _) =>
             {
-                _manualChoice = true;
-                SetExpanded(!_expanded && _availableWidth >= 1100);
-                if (_availableWidth < 1100) SetExpanded(false);
+                _vm.Settings.NavigationCollapsed = _expanded;
+                Apply();
             };
-            ToolTip.SetTip(toggle, L.T("Свернуть меню"));
-            DockPanel.SetDock(toggle, Dock.Bottom);
+            AutomationProperties.SetName(toggle, L.T("Свернуть меню"));
+            DockPanel.SetDock(toggle, Dock.Top);
             layout.Children.Add(toggle);
 
-            var navigation = new StackPanel { Spacing = 2, Margin = new Thickness(5, 8) };
+            var navigation = new StackPanel { Spacing = 1, Margin = new Thickness(5, 2, 5, 8) };
             AddGroup(navigation, L.T("СОХРАНЕНИЯ"),
             [
                 ("◉", L.T("ОБЗОР"), AppTabs.Overview),
@@ -127,17 +140,19 @@ public sealed partial class MainWindow : Window
         public void AdaptToWidth(double width)
         {
             _availableWidth = width;
-            if (!_manualChoice) SetExpanded(width >= 1600);
-            else if (width < 1100) SetExpanded(false);
+            Apply();
         }
 
-        private void SetExpanded(bool expanded)
+        /// <summary>The user's choice wins while the window has room for it; a narrow window always folds the menu.</summary>
+        private void Apply()
         {
+            var expanded = _availableWidth >= NarrowWidth && !(_vm.Settings.NavigationCollapsed ?? _availableWidth < RoomyWidth);
             _expanded = expanded;
-            _column.Width = new GridLength(expanded ? 236 : 64);
+            _column.Width = new GridLength(expanded ? 236 : 58);
             foreach (var control in _expandedOnly) control.IsVisible = expanded;
-            _toggleGlyph.Text = expanded ? "‹" : "›";
-            ToolTip.SetTip(_toggleButton, L.T(expanded ? "Свернуть меню" : "Развернуть меню"));
+            var tip = L.T(expanded ? "Свернуть меню" : "Развернуть меню");
+            ToolTip.SetTip(_toggleButton, tip);
+            AutomationProperties.SetName(_toggleButton, tip);
         }
 
         private Control BuildBrand()
@@ -145,7 +160,7 @@ public sealed partial class MainWindow : Window
             var brand = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitions("42,*"),
-                Margin = new Thickness(10, 14, 8, 12),
+                Margin = new Thickness(10, 12, 8, 10),
             };
             var mark = new Border
             {
@@ -198,7 +213,7 @@ public sealed partial class MainWindow : Window
                 FontWeight = FontWeight.Bold,
                 Foreground = StalkerTheme.BrushTextMuted,
                 LetterSpacing = 0.8,
-                Margin = new Thickness(8, 10, 4, 4),
+                Margin = new Thickness(8, 8, 4, 3),
             };
             _expandedOnly.Add(header);
             parent.Children.Add(header);
@@ -223,7 +238,7 @@ public sealed partial class MainWindow : Window
                 Name = "nav-label-" + tab,
                 Text = label,
                 FontFamily = StalkerTheme.HeadingFont,
-                FontSize = 11,
+                FontSize = 12,
                 FontWeight = FontWeight.SemiBold,
                 Foreground = StalkerTheme.BrushTextSecondary,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -237,9 +252,10 @@ public sealed partial class MainWindow : Window
             {
                 Name = "nav-" + tab,
                 Content = content,
-                Height = 36,
+                Height = 33,
                 Margin = new Thickness(1, 1),
                 Padding = new Thickness(4, 3),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Background = StalkerTheme.BrushBgPanel,
                 Foreground = StalkerTheme.BrushTextSecondary,

@@ -24,19 +24,19 @@ public static class TransitionsView
         var noteStack = new StackPanel { Spacing = 6 };
         noteStack.Children.Add(new TextBlock
         {
-            Text = L.T("Объекты переходов между локациями (Level Changers) из реестра X-Ray."),
+            Text = L.T("Переходы между локациями, которые есть в этом сохранении."),
             Foreground = StalkerTheme.BrushTextPrimary,
             FontSize = 13,
             FontWeight = FontWeight.SemiBold,
         });
         noteStack.Children.Add(new TextBlock
         {
-            Text = L.T("Данные прочитаны из сохранения. Поля переходов не описаны, поэтому они только для чтения."),
+            Text = L.T("Список только для просмотра: сами переходы редактор не меняет."),
             Foreground = StalkerTheme.BrushTextSecondary,
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
         });
-        root.Children.Add(StalkerTheme.Card(noteStack, L.T("Переходы между локациями (Read-Only)")));
+        root.Children.Add(StalkerTheme.Card(noteStack, L.T("Переходы между локациями")));
 
         // Relocation (TP, experimental): only destinations of the level changers in this save.
         var relocation = new StackPanel { Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
@@ -121,14 +121,11 @@ public static class TransitionsView
         };
         var headerGrid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("120,*,120,100,80,110"),
+            ColumnDefinitions = new ColumnDefinitions("*,*,130"),
         };
-        headerGrid.Children.Add(MakeColHeader(L.T("ID В РЕЕСТРЕ"), 0));
-        headerGrid.Children.Add(MakeColHeader(L.T("ИДЕНТИФИКАТОР / ТОЧКА"), 1));
-        headerGrid.Children.Add(MakeColHeader(L.T("ТИП ОБЪЕКТА"), 2));
-        headerGrid.Children.Add(MakeColHeader(L.T("РОДИТЕЛЬ"), 3));
-        headerGrid.Children.Add(MakeColHeader(L.T("ВЕРСИЯ"), 4));
-        headerGrid.Children.Add(MakeColHeader(L.T("СТАТУС"), 5));
+        headerGrid.Children.Add(MakeColHeader(L.T("ПЕРЕХОД"), 0));
+        headerGrid.Children.Add(MakeColHeader(L.T("ИМЯ В СОХРАНЕНИИ / ТОЧКА"), 1));
+        headerGrid.Children.Add(MakeColHeader(L.T("ID В РЕЕСТРЕ"), 2));
         headerBorder.Child = headerGrid;
         listContainer.Children.Add(headerBorder);
 
@@ -180,70 +177,39 @@ public static class TransitionsView
 
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("120,*,120,100,80,110"),
+            ColumnDefinitions = new ColumnDefinitions("*,*,130"),
         };
 
-        // 0. Handle
-        var handleText = new TextBlock
+        grid.Children.Add(new TextBlock
         {
-            Text = item.HandleDisplay,
-            FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = StalkerTheme.BrushAccentAmber,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        grid.Children.Add(handleText);
-
-        // 1. DisplayName
-        var nameText = new TextBlock
-        {
-            Text = item.DisplayName,
-            FontSize = 12,
+            Text = item.RouteDisplay,
+            FontSize = 13,
             FontWeight = FontWeight.SemiBold,
             Foreground = StalkerTheme.BrushTextPrimary,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-        };
-        Grid.SetColumn(nameText, 1);
-        grid.Children.Add(nameText);
+        });
 
-        // 2. Type
-        var typeText = new TextBlock
+        var technical = new TextBlock
         {
-            Text = item.TypeDisplay,
+            Text = item.TechnicalDisplay,
             FontSize = 11,
-            Foreground = StalkerTheme.BrushTextSecondary,
+            Foreground = StalkerTheme.BrushTextMuted,
             VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
         };
-        Grid.SetColumn(typeText, 2);
-        grid.Children.Add(typeText);
+        Grid.SetColumn(technical, 1);
+        grid.Children.Add(technical);
 
-        // 3. Parent
-        var parentText = new TextBlock
+        var handleText = new TextBlock
         {
-            Text = item.ParentDisplay,
+            Text = item.HandleDisplay,
             FontSize = 11,
             Foreground = StalkerTheme.BrushTextMuted,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        Grid.SetColumn(parentText, 3);
-        grid.Children.Add(parentText);
-
-        // 4. Version
-        var verText = new TextBlock
-        {
-            Text = item.VersionDisplay,
-            FontSize = 11,
-            Foreground = StalkerTheme.BrushTextMuted,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetColumn(verText, 4);
-        grid.Children.Add(verText);
-
-        // 5. Read-only badge
-        var roBadge = StalkerTheme.Badge(L.T("Только чтение"), StalkerTheme.BrushBgInput, StalkerTheme.BrushTextSecondary, 10);
-        Grid.SetColumn(roBadge, 5);
-        grid.Children.Add(roBadge);
+        Grid.SetColumn(handleText, 2);
+        grid.Children.Add(handleText);
 
         border.Child = grid;
         return border;

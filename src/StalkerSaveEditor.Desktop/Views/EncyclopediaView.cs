@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Styling;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Layout;
@@ -44,11 +45,18 @@ public static class EncyclopediaView
             TextWrapping = TextWrapping.Wrap,
         });
 
-        var items = new ItemsControl
+        // A game has hundreds of items: only the rows on screen exist, and a row asks for its icon when it is built.
+        var items = new ListBox
         {
             ItemsSource = viewModel.Items,
             ItemTemplate = StalkerTheme.Template<EncyclopediaItemViewModel>(item => BuildRow(viewModel, item)),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
         };
+        items.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
+        {
+            Setters = { new Setter(Avalonia.Controls.Primitives.TemplatedControl.PaddingProperty, new Thickness(0)) },
+        });
         var empty = new TextBlock
         {
             Text = L.T("Нет загруженного каталога установленной игры."),
@@ -68,12 +76,15 @@ public static class EncyclopediaView
         };
         status.Bind(TextBlock.TextProperty, new Binding(nameof(EncyclopediaViewModel.StatusMessage)) { Source = viewModel });
 
-        var stack = new StackPanel { Spacing = 12 };
-        stack.Children.Add(header);
-        stack.Children.Add(status);
-        stack.Children.Add(empty);
-        stack.Children.Add(items);
-        return new ScrollViewer { Padding = new Thickness(20), Content = stack };
+        var page = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"), RowSpacing = 12, Margin = new Thickness(20) };
+        page.Children.Add(header);
+        Grid.SetRow(status, 1);
+        page.Children.Add(status);
+        Grid.SetRow(empty, 2);
+        page.Children.Add(empty);
+        Grid.SetRow(items, 3);
+        page.Children.Add(items);
+        return page;
     }
 
     private static Control BuildRow(EncyclopediaViewModel viewModel, EncyclopediaItemViewModel item)
@@ -84,23 +95,8 @@ public static class EncyclopediaView
             Margin = new Thickness(0, 3),
         };
 
-        Control icon;
-        if (item.IconPng is { Length: > 0 } png)
-        {
-            try
-            {
-                using var stream = new MemoryStream(png);
-                icon = new Image { Source = new Bitmap(stream), Width = 46, Height = 46, Stretch = Avalonia.Media.Stretch.Uniform };
-            }
-            catch (Exception exception) when (exception is ArgumentException or InvalidDataException or NotSupportedException)
-            {
-                icon = new TextBlock { Text = "—", Foreground = StalkerTheme.BrushTextMuted, VerticalAlignment = VerticalAlignment.Center };
-            }
-        }
-        else
-        {
-            icon = new TextBlock { Text = "—", Foreground = StalkerTheme.BrushTextMuted, VerticalAlignment = VerticalAlignment.Center };
-        }
+        var icon = new Image { Width = 46, Height = 46, Stretch = Avalonia.Media.Stretch.Uniform };
+        ItemIconService.Show(icon, item.ReleaseId, item.Key);
         Grid.SetColumn(icon, 0);
         grid.Children.Add(icon);
 

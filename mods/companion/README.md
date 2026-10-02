@@ -4,7 +4,7 @@ A small script mod. While the game runs, the editor sends a command file and
 the mod carries it out in the game within about 2 s: give items, money, heal,
 repair worn gear, teleport inside the level, list inventory. No save reload.
 
-Protocol: [docs/MOD_COMPANION_PROTOCOL.md](../../docs/MOD_COMPANION_PROTOCOL.md).
+Protocol: [docs/COMPANION.md](../../docs/COMPANION.md).
 
 ## Games
 

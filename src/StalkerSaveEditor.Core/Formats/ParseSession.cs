@@ -15,7 +15,15 @@ internal sealed class ParseSession : IDisposable
     [ThreadStatic]
     private static ParseSession? _current;
 
+    /// <summary>
+    /// A stage needs its input and its output, the next stage starts from that output: three images cover the chain.
+    /// Keeping every intermediate image of a plan with many kinds of edits held several unpacked copies of a large
+    /// save until the end; an image that was dropped is simply parsed again if someone asks for it.
+    /// </summary>
+    internal const int MaximumModels = 3;
+
     private readonly Dictionary<(string Kind, string Sha256), object> _models = [];
+    private readonly LinkedList<(string Kind, string Sha256)> _recent = [];
     private readonly bool _owner;
 
     private ParseSession(bool owner) => _owner = owner;
@@ -28,6 +36,8 @@ internal sealed class ParseSession : IDisposable
     public int Hits { get; private set; }
 
     internal static ParseSession? Current => _current;
+
+    internal int ModelCount => _models.Count;
 
     /// <summary>Opens a session on this thread; inside an open one it joins it (disposing the inner handle does nothing).</summary>
     public static ParseSession Begin()
@@ -45,12 +55,21 @@ internal sealed class ParseSession : IDisposable
         if (session._models.TryGetValue(key, out var known))
         {
             session.Hits++;
+            session._recent.Remove(key);
+            session._recent.AddLast(key);
             return (T)known;
         }
 
         // A failed parse throws and is not remembered.
         var model = parse(data);
         session._models[key] = model;
+        session._recent.AddLast(key);
+        if (session._recent.Count > MaximumModels)
+        {
+            session._models.Remove(session._recent.First!.Value);
+            session._recent.RemoveFirst();
+        }
+
         session.Misses++;
         return model;
     }

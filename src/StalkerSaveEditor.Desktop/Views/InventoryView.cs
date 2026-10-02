@@ -244,10 +244,19 @@ public static class InventoryView
         Grid.SetColumn(inspector, 1);
         workspace.Children.Add(inspector);
 
+        // The details stay beside the list and only get narrower: stacked, the two halves did not fit a small window
+        // and ran over the buttons below. Under 400 there is no room for two columns at all.
         var stacked = false;
         workspace.SizeChanged += (_, args) =>
         {
-            var shouldStack = args.NewSize.Width < 760;
+            var width = args.NewSize.Width;
+            var shouldStack = width < 400;
+            if (!shouldStack && !stacked)
+            {
+                workspace.ColumnDefinitions[1].Width = new GridLength(Math.Clamp(Math.Floor(width * 0.42), 190, 340));
+                return;
+            }
+
             if (shouldStack == stacked) return;
             stacked = shouldStack;
             workspace.ColumnDefinitions.Clear();
@@ -264,7 +273,7 @@ public static class InventoryView
             else
             {
                 workspace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                workspace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(340) });
+                workspace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Clamp(Math.Floor(width * 0.42), 190, 340)) });
                 workspace.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 workspace.RowSpacing = 0;
                 Grid.SetColumn(inspector, 1);
@@ -566,7 +575,7 @@ public static class InventoryView
             VerticalAlignment = VerticalAlignment.Center,
             MinHeight = 34,
         };
-        readOnlyValue.Bind(TextBlock.TextProperty, new Binding("SelectedItem.OriginalCountDisplay"));
+        readOnlyValue.Bind(TextBlock.TextProperty, new Binding("SelectedItem.QuantityDisplay"));
         readOnlyValue.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem.CanEditCount") { Converter = Not });
 
         var content = new StackPanel
@@ -577,7 +586,7 @@ public static class InventoryView
                 new TextBlock { Text = L.T("Количество в пачке"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 },
                 countBox,
                 readOnlyValue,
-                DisabledReason("SelectedItem.CountDisabledReason", "SelectedItem.CanEditCount"),
+                DisabledReason("SelectedItem.QuantityNote", "SelectedItem.CanEditCount"),
             },
         };
         return StalkerTheme.Card(content, L.T("Количество"), margin: new Thickness(0));

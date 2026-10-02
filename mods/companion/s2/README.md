@@ -1,6 +1,6 @@
 # S.T.A.L.K.E.R. 2 Save Editor Companion (UE4SS Lua Prototype)
 
-Внутриигровой мод-компаньон для **S.T.A.L.K.E.R. 2: Heart of Chornobyl** на базе **UE4SS (Unreal Engine 4/5 Scripting System)**, реализующий [протокол v1](../../docs/MOD_COMPANION_PROTOCOL.md).
+Внутриигровой мод-компаньон для **S.T.A.L.K.E.R. 2: Heart of Chornobyl** на базе **UE4SS (Unreal Engine 4/5 Scripting System)**, реализующий [протокол v1](../../../docs/COMPANION.md).
 
 ---
 

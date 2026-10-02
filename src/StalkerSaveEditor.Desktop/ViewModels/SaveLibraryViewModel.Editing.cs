@@ -1,6 +1,7 @@
 using StalkerSaveEditor.Core.Diagnostics;
 using System.Globalization;
 using StalkerSaveEditor.Core.Backups;
+using StalkerSaveEditor.Core.Catalogs;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.XRay;
 using StalkerSaveEditor.Desktop.Services;
@@ -58,10 +59,13 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
     {
         if (SelectedItem is not null)
         {
+            var pile = SelectedItem.GroupKey;
             SelectedItem.IsDeleted = true;
             RecordDraftChange();
             ApplyInventoryFilter();
-            SelectedItem = FilteredInventory.FirstOrDefault();
+            // Removing one of several identical objects leaves the rest of the pile selected.
+            SelectedItem = FilteredInventory.FirstOrDefault(item => pile is not null && item.GroupKey == pile)
+                ?? FilteredInventory.FirstOrDefault();
         }
     }
 
@@ -126,6 +130,12 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         item.IsTaken = !item.IsTaken;
         RecordDraftChange();
     }
+
+    /// <summary>
+    /// The checkbox in the list has already written <see cref="StashItemViewModel.IsTaken"/> through its binding;
+    /// only the draft is recorded. (Toggling here as well undid the click.)
+    /// </summary>
+    public void StashSelectionChanged() => RecordDraftChange();
 
     public void AdjustFactionRelation(FactionRelationViewModel relation, int delta) =>
         SetFactionRelation(relation, relation.Goodwill + delta);
@@ -254,51 +264,101 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         }
     }
 
-    public void SaveSelected()
-    {
-        var selected = SelectedSave;
-        if (!CanSave || selected is null) return;
+    /// <summary>A save is being written: the editing screens are disabled until it is replaced and re-read.</summary>
+    public bool IsSaving => _isSaving;
 
-        var plan = BuildCurrentEditPlan(selected);
-        _isSaving = true;
+    private void SetSaving(bool saving)
+    {
+        _isSaving = saving;
+        OnPropertyChanged(nameof(IsSaving));
         OnPropertyChanged(nameof(CanSave));
         SaveCommand.NotifyCanExecuteChanged();
+    }
 
+    public void SaveSelected()
+    {
+        if (InteractiveApp)
+        {
+            BackgroundTask.Run(SaveSelectedAsync(), "save");
+            return;
+        }
+
+        var selected = SelectedSave;
+        if (!CanSave || selected is null) return;
+        var plan = BuildCurrentEditPlan(selected);
+        var catalog = TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null;
+        SetSaving(true);
         try
         {
-            var (receipt, refreshed) = SaveEditSession.WritePlan(
-                selected,
-                plan,
-                TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null,
-                _backupDirectoryProvider(),
-                _draftStore);
-
-            var index = Saves.IndexOf(selected);
-            if (index >= 0) ReplaceSave(index, refreshed);
-            else Saves.Add(refreshed);
-
-            SelectedSave = refreshed;
-            RefreshBackups();
-            StatusMessage = L.T("Сохранено успешно. Backup: {0}", Path.GetFileName(receipt.BackupPath));
-            GameAudioService.Instance.Play(SoundEvent.Save);
-            if (HostPlatform.ExportFile is { } export) _ = ExportSavedAsync(export, refreshed.FilePath);
+            ShowSaved(selected, SaveEditSession.WritePlan(selected, plan, catalog, _backupDirectoryProvider(), _draftStore));
         }
         catch (Exception exception)
         {
-            StatusMessage = L.T("Не удалось сохранить: {0}", exception.Message);
-            AppLog.Error("save failed", exception);
-            GameAudioService.Instance.Play(SoundEvent.Error);
+            ShowSaveFailure(exception);
         }
         finally
         {
-            _isSaving = false;
-            OnPropertyChanged(nameof(CanSave));
-            SaveCommand.NotifyCanExecuteChanged();
+            SetSaving(false);
         }
+    }
+
+    /// <summary>
+    /// The running application's save: packing, the backup, the durable replace and the read-back take seconds on a
+    /// large save, so they run off the interface thread as one uninterrupted transaction, and the screens stay
+    /// disabled (<see cref="IsSaving"/>) until its result is shown.
+    /// </summary>
+    internal Task SaveSelectedAsync()
+    {
+        var selected = SelectedSave;
+        if (!CanSave || selected is null) return Task.CompletedTask;
+        var plan = BuildCurrentEditPlan(selected);
+        var catalog = TryCatalog(selected.ReleaseId, out var bundle) ? bundle : null;
+        SetSaving(true);
+        StatusMessage = L.T("Сохранение…");
+        return SaveInBackgroundAsync(selected, plan, catalog, _backupDirectoryProvider());
+    }
+
+    private async Task SaveInBackgroundAsync(SaveFileSummary selected, EditPlan plan, CatalogBundle? catalog, string backupDirectory)
+    {
+        try
+        {
+            var written = await Task.Run(() => SaveEditSession.WritePlan(selected, plan, catalog, backupDirectory, _draftStore));
+            ShowSaved(selected, written);
+        }
+        catch (Exception exception)
+        {
+            ShowSaveFailure(exception);
+        }
+        finally
+        {
+            SetSaving(false);
+        }
+    }
+
+    private void ShowSaved(SaveFileSummary selected, (LocalSaveReplacementReceipt Receipt, SaveFileSummary Refreshed) written)
+    {
+        var index = Saves.IndexOf(selected);
+        if (index >= 0) ReplaceSave(index, written.Refreshed);
+        else Saves.Add(written.Refreshed);
+
+        SelectedSave = written.Refreshed;
+        RefreshBackups();
+        StatusMessage = L.T("Сохранено успешно. Backup: {0}", Path.GetFileName(written.Receipt.BackupPath));
+        GameAudioService.Instance.Play(SoundEvent.Save);
+        if (HostPlatform.ExportFile is { } export) _ = ExportSavedAsync(export, written.Refreshed.FilePath);
+    }
+
+    private void ShowSaveFailure(Exception exception)
+    {
+        StatusMessage = L.T("Не удалось сохранить: {0}", exception.Message);
+        AppLog.Error("save failed", exception);
+        GameAudioService.Instance.Play(SoundEvent.Error);
     }
 
     private EditPlan BuildCurrentEditPlan(SaveFileSummary save)
     {
+        if (_burstPlan is { } ready && ReferenceEquals(save, _burstSave)) return ready;
+
         var money = save.CanEditMoney &&
             uint.TryParse(MoneyInput, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedMoney) &&
             parsedMoney != save.Money
@@ -457,7 +517,35 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         }
     }
 
+    // One plan for one burst of notifications: every bound property below asks for the plan of the whole inventory,
+    // and nothing can change the rows while the burst runs.
+    private EditPlan? _burstPlan;
+    private SaveFileSummary? _burstSave;
+
     private void UpdateDraftState()
+    {
+        var outer = _burstSave is not null;
+        if (!outer && SelectedSave is { } save)
+        {
+            _burstPlan = BuildCurrentEditPlan(save);
+            _burstSave = save;
+        }
+
+        try
+        {
+            NotifyDraftState();
+        }
+        finally
+        {
+            if (!outer)
+            {
+                _burstPlan = null;
+                _burstSave = null;
+            }
+        }
+    }
+
+    private void NotifyDraftState()
     {
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
@@ -481,18 +569,26 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         }
 
         var query = _inventorySearchText.Trim();
-        FilteredInventory.ReplaceAll(SelectedSave.Inventory.Where(item =>
-            !item.IsDeleted &&
-            (_selectedCategory == "all" || string.Equals(item.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase)) &&
-            (string.IsNullOrEmpty(query) ||
-             item.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
-             item.TypeKey.Contains(query, StringComparison.CurrentCultureIgnoreCase))));
+        FilteredInventory.ReplaceAll(InventoryLineViewModel.GroupPiles(
+            SelectedSave.Inventory.Where(item =>
+                !item.IsDeleted &&
+                (_selectedCategory == "all" || string.Equals(item.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(query) ||
+                 item.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                 item.TypeKey.Contains(query, StringComparison.CurrentCultureIgnoreCase))),
+            SelectedItem));
     }
 
     private void OnInventoryItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (_applyingPlan || e.PropertyName is null || !EditableItemProperties.Contains(e.PropertyName)) return;
         RecordDraftChange();
+        // An edited object no longer equals the rest of its pile: the others get a row of their own.
+        if (sender is InventoryLineViewModel { GroupSize: > 1 } line && e.PropertyName != nameof(InventoryLineViewModel.IsDeleted))
+        {
+            ApplyInventoryFilter();
+            SelectedItem = line;
+        }
     }
 
     /// <summary>The rows differ from the save (an unparsable input counts as a change the user has to fix).</summary>

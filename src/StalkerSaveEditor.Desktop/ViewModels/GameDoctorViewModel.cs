@@ -324,6 +324,7 @@ public sealed class GameDoctorViewModel : ObservableViewModel
             CrashAdvice.RepairSave => L.T("ОТКРОЙТЕ ПОСЛЕДНИЙ СЕЙВ В ДОКТОРЕ СОХРАНЕНИЯ И ИСПРАВЬТЕ КВЕСТЫ; ЗАТЕМ УСТАНОВИТЕ ИСПРАВЛЕНИЕ ИГРЫ {0}.", issue.FixId ?? string.Empty),
             CrashAdvice.ReloadEarlierSave => L.T("СЛУЧАЙНЫЙ СБОЙ: ЗАГРУЗИТЕ СЕЙВ ЕЩЁ РАЗ ИЛИ БОЛЕЕ РАННИЙ."),
             CrashAdvice.CorruptSave => L.T("СЕЙВ ПОВРЕЖДЁН: ПОМОЖЕТ ТОЛЬКО БОЛЕЕ РАННИЙ СЕЙВ."),
+            CrashAdvice.RepairInstallation => L.T("ДЕЛО В ФАЙЛАХ ИГРЫ: УБЕРИТЕ ОСТАТКИ МОДОВ ИЗ ПАПКИ GAMEDATA И ПРОВЕРЬТЕ ЦЕЛОСТНОСТЬ ФАЙЛОВ В STEAM."),
             _ => L.T("ИСПРАВЛЕНО В НАРОДНЫХ ПАТЧАХ (SRP ДЛЯ ЧН, ZRP ДЛЯ ТЧ); СРЕДИ НАШИХ ИСПРАВЛЕНИЙ ЕГО НЕТ."),
         };
         return new GameDoctorCheckRow("⚠", name, L.T("ИЗВЕСТНОЕ ПАДЕНИЕ {0}. {1}", issue.Id, advice), GameDoctorStatus.Warning);

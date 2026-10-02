@@ -261,9 +261,8 @@ public sealed class CloudViewModel : ObservableViewModel
                 var downloads = Path.Combine(backupDir, "cloud_downloads");
                 Directory.CreateDirectory(downloads);
                 targetPath = Path.Combine(downloads, Path.GetFileName(selected.FileName));
-                var temporary = targetPath + ".part";
-                await File.WriteAllBytesAsync(temporary, bytes);
-                File.Move(temporary, targetPath, overwrite: true);
+                // The same write as every other file of the application: complete on disk before it replaces anything.
+                await Task.Run(() => Core.Storage.AtomicFile.WriteAllBytes(targetPath, bytes, ownerOnly: true));
             }
 
             StatusMessage = L.T("Файл {0} успешно скачан: {1}", selected.FileName, targetPath);

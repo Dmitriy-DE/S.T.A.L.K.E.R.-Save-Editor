@@ -157,7 +157,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
             {
                 InvalidateInspection();
                 RefreshCatalogue();
-                RefreshFixStates();
+                RefreshFixStatesForSelection();
             }
         }
     }
@@ -183,7 +183,7 @@ public sealed class GameFixesViewModel : ObservableViewModel
             if (SetProperty(ref _gameDirectory, value ?? string.Empty))
             {
                 InvalidateInspection();
-                RefreshFixStates();
+                RefreshFixStatesForSelection();
                 NotifyCommands();
             }
         }
@@ -447,23 +447,60 @@ public sealed class GameFixesViewModel : ObservableViewModel
         OnPropertyChanged(nameof(PresetChangeStatus));
     }
 
-    private void RefreshFixStates(string? selectedId = null)
+    private int _fixStateVersion;
+
+    /// <summary>
+    /// After another game or folder is chosen: the installed fixes are found by hashing the files they manage, so in
+    /// the running application that happens off the interface thread and the list is updated when it is ready.
+    /// </summary>
+    private void RefreshFixStatesForSelection()
     {
-        IReadOnlyList<GameFixInstalledInfo> installed = [];
-        if (Directory.Exists(GameDirectory))
+        var version = ++_fixStateVersion;
+        if (!SaveLibraryViewModel.InteractiveApp)
         {
-            try
-            {
-                // One damaged state folder is reported; the other fixes still show their real state.
-                installed = new GameFixEngine().ListInstalled(GameDirectory, out var issues);
-                if (issues.Count > 0) Status = L.T("ОШИБКА: {0}", string.Join("; ", issues));
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException)
-            {
-                Status = L.T("ОШИБКА: {0}", exception.Message);
-            }
+            RefreshFixStates();
+            return;
         }
 
+        var directory = GameDirectory;
+        ShowFixStates([], null, null);
+        BackgroundTask.Run(
+            Task.Run(() =>
+            {
+                var (installed, problem) = ReadFixStates(directory);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (version == _fixStateVersion && directory == GameDirectory) ShowFixStates(installed, problem, null);
+                });
+            }),
+            "installed fixes");
+    }
+
+    private void RefreshFixStates(string? selectedId = null)
+    {
+        ++_fixStateVersion;
+        var (installed, problem) = ReadFixStates(GameDirectory);
+        ShowFixStates(installed, problem, selectedId);
+    }
+
+    private static (IReadOnlyList<GameFixInstalledInfo> Installed, string? Problem) ReadFixStates(string directory)
+    {
+        if (!Directory.Exists(directory)) return ([], null);
+        try
+        {
+            // One damaged state folder is reported; the other fixes still show their real state.
+            var installed = new GameFixEngine().ListInstalled(directory, out var issues);
+            return (installed, issues.Count > 0 ? string.Join("; ", issues) : null);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or ArgumentException)
+        {
+            return ([], exception.Message);
+        }
+    }
+
+    private void ShowFixStates(IReadOnlyList<GameFixInstalledInfo> installed, string? problem, string? selectedId)
+    {
+        if (problem is not null) Status = L.T("ОШИБКА: {0}", problem);
         var priorSelection = selectedId ?? SelectedFix?.Id;
         for (var index = 0; index < Fixes.Count; index++)
         {

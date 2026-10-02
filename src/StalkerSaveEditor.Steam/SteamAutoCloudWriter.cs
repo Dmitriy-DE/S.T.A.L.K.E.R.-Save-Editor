@@ -374,19 +374,9 @@ public sealed class SteamAutoCloudWriter
             var committed = false;
             try
             {
-                using (var stream = new FileStream(
-                    temporaryPath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None,
-                    bufferSize: 4096,
-                    FileOptions.WriteThrough))
-                {
-                    stream.Write(data);
-                    stream.Flush(flushToDisk: true);
-                }
-
-                File.Move(temporaryPath, targetPath, overwrite: true);
+                // The shared durable write and rename (Core.Storage): on disk before the swap, folder flushed after it.
+                Core.Storage.DurableFile.WriteNew(temporaryPath, data);
+                Core.Storage.DurableFile.Move(temporaryPath, targetPath, overwrite: true);
                 committed = true;
             }
             catch (Exception exception) when (!committed && exception is IOException or UnauthorizedAccessException)

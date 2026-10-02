@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find references to logic sections that do not exist in the same .ltx (crash: "section ... not found"). Research tool for our own fixes (docs/roadmap/FIX-PACKS.md).
+"""Find references to logic sections that do not exist in the same .ltx (crash: "section ... not found"). Research tool for our own fixes (docs/GAME_FIXES.md).
 usage: logic_refs.py FILE..."""
 import re, sys
 SCHEMES = ('sr_idle','sr_timer','sr_cutscene','sr_teleport','sr_light','sr_particle','sr_sound','sr_postprocess','sr_psy_antenna',

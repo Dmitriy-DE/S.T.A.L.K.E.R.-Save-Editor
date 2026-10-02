@@ -47,16 +47,14 @@ public sealed class XRayContainer
 
     public static XRayContainer FromBytes(ReadOnlySpan<byte> data)
     {
-        var original = data.ToArray();
-        var snapshot = original.AsSpan();
-        if (snapshot.Length < 12)
+        if (data.Length < 12)
         {
             throw Error("заголовок короче 12 байт");
         }
 
-        var magic = BinaryPrimitives.ReadUInt32LittleEndian(snapshot);
-        var version = BinaryPrimitives.ReadUInt32LittleEndian(snapshot[4..]);
-        var unpackedSize = BinaryPrimitives.ReadUInt32LittleEndian(snapshot[8..]);
+        var magic = BinaryPrimitives.ReadUInt32LittleEndian(data);
+        var version = BinaryPrimitives.ReadUInt32LittleEndian(data[4..]);
+        var unpackedSize = BinaryPrimitives.ReadUInt32LittleEndian(data[8..]);
 
         if (magic != Signature)
         {
@@ -73,6 +71,10 @@ public sealed class XRayContainer
             throw Error($"недопустимый распакованный размер: {unpackedSize}");
         }
 
+        // The private copy is taken only for a file that is a container: a file of another format (an S2 save offered
+        // to this reader while its format is detected) was copied in full just to be refused by its first four bytes.
+        var original = data.ToArray();
+        var snapshot = original.AsSpan();
         byte[] raw;
         try
         {

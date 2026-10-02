@@ -40,6 +40,40 @@ public sealed class ToolkitEnvironmentViewModelTests
         Assert.Contains("Устаревший фикс снят", viewModel.Status, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Settings_loaded_for_one_installation_are_never_written_after_another_is_selected()
+    {
+        using var first = new EnvironmentFixture();
+        using var second = new EnvironmentFixture();
+        foreach (var fixture in new[] { first, second }) fixture.Write("_appdata_/user.ltx", "g_fov 67.5\n");
+        var selected = first.GameDirectory;
+        var definitions = GameFixCatalog.All.ToDictionary(fix => fix.Id, StringComparer.Ordinal);
+        var engine = new GameFixEngine();
+        var configState = Path.Combine(first.Root, "config-state");
+        var snapshots = new ToolkitSnapshotService(Path.Combine(first.Root, "snapshots"), engine, definitions, configStateDirectory: configState);
+        var profiles = new ToolkitProfileService(Path.Combine(first.Root, "profiles"), engine, definitions, null, snapshots, configState);
+        var viewModel = new ToolkitEnvironmentViewModel(() => (GameTarget.CallOfPripyat, selected), snapshots, profiles, configState);
+
+        viewModel.LoadConfig();
+        var stale = viewModel.ConfigSettings.First(row => row.Key == "g_fov");
+        Assert.Contains(Path.GetFileName(first.Root), viewModel.UserLtxPath, StringComparison.Ordinal);   // macOS resolves /var to /private/var
+
+        selected = second.GameDirectory;
+        stale.ValueInput = "90";
+        viewModel.ApplyConfig(stale);            // a row still on screen from the first installation
+        Assert.Equal("g_fov 67.5\n", File.ReadAllText(first.FilePath("_appdata_/user.ltx")));
+        Assert.Empty(viewModel.ConfigSettings);
+        Assert.Equal(string.Empty, viewModel.UserLtxPath);
+
+        viewModel.LoadConfig();
+        Assert.Contains(Path.GetFileName(second.Root), viewModel.UserLtxPath, StringComparison.Ordinal);
+        var row = viewModel.ConfigSettings.First(setting => setting.Key == "g_fov");
+        row.ValueInput = "90";
+        viewModel.ApplyConfig(row);
+        Assert.Contains("90", File.ReadAllText(second.FilePath("_appdata_/user.ltx")), StringComparison.Ordinal);
+        Assert.Equal("g_fov 67.5\n", File.ReadAllText(first.FilePath("_appdata_/user.ltx")));
+    }
+
     private static GameFixDefinition MakeRetiredFix(string relativePath) => new(
         "cop.retired.environment-test",
         GameTarget.CallOfPripyat,

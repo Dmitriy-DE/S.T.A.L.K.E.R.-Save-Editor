@@ -24,6 +24,24 @@ public sealed class SaveDoctorViewModelTests
     }
 
     [Fact]
+    public async Task A_save_selected_during_an_analysis_is_analysed_next()
+    {
+        var first = Path.Combine(AppContext.BaseDirectory, "Fixtures", "writer-s2-money", "s2-money-source.sav");
+        var second = Path.Combine(AppContext.BaseDirectory, "Fixtures", "writer-factions", "cs-source.sav");
+        var viewModel = new SaveDoctorViewModel { SavePath = first };
+
+        var running = viewModel.AnalyzeAsync();
+        viewModel.SavePath = second;
+        await running;
+
+        // The early return used to leave the screen empty until the user asked again.
+        Assert.True(viewModel.HasReport);
+        Assert.False(viewModel.IsAnalyzing);
+        Assert.Contains(viewModel.Checks, check => check.Name.Contains("ВОЛКА", StringComparison.Ordinal));
+        Assert.DoesNotContain(viewModel.Checks, check => check.Detail.Contains("stalker2", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Clear_sky_save_lists_quest_rules_and_offers_no_repair_without_proof()
     {
         var viewModel = new SaveDoctorViewModel

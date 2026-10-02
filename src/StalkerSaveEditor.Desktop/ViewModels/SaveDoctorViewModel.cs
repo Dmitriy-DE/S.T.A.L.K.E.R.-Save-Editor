@@ -128,7 +128,31 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
                 return (SaveDoctor.Analyze(bytes), QuestDoctor.Analyze(bytes));
             });
             // Another save was selected meanwhile: this report (and its repair button) belongs to the old file.
-            if (!string.Equals(path, SavePath, StringComparison.Ordinal)) return;
+            // (No early return here: it would skip the re-run after the finally block.)
+            if (string.Equals(path, SavePath, StringComparison.Ordinal)) ShowReport(report, quests);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            if (string.Equals(path, SavePath, StringComparison.Ordinal))
+            {
+                Checks.Clear();
+                Status = L.T("Ошибка");
+                Checks.Add(new SaveDoctorCheckRow("×", L.T("СТРУКТУРНАЯ ПРОВЕРКА"), exception.Message, SaveDoctorStatus.Error));
+                HasReport = true;
+            }
+        }
+        finally
+        {
+            IsAnalyzing = false;
+        }
+
+        // The selection changed while the old file was being read: analyse what is selected now.
+        if (!string.Equals(path, SavePath, StringComparison.Ordinal)) await AnalyzeAsync();
+    }
+
+    private void ShowReport(SaveDoctorReport report, QuestDoctorReport quests)
+    {
+        {
             if (report.Overview is { } overview)
             {
                 Checks.Add(new SaveDoctorCheckRow("✓", L.T("СТРУКТУРНАЯ ПРОВЕРКА"),
@@ -159,23 +183,6 @@ public sealed class SaveDoctorViewModel : ObservableViewModel
             Status = string.Empty;
             HasReport = true;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            if (string.Equals(path, SavePath, StringComparison.Ordinal))
-            {
-                Checks.Clear();
-                Status = L.T("Ошибка");
-                Checks.Add(new SaveDoctorCheckRow("×", L.T("СТРУКТУРНАЯ ПРОВЕРКА"), exception.Message, SaveDoctorStatus.Error));
-                HasReport = true;
-            }
-        }
-        finally
-        {
-            IsAnalyzing = false;
-        }
-
-        // The selection changed while the old file was being read: analyse what is selected now.
-        if (!string.Equals(path, SavePath, StringComparison.Ordinal)) await AnalyzeAsync();
     }
 
     private void AddQuestRows(QuestDoctorReport quests)

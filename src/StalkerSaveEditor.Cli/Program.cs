@@ -17,39 +17,7 @@ internal static partial class Program
 
     internal static int Main(string[] args)
     {
-        if (args is ["--steam-native-worker"])
-        {
-            return RunWorker(SteamNativeWorkerHost.RunAsync);
-        }
-
-        if (args.Length >= 2 && args[0] == "--steam-native-op" && args[1] == "session")
-        {
-            var appId = ReadAppId(args[2..]);
-            return appId is null
-                ? 2
-                : RunWorker(() => SteamNativeWorkerHost.RunGameSessionAsync(appId.Value));
-        }
-
-        if (args is ["--steam-native-op", "achievements", "--app-id", var appIdText]
-            && int.TryParse(appIdText, NumberStyles.None, CultureInfo.InvariantCulture, out var listAppId)
-            && listAppId > 0)
-        {
-            return RunWorker(() => SteamAchievementsWorkerHost.RunAchievementsAsync(listAppId));
-        }
-
-        if (args is ["--steam-native-op", "achievement", "--app-id", var setAppIdText, "--name", var apiName, "--achieved", "1"]
-            && int.TryParse(setAppIdText, NumberStyles.None, CultureInfo.InvariantCulture, out var unlockAppId)
-            && unlockAppId > 0)
-        {
-            return RunWorker(() => SteamAchievementsWorkerHost.RunAchievementAsync(unlockAppId, apiName, achieved: true));
-        }
-
-        if (args is ["--steam-native-op", "achievement", "--app-id", var clearAppIdText, "--name", var clearApiName, "--achieved", "0"]
-            && int.TryParse(clearAppIdText, NumberStyles.None, CultureInfo.InvariantCulture, out var clearAppId)
-            && clearAppId > 0)
-        {
-            return RunWorker(() => SteamAchievementsWorkerHost.RunAchievementAsync(clearAppId, clearApiName, achieved: false));
-        }
+        if (SteamWorkerCommandLine.TryRun(args, out var workerExit)) return workerExit;
 
         try
         {
@@ -82,19 +50,6 @@ internal static partial class Program
     /// Steam worker modes talk to the editor over pipes. A failure they did not report themselves must still end as
     /// one line on stderr and a non-zero exit code, not as an unhandled-exception dump.
     /// </summary>
-    private static int RunWorker(Func<Task<int>> worker)
-    {
-        try
-        {
-            return worker().GetAwaiter().GetResult();
-        }
-        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException)
-        {
-            Console.Error.WriteLine("Error: " + exception.Message);
-            return 1;
-        }
-    }
-
     private static int RunCommand(string[] args)
     {
         if (args is ["version"])
@@ -136,19 +91,6 @@ internal static partial class Program
     {
         Console.Error.WriteLine(Usage);
         return 2;
-    }
-
-    private static int? ReadAppId(string[] args)
-    {
-        if (args.Length != 2 || args[0] != "--app-id" ||
-            !int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out var appId) ||
-            appId <= 0)
-        {
-            Console.Error.WriteLine("Usage: StalkerSaveEditor.Cli --steam-native-op session --app-id <positive-id>");
-            return null;
-        }
-
-        return appId;
     }
 
     private enum ReadMode

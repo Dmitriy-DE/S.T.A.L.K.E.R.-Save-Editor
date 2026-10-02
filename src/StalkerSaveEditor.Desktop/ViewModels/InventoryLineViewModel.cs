@@ -12,6 +12,7 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     private string _placement;
     private bool _isDeleted;
     private bool _isSelected;
+    private int _groupSize = 1;
 
     public InventoryLineViewModel(
         string name,
@@ -86,7 +87,7 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         {
             if (upgradeViewModels.All(u => u.Key != key))
             {
-                var upgVm = new UpgradeItemViewModel(key, UpgradeName(key), L.T("Установленный апгрейд"), isInstalled: true, canEditUpgrades, UpgradesDisabledReason);
+                var upgVm = new UpgradeItemViewModel(key, SaveNaming.UpgradeName(releaseId, key, UpgradeName(key)), L.T("Установленный апгрейд"), isInstalled: true, canEditUpgrades, UpgradesDisabledReason);
                 upgVm.PropertyChanged += (_, _) => OnPropertyChanged(nameof(UpgradeItems));
                 upgradeViewModels.Add(upgVm);
             }
@@ -168,9 +169,20 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     }
 
     /// <summary>Installed upgrades differ from the save as a set (the save keeps install order, the UI tree order).</summary>
-    public bool UpgradesChanged =>
-        CanEditUpgrades && HasUpgrades &&
-        !UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).ToHashSet(StringComparer.Ordinal).SetEquals(OriginalUpgrades);
+    public bool UpgradesChanged
+    {
+        get
+        {
+            if (!CanEditUpgrades || !HasUpgrades) return false;
+            // Every upgrade of the save has a row, so the set changed exactly when some row was switched.
+            foreach (var upgrade in UpgradeItems)
+            {
+                if (upgrade.IsInstalled != upgrade.OriginalInstalled) return true;
+            }
+
+            return false;
+        }
+    }
 
     /// <summary>Upgrades to write: the save's own order for kept ones, newly installed ones appended (install order).</summary>
     public List<string> UpgradesToWrite()
@@ -228,10 +240,75 @@ public sealed class InventoryLineViewModel : ObservableViewModel
         }
     }
 
+    /// <summary>
+    /// How many identical single objects this row stands for. The games show grenades, medkits and the like as one
+    /// pile although each is an object of its own; the list does the same and keeps the others out of sight.
+    /// </summary>
+    public int GroupSize
+    {
+        get => _groupSize;
+        set
+        {
+            if (!SetProperty(ref _groupSize, Math.Max(1, value))) return;
+            OnPropertyChanged(nameof(CountDisplay));
+            OnPropertyChanged(nameof(QuantityDisplay));
+            OnPropertyChanged(nameof(QuantityNote));
+        }
+    }
+
+    /// <summary>Rows with the same key are one pile; null for a real stack (it has its own count) and for removed rows.</summary>
+    internal string? GroupKey => OriginalCount is null && !_isDeleted
+        ? string.Join('|', TypeKey, _conditionPercent, _placement, string.Join(',', UpgradeItems.Where(upgrade => upgrade.IsInstalled).Select(upgrade => upgrade.Key)))
+        : null;
+
+    /// <summary>
+    /// The rows to show for <paramref name="items"/>: identical single objects (two RGD-5 grenades) become one row
+    /// with a count, as in the game's own inventory. The selected object stays the visible one of its pile.
+    /// </summary>
+    internal static List<InventoryLineViewModel> GroupPiles(IEnumerable<InventoryLineViewModel> items, InventoryLineViewModel? selected)
+    {
+        var shown = new List<InventoryLineViewModel>();
+        var piles = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            item.GroupSize = 1;
+            if (item.GroupKey is not { } key)
+            {
+                shown.Add(item);
+            }
+            else if (!piles.TryGetValue(key, out var index))
+            {
+                piles[key] = shown.Count;
+                shown.Add(item);
+            }
+            else
+            {
+                var size = shown[index].GroupSize + 1;
+                if (ReferenceEquals(item, selected))
+                {
+                    shown[index].GroupSize = 1;
+                    shown[index] = item;
+                }
+
+                shown[index].GroupSize = size;
+            }
+        }
+
+        return shown;
+    }
+
+    public string QuantityDisplay => OriginalCount?.ToString(CultureInfo.CurrentCulture)
+        ?? (_groupSize > 1 ? _groupSize.ToString(CultureInfo.CurrentCulture) : "—");
+
+    public string QuantityNote => _groupSize > 1
+        ? L.T("Одинаковых предметов: {0}. Каждый — отдельный объект: число меняется кнопками «Добавить предмет» и «Удалить предмет».", _groupSize)
+        : CountDisabledReason;
+
     public string CountDisplay
     {
         get
         {
+            if (_groupSize > 1) return $"× {_groupSize}";
             if (uint.TryParse(_countInput, NumberStyles.None, CultureInfo.InvariantCulture, out var c) && c > 1)
             {
                 return $"× {c}";

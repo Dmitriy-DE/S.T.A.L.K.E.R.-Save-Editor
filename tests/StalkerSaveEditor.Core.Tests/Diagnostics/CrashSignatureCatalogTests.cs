@@ -72,4 +72,21 @@ public sealed class CrashSignatureCatalogTests
             directory.Delete(recursive: true);
         }
     }
+
+    [Theory]
+    [InlineData("Can't find model file 'monsters\\up_monsters\\pseudodog_noah.ogf'.", "cop", "any.missing-model")]
+    [InlineData("Can't open section 'wpn_pm_actor'", "cop", "any.missing-section")]
+    [InlineData("Can't find variable night_vision in [device_torch]", "soc", "any.missing-config-value")]
+    [InlineData("[error]Arguments : string table xml file not found string_table_includes.xml", "soc", "any.missing-string-table")]
+    [InlineData("[error]Expression    : hFile>0\n[error]Function      : FileDownload", "cs", "any.config-not-opened")]
+    public void A_damaged_installation_is_recognised_in_every_game(string log, string game, string id)
+    {
+        var match = CrashSignatureCatalog.Match(log, game);
+        Assert.Equal(id, match?.Id);
+        Assert.Equal(CrashAdvice.RepairInstallation, match!.Advice);
+    }
+
+    [Fact]
+    public void A_crash_a_fix_explains_is_named_before_the_general_missing_file() =>
+        Assert.Equal("cs.missing-backpack-model", CrashSignatureCatalog.Match(@"Can't find model file 'dynamics\equipments\item_rukzak.ogf'", "cs")?.Id);
 }

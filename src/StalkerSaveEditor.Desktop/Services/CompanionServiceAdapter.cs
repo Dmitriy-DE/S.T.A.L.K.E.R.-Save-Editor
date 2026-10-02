@@ -74,10 +74,12 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     {
         var game = ParseGame(gameReleaseId);
         var installer = CreateInstaller();
-        await Task.Yield(); // keep async signature; installer is sync
+        var directory = DirectoryFor(gameReleaseId);
         try
         {
-            var status = installer.GetStatus(game, DirectoryFor(gameReleaseId));
+            // The status check opens the game's archives: seconds of work that used to run on the interface thread
+            // behind a Task.Yield, at every start.
+            var status = await Task.Run(() => installer.GetStatus(game, directory), ct);
             return MapStatus(status);
         }
         catch (Exception ex)
@@ -90,8 +92,8 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     {
         var game = ParseGame(gameReleaseId);
         var installer = CreateInstaller();
-        await Task.Yield();
-        var result = installer.Install(game, DirectoryFor(gameReleaseId));
+        var directory = DirectoryFor(gameReleaseId);
+        var result = await Task.Run(() => installer.Install(game, directory), ct);
         return result.Success;
     }
 
@@ -99,8 +101,8 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     {
         var game = ParseGame(gameReleaseId);
         var installer = CreateInstaller();
-        await Task.Yield();
-        var result = installer.Uninstall(game, DirectoryFor(gameReleaseId));
+        var directory = DirectoryFor(gameReleaseId);
+        var result = await Task.Run(() => installer.Uninstall(game, directory), ct);
         return result.Success;
     }
 
@@ -207,8 +209,8 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     {
         var game = ParseGame(gameReleaseId);
         var installer = CreateInstaller();
-        await Task.Yield();
-        var status = installer.GetStatus(game, DirectoryFor(gameReleaseId));
+        var directory = DirectoryFor(gameReleaseId);
+        var status = await Task.Run(() => installer.GetStatus(game, directory), ct);
         return status.Issues;
     }
 

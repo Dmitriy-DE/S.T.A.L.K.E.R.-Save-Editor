@@ -18,7 +18,6 @@ public sealed class EncyclopediaItemViewModel : ObservableViewModel
         string releaseId,
         ItemDefinition definition,
         string displayName,
-        byte[]? iconPng,
         Func<bool> canAdd,
         Func<bool> canSpawn,
         Action add,
@@ -27,7 +26,6 @@ public sealed class EncyclopediaItemViewModel : ObservableViewModel
         ReleaseId = releaseId;
         Definition = definition;
         DisplayName = displayName;
-        IconPng = iconPng;
         _canAdd = canAdd;
         _canSpawn = canSpawn;
         _add = add;
@@ -43,7 +41,6 @@ public sealed class EncyclopediaItemViewModel : ObservableViewModel
     public string? Category => Definition.Category;
     public double? Weight => Definition.UnitWeight;
     public int? Cost => Definition.Cost;
-    public byte[]? IconPng { get; }
     public bool CanAddToSave => _canAddToSave;
     public bool CanSpawnViaCompanion => _canSpawnViaCompanion;
     public string AddDisabledReason => CanAddToSave ? string.Empty : L.T("Выберите совместимое сохранение с поддержкой добавления предметов.");
@@ -179,17 +176,19 @@ public sealed class EncyclopediaViewModel : ObservableViewModel
         StatusMessage = content.Status.ModName is { Length: > 0 } modName
             ? L.T("Источник: установленные файлы игры и мод «{0}».", modName)
             : L.T("Источник: файлы выбранной установленной игры.");
+        // The installed files name items in the language of that installation; the interface language comes first.
         var items = content.Bundle.Items.Items
-            .OrderBy(item => item.DisplayName ?? item.Key, StringComparer.CurrentCultureIgnoreCase)
-            .Select(item => new EncyclopediaItemViewModel(
+            .Select(item => (Item: item, Name: SaveNaming.ItemName(content.Status.ReleaseId, item.Key, item.DisplayName)))
+            .OrderBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(entry => (entry.Name, item: entry.Item))
+            .Select(entry => new EncyclopediaItemViewModel(
                 content.Status.ReleaseId,
-                item,
-                item.DisplayName ?? item.Key,
-                content.IconPng(item.Key),
+                entry.item,
+                entry.Name,
                 () => _canAdd(content.Status.ReleaseId),
                 () => _canSpawn(content.Status.ReleaseId),
-                () => _add(content.Status.ReleaseId, item.Key),
-                () => _spawn(content.Status.ReleaseId, item.Key)))
+                () => _add(content.Status.ReleaseId, entry.item.Key),
+                () => _spawn(content.Status.ReleaseId, entry.item.Key)))
             .ToArray();
         foreach (var item in items) Items.Add(item);
         OnPropertyChanged(nameof(HasItems));

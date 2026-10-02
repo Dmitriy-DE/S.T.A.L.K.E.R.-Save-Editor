@@ -6,10 +6,17 @@ namespace StalkerSaveEditor.Core.Tests.Formats.XRay;
 
 public sealed class XRayRelocationTests
 {
-    private static byte[] Destination(ushort gv, uint lv, string level, string point, byte[] tail)
+    private static byte[] Destination(ushort gv, uint lv, string level, string point, byte[] tail, bool shapes = true)
     {
         var data = new List<byte>();
-        data.AddRange(new byte[36]);                    // restrictor data before the block (varies)
+        data.AddRange(new byte[36]);                    // object and restrictor data before the shapes (varies)
+        if (shapes)
+        {
+            data.AddRange([1, 1]);                      // one shape, a box
+            foreach (var f in new[] { 2.2f, 0, 0, 0, 4.8f, 0, 0, 0, 2.2f, 1, 2, 3 }) data.AddRange(BitConverter.GetBytes(f));
+            data.Add(3);                                // restrictor type
+        }
+
         data.AddRange(BitConverter.GetBytes(gv));
         data.AddRange(BitConverter.GetBytes(lv));
         foreach (var f in new[] { -271.1f, -21.7f, -276.6f, 0f, -2.36f, 0f }) data.AddRange(BitConverter.GetBytes(f));
@@ -45,6 +52,28 @@ public sealed class XRayRelocationTests
         var found = XRayRelocation.FindDestination(state, 102);
 
         Assert.Equal("start_actor_02", found?.DestLevelPointName);
+    }
+
+    [Fact]
+    public void A_capitalised_level_name_is_read_whole()
+    {
+        // Shadow of Chernobyl spells levels "L02_Garbage". The reader used to reject the capital letter at the real
+        // place and accept the first later offset that parsed, reporting "arbage" with numbers read from the wrong bytes.
+        var state = Destination(253, 209876, "L02_Garbage", "start_actor_01", [0]);
+
+        var found = XRayRelocation.FindDestination(state, 118);
+
+        Assert.Equal("L02_Garbage", found?.DestLevelName);
+        Assert.Equal((ushort)253, found?.DestGameVertexId);
+        Assert.Equal(209876u, found?.DestLevelVertexId);
+    }
+
+    [Fact]
+    public void A_block_that_no_shape_list_leads_to_is_not_a_destination()
+    {
+        var state = Destination(473, 3366, "escape", "point", [0], shapes: false);
+
+        Assert.Null(XRayRelocation.FindDestination(state, 124));
     }
 
     [Fact]

@@ -93,112 +93,59 @@ public sealed partial class MainWindow : Window
         // Screens Container
         var screens = new Grid();
 
-        // 1. Overview
-        var overview = OverviewView.Build();
-        overview.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowOverviewScreen)));
-        screens.Children.Add(overview);
-
-        // 2. Inventory
-        var inventory = InventoryView.Build(vm);
-        inventory.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowInventoryScreen)));
-        screens.Children.Add(inventory);
-
-        // 3. Factions
-        var factions = FactionsView.Build(vm);
-        factions.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowFactionsScreen)));
-        screens.Children.Add(factions);
-
-        // 4. Stashes
-        var stashes = StashesView.Build(vm);
-        stashes.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowStashesScreen)));
-        screens.Children.Add(stashes);
-
-        // 5. Transitions
-        var transitions = TransitionsView.Build();
-        transitions.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowTransitionsScreen)));
-        screens.Children.Add(transitions);
-
-        // 6. Backups
-        var backups = BackupsView.Build(vm);
-        backups.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowBackupsScreen)));
-        screens.Children.Add(backups);
-
-        var compare = CompareView.Build(vm.Compare);
-        compare.Bind(Visual.IsVisibleProperty,
-            new Binding(nameof(SaveLibraryViewModel.ShowCompareScreen)) { Source = vm });
-        screens.Children.Add(compare);
-
-        var timeline = TimelineView.Build(vm.Timeline);
-        timeline.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowTimelineScreen)) { Source = vm });
-        screens.Children.Add(timeline);
-        if (!HostPlatform.IsBrowser)
+        // A screen is built when it is first shown: twenty screens built at start, each following the selected save
+        // while hidden, made opening a large save freeze the window.
+        void Screen(string shows, Func<Control> build)
         {
-            var encyclopedia = EncyclopediaView.Build(vm.Encyclopedia);
-            encyclopedia.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowEncyclopediaScreen)) { Source = vm });
-            screens.Children.Add(encyclopedia);
+            Control? screen = null;
+            var property = typeof(SaveLibraryViewModel).GetProperty(shows)!;
+            void Ensure()
+            {
+                if (screen is not null || property.GetValue(vm) is not true) return;
+                screen = build();
+                screen.Bind(Visual.IsVisibleProperty, new Binding(shows) { Source = vm });
+                screens.Children.Add(screen);
+            }
+
+            vm.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == shows) Ensure();
+            };
+            Ensure();
         }
 
-        // 7. Settings
+        Screen(nameof(SaveLibraryViewModel.ShowOverviewScreen), OverviewView.Build);
+        Screen(nameof(SaveLibraryViewModel.ShowInventoryScreen), () => InventoryView.Build(vm));
+        Screen(nameof(SaveLibraryViewModel.ShowFactionsScreen), () => FactionsView.Build(vm));
+        Screen(nameof(SaveLibraryViewModel.ShowStashesScreen), () => StashesView.Build(vm));
+        Screen(nameof(SaveLibraryViewModel.ShowTransitionsScreen), TransitionsView.Build);
+        Screen(nameof(SaveLibraryViewModel.ShowBackupsScreen), () => BackupsView.Build(vm));
+        Screen(nameof(SaveLibraryViewModel.ShowCompareScreen), () => CompareView.Build(vm.Compare));
+        Screen(nameof(SaveLibraryViewModel.ShowTimelineScreen), () => TimelineView.Build(vm.Timeline));
         var screenshotSettingsCategory = SaveLibraryViewModel.InteractiveApp
             ? null
             : Environment.GetEnvironmentVariable("STALKER_EDITOR_SCREENSHOT_SETTINGS_CATEGORY");
-        var settings = SettingsView.Build(
+        Screen(nameof(SaveLibraryViewModel.ShowSettingsScreen), () => SettingsView.Build(
             vm.Settings,
             vm.Diagnostics,
             tab => vm.SelectedTab = tab,
-            screenshotSettingsCategory);
-        settings.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowSettingsScreen)));
-        screens.Children.Add(settings);
-
-        // 8. Capabilities
-        var capabilities = CapabilitiesView.Build(vm.Capabilities);
-        capabilities.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCapabilitiesScreen)));
-        screens.Children.Add(capabilities);
-
-        // 9. Companion
-        var companion = new CompanionView { DataContext = vm.Companion };
-        // DataContext is the screen's own view model; visibility belongs to the window view model.
-        companion.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCompanionScreen)) { Source = vm });
-        screens.Children.Add(companion);
-
-        // 10. Cloud
-        var cloud = new CloudView { DataContext = vm.Cloud };
-        // DataContext is the screen's own view model; visibility belongs to the window view model.
-        cloud.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowCloudScreen)) { Source = vm });
-        screens.Children.Add(cloud);
-        // 10. Achievements
-        var achievements = new AchievementsView { DataContext = vm.Achievements };
-        // DataContext is the screen's own view model; visibility belongs to the window view model.
-        achievements.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowAchievementsScreen)) { Source = vm });
-        screens.Children.Add(achievements);
-        // Game Doctor operates on an explicitly selected local installation.
+            screenshotSettingsCategory));
+        Screen(nameof(SaveLibraryViewModel.ShowCapabilitiesScreen), () => CapabilitiesView.Build(vm.Capabilities));
+        // These screens have a view model of their own as DataContext; visibility belongs to the window's.
+        Screen(nameof(SaveLibraryViewModel.ShowCompanionScreen), () => new CompanionView { DataContext = vm.Companion });
+        Screen(nameof(SaveLibraryViewModel.ShowCloudScreen), () => new CloudView { DataContext = vm.Cloud });
+        Screen(nameof(SaveLibraryViewModel.ShowAchievementsScreen), () => new AchievementsView { DataContext = vm.Achievements });
+        Screen(nameof(SaveLibraryViewModel.ShowUpdatesScreen), () => new UpdatesView { DataContext = vm.Updates });
         if (!HostPlatform.IsBrowser)
         {
-            var games = GamesOverviewView.Build(vm);
-            games.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGamesOverviewScreen)) { Source = vm });
-            screens.Children.Add(games);
-
-            var gameFixes = new GameFixesView(vm.GameFixes);
-            gameFixes.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGameFixesScreen)) { Source = vm });
-            screens.Children.Add(gameFixes);
-
-            var saveDoctor = new SaveDoctorView(vm.SaveDoctor);
-            saveDoctor.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowSaveDoctorScreen)) { Source = vm });
-            screens.Children.Add(saveDoctor);
-
-            var gameDoctor = new GameDoctorView(vm.GameDoctor);
-            gameDoctor.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowGameDoctorScreen)) { Source = vm });
-            screens.Children.Add(gameDoctor);
-
-            var toolkitEnvironment = new ToolkitEnvironmentView(vm.ToolkitEnvironment);
-            toolkitEnvironment.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowToolkitEnvironmentScreen)) { Source = vm });
-            screens.Children.Add(toolkitEnvironment);
+            // These work on local installations and files; the web edition has none.
+            Screen(nameof(SaveLibraryViewModel.ShowEncyclopediaScreen), () => EncyclopediaView.Build(vm.Encyclopedia));
+            Screen(nameof(SaveLibraryViewModel.ShowGamesOverviewScreen), () => GamesOverviewView.Build(vm));
+            Screen(nameof(SaveLibraryViewModel.ShowGameFixesScreen), () => new GameFixesView(vm.GameFixes));
+            Screen(nameof(SaveLibraryViewModel.ShowSaveDoctorScreen), () => new SaveDoctorView(vm.SaveDoctor));
+            Screen(nameof(SaveLibraryViewModel.ShowGameDoctorScreen), () => new GameDoctorView(vm.GameDoctor));
+            Screen(nameof(SaveLibraryViewModel.ShowToolkitEnvironmentScreen), () => new ToolkitEnvironmentView(vm.ToolkitEnvironment));
         }
-        // 10. Updates
-        var updates = new UpdatesView { DataContext = vm.Updates };
-        // DataContext is the screen's own view model; visibility belongs to the window view model.
-        updates.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveLibraryViewModel.ShowUpdatesScreen)) { Source = vm });
-        screens.Children.Add(updates);
 
         contentGrid.Children.Add(screens);
 

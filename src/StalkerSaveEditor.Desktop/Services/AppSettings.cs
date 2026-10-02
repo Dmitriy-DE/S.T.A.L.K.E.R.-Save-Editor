@@ -18,7 +18,11 @@ public sealed record AppSettings
     /// <summary>Visual preferences are applied live; ids keep the settings stable across languages.</summary>
     public string ThemeId { get; init; } = "zone";
     public string AccentId { get; init; } = "amber";
-    public int UiScalePercent { get; init; } = 100;
+    /// <summary>0 means "fit the screen": the window picks a scale from the display it opens on.</summary>
+    public int UiScalePercent { get; init; }
+
+    /// <summary>The navigation is folded to icons; null until the user folds or unfolds it.</summary>
+    public bool? NavigationCollapsed { get; init; }
 
     /// <summary>Send the redacted log to the developer once a day and after a crash.</summary>
     public bool SendReports { get; init; } = true;

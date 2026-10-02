@@ -262,8 +262,8 @@ public static class GameContentService
             var png = crop.ToPng();
             try
             {
-                Directory.CreateDirectory(cacheDirectory);
-                File.WriteAllBytes(cachePath, png);
+                // Atomic: a cache file cut short by a crash would be served as this icon from then on.
+                Storage.AtomicFile.WriteAllBytes(cachePath, png);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {

@@ -35,17 +35,21 @@ public sealed class StashItemViewModel : ObservableViewModel
 
 public sealed class StashViewModel : ObservableViewModel
 {
-    public StashViewModel(ushort handle, string name, string? level, IEnumerable<StashItemViewModel> items)
+    public StashViewModel(ushort handle, string name, string? level, IEnumerable<StashItemViewModel> items, string? objectName = null)
     {
         Handle = handle;
         Name = string.IsNullOrWhiteSpace(name) ? L.T("Тайник 0x{0:X4}", handle) : name;
         Level = string.IsNullOrWhiteSpace(level) ? L.T("Неизвестно") : level;
+        ObjectName = objectName ?? string.Empty;
         Items = new ObservableCollection<StashItemViewModel>(items);
     }
 
     public ushort Handle { get; }
     public string Name { get; }
     public string Level { get; }
+
+    /// <summary>The box's name inside the save, shown small under the readable one.</summary>
+    public string ObjectName { get; }
     public ObservableCollection<StashItemViewModel> Items { get; }
 
     /// <summary>Items queued to be put or created in this box on save.</summary>

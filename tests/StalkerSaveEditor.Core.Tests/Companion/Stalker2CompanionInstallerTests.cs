@@ -54,6 +54,25 @@ public sealed class Stalker2CompanionInstallerTests : IDisposable
     }
 
     [Fact]
+    public void Reinstalling_replaces_the_installed_copy_and_leaves_no_working_folders()
+    {
+        var mods = AddUe4ss();
+        var installer = new Stalker2CompanionInstaller(ModsRoot());
+        installer.Install(_game);
+        var stale = Directory.EnumerateFiles(mods, "*", SearchOption.AllDirectories).First(file => file.EndsWith(".lua", StringComparison.Ordinal));
+        File.WriteAllText(stale, "-- edited after the first install");
+        // Left behind by an interrupted earlier run: both must be cleared, not mistaken for the mod.
+        Directory.CreateDirectory(Path.Combine(mods, "SaveEditorCompanion.installing"));
+        Directory.CreateDirectory(Path.Combine(mods, "SaveEditorCompanion.previous"));
+
+        var status = installer.Install(_game);
+
+        Assert.True(status.ModInstalled);
+        Assert.DoesNotContain("edited after the first install", File.ReadAllText(stale), StringComparison.Ordinal);
+        Assert.Equal("SaveEditorCompanion", Path.GetFileName(Assert.Single(Directory.EnumerateDirectories(mods))));
+    }
+
+    [Fact]
     public void Refuses_to_replace_a_folder_it_did_not_create()
     {
         var mods = AddUe4ss();

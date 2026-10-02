@@ -265,9 +265,15 @@ public sealed class SaveLibraryEditingTests
         Assert.NotEmpty(viewModel.SelectedSave!.Stashes);
         var stashItem = viewModel.SelectedSave.Stashes.First().Items.First();
 
-        viewModel.TakeStashItem(stashItem);
+        // What a click on the list's checkbox does: the binding sets the flag, the handler records the draft.
+        stashItem.IsTaken = true;
+        viewModel.StashSelectionChanged();
         Assert.True(stashItem.IsTaken);
         Assert.True(viewModel.CanSave);
+        viewModel.UndoCommand.Execute(null);
+        Assert.False(stashItem.IsTaken);
+        viewModel.RedoCommand.Execute(null);
+        Assert.True(stashItem.IsTaken);
 
         viewModel.SaveCommand.Execute(null);
 
@@ -469,6 +475,38 @@ public sealed class SaveLibraryEditingTests
         Assert.False(viewModel.SelectedSave!.CanEditUpgrades);
         Assert.NotNull(viewModel.SelectedSave.UpgradesDisabledReason);
         Assert.All(viewModel.SelectedInventory, item => Assert.False(item.CanEditUpgrades));
+    }
+
+    [Fact]
+    public async Task The_background_save_writes_the_same_result_and_releases_the_screens()
+    {
+        using var directory = new TemporaryDirectory();
+        Directory.CreateDirectory(Path.Combine(directory.Path, "saves"));
+        var path = Path.Combine(directory.Path, "saves", "stack.sav");
+        File.WriteAllBytes(path, ReadXRayFixture());
+        var viewModel = new SaveLibraryViewModel(
+            discoverLocalSaves: false,
+            backupDirectoryProvider: () => Path.Combine(directory.Path, "backups"),
+            draftsDirectory: Path.Combine(directory.Path, "drafts"));
+        Assert.True(viewModel.AddPreviewSave(path));
+        var item = viewModel.SelectedInventory.First(line => line.CanEditCount);
+        item.CountInput = "7";
+        viewModel.MoneyInput = "4321";
+
+        Assert.True(viewModel.CanSave, viewModel.SaveDisabledReason);
+        var saving = viewModel.SaveSelectedAsync();
+        Assert.True(viewModel.IsSaving || saving.IsCompleted);
+        Assert.False(viewModel.CanSave);
+        await saving;
+
+        Assert.False(viewModel.IsSaving);
+        Assert.StartsWith("Сохранено успешно", viewModel.StatusMessage, StringComparison.Ordinal);
+        var written = XRayTrilogyReader.FromBytes(File.ReadAllBytes(path));
+        Assert.Equal(4321u, written.Money);
+        Assert.Equal(7u, (uint)written.Inventory.First(entry => entry.Handle == item.Handle).Count!.Value);
+        Assert.Equal(4321u, viewModel.SelectedSave!.Money);
+        Assert.False(viewModel.HasDraftChanges);
+        Assert.NotEmpty(Directory.EnumerateFiles(Path.Combine(directory.Path, "backups"), "*", SearchOption.AllDirectories));
     }
 
     private static byte[] ReadXRayFixture() => ReadFixture(Path.Combine("writer-stacks", "xray-stack-cop-source.sav"));

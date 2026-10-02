@@ -27,7 +27,7 @@ public sealed class CompanionView : UserControl
             Padding = new Thickness(24, 20),
         };
 
-        var mainStack = new StackPanel { Spacing = 20, MaxWidth = 1000, HorizontalAlignment = HorizontalAlignment.Left };
+        var mainStack = new StackPanel { Spacing = 20, MaxWidth = 1500 };
 
         // 1. Header & Game Selector
         var headerPanel = new StackPanel { Spacing = 6 };

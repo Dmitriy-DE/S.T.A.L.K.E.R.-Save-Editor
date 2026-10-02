@@ -144,6 +144,22 @@ public sealed class EditServiceTests
     }
 
     [Fact]
+    public void A_parse_session_holds_only_the_latest_images()
+    {
+        using var session = StalkerSaveEditor.Core.Formats.ParseSession.Begin();
+        string Parse(byte value) => StalkerSaveEditor.Core.Formats.ParseSession.GetOrParse<string>("test", [value], data => data[0].ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        for (byte image = 1; image <= 5; image++) Assert.Equal(image.ToString(System.Globalization.CultureInfo.InvariantCulture), Parse(image));
+        Assert.Equal(StalkerSaveEditor.Core.Formats.ParseSession.MaximumModels, session.ModelCount);
+        Assert.Equal(5, session.Misses);
+
+        Parse(5);                       // still held
+        Assert.Equal(1, session.Hits);
+        Assert.Equal("1", Parse(1));    // dropped: parsed again, same answer
+        Assert.Equal(6, session.Misses);
+    }
+
+    [Fact]
     public void A_failed_parse_is_not_remembered_and_sessions_do_not_leak_between_calls()
     {
         using (var session = StalkerSaveEditor.Core.Formats.ParseSession.Begin())

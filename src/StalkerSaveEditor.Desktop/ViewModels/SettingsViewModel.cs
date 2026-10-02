@@ -31,7 +31,9 @@ public sealed class SettingsViewModel : ObservableViewModel
     private string _themeId = "zone";
     private string _accentId = "amber";
     private int _uiScalePercent = 100;
+    private static readonly int[] FixedUiScales = [100, 110, 125, 150, 175, 200];
     private ScaleTransform _uiScaleTransform = new(1, 1);
+    private int _autoUiScalePercent = 100;
 
     public bool SendReports
     {
@@ -100,8 +102,8 @@ public sealed class SettingsViewModel : ObservableViewModel
         _themeId = NormalizeThemeId(_stored.ThemeId);
         _accentId = NormalizeAccentId(_stored.AccentId);
         _uiScalePercent = NormalizeUiScale(_stored.UiScalePercent);
-        _uiScaleTransform = new ScaleTransform(_uiScalePercent / 100d, _uiScalePercent / 100d);
-        StalkerTheme.ApplyAppearance(_themeId, _accentId, _uiScalePercent);
+        _uiScaleTransform = new ScaleTransform(UiScaleFactor, UiScaleFactor);
+        StalkerTheme.ApplyAppearance(_themeId, _accentId, EffectiveUiScalePercent);
 
         Themes =
         [
@@ -116,7 +118,11 @@ public sealed class SettingsViewModel : ObservableViewModel
             new AppearanceOption("blue", L.T("Синий")),
             new AppearanceOption("rust", L.T("Ржавый")),
         ];
-        UiScales = [new UiScaleOption(100, "100%"), new UiScaleOption(125, "125%"), new UiScaleOption(150, "150%")];
+        UiScales =
+        [
+            new UiScaleOption(0, L.T("По размеру экрана")),
+            .. FixedUiScales.Select(percent => new UiScaleOption(percent, percent + "%")),
+        ];
 
         SaveDirectories = new ObservableCollection<string>(saveDirectories);
         _backupDirectory = backupDirectory;
@@ -181,14 +187,58 @@ public sealed class SettingsViewModel : ObservableViewModel
         {
             var normalized = NormalizeUiScale(value);
             if (!SetProperty(ref _uiScalePercent, normalized)) return;
-            _uiScaleTransform = new ScaleTransform(normalized / 100d, normalized / 100d);
-            OnPropertyChanged(nameof(UiScaleFactor));
-            OnPropertyChanged(nameof(UiScaleTransform));
+            ScaleChanged();
             ApplyVisualPreferences();
         }
     }
 
-    public double UiScaleFactor => _uiScalePercent / 100d;
+    /// <summary>What "fit the screen" means on the display the window is on; the window reports it.</summary>
+    public int AutoUiScalePercent
+    {
+        get => _autoUiScalePercent;
+        set
+        {
+            if (!SetProperty(ref _autoUiScalePercent, Math.Clamp(value, 100, 200)) || _uiScalePercent != 0) return;
+            ScaleChanged();
+            StalkerTheme.ApplyAppearance(ThemeId, AccentId, EffectiveUiScalePercent);
+        }
+    }
+
+    public int EffectiveUiScalePercent => _uiScalePercent == 0 ? _autoUiScalePercent : _uiScalePercent;
+
+    /// <summary>
+    /// Scale for a display of this width in device-independent pixels. The interface is drawn for a 1280-wide window;
+    /// on Full HD at 100% it is readable only when enlarged.
+    /// </summary>
+    public static int AutoScaleFor(double screenWidth) => screenWidth switch
+    {
+        >= 3400 => 175,
+        >= 2500 => 150,
+        >= 1800 => 125,
+        _ => 100,
+    };
+
+    private void ScaleChanged()
+    {
+        _uiScaleTransform = new ScaleTransform(UiScaleFactor, UiScaleFactor);
+        OnPropertyChanged(nameof(EffectiveUiScalePercent));
+        OnPropertyChanged(nameof(UiScaleFactor));
+        OnPropertyChanged(nameof(UiScaleTransform));
+    }
+
+    /// <summary>Null until the user folds or unfolds the navigation; then the choice is kept.</summary>
+    public bool? NavigationCollapsed
+    {
+        get => _stored.NavigationCollapsed;
+        set
+        {
+            if (_stored.NavigationCollapsed == value) return;
+            lock (_persistGate) _stored = _stored with { NavigationCollapsed = value };
+            ApplyVisualPreferences();
+        }
+    }
+
+    public double UiScaleFactor => EffectiveUiScalePercent / 100d;
     public ScaleTransform UiScaleTransform => _uiScaleTransform;
 
     public RelayCommand AddSaveDirectoryCommand { get; }
@@ -322,7 +372,7 @@ public sealed class SettingsViewModel : ObservableViewModel
 
     private void ApplyVisualPreferences()
     {
-        StalkerTheme.ApplyAppearance(ThemeId, AccentId, UiScalePercent);
+        StalkerTheme.ApplyAppearance(ThemeId, AccentId, EffectiveUiScalePercent);
         lock (_persistGate)
         {
             _stored = _stored with { ThemeId = ThemeId, AccentId = AccentId, UiScalePercent = UiScalePercent };
@@ -339,7 +389,7 @@ public sealed class SettingsViewModel : ObservableViewModel
 
     private static string NormalizeThemeId(string? id) => id is "clear-sky" or "day" ? id : "zone";
     private static string NormalizeAccentId(string? id) => id is "teal" or "blue" or "rust" ? id : "amber";
-    private static int NormalizeUiScale(int percent) => percent is 125 or 150 ? percent : 100;
+    private static int NormalizeUiScale(int percent) => FixedUiScales.Contains(percent) ? percent : 0;
 
     /// <summary>Writes settings.json (only in the interactive app; tests and screenshots have no path).</summary>
     private void Persist()

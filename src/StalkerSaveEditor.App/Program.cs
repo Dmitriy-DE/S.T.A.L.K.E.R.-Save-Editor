@@ -35,9 +35,10 @@ internal static class Program
             return;
         }
 
-        if (args is ["--steam-native-worker"])
+        // A Steam worker child is this same executable: it must answer on its pipes and never reach the UI below.
+        if (SteamWorkerCommandLine.TryRun(args, out var workerExit))
         {
-            SteamNativeWorkerHost.RunAsync().GetAwaiter().GetResult();
+            Environment.Exit(workerExit);
             return;
         }
 
@@ -89,28 +90,8 @@ internal static class Program
             return;
         }
 
-        if (args.Length >= 2 && args[0] == "--measure-ui")
-        {
-            var seconds = args.Length > 2 && int.TryParse(args[2], out var parsed) ? parsed : 10;
-            var language = args.Length > 3 ? args[3] : null;
-            Environment.Exit(MeasureUi(args[1], seconds, language));
-            return;
-        }
-
-        if (args.Length > 0 && args[0] == "--screenshot-companion")
-        {
-            var outPath = args.Length > 1 ? args[1] : "companion.png";
-            RenderCompanionScreenshot(outPath);
-            return;
-        }
-
-        if (args.Length > 0 && args[0] == "--screenshot-wizard")
-        {
-            var outPath = args.Length > 1 ? args[1] : "first-launch-wizard.png";
-            RenderWizardScreenshot(outPath);
-            return;
-        }
-
+        // The checks below run in the packaged application (CI starts the built package with them): no window, no sound.
+        Services.GameAudioService.Silent = true;
         if (args.Length > 0 && args[0] == "--screenshot")
         {
             string? outputPath = null;
@@ -142,6 +123,7 @@ internal static class Program
             return;
         }
 
+        Services.GameAudioService.Silent = false;
         ViewModels.SaveLibraryViewModel.InteractiveApp = true;
         Core.Diagnostics.CrashReporter.Install();
         Core.Diagnostics.AppLog.Info($"start {Core.ApplicationVersion.Current} on {System.Runtime.InteropServices.RuntimeInformation.OSDescription} {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}, .NET {Environment.Version}, UI culture {System.Globalization.CultureInfo.CurrentUICulture.Name}");
@@ -169,128 +151,6 @@ internal static class Program
         window.Show();
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        using var frame = window.CaptureRenderedFrame()
-            ?? throw new InvalidOperationException("Avalonia headless renderer returned no frame.");
-
-        var fullPath = Path.GetFullPath(outputPath);
-        var parent = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
-        frame.Save(fullPath);
-        window.Close();
-    }
-
-    /// <summary>
-    /// ST-3: opens the app headless with one save selected (optionally after a language switch), walks the
-    /// main tabs, and reports the longest gap between 16 ms UI-thread ticks. Exit code 1 above 100 ms.
-    /// </summary>
-    private static int MeasureUi(string savePath, int seconds, string? language)
-    {
-        AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .SetupWithoutStarting();
-        if (language is not null) Services.I18nService.Instance.SetLanguage(language);
-
-        var clock = System.Diagnostics.Stopwatch.StartNew();
-        var last = clock.Elapsed;
-        var worst = TimeSpan.Zero;
-        var worstAt = string.Empty;
-        var phase = "window start";
-        var perPhase = new Dictionary<string, TimeSpan>(StringComparer.Ordinal);
-        var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Background, (_, _) =>
-        {
-            var now = clock.Elapsed;
-            var gap = now - last;
-            if (!perPhase.TryGetValue(phase, out var max) || gap > max) perPhase[phase] = gap;
-            if (gap > worst && phase != "window start")
-            {
-                worst = gap;
-                worstAt = phase;
-            }
-            last = now;
-        });
-        timer.Start();
-
-        var viewModel = new SaveLibraryViewModel(discoverLocalSaves: false);
-        var window = new MainWindow(viewModel);
-        window.Show();
-        Task opening = Task.CompletedTask;
-        var steps = new (string Name, Action Run)[]
-        {
-            ("open save", () => opening = viewModel.AddPreviewSaveAsync(savePath)),
-            ("inventory tab", () => viewModel.SelectedTab = AppTabs.Inventory),
-            ("stashes tab", () => viewModel.SelectedTab = AppTabs.Stashes),
-            ("overview tab", () => viewModel.SelectedTab = AppTabs.Overview),
-            ("inventory tab again", () => viewModel.SelectedTab = AppTabs.Inventory),
-        };
-        using var done = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
-        var index = 0;
-        var stepper = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) =>
-        {
-            if (index >= steps.Length || !opening.IsCompleted) return;
-            phase = steps[index].Name;
-            steps[index++].Run();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        });
-        stepper.Start();
-        var render = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) => AvaloniaHeadlessPlatform.ForceRenderTimerTick());
-        render.Start();
-        Dispatcher.UIThread.MainLoop(done.Token);
-        window.Close();
-
-        Console.WriteLine($"UI measure: {Path.GetFileName(savePath)}; language {language ?? "default"}; {seconds}s");
-        foreach (var (name, gap) in perPhase) Console.WriteLine($"  {name}: {gap.TotalMilliseconds:0} ms");
-        Console.WriteLine($"Longest UI-thread gap after the window is up: {worst.TotalMilliseconds:0} ms (during: {worstAt})");
-        return worst.TotalMilliseconds > 100 ? 1 : 0;
-    }
-
-    private static void RenderCompanionScreenshot(string outputPath)
-    {
-        AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .SetupWithoutStarting();
-
-        var viewModel = new CompanionViewModel();
-        var view = new Views.CompanionView { DataContext = viewModel };
-        var window = new Window
-        {
-            Width = 1000,
-            Height = 700,
-            Background = Styles.StalkerTheme.BrushBgBase,
-            Content = view,
-        };
-        window.Show();
-        Dispatcher.UIThread.RunJobs();
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        if (Environment.GetEnvironmentVariable("SE_DEBUG_LAYOUT") == "1")
-            foreach (var v in Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
-                if (v.Bounds.Width > 1000) Console.WriteLine($"{v.GetType().Name} {v.Bounds} depth");
-        using var frame = window.CaptureRenderedFrame()
-            ?? throw new InvalidOperationException("Avalonia headless renderer returned no frame.");
-
-        var fullPath = Path.GetFullPath(outputPath);
-        var parent = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
-        frame.Save(fullPath);
-        window.Close();
-    }
-
-    private static void RenderWizardScreenshot(string outputPath)
-    {
-        AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .SetupWithoutStarting();
-
-        var viewModel = new SaveLibraryViewModel(discoverLocalSaves: false);
-        var window = new MainWindow(viewModel);
-        window.Show();
-        Dispatcher.UIThread.RunJobs();
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        if (Environment.GetEnvironmentVariable("SE_DEBUG_LAYOUT") == "1")
-            foreach (var v in Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
-                if (v.Bounds.Width > 1000) Console.WriteLine($"{v.GetType().Name} {v.Bounds} depth");
         using var frame = window.CaptureRenderedFrame()
             ?? throw new InvalidOperationException("Avalonia headless renderer returned no frame.");
 

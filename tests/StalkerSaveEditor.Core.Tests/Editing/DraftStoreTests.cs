@@ -204,4 +204,25 @@ public sealed class DraftStoreTests
 
         public void Dispose() => Directory.Delete(Path, recursive: true);
     }
+
+    [Fact]
+    public void A_long_session_keeps_the_untouched_state_and_the_latest_steps_only()
+    {
+        var sha = new string('a', 64);
+        var journal = new DraftJournal([new EditPlan(sha)], 0);
+        for (uint money = 1; money <= DraftJournal.MaximumSteps + 50; money++) journal = journal.Record(new EditPlan(sha, money: money));
+
+        Assert.Equal(DraftJournal.MaximumSteps + 1, journal.Plans.Count);
+        Assert.Equal((uint)(DraftJournal.MaximumSteps + 50), journal.Current.Money);
+        Assert.Null(journal.Plans[0].Money);
+        Assert.Equal(51u, journal.Plans[1].Money);
+
+        // Undo still walks back one edit at a time and ends at the untouched save; a new edit after undo drops the redo tail.
+        var back = journal.Undo().Undo();
+        Assert.Equal((uint)(DraftJournal.MaximumSteps + 48), back.Current.Money);
+        var branched = back.Record(new EditPlan(sha, money: 7));
+        Assert.Equal(7u, branched.Current.Money);
+        Assert.False(branched.CanRedo);
+        Assert.Equal(DraftJournal.MaximumSteps, branched.Plans.Count);
+    }
 }

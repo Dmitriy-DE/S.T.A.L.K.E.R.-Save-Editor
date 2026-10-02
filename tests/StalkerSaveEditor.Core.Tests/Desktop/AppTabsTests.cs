@@ -24,7 +24,7 @@ public sealed class AppTabsTests
     [Fact]
     public void A_mistyped_screen_id_shows_the_overview_and_every_screen_has_a_title()
     {
-        using var vm = new SaveLibraryViewModel();
+        using var vm = new SaveLibraryViewModel(discoverLocalSaves: false);
         vm.SelectedTab = AppTabs.Settings;
         vm.SelectedTab = "setings";
 
@@ -41,7 +41,7 @@ public sealed class AppTabsTests
     [Fact]
     public void Disposing_the_root_view_model_cancels_its_lifetime_and_can_be_repeated()
     {
-        var vm = new SaveLibraryViewModel();
+        var vm = new SaveLibraryViewModel(discoverLocalSaves: false);
         var lifetime = vm.Lifetime;
 
         vm.Dispose();

@@ -64,7 +64,10 @@ public static class GameContentService
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
         var releaseId = ReleaseIdFor(game);
-        var tree = GameFileTree.Load(game, gameDirectory, IsWanted);
+        // First only the archive tables: enough for the fingerprint, and on a cache hit nothing else is needed
+        // (unpacking every config and texture took a few hundred ms and tens of MiB per game on each start).
+        var index = GameFileTree.Load(game, gameDirectory, IsWanted, deferArchiveContent: true);
+        var tree = index;
         var modName = DetectMod(tree);
         var cacheRoot = Path.Combine(cacheDirectory, $"{releaseId}-v{BuilderVersion}-{tree.Fingerprint[..32]}");
         var catalogPath = Path.Combine(cacheRoot, $"catalog-{SafeLanguage(uiLanguage)}.json");
@@ -82,6 +85,17 @@ public static class GameContentService
             {
                 bundle = null;
             }
+        }
+
+        if (bundle is null)
+        {
+            // The catalogue has to be built: now the contents are read, all at once per archive.
+            tree = GameFileTree.Load(game, gameDirectory, IsWanted);
+            index = tree.Fingerprint == index.Fingerprint
+                ? index
+                : GameFileTree.Load(game, gameDirectory, IsWanted, deferArchiveContent: true);
+            cacheRoot = Path.Combine(cacheDirectory, $"{releaseId}-v{BuilderVersion}-{tree.Fingerprint[..32]}");
+            catalogPath = Path.Combine(cacheRoot, $"catalog-{SafeLanguage(uiLanguage)}.json");
         }
 
         var issues = new List<string>(tree.Issues);
@@ -141,7 +155,8 @@ public static class GameContentService
             bundle.Upgrades?.Upgrades.Count ?? 0,
             bundle.Factions?.Factions.Count ?? 0,
             issues.AsReadOnly());
-        var icons = new IconSource(tree, bundle, Path.Combine(cacheRoot, "icons"));
+        // Icons read their atlas on demand from the index, so the unpacked files of a build are not kept alive.
+        var icons = new IconSource(index, bundle, Path.Combine(cacheRoot, "icons"));
         return new GameContent(WithFallbackNames(bundle, uiLanguage), status, icons.Png);
     }
 

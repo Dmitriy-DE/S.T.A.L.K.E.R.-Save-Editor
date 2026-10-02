@@ -9,7 +9,8 @@ public sealed class CloudViewModel : ObservableViewModel
 {
     private readonly ICloudServiceAdapter _cloudService;
     private readonly Func<string> _backupDirectoryProvider;
-    private readonly Func<IReadOnlyList<string>> _localSaveFilesProvider;
+    private readonly Func<IReadOnlyList<LocalSaveReference>> _localSaveFilesProvider;
+    private CloudWriteIntent? _writeIntent;
     private readonly Action<string>? _onSaveDownloaded;
 
     private int _selectedAppId; // 0 = All
@@ -28,12 +29,12 @@ public sealed class CloudViewModel : ObservableViewModel
     public CloudViewModel(
         ICloudServiceAdapter? cloudService = null,
         Func<string>? backupDirectoryProvider = null,
-        Func<IReadOnlyList<string>>? localSaveFilesProvider = null,
+        Func<IReadOnlyList<LocalSaveReference>>? localSaveFilesProvider = null,
         Action<string>? onSaveDownloaded = null)
     {
         _cloudService = cloudService ?? new CloudServiceAdapter();
         _backupDirectoryProvider = backupDirectoryProvider ?? (() => StalkerSaveEditor.Core.Diagnostics.AppPaths.Backups);
-        _localSaveFilesProvider = localSaveFilesProvider ?? (() => Array.Empty<string>());
+        _localSaveFilesProvider = localSaveFilesProvider ?? (() => Array.Empty<LocalSaveReference>());
         _onSaveDownloaded = onSaveDownloaded;
 
         CloudSaves = new ObservableCollection<CloudSaveItemViewModel>();
@@ -71,6 +72,8 @@ public sealed class CloudViewModel : ObservableViewModel
         {
             if (SetProperty(ref _selectedCloudSave, value))
             {
+                // A pending write confirmation belongs to the row it was requested for; it never follows the selection.
+                CancelWrite();
                 OnPropertyChanged(nameof(CanDownload));
                 OnPropertyChanged(nameof(CanRequestWrite));
                 DownloadSelectedCommand.NotifyCanExecuteChanged();
@@ -183,13 +186,17 @@ public sealed class CloudViewModel : ObservableViewModel
         try
         {
             CloudSaves.Clear();
-            var localPaths = _localSaveFilesProvider();
+            CancelWrite();
+            var localSaves = _localSaveFilesProvider();
             var appIds = SelectedAppId == 0
                 ? new[] { 4500, 20510, 41700, 1643320 }
                 : new[] { SelectedAppId };
 
             foreach (var appId in appIds)
             {
+                // Only saves of the same game can be the local side of that game's cloud files.
+                var release = Services.CloudServiceAdapter.GetReleaseId(appId);
+                var localPaths = localSaves.Where(save => string.Equals(save.ReleaseId, release, StringComparison.Ordinal)).Select(save => save.Path).ToArray();
                 var files = await _cloudService.ListCloudFilesAsync(appId, localPaths);
                 foreach (var f in files)
                 {
@@ -224,9 +231,11 @@ public sealed class CloudViewModel : ObservableViewModel
         try
         {
             var bytes = await _cloudService.ReadCloudFileAsync(selected.AppId, selected.RemotePath);
-            if (Core.Editing.EditService.DetectFormat(bytes) is null)
+            var downloadedFormat = Core.Editing.EditService.DetectFormat(bytes)
+                ?? throw new InvalidDataException(L.T("Файл из облака — не сохранение S.T.A.L.K.E.R. или повреждён; локальный файл не тронут."));
+            if (!string.Equals(downloadedFormat, selected.Model.ReleaseId, StringComparison.Ordinal))
             {
-                throw new InvalidDataException(L.T("Файл из облака — не сохранение S.T.A.L.K.E.R. или повреждён; локальный файл не тронут."));
+                throw new InvalidDataException(L.T("Файл из облака — сохранение другой игры ({0}); локальный файл не тронут.", downloadedFormat));
             }
 
             var backupDir = _backupDirectoryProvider();
@@ -235,6 +244,12 @@ public sealed class CloudViewModel : ObservableViewModel
             {
                 // The local save is replaced like an edit: journaled backup (restorable in «Бэкапы»), atomic swap, read-back.
                 targetPath = selected.Model.LocalFilePath;
+                // The file being replaced must be a save of the same game (or unreadable): a name match is not enough.
+                var localFormat = Core.Editing.EditService.DetectFormat(await File.ReadAllBytesAsync(targetPath));
+                if (localFormat is not null && !string.Equals(localFormat, downloadedFormat, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(L.T("Локальный файл {0} — сохранение другой игры ({1}); он не тронут.", Path.GetFileName(targetPath), localFormat));
+                }
                 var receipt = await Task.Run(() => Core.Backups.LocalSaveReplacement.ReplaceWithBytes(
                     targetPath,
                     bytes,
@@ -270,39 +285,51 @@ public sealed class CloudViewModel : ObservableViewModel
 
     public void RequestWrite()
     {
-        if (!CanRequestWrite) return;
+        if (!CanRequestWrite || SelectedCloudSave is not { Model.LocalFilePath: { } localPath } selected) return;
         WriteConfirmationChecked = false;
+        try
+        {
+            // What is confirmed is this cloud file and these local bytes, not "whatever is selected later".
+            var sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(localPath)));
+            _writeIntent = new CloudWriteIntent(selected.AppId, selected.RemotePath, selected.FileName, localPath, sha256);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = L.T("Ошибка записи: {0}", exception.Message);
+            return;
+        }
         ShowWriteConfirmDialog = true;
     }
 
     public void CancelWrite()
     {
+        _writeIntent = null;
         ShowWriteConfirmDialog = false;
         WriteConfirmationChecked = false;
     }
 
     public async Task ConfirmWriteAsync()
     {
-        var selected = SelectedCloudSave;
-        if (selected is null || !WriteConfirmationChecked || !selected.HasLocalFile)
-        {
-            ShowWriteConfirmDialog = false;
-            return;
-        }
+        var intent = _writeIntent;
+        var confirmed = WriteConfirmationChecked;
+        CancelWrite();
+        if (intent is null || !confirmed) return;
 
-        ShowWriteConfirmDialog = false;
         IsWriting = true;
-        StatusMessage = L.T("Запись {0} в Steam Cloud (RemoteStorage)...", selected.FileName);
+        StatusMessage = L.T("Запись {0} в Steam Cloud (RemoteStorage)...", intent.FileName);
 
         try
         {
-            var localPath = selected.Model.LocalFilePath!;
-            var data = await File.ReadAllBytesAsync(localPath);
+            var data = await File.ReadAllBytesAsync(intent.LocalPath);
+            if (!string.Equals(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(data)), intent.LocalSha256, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(L.T("Локальный файл изменился после запроса записи; подтвердите запись ещё раз."));
+            }
             var backupDir = _backupDirectoryProvider();
 
             var result = await _cloudService.WriteCloudFileAsync(
-                selected.AppId,
-                selected.RemotePath,
+                intent.AppId,
+                intent.RemotePath,
                 data,
                 backupDir);
 
@@ -332,3 +359,9 @@ public sealed class CloudViewModel : ObservableViewModel
         }
     }
 }
+
+/// <summary>A local save and the game it belongs to, as the library read it.</summary>
+public sealed record LocalSaveReference(string Path, string ReleaseId);
+
+/// <summary>The exact cloud write the user was asked to confirm: target, source file and the bytes it had then.</summary>
+internal sealed record CloudWriteIntent(int AppId, string RemotePath, string FileName, string LocalPath, string LocalSha256);

@@ -79,15 +79,9 @@ public sealed record UpdateManifest(
     /// The one place that names the manifest entry for a platform, CPU and artifact kind. Selection, validation and the
     /// installer handoff all use it, so they cannot disagree (macOS x64 used to be validated as arm64).
     /// </summary>
-    public static string ArtifactKey(string target, string architecture, string kind) => (target, kind) switch
-    {
-        ("windows", "portable") => "windows-x86_64",
-        ("windows", "installer") => "windows-installer-x86_64",
-        ("linux", "portable") => "linux-x86_64",
-        ("linux", "package") => "linux-deb-amd64",
-        ("macos", "disk-image") => architecture == "arm64" ? "macos-arm64" : "macos-x86_64",
-        _ => throw new UpdateManifestException($"No update artifact exists for {target}/{kind}.")
-    };
+    public static string ArtifactKey(string target, string architecture, string kind) =>
+        UpdatePlatform.ArtifactKey(target, architecture, kind)
+        ?? throw new UpdateManifestException($"No update artifact exists for {target}/{kind}.");
 
     public UpdateArtifact Select(string target, string architecture, string kind)
     {
@@ -695,9 +689,15 @@ public sealed class UpdateService : IDisposable
             throw new UpdateManifestException("artifact.file must be a plain filename.");
         }
 
-        if (kind is not ("portable" or "package" or "installer" or "disk-image"))
+        if (kind is not (UpdatePlatform.Portable or UpdatePlatform.Package or UpdatePlatform.Installer or UpdatePlatform.DiskImage))
         {
             throw new UpdateManifestException("artifact.kind is unsupported.");
+        }
+
+        // The entry name fixes what it may describe: "linux-deb-amd64" is a package for x86_64 and nothing else.
+        if (!UpdatePlatform.Describes(target, architecture, kind))
+        {
+            throw new UpdateManifestException($"Artifact {target} cannot be {architecture}/{kind}.");
         }
 
         var url = ReadString(value, "url");
@@ -784,7 +784,7 @@ public sealed class UpdateService : IDisposable
 
     private static void ValidateInstallationPair(UpdateArtifact artifact, UpdateInstallation installation)
     {
-        if (installation.Kind == "development")
+        if (installation.Kind == UpdatePlatform.Development)
         {
             throw new UpdateManifestException("Update installation type is unsupported.");
         }
@@ -807,7 +807,7 @@ public sealed class UpdateService : IDisposable
     {
         var fullArchive = Path.GetFullPath(archive);
         ProcessStartInfo startInfo;
-        if (installation.Target == "linux" && installation.Kind == "package")
+        if (installation.Target == UpdatePlatform.Linux && installation.Kind == UpdatePlatform.Package)
         {
             if (!artifact.File.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
             {
@@ -838,12 +838,12 @@ public sealed class UpdateService : IDisposable
             return (ConfigureProgress(startInfo), false);
         }
 
-        if (installation.Target == "windows" && installation.Kind == "installer" && artifact.File.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        if (installation.Target == UpdatePlatform.Windows && installation.Kind == UpdatePlatform.Installer && artifact.File.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
         {
             return (ConfigureProgress(new ProcessStartInfo(fullArchive)), false);
         }
 
-        if (installation.Target == "macos" && artifact.Kind == "disk-image" && artifact.File.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase))
+        if (installation.Target == UpdatePlatform.MacOS && artifact.Kind == UpdatePlatform.DiskImage && artifact.File.EndsWith(".dmg", StringComparison.OrdinalIgnoreCase))
         {
             var open = _findExecutable("open")
                 ?? throw new UpdateManifestException("macOS installer handoff is unavailable.");
@@ -903,25 +903,20 @@ public sealed class UpdateService : IDisposable
     }
 
     private static string GetDefaultTarget() => OperatingSystem.IsWindows()
-        ? "windows"
+        ? UpdatePlatform.Windows
         : OperatingSystem.IsMacOS()
-            ? "macos"
+            ? UpdatePlatform.MacOS
             : OperatingSystem.IsLinux()
-                ? "linux"
+                ? UpdatePlatform.Linux
                 : throw new UpdateManifestException("Update platform is unsupported.");
 
     private static string GetDefaultArchitecture(string target) =>
-        target == "macos" && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x86_64";
+        target == UpdatePlatform.MacOS && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? UpdatePlatform.Arm64 : UpdatePlatform.X64;
 
-    private static string GetDefaultKind(string target) => target == "macos" ? "disk-image" : "portable";
+    private static string GetDefaultKind(string target) => target == UpdatePlatform.MacOS ? UpdatePlatform.DiskImage : UpdatePlatform.Portable;
 
-    private static string GetArtifactKind(UpdateInstallation installation) => (installation.Target, installation.Kind) switch
-    {
-        ("macos", _) => "disk-image",
-        ("linux", "package") => "package",
-        ("windows", "installer") => "installer",
-        _ => "portable",
-    };
+    private static string GetArtifactKind(UpdateInstallation installation) =>
+        UpdatePlatform.ArtifactKindFor(installation.Target, installation.Kind);
 
     private static string? FindExecutable(string name)
     {

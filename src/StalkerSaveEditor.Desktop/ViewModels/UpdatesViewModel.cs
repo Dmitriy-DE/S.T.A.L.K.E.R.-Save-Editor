@@ -1,6 +1,5 @@
 using System.IO;
 using StalkerSaveEditor.Desktop.Services;
-using StalkerSaveEditor.Updater;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
@@ -23,7 +22,7 @@ public sealed class UpdatesViewModel : ObservableViewModel
 
     public UpdatesViewModel(IUpdateServiceAdapter? adapter = null)
     {
-        _adapter = adapter ?? new UpdateServiceAdapter();
+        _adapter = adapter ?? HostPlatform.CreateUpdateService?.Invoke() ?? new UnavailableUpdateServiceAdapter();
         CurrentVersion = _adapter.CurrentVersion;
 
         CheckUpdatesCommand = new RelayCommand(async () => await CheckAsync(silent: false), () => CanCheck);

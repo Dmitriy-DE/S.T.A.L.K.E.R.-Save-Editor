@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using StalkerSaveEditor.Desktop.Services;
-using StalkerSaveEditor.Steam;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
@@ -21,7 +20,7 @@ public sealed class AchievementsViewModel : ObservableViewModel
 
     public AchievementsViewModel(ISteamAchievementsAdapter? adapter = null)
     {
-        _adapter = adapter ?? new SteamAchievementsAdapter();
+        _adapter = adapter ?? HostPlatform.CreateAchievementsService?.Invoke() ?? new UnavailableSteamAchievementsAdapter();
 
         AllAchievements = new ObservableCollection<AchievementItemViewModel>();
         FilteredAchievements = new ObservableCollection<AchievementItemViewModel>();

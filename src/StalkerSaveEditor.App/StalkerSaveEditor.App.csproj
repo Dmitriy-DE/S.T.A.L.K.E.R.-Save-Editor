@@ -11,5 +11,6 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Headless" />
     <ProjectReference Include="../StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" />
+    <ProjectReference Include="../StalkerSaveEditor.Host/StalkerSaveEditor.Host.csproj" />
   </ItemGroup>
 </Project>

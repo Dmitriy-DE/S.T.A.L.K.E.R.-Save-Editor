@@ -8,6 +8,9 @@ internal static class TestDataIsolation
     [ModuleInitializer]
     internal static void UseTemporaryDataFolder()
     {
+        // The same desktop services the application registers at start-up.
+        StalkerSaveEditor.Host.DesktopHost.Register();
+
         if (Environment.GetEnvironmentVariable("STALKER_SAVE_EDITOR_DATA") is { Length: > 0 }) return;
         var folder = Path.Combine(Path.GetTempPath(), "se-test-data-" + Environment.ProcessId);
         Directory.CreateDirectory(folder);

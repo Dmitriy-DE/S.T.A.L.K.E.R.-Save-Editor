@@ -19,6 +19,9 @@ internal static class Program
             return;
         }
 
+        // Steam and self-update exist only in the installed application; the UI library asks the host for them.
+        StalkerSaveEditor.Host.DesktopHost.Register();
+
         if (args.Length > 0 && args[0] == "--test-i18n")
         {
             var result = Services.I18nCompletenessChecker.Validate();

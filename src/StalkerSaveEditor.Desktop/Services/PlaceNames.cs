@@ -40,6 +40,12 @@ internal static class PlaceNames
         ["pripyat"] = ["pripyat", "l11_pripyat"],
     };
 
+    /// <summary>Levels one game has no name for although another names the same place.</summary>
+    private static readonly Dictionary<string, string> SameLevel = new(StringComparer.Ordinal)
+    {
+        ["agroprom_underground"] = "l03u_agr_underground",
+    };
+
     /// <summary>The player's own boxes in Call of Pripyat, by the base they stand in.</summary>
     private static readonly Dictionary<string, string> PersonalBoxes = new(StringComparer.Ordinal)
     {
@@ -52,7 +58,10 @@ internal static class PlaceNames
     public static string Level(string? releaseId, string? levelId)
     {
         if (string.IsNullOrWhiteSpace(levelId)) return L.T("Неизвестно");
-        return Official(releaseId, "levels", levelId.ToLowerInvariant()) ?? levelId;
+        var id = levelId.ToLowerInvariant();
+        return Official(releaseId, "levels", id)
+            ?? (SameLevel.TryGetValue(id, out var other) ? Official(releaseId, "levels", other) : null)
+            ?? levelId;
     }
 
     /// <summary>The level an object belongs to, judged by the prefix of its name; null when the prefix says nothing.</summary>

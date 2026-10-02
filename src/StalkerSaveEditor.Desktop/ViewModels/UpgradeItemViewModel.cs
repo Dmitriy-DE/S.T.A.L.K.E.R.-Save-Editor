@@ -11,7 +11,7 @@ public sealed class UpgradeItemViewModel : ObservableViewModel
     {
         Definition = definition;
         Key = definition.Key;
-        DisplayName = definition.DisplayName ?? definition.Key;
+        DisplayName = SaveNaming.UpgradeName(definition.ReleaseId, definition.Key, definition.DisplayName);
         Category = definition.Category ?? L.T("Апгрейд");
         _isInstalled = isInstalled;
         OriginalInstalled = isInstalled;

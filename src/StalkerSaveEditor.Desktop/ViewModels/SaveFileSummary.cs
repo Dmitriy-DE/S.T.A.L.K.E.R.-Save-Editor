@@ -125,7 +125,7 @@ public sealed class SaveFileSummary
                 if (StalkerSaveEditor.Core.Inspection.SavePreviewReader.Preview(FilePath, IsStalker2) is { } image)
                 {
                     using var stream = new MemoryStream(image);
-                    _preview = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, 96);
+                    _preview = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, 192);
                 }
             }
             catch (Exception exception) when (exception is IOException or ArgumentException or InvalidOperationException or NotSupportedException)

@@ -62,24 +62,13 @@ public sealed class SettingsViewTests
     }
 
     [Fact]
-    public void Unsupported_general_preferences_are_disabled_and_explain_why()
+    public void The_page_offers_no_control_that_does_nothing()
     {
         var view = SettingsView.Build(new SettingsViewModel([], "/backups"));
 
-        foreach (var name in new[]
-        {
-            "settings-unsupported-auto-updates",
-            "settings-unsupported-experimental-warnings",
-            "settings-unsupported-save-confirmation",
-            "settings-unsupported-open-last-source",
-        })
-        {
-            var control = view.GetLogicalDescendants().OfType<CheckBox>().Single(checkBox => checkBox.Name == name);
-            Assert.False(control.IsEnabled);
-            Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(control)));
-            var reason = view.GetLogicalDescendants().OfType<TextBlock>().Single(textBlock => textBlock.Name == name + "-reason");
-            Assert.False(string.IsNullOrWhiteSpace(reason.Text));
-        }
+        // Switches and buttons that were permanently disabled ("not supported yet") used to fill the first page.
+        Assert.DoesNotContain(view.GetLogicalDescendants().OfType<CheckBox>(), checkBox => checkBox.Name?.StartsWith("settings-unsupported", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(view.GetLogicalDescendants().OfType<Button>(), button => !button.IsEnabled && button.Command is null);
     }
 
     [Fact]

@@ -566,7 +566,7 @@ public static class InventoryView
             VerticalAlignment = VerticalAlignment.Center,
             MinHeight = 34,
         };
-        readOnlyValue.Bind(TextBlock.TextProperty, new Binding("SelectedItem.OriginalCountDisplay"));
+        readOnlyValue.Bind(TextBlock.TextProperty, new Binding("SelectedItem.QuantityDisplay"));
         readOnlyValue.Bind(Visual.IsVisibleProperty, new Binding("SelectedItem.CanEditCount") { Converter = Not });
 
         var content = new StackPanel
@@ -577,7 +577,7 @@ public static class InventoryView
                 new TextBlock { Text = L.T("Количество в пачке"), Foreground = StalkerTheme.BrushTextSecondary, FontSize = 12 },
                 countBox,
                 readOnlyValue,
-                DisabledReason("SelectedItem.CountDisabledReason", "SelectedItem.CanEditCount"),
+                DisabledReason("SelectedItem.QuantityNote", "SelectedItem.CanEditCount"),
             },
         };
         return StalkerTheme.Card(content, L.T("Количество"), margin: new Thickness(0));

@@ -232,8 +232,7 @@ internal static class SaveLibraryLoader
 
         var inventory = save.Inventory.Select(item =>
         {
-            var localizedName = SaveNaming.OfficialNames.Resolve(formatId, "items", item.TypeKey, SaveNaming.NamesLanguage)
-                ?? item.TypeKey;
+            var localizedName = SaveNaming.ItemName(formatId, item.TypeKey);
             var availableUpgrades = upgradeCatalog?.ForItem(item.TypeKey);
             return new InventoryLineViewModel(
                 localizedName,
@@ -264,7 +263,7 @@ internal static class SaveLibraryLoader
             s.Items.Select(i => new StashItemViewModel(
                 i.Handle,
                 i.TypeKey,
-                SaveNaming.OfficialNames.Resolve(formatId, "items", i.TypeKey, SaveNaming.NamesLanguage) ?? i.TypeKey,
+                SaveNaming.ItemName(formatId, i.TypeKey),
                 i.Count ?? 1,
                 canEdit: canEditStashes,
                 disabledReason: stashesReason)),
@@ -279,8 +278,7 @@ internal static class SaveLibraryLoader
                 var factionDef = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == relation.CommunityIndex);
                 var commKey = factionDef?.Key ?? $"faction_{relation.CommunityIndex}";
                 var localizedFaction = SaveNaming.OfficialNames.Resolve(formatId, "factions", commKey, SaveNaming.NamesLanguage)
-                    ?? factionDef?.DisplayName
-                    ?? commKey;
+                    ?? (factionDef?.DisplayName is { } known ? L.T(known) : L.T("Группировка № {0}", relation.CommunityIndex));
                 factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions, factionReason));
             }
         }
@@ -289,7 +287,9 @@ internal static class SaveLibraryLoader
         if (save.PlayerFactionIndex.HasValue && factionCatalog is not null)
         {
             var def = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == save.PlayerFactionIndex.Value);
-            playerFaction = def?.DisplayName ?? def?.Key;
+            playerFaction = SaveNaming.OfficialNames.Resolve(formatId, "factions", def?.Key, SaveNaming.NamesLanguage)
+                ?? def?.DisplayName
+                ?? def?.Key;
         }
 
         // Real level changers from X-Ray registry (read-only per AGENTS.md)

@@ -42,6 +42,7 @@ public sealed class TransitionViewModel : ObservableViewModel
     {
         ({ Length: > 0 } from, { Length: > 0 } to) => $"{from} → {to}",
         (_, { Length: > 0 } to) => $"→ {to}",
+        ({ Length: > 0 } from, _) => $"{from} → …",
         _ => DisplayName,
     };
 

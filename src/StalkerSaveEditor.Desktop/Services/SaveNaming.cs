@@ -17,6 +17,20 @@ internal static class SaveNaming
 
     internal static readonly OfficialNamesCatalog OfficialNames = OfficialNamesCatalog.LoadEmbedded();
 
+    /// <summary>
+    /// An item's name in the interface language: the games' own string tables first, then the installed game's
+    /// catalogue (items a mod adds, in the language of that installation), then the section name.
+    /// </summary>
+    internal static string ItemName(string releaseId, string key, string? installedName = null) =>
+        OfficialNames.Resolve(releaseId, "items", key, NamesLanguage)
+        ?? installedName
+        ?? (TryCatalog(releaseId, out var bundle) ? bundle.Items.Resolve(key)?.DisplayName : null)
+        ?? key;
+
+    /// <summary>An upgrade's name in the interface language, else <paramref name="fallback"/>.</summary>
+    internal static string UpgradeName(string? releaseId, string key, string? fallback) =>
+        OfficialNames.Resolve(releaseId, "upgrades", key, NamesLanguage) ?? fallback ?? key;
+
     /// <summary>The editor's language as the name catalogs spell it (zh_CN, pt_BR).</summary>
     internal static string NamesLanguage => I18nService.Instance.CurrentLanguage.Replace('-', '_');
 }

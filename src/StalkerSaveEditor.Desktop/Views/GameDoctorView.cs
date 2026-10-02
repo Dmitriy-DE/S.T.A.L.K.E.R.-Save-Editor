@@ -37,7 +37,9 @@ public sealed class GameDoctorView : UserControl
             Foreground = StalkerTheme.BrushAccentAmber,
         });
 
-        var targetRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 12 };
+        // One label column for the three rows: the fields line up and the lists take the whole width.
+        const string Labels = "230";
+        var targetRow = new Grid { ColumnDefinitions = new ColumnDefinitions(Labels + ",*,Auto"), ColumnSpacing = 12 };
         targetRow.Children.Add(new TextBlock
         {
             Text = L.T("ИГРА"),
@@ -48,6 +50,7 @@ public sealed class GameDoctorView : UserControl
         {
             ItemsSource = viewModel.Targets,
             ItemTemplate = new FuncDataTemplate<GameTargetOption>((option, _) => new TextBlock { Text = option?.Title }),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
@@ -68,7 +71,7 @@ public sealed class GameDoctorView : UserControl
         Grid.SetRow(targetRow, 1);
         page.Children.Add(targetRow);
 
-        var installationRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12 };
+        var installationRow = new Grid { ColumnDefinitions = new ColumnDefinitions(Labels + ",*"), ColumnSpacing = 12 };
         var installationLabel = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
         installationLabel.Children.Add(new TextBlock
         {
@@ -89,8 +92,10 @@ public sealed class GameDoctorView : UserControl
             ItemTemplate = new FuncDataTemplate<GameDoctorInstallationOption>((option, _) => new TextBlock
             {
                 Text = option?.Label,
-                TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
             }, true),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            PlaceholderText = L.T("Установки не найдены — укажите папку ниже"),
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
@@ -106,10 +111,17 @@ public sealed class GameDoctorView : UserControl
         Grid.SetRow(installationRow, 2);
         page.Children.Add(installationRow);
 
-        var pathRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 8 };
+        var pathRow = new Grid { ColumnDefinitions = new ColumnDefinitions(Labels + ",*,Auto,Auto"), ColumnSpacing = 12 };
+        pathRow.Children.Add(new TextBlock
+        {
+            Text = L.T("ПАПКА ИГРЫ"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = StalkerTheme.BrushTextSecondary,
+        });
         var path = new TextBox
         {
             Watermark = L.T("ПАПКА ИГРЫ (РУЧНОЙ ВЫБОР)"),
+            VerticalContentAlignment = VerticalAlignment.Center,
             Background = StalkerTheme.BrushBgInput,
             Foreground = StalkerTheme.BrushTextPrimary,
             BorderBrush = StalkerTheme.BrushBorder,
@@ -120,6 +132,7 @@ public sealed class GameDoctorView : UserControl
             Mode = BindingMode.TwoWay,
             Source = viewModel,
         });
+        Grid.SetColumn(path, 1);
         pathRow.Children.Add(path);
 
         var browse = StalkerTheme.StalkerButton(L.T("Обзор…"), isPrimary: false, minWidth: 90);
@@ -137,12 +150,12 @@ public sealed class GameDoctorView : UserControl
                 viewModel.GameDirectory = selectedPath;
             }
         };
-        Grid.SetColumn(browse, 1);
+        Grid.SetColumn(browse, 2);
         pathRow.Children.Add(browse);
 
         var analyze = StalkerTheme.StalkerButton(L.T("ПРОВЕРИТЬ УСТАНОВКУ"), isPrimary: true, minWidth: 150);
         analyze.Bind(Button.CommandProperty, new Binding(nameof(GameDoctorViewModel.AnalyzeCommand)) { Source = viewModel });
-        Grid.SetColumn(analyze, 2);
+        Grid.SetColumn(analyze, 3);
         pathRow.Children.Add(analyze);
         Grid.SetRow(pathRow, 3);
         page.Children.Add(pathRow);

@@ -179,17 +179,20 @@ public sealed class EncyclopediaViewModel : ObservableViewModel
         StatusMessage = content.Status.ModName is { Length: > 0 } modName
             ? L.T("Источник: установленные файлы игры и мод «{0}».", modName)
             : L.T("Источник: файлы выбранной установленной игры.");
+        // The installed files name items in the language of that installation; the interface language comes first.
         var items = content.Bundle.Items.Items
-            .OrderBy(item => item.DisplayName ?? item.Key, StringComparer.CurrentCultureIgnoreCase)
-            .Select(item => new EncyclopediaItemViewModel(
+            .Select(item => (Item: item, Name: SaveNaming.ItemName(content.Status.ReleaseId, item.Key, item.DisplayName)))
+            .OrderBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(entry => (entry.Name, item: entry.Item))
+            .Select(entry => new EncyclopediaItemViewModel(
                 content.Status.ReleaseId,
-                item,
-                item.DisplayName ?? item.Key,
-                content.IconPng(item.Key),
+                entry.item,
+                entry.Name,
+                content.IconPng(entry.item.Key),
                 () => _canAdd(content.Status.ReleaseId),
                 () => _canSpawn(content.Status.ReleaseId),
-                () => _add(content.Status.ReleaseId, item.Key),
-                () => _spawn(content.Status.ReleaseId, item.Key)))
+                () => _add(content.Status.ReleaseId, entry.item.Key),
+                () => _spawn(content.Status.ReleaseId, entry.item.Key)))
             .ToArray();
         foreach (var item in items) Items.Add(item);
         OnPropertyChanged(nameof(HasItems));

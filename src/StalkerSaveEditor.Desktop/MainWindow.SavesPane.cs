@@ -95,17 +95,22 @@ public sealed partial class MainWindow : Window
                     CornerRadius = new CornerRadius(3),
                     Child = previewFallback,
                 };
+                // Autosaves and saves that came from the cloud have no screenshot: the game wrote none.
                 previewFallback.Children.Add(new TextBlock
                 {
-                    Text = "◇",
-                    FontSize = 20,
-                    Foreground = StalkerTheme.BrushAccentDim,
+                    Text = L.T("нет снимка"),
+                    FontSize = 9,
+                    Foreground = StalkerTheme.BrushTextMuted,
+                    TextWrapping = TextWrapping.Wrap,
+                    TextAlignment = TextAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                 });
+                ToolTip.SetTip(previewFallback, L.T("Игра не сохранила снимок для этого сохранения (так бывает у автосохранений и у сохранений из облака)."));
                 var preview = new Image { Stretch = Stretch.UniformToFill };
                 preview.Bind(Image.SourceProperty, new Binding(nameof(SaveFileSummary.Preview)));
                 preview.Bind(Visual.IsVisibleProperty, new Binding(nameof(SaveFileSummary.HasPreview)));
+                ToolTip.SetTip(preview, null);
                 previewFallback.Children.Add(preview);
                 row.Children.Add(previewFrame);
 

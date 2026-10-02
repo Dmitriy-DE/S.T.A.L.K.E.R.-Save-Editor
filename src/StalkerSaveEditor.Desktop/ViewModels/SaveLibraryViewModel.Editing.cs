@@ -58,10 +58,13 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
     {
         if (SelectedItem is not null)
         {
+            var pile = SelectedItem.GroupKey;
             SelectedItem.IsDeleted = true;
             RecordDraftChange();
             ApplyInventoryFilter();
-            SelectedItem = FilteredInventory.FirstOrDefault();
+            // Removing one of several identical objects leaves the rest of the pile selected.
+            SelectedItem = FilteredInventory.FirstOrDefault(item => pile is not null && item.GroupKey == pile)
+                ?? FilteredInventory.FirstOrDefault();
         }
     }
 
@@ -481,18 +484,26 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         }
 
         var query = _inventorySearchText.Trim();
-        FilteredInventory.ReplaceAll(SelectedSave.Inventory.Where(item =>
-            !item.IsDeleted &&
-            (_selectedCategory == "all" || string.Equals(item.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase)) &&
-            (string.IsNullOrEmpty(query) ||
-             item.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
-             item.TypeKey.Contains(query, StringComparison.CurrentCultureIgnoreCase))));
+        FilteredInventory.ReplaceAll(InventoryLineViewModel.GroupPiles(
+            SelectedSave.Inventory.Where(item =>
+                !item.IsDeleted &&
+                (_selectedCategory == "all" || string.Equals(item.Category, _selectedCategory, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(query) ||
+                 item.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                 item.TypeKey.Contains(query, StringComparison.CurrentCultureIgnoreCase))),
+            SelectedItem));
     }
 
     private void OnInventoryItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (_applyingPlan || e.PropertyName is null || !EditableItemProperties.Contains(e.PropertyName)) return;
         RecordDraftChange();
+        // An edited object no longer equals the rest of its pile: the others get a row of their own.
+        if (sender is InventoryLineViewModel { GroupSize: > 1 } line && e.PropertyName != nameof(InventoryLineViewModel.IsDeleted))
+        {
+            ApplyInventoryFilter();
+            SelectedItem = line;
+        }
     }
 
     /// <summary>The rows differ from the save (an unparsable input counts as a change the user has to fix).</summary>

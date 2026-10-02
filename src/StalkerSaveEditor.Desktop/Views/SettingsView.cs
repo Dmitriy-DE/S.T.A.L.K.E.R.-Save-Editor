@@ -180,18 +180,6 @@ public static class SettingsView
     private static Control BuildGeneral(Action<string>? navigateTo)
     {
         var stack = new StackPanel { Spacing = 10 };
-        stack.Children.Add(UnsupportedOption(
-            "settings-unsupported-experimental-warnings",
-            "Показывать технические предупреждения для experimental-функций",
-            "Отдельные предупреждения для experimental-функций пока не поддерживаются."));
-        stack.Children.Add(UnsupportedOption(
-            "settings-unsupported-save-confirmation",
-            "Подтверждать запись перед сохранением",
-            "Подтверждение перед записью не настраивается: изменения проходят через проверяемый черновик."));
-        stack.Children.Add(UnsupportedOption(
-            "settings-unsupported-open-last-source",
-            "Открывать последний источник при запуске",
-            "Приложение не сохраняет и не открывает последний путь к источнику автоматически."));
         stack.Children.Add(StalkerTheme.Card(BuildCloudLink(navigateTo), L.T("Steam Cloud")));
         return stack;
     }
@@ -449,12 +437,6 @@ public static class SettingsView
         detect.Margin = new Thickness(0, 4, 0, 0);
         stack.Children.Add(detect);
 
-        stack.Children.Add(UnsupportedPath(
-            "Steam",
-            "Путь к каталогу Steam не используется настройками поиска сохранений."));
-        stack.Children.Add(UnsupportedPath(
-            "S.T.A.L.K.E.R. 2 / Zone Kit / Workshop",
-            "Каталоги Zone Kit и Workshop не поддерживаются этой настройкой."));
         return StalkerTheme.Card(stack, L.T("Каталоги сохранений"));
     }
 
@@ -487,10 +469,6 @@ public static class SettingsView
     private static Control BuildUpdates(Action<string>? navigateTo)
     {
         var stack = new StackPanel { Spacing = 10 };
-        stack.Children.Add(UnsupportedOption(
-            "settings-unsupported-auto-updates",
-            "Автоматически проверять обновления",
-            "Автоматическая проверка обновлений управляется приложением и не настраивается здесь. Откройте экран обновлений для ручной проверки и установки."));
         var openUpdates = StalkerTheme.StalkerButton(L.T("Открыть обновления приложения"), isPrimary: true, minWidth: 220);
         openUpdates.Name = "settings-open-updates";
         openUpdates.Click += (_, _) => navigateTo?.Invoke("updates");
@@ -684,75 +662,12 @@ public static class SettingsView
         return stack;
     }
 
-    private static Control UnsupportedOption(string name, string title, string reason)
-    {
-        var stack = new StackPanel { Spacing = 2, Margin = new Thickness(0, 2) };
-        var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        row.Children.Add(new TextBlock
-        {
-            Text = L.T(title),
-            Foreground = StalkerTheme.BrushTextSecondary,
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-        });
-        var check = new CheckBox
-        {
-            Name = name,
-            IsEnabled = false,
-            IsChecked = false,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        AutomationProperties.SetName(check, L.T(title));
-        AutomationProperties.SetHelpText(check, L.T(reason));
-        ToolTip.SetTip(check, L.T(reason));
-        Grid.SetColumn(check, 1);
-        row.Children.Add(check);
-        stack.Children.Add(row);
-        stack.Children.Add(new TextBlock
-        {
-            Name = name + "-reason",
-            Text = L.T(reason),
-            Foreground = StalkerTheme.BrushTextMuted,
-            FontSize = 11,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(24, 0, 0, 0),
-        });
-        return stack;
-    }
-
-    private static Control UnsupportedPath(string label, string reason)
-    {
-        var stack = new StackPanel { Spacing = 2, Margin = new Thickness(0, 2) };
-        stack.Children.Add(new TextBlock
-        {
-            Text = label,
-            Foreground = StalkerTheme.BrushTextSecondary,
-            FontSize = 12,
-        });
-        stack.Children.Add(new TextBlock
-        {
-            Text = reason,
-            Foreground = StalkerTheme.BrushTextMuted,
-            FontSize = 11,
-            TextWrapping = TextWrapping.Wrap,
-        });
-        return stack;
-    }
-
     private static Border BuildFooter(SettingsViewModel settings)
     {
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var save = StalkerTheme.StalkerButton(L.T("Сохранить настройки"), isPrimary: true, minWidth: 160);
         save.Bind(Button.CommandProperty, new Binding(nameof(SettingsViewModel.SaveSettingsCommand)) { Source = settings });
         actions.Children.Add(save);
-
-        var reset = UnsupportedFooterButton("Сбросить", "Сброс несохранённых изменений пока не поддерживается.");
-        actions.Children.Add(reset);
-        var defaults = UnsupportedFooterButton("По умолчанию", "Восстановление настроек по умолчанию пока не поддерживается.");
-        actions.Children.Add(defaults);
-        var cancel = UnsupportedFooterButton("Отмена", "Отмена изменений на этой странице пока не поддерживается.");
-        actions.Children.Add(cancel);
 
         var status = new TextBlock
         {
@@ -770,16 +685,6 @@ public static class SettingsView
             ColumnSpacing = 12,
         };
         grid.Children.Add(actions);
-        var unavailableReason = new TextBlock
-        {
-            Text = L.T("Сброс, значения по умолчанию и отмена недоступны."),
-            Foreground = StalkerTheme.BrushTextMuted,
-            FontSize = 10,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-        };
-        Grid.SetColumn(unavailableReason, 1);
-        grid.Children.Add(unavailableReason);
         Grid.SetColumn(status, 2);
         grid.Children.Add(status);
 
@@ -791,14 +696,6 @@ public static class SettingsView
             Padding = new Thickness(16, 10),
             Child = grid,
         };
-    }
-
-    private static Button UnsupportedFooterButton(string title, string reason)
-    {
-        var button = StalkerTheme.StalkerButton(L.T(title), isPrimary: false, minWidth: 92);
-        button.IsEnabled = false;
-        ToolTip.SetTip(button, L.T(reason));
-        return button;
     }
 
     private static Grid BuildPreferenceRow(string label, Control control)

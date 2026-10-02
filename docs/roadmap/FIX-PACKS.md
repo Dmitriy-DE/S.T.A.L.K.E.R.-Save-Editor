@@ -96,16 +96,17 @@ own checkers (`check_condlists`, `check_logic_refs`, `check_dialogs`, `lua_globa
 
 | Group | Examples | Why not |
 |---|---|---|
-| Needs the simulation rewritten | SRP: capture/eliminate/defend task bookkeeping (player's help forgotten, tasks cancelled or completed in the wrong case, targets chosen wrongly), squads abandoning or preferring wrong targets, offline squads stuck in 'wait', faction power after load, supply chests on load | SRP changes `sim_board`, `sim_faction*`, `sim_squad_generic`, `task_objects` as a whole (thousands of lines); the faults cannot be cut out as small text changes, and none of it can be checked without long play |
-| Needs the spawn order restructured | SRP: NPC logic loaded before the player exists (save corruption); marsh creature deleted right after creation | SRP defers `net_spawn` across three binders; the EE-style variant was rejected earlier because retail callers do not retry |
-| Story rework | SRP: Hog killed breaks the story; Compass task order; Cordon bus-stop skirmish; Red Forest bridge unlocked early; Limansk bridge squad; Kostyan's squad; Yantar defence flow. ZRP: Dark Valley toll, Sarcophagus decoder, Bar territory | each is a redesign of a scene, not a repair of a broken line; several need a new game |
+| Needs the simulation rewritten | SRP: capture/eliminate/defend task bookkeeping (player's help forgotten, tasks cancelled or completed in the wrong case, targets chosen wrongly), squads abandoning or preferring wrong targets, offline squads stuck in 'wait', faction power after load, supply chests on load. Done from this group in #248–#251: the crashes and hangs in capture/defend tasks, attacking squads taking post jobs, offline fights against 'idle' squads, counter-attacks hijacking scripted squads | SRP changes `sim_board`, `sim_faction*`, `sim_squad_generic`, `task_objects` as a whole (thousands of lines); the faults cannot be cut out as small text changes, and none of it can be checked without long play |
+| Needs a save-format change | delayed 'defend' task forgets its attacking squad on load (GSC added the field in the EE); wounded start time as SRP stores it | we do not change what a retail save contains |
+| Spawn order | SRP: marsh creature deleted right after creation; monsters spawning before the player | stalkers are done (`cs.save.npc-spawn-before-player`, #250, unobserved); the monster binder and the marsh creature race are not |
+| Story rework | SRP: Cordon bus-stop skirmish; Limansk bridge squad; Kostyan's squad; Yantar defence flow; megaphone and greeting timing (Hog's death, the Compass order and the Red Forest bridge unlock are done in #250). ZRP: Dark Valley toll, Sarcophagus decoder, Bar territory | each is a redesign of a scene, not a repair of a broken line; several need a new game |
 | Balance or taste | SRP: shotgun stabiliser −2 rounds, BTR at the Freedom base, trade lists and prices, weapon and upgrade values, mutant parameters; ZRP: corpse timers, mutant speeds, weapon tweaks | GSC kept them in the Enhanced Editions or they are choices, not faults (FP-6 and FP-8 stay closed: no optional packs) |
 | Engine, shaders, UI art, sound assets | SRP: wet surfaces, sun shafts, detector dial, scroll bars, missing or wrong sounds, map spots, animations not settling | not reachable from scripts/configs, or needs new assets; engine work is out of scope (see "Engine work") |
 | New game / all.spawn only | SRP: remaining waypoint and inventory-box corrections, smart terrain capacities | the ones that crash are done (`cs.crash.all-spawn-errors`); the rest are clean-ups |
 | SRP's own regressions | every "Fixed an SRP vX regression" entry | never existed in retail |
 | Found, traced, unreachable | old crow-killer/shooting dialogs, `val_join_freedom`, `set_actor_community`, unused trade lists, cut Dead City / arena logic | nothing in the shipped game reaches them |
 | Found, left as shipped | CoP `zat_b7_duty_illicit_dealer_b5.ltx` malformed `combat_ignore_cond` | repairing changes a quest fight that works |
-| Our own remedy, unobserved | `cs.crash.smart-terrain-no-free-job` (job sharing) | in the catalogue, but its behaviour has not been seen in the game: first thing to look at in a play test |
+| Our own remedy, unobserved | `cs.crash.smart-terrain-no-free-job` (job sharing), `cs.save.npc-spawn-before-player` (deferred set-up) | in the catalogue, but their behaviour has not been seen in the game: first things to look at in a play test |
 
 New entries from here on need evidence the sources do not give: real crash logs (the Game Doctor collects them) or
 a play test.
@@ -141,7 +142,10 @@ Candidates seen in the diffs and deliberately not ported:
   CS `cs.crash.capture-task-missing-squad` 1.1.0 (capture counter-attack and defend call-time guards),
   `cs.logic.upgrade-task-id-leak` 1.2.0 (mechanic restored on load), `cs.logic.wounded-autoheal-after-load`,
   `cop.logic.wounded-autoheal-after-load`, `cs.logic.dark-valley-holdup-after-base` 1.1.0 (not before the Fang lead).
-  Totals: SoC 35 (EE 19), CS 68 catalogued / 66 recommended (EE 46), CoP 36 / 22 (EE 25).
+  Totals after #248: SoC 35 (EE 19), CS 68 catalogued / 66 recommended (EE 46), CoP 36 / 22 (EE 25).
+- 2026-10-02 — two more CS batches after the owner asked for everything that can be done: #250 (stalker set-up waits for the
+  player, Hog's death after the task, Compass order, Red Forest bridge unlock, delayed-defend guards) and #251 (attacking
+  squads skip post jobs, offline fights reach idle squads, counter-attacks leave scripted squads). CS 73 / 71 (EE 50).
 
 - 2026-10-02 — five more batches (#240–#244), 18 new fixes and one extended:
   - CS from the SRP fault list (#240): mutant killed by nobody (`mob_death`), attack logic key `agressive`, Freedom exo

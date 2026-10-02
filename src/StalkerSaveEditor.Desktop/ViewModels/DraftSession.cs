@@ -40,8 +40,7 @@ internal sealed class DraftSession(DraftStore store)
         var journal = Journal ?? Fresh(sourceSha256);
         if (journal.CurrentHasUnmappedEdits) return false;
         if (journal.Current.HasSameEdits(plan)) return false;
-        Journal = journal.Record(plan);
-        Store.Save(Journal);
+        Journal = Store.Save(journal.Record(plan));
         return true;
     }
 
@@ -60,8 +59,7 @@ internal sealed class DraftSession(DraftStore store)
 
     private EditPlan Move(DraftJournal journal)
     {
-        Journal = journal;
-        Store.Save(journal);
+        Journal = Store.Save(journal);
         return journal.Current;
     }
 

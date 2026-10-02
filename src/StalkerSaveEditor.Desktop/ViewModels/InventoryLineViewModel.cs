@@ -169,9 +169,20 @@ public sealed class InventoryLineViewModel : ObservableViewModel
     }
 
     /// <summary>Installed upgrades differ from the save as a set (the save keeps install order, the UI tree order).</summary>
-    public bool UpgradesChanged =>
-        CanEditUpgrades && HasUpgrades &&
-        !UpgradeItems.Where(u => u.IsInstalled).Select(u => u.Key).ToHashSet(StringComparer.Ordinal).SetEquals(OriginalUpgrades);
+    public bool UpgradesChanged
+    {
+        get
+        {
+            if (!CanEditUpgrades || !HasUpgrades) return false;
+            // Every upgrade of the save has a row, so the set changed exactly when some row was switched.
+            foreach (var upgrade in UpgradeItems)
+            {
+                if (upgrade.IsInstalled != upgrade.OriginalInstalled) return true;
+            }
+
+            return false;
+        }
+    }
 
     /// <summary>Upgrades to write: the save's own order for kept ones, newly installed ones appended (install order).</summary>
     public List<string> UpgradesToWrite()

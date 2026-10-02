@@ -308,6 +308,8 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
 
     private EditPlan BuildCurrentEditPlan(SaveFileSummary save)
     {
+        if (_burstPlan is { } ready && ReferenceEquals(save, _burstSave)) return ready;
+
         var money = save.CanEditMoney &&
             uint.TryParse(MoneyInput, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedMoney) &&
             parsedMoney != save.Money
@@ -466,7 +468,35 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         }
     }
 
+    // One plan for one burst of notifications: every bound property below asks for the plan of the whole inventory,
+    // and nothing can change the rows while the burst runs.
+    private EditPlan? _burstPlan;
+    private SaveFileSummary? _burstSave;
+
     private void UpdateDraftState()
+    {
+        var outer = _burstSave is not null;
+        if (!outer && SelectedSave is { } save)
+        {
+            _burstPlan = BuildCurrentEditPlan(save);
+            _burstSave = save;
+        }
+
+        try
+        {
+            NotifyDraftState();
+        }
+        finally
+        {
+            if (!outer)
+            {
+                _burstPlan = null;
+                _burstSave = null;
+            }
+        }
+    }
+
+    private void NotifyDraftState()
     {
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));

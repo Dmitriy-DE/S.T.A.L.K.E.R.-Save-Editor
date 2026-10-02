@@ -57,7 +57,12 @@ public static class XRayTrilogyReader
 
     internal static XRayTrilogySave FromEnhancedBytes(ReadOnlySpan<byte> data) => Read(data, enhanced: true);
 
-    private static XRayTrilogySave Read(ReadOnlySpan<byte> data, bool enhanced)
+    private static XRayTrilogySave Read(ReadOnlySpan<byte> data, bool enhanced) =>
+        enhanced
+            ? ParseSession.GetOrParse<XRayTrilogySave>("xray-ee", data, static bytes => ReadUncached(bytes, enhanced: true))
+            : ParseSession.GetOrParse<XRayTrilogySave>("xray", data, static bytes => ReadUncached(bytes, enhanced: false));
+
+    private static XRayTrilogySave ReadUncached(ReadOnlySpan<byte> data, bool enhanced)
     {
         var container = XRayContainer.FromBytes(data);
         var chunks = container.Chunks;

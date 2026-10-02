@@ -121,6 +121,44 @@ public sealed class EditServiceTests
     }
 
     [Fact]
+    public void Preparing_an_edit_parses_each_save_image_once_and_gives_the_same_bytes()
+    {
+        var first = XRayTrilogyReader.FromBytes(XRayCoPSource).Inventory.First(item => item.EditableCount);
+        var plan = new EditPlan(Sha256(XRayCoPSource), money: 4_321, stackCounts: new Dictionary<uint, uint> { [first.Handle] = 3 });
+
+        // Without a session every reader call parses again; this is the result to compare with.
+        var plain = EditService.PrepareEdit(XRayCoPSource, plan, "stalker-cop");
+
+        using (var session = StalkerSaveEditor.Core.Formats.ParseSession.Begin())
+        {
+            var prepared = EditService.PrepareEdit(XRayCoPSource, plan, "stalker-cop");
+            EditService.VerifyReadBack(prepared.Data.Span, "stalker-cop", plan);
+
+            Assert.Equal(plain.OutputSha256, prepared.OutputSha256);
+            // Three images exist: the source, the save after the money stage, the save after the stack stage.
+            Assert.Equal(3, session.Misses);
+            Assert.True(session.Hits >= 3, "hits " + session.Hits);
+        }
+
+        Assert.Null(StalkerSaveEditor.Core.Formats.ParseSession.Current);
+    }
+
+    [Fact]
+    public void A_failed_parse_is_not_remembered_and_sessions_do_not_leak_between_calls()
+    {
+        using (var session = StalkerSaveEditor.Core.Formats.ParseSession.Begin())
+        {
+            Assert.ThrowsAny<Exception>(() => XRayTrilogyReader.FromBytes(new byte[] { 1, 2, 3 }));
+            Assert.ThrowsAny<Exception>(() => XRayTrilogyReader.FromBytes(new byte[] { 1, 2, 3 }));
+            Assert.Equal(0, session.Misses);
+            Assert.Same(XRayTrilogyReader.FromBytes(XRayCoPSource), XRayTrilogyReader.FromBytes(XRayCoPSource));
+        }
+
+        // Outside a session the readers build a new model every time.
+        Assert.NotSame(XRayTrilogyReader.FromBytes(XRayCoPSource), XRayTrilogyReader.FromBytes(XRayCoPSource));
+    }
+
+    [Fact]
     public void DetectFormat_identifies_xray_and_s2_saves()
     {
         Assert.Equal("stalker-cop", EditService.DetectFormat(XRayCoPSource));

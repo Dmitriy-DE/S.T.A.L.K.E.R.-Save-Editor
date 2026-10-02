@@ -265,9 +265,15 @@ public sealed class SaveLibraryEditingTests
         Assert.NotEmpty(viewModel.SelectedSave!.Stashes);
         var stashItem = viewModel.SelectedSave.Stashes.First().Items.First();
 
-        viewModel.TakeStashItem(stashItem);
+        // What a click on the list's checkbox does: the binding sets the flag, the handler records the draft.
+        stashItem.IsTaken = true;
+        viewModel.StashSelectionChanged();
         Assert.True(stashItem.IsTaken);
         Assert.True(viewModel.CanSave);
+        viewModel.UndoCommand.Execute(null);
+        Assert.False(stashItem.IsTaken);
+        viewModel.RedoCommand.Execute(null);
+        Assert.True(stashItem.IsTaken);
 
         viewModel.SaveCommand.Execute(null);
 

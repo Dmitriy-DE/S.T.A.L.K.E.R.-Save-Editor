@@ -98,7 +98,7 @@ public static class StashesView
                 });
                 takeChk.Click += (_, _) =>
                 {
-                    if (item.CanEdit) vm.TakeStashItem(item);
+                    if (item.CanEdit) vm.StashSelectionChanged();
                 };
                 Grid.SetColumn(takeChk, 2);
                 row.Children.Add(takeChk);

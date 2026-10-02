@@ -193,12 +193,14 @@ public sealed partial class MainWindow : Window
     {
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            // The commands keep their size; the title gives way (a narrow window at 125% used to push Save off screen).
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 12,
             Margin = new Thickness(18, 12, 18, 12),
         };
 
         // App title & badge
-        var titleStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
+        var titleStack = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto"), ColumnSpacing = 12, VerticalAlignment = VerticalAlignment.Center, ClipToBounds = true };
         titleStack.Children.Add(new TextBlock
         {
             Text = "S.T.A.L.K.E.R. SAVE EDITOR",
@@ -212,8 +214,10 @@ public sealed partial class MainWindow : Window
 
         var releaseBadge = StalkerTheme.Badge("X-Ray / S2", StalkerTheme.BrushBgElevated, StalkerTheme.BrushTextSecondary, 10);
         ((TextBlock)releaseBadge.Child!).Bind(TextBlock.TextProperty, new Binding("SelectedSave.ReleaseName") { FallbackValue = "X-Ray / S2", TargetNullValue = "X-Ray / S2" });
+        Grid.SetColumn(releaseBadge, 1);
         titleStack.Children.Add(releaseBadge);
         grid.Children.Add(titleStack);
+        grid.SizeChanged += (_, args) => releaseBadge.IsVisible = args.NewSize.Width >= 1000;
 
         // Right side: Undo, Redo, Discard, Save buttons
         var actions = new StackPanel
@@ -275,7 +279,7 @@ public sealed partial class MainWindow : Window
         saveBtn.Bind(ToolTip.TipProperty, new Binding(nameof(SaveLibraryViewModel.SaveDisabledReason)));
         actions.Children.Add(saveBtn);
 
-        Grid.SetColumn(actions, 2);
+        Grid.SetColumn(actions, 1);
         grid.Children.Add(actions);
 
         var border = new Border

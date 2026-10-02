@@ -203,8 +203,30 @@ public sealed class ToolkitEnvironmentViewModel : ObservableViewModel
         }
     }
 
+    /// <summary>The installation the loaded user.ltx, its settings and the audit rows belong to.</summary>
+    private string _contextDirectory = string.Empty;
+
+    /// <summary>
+    /// What was loaded for one installation must not be shown for, or written into, another: after the selection
+    /// changes the path, the settings and the audit are dropped and read again on request.
+    /// </summary>
+    private bool SameInstallation()
+    {
+        var current = CurrentDirectory;
+        if (PathMatches(_contextDirectory, current)) return true;
+        var first = _contextDirectory.Length == 0;
+        _contextDirectory = current;
+        if (first) return true;
+        UserLtxPath = string.Empty;
+        ConfigSettings.Clear();
+        AuditRows.Clear();
+        OnPropertyChanged(nameof(HasAuditRows));
+        return false;
+    }
+
     public void Refresh()
     {
+        SameInstallation();
         try
         {
             var selectedSnapshotId = SelectedSnapshot?.Id;
@@ -233,6 +255,7 @@ public sealed class ToolkitEnvironmentViewModel : ObservableViewModel
     public void LoadConfig()
     {
         if (!Directory.Exists(CurrentDirectory)) return;
+        SameInstallation();
         try
         {
             var path = UserLtxPath.Trim();
@@ -368,6 +391,12 @@ public sealed class ToolkitEnvironmentViewModel : ObservableViewModel
     public void ApplyConfig(ToolkitConfigSettingRow? row)
     {
         if (IsBusy || row is null || string.IsNullOrWhiteSpace(UserLtxPath)) return;
+        if (!SameInstallation())
+        {
+            Status = L.T("Выбрана другая установка: настройки нужно прочитать заново.");
+            return;
+        }
+
         try
         {
             ManagedUserLtxSettings.SetOverrides(UserLtxPath, _configStateDirectory,
@@ -384,6 +413,12 @@ public sealed class ToolkitEnvironmentViewModel : ObservableViewModel
     public void RestoreConfigDefault(ToolkitConfigSettingRow? row)
     {
         if (IsBusy || row is null || !row.CanRestoreDefault || string.IsNullOrWhiteSpace(UserLtxPath)) return;
+        if (!SameInstallation())
+        {
+            Status = L.T("Выбрана другая установка: настройки нужно прочитать заново.");
+            return;
+        }
+
         try
         {
             ManagedUserLtxSettings.RestoreDefault(UserLtxPath, _configStateDirectory, row.Key);
@@ -399,6 +434,7 @@ public sealed class ToolkitEnvironmentViewModel : ObservableViewModel
     public void Audit()
     {
         if (!Directory.Exists(CurrentDirectory)) return;
+        SameInstallation();
         try
         {
             var context = _selection();
@@ -438,6 +474,7 @@ public sealed class ToolkitEnvironmentViewModel : ObservableViewModel
 
     public async Task CleanupOrphanAsync(ToolkitAuditRow? row)
     {
+        if (!SameInstallation()) return;
         if (IsBusy || row is null || !row.CanCleanup || string.IsNullOrWhiteSpace(row.OwnerId) || !Directory.Exists(CurrentDirectory)) return;
         IsBusy = true;
         try

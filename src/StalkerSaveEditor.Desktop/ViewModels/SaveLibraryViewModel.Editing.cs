@@ -130,6 +130,12 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         RecordDraftChange();
     }
 
+    /// <summary>
+    /// The checkbox in the list has already written <see cref="StashItemViewModel.IsTaken"/> through its binding;
+    /// only the draft is recorded. (Toggling here as well undid the click.)
+    /// </summary>
+    public void StashSelectionChanged() => RecordDraftChange();
+
     public void AdjustFactionRelation(FactionRelationViewModel relation, int delta) =>
         SetFactionRelation(relation, relation.Goodwill + delta);
 

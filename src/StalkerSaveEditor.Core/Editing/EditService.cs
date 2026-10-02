@@ -130,6 +130,9 @@ public static class EditService
         ArgumentNullException.ThrowIfNull(plan);
         ValidatePlan(plan);
 
+        // Every distinct save image met while preparing (the source, each stage's output) is parsed once.
+        using var parseSession = Formats.ParseSession.Begin();
+
         var detectedRelease = CanonicalReleaseId(releaseId);
         if (string.IsNullOrWhiteSpace(detectedRelease))
         {

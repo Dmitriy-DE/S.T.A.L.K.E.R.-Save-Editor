@@ -1209,7 +1209,7 @@
     {
       "id": "soc.dialog.wounded-enemy-crash",
       "game": "ShadowOfChernobyl",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "title": "Prevent wounded-enemy dialog crashes",
       "supportedSteamBuildIds": [
         "11567845"
@@ -1239,11 +1239,54 @@
           "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Can you spare a medkit?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>It hurts! Stop the pain!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>By the Monolith, help this brother!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Comrade! I need help...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
           "expectedFileSha256": "163ce72636007fde27f468d3868fcdc6e665a39bb70e573a168fbbd6d7ba858e",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/cze/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Nemá lékárnièku nazbyt?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>To bolí! A to pøestane!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>Pøi Monolitu, pomoz bratrovi!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Kamaráde! Potøebuju pomoc...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "7dcdb966ad8e97ac283a89ce7f22bf5bc1da9719ad5872d3b5ee732de7a95ce2",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/fra/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Tu aurais un kit de soins en trop ?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>Ça fait mal ! Faites que ça s'arrête !</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>Par le Monolithe, aide ton frère !</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Camarade ! J'ai besoin d'aide...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "43402ed8740e9be97a4b4d63633d69ae180b55400bf7f5503d05f2618add8d63",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/ger/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Hast du ein Medkit übrig?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>Es tut weh! Mach, dass es aufhört!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>Beim Monolithen, hilf deinem Bruder!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Kamerad! Ich brauche Hilfe...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "a19a23bc52d83d961689273a323d8cf4ed8432b66a428564ea5afd2acca39654",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/ita/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Hai un kit medico in più?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>Fa male! Fate smettere il dolore!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>Per il Monolite, aiuta questo fratello!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Compagno! Ho bisogno di aiuto...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "3b0a3dc30f44e6fdc31f046de1f83f380ebf269fb771fa2a2e9f24b02e650add",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/pol/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Masz mo¿e zbêdn¹ apteczkê?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>Boli! Niech to przestanie boleæ!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>Na Monolit, pomó¿ bratu!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Towarzyszu! Potrzebujê pomocy...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "1a5f995d5001f670d5a5c23c064acd3812561b4fe273db383e17337b3b2f219a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/esp/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>¿Te sobra un botiquín?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>¡Duele! ¡Haz que pare el dolor!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>¡Por el Monolito, ayuda a este hermano!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>¡Camarada! Necesito ayuda...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "ab490ef46df571088e3a96a97be4561e3e881615ad54f06e6852db0d737680d0",
+          "codePage": 28591,
+          "retailOnly": true
         }
       ],
       "source": "Adapted from ZRP 1.07 R5RC (8 April 2015), including the accumulated R3-to-R5 fixes in its shipped change notes; target is the verified SoC Steam build only.",
       "problem": "The wounded-NPC dialog manager can select a help line for normally hostile communities without a matching dialog section.",
-      "description": "Adds the four community-specific dialog-manager entries and their English strings from ZRP; it does not replace the dialog manager or Lua scripts.",
+      "description": "Adds the four community-specific dialog-manager entries and their lines in every language the retail game ships (English from ZRP; Czech, French, German, Italian, Polish and Spanish are ours); it does not replace the dialog manager or Lua scripts.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -1944,14 +1987,14 @@
           "relativePath": "gamedata/configs/weapons/w_f1.ltx",
           "expectedText": "blast\t\t\t\t\t= 3",
           "replacementText": "blast\t\t\t\t\t= 5",
-          "expectedFileSha256": "510a6432c214b863e2a04a5be54e8a4fad8fea47d61be8464e32329a282fb913",
+          "expectedFileSha256": "c93d36c703d237fb4cd7a20dce5bb0674577c170037d6dd0041de22c87081839",
           "codePage": 28591
         },
         {
           "relativePath": "gamedata/configs/weapons/w_f1.ltx",
           "expectedText": "blast_r\t\t\t\t\t= 5",
           "replacementText": "blast_r\t\t\t\t\t= 7",
-          "expectedFileSha256": "510a6432c214b863e2a04a5be54e8a4fad8fea47d61be8464e32329a282fb913",
+          "expectedFileSha256": "c93d36c703d237fb4cd7a20dce5bb0674577c170037d6dd0041de22c87081839",
           "codePage": 28591
         }
       ],
@@ -1984,7 +2027,7 @@
           "relativePath": "gamedata/configs/weapons/w_rgd5.ltx",
           "expectedText": "blast\t\t\t\t\t= 1.5",
           "replacementText": "blast\t\t\t\t\t= 2.5",
-          "expectedFileSha256": "ca2cc2e0d9c6c7330e234be07a218449f903b18d70f40c48d908c83926903fe7",
+          "expectedFileSha256": "16cf2042c43b10aeeb6e0714c288c7a1a07faefd8cf644139e4ac4e99a3480b4",
           "codePage": 28591
         }
       ],
@@ -2892,6 +2935,90 @@
       "verificationState": "RetailFilesVerified"
     },
     {
+      "id": "soc.dialog.wounded-enemy-lines.ee",
+      "game": "ShadowOfChernobylEnhancedEdition",
+      "title": "Wounded enemy help lines in the other languages (Enhanced Edition)",
+      "supportedSteamBuildIds": [
+        "24067120"
+      ],
+      "category": "Essential",
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/text/spa/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>¿Te sobra un botiquín?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>¡Duele! ¡Haz que pare el dolor!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>¡Por el Monolito, ayuda a este hermano!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>¡Camarada! Necesito ayuda...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "98ed5ad13797308435a871d027b1cd6c0f36262b409dcf7b09fbf3596e707f09",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/rus/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Àïòå÷êè ëèøíåé íå íàéä¸òñÿ?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>Áîëüíî! Ñäåëàé ÷òî-íèáóäü!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>Âî èìÿ Ìîíîëèòà, ïîìîãè áðàòó!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Òîâàðèù! Ìíå íóæíà ïîìîùü...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "88a5cc1830998c4207b837d03f14ec5425b2aad90cbbe7798c51590f6530cc39",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/ukr/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>Àïòå÷êè çàéâî¿ íå çíàéäåòüñÿ?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>Áîëèòü! Çðîáè ùîñü!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>Â ³ì'ÿ Ìîíîë³òó, äîïîìîæè áðàòîâ³!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>Òîâàðèøó! Ìåí³ ïîòð³áíà äîïîìîãà...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "f516905f608c87a44cbea60fa6a0d9e05341f222254deb7a9ef1322aef4b033b",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/kor/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>ë¨ë êµ¬ê¸ìì ìë?</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>ìí! ì´ ê³ íµ ì¢ ë©ì¶° ì¤!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>ëª¨ë¸ë¦¬ì¤ì ì´ë¦ì¼ë¡, íì ë¥¼ ëìë¼!</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>ëì§! ëìì´ íìí´...</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "71c7ac78056ddbb1b3f7d8c5d4a30ec8801e9270f45244226ba809e511abb63a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/jpn/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>ææ¥ã­ãããåãã¦ãããªããï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>çãï¼ãã®çã¿ãæ­¢ãã¦ããï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>ã¢ããªã¹ã®åã«ããã¦ããã®åå¼ãå©ãã¦ããï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>åå¿ï¼å©ããå¿è¦ã â¦</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "6a83c6015414bfebc0624cbbe09138498a58428b0cfc37ae1775f57c9d756576",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/zh_cn/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>è½åæä¸ä¸ªæ¥æç®±åï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>å¥½ç¼ï¼å¿«å¸®ææ­¢ç¼ï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>ä»¥ç§ç¢ä¹åï¼ææè¿ä½åå¼ï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>åå¿ï¼æéè¦å¸®å©â¦â¦</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "94f593c566da023452327a24662faef50c4fa92706cf2207069f525dea543296",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/zh_tw/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>è½åæä¸åæ¥æç®±åï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>å¥½çï¼å¿«å¹«ææ­¢çï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>ä»¥é»ç³ä¹åï¼ææéä½åå¼ï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>åå¿ï¼æéè¦å¹«å©â¦â¦</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "32aff43819dc809b49148a1c6c27fb699b15d1fe63511f4143fc4fd8233333e6",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/text/zho/stable_dialog_manager.xml",
+          "expectedText": "\t<string id=\"dm_intro_help_2\">",
+          "replacementText": "\t<string id=\"dm_intro_help_13\">\r\n\t\t<text>è½åæä¸åæ¥æç®±åï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_14\">\r\n\t\t<text>å¥½çï¼å¿«å¹«ææ­¢çï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_15\">\r\n\t\t<text>ä»¥é»ç³ä¹åï¼ææéä½åå¼ï¼</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_16\">\r\n\t\t<text>åå¿ï¼æéè¦å¹«å©â¦â¦</text>\r\n\t</string>\r\n\t<string id=\"dm_intro_help_2\">",
+          "expectedFileSha256": "2e649f4e8b61c58b1235a9eab1327edc7a3f81f1e6922dc101495432602fdffe",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own text. The four lines belong to the dialog entries that soc.dialog.wounded-enemy-crash adds (after ZRP 1.07 R5, NatVac).",
+      "problem": "The four help lines that the wounded-enemy fix adds exist only in English, Czech, French, German, Italian and Polish. In the other languages of the Enhanced Edition a wounded mercenary, bandit, Monolith fighter or soldier would show the name of the line instead of its text.",
+      "description": "Adds the four lines to the Spanish, Russian, Ukrainian, Korean, Japanese and Chinese text files of the Enhanced Edition.",
+      "detectionMethod": "Exact SHA-256 of the EE mil_tasks.script (Steam build 24067120) and one unique text anchor.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "https://metacognix.com/files/stlkrsoc/index.html",
+        "https://www.metacognix.com/stlkrsoc/BugsInSTALKER.html"
+      ],
+      "version": "1.0.0",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified"
+    },
+    {
       "id": "cop.quest.jup-b15-drink-timer",
       "game": "CallOfPripyat",
       "title": "Give the Zulus drinking scene time to finish",
@@ -3347,7 +3474,7 @@
     {
       "id": "cs.crash.save-menu-deleted-last",
       "game": "ClearSky",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "title": "Deleting the last save in the save/load menu no longer crashes",
       "supportedSteamBuildIds": [
         "11450472"
@@ -3359,23 +3486,9 @@
       "textPatches": [
         {
           "relativePath": "gamedata/scripts/ui_save_dialog.script",
-          "expectedText": "\tlocal item\t\t\t= self.list_box:GetItem(item_id)\r\n",
-          "replacementText": "\tlocal item\t\t\t= self.list_box:GetItem(item_id)\r\n\tif item == nil then return end\r\n",
-          "expectedFileSha256": "4986d7b2fbbff094aff5f15d434df88044e5fc18caa662c0de6a5b5197c2bc2c",
-          "codePage": 28591
-        },
-        {
-          "relativePath": "gamedata/scripts/ui_save_dialog.script",
           "expectedText": "\tlocal item\t\t\t\t= self.list_box:GetItem(index)\r\n",
           "replacementText": "\tlocal item\t\t\t\t= self.list_box:GetItem(index)\r\n\tif item == nil then return end\r\n",
           "expectedFileSha256": "4986d7b2fbbff094aff5f15d434df88044e5fc18caa662c0de6a5b5197c2bc2c",
-          "codePage": 28591
-        },
-        {
-          "relativePath": "gamedata/scripts/ui_load_dialog.script",
-          "expectedText": "\tlocal item\t\t\t= self.list_box:GetItem(itm_index)\r\n",
-          "replacementText": "\tlocal item\t\t\t= self.list_box:GetItem(itm_index)\r\n\tif item == nil then return end\r\n",
-          "expectedFileSha256": "1c3154631f41f4b333679e5ff1b6b782f2ca85594210f387deebc743ae76b985",
           "codePage": 28591
         },
         {
@@ -3402,7 +3515,7 @@
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
       "problem": "After deleting the bottom-most save of the list, the menu still points at the removed row; the next click reads it and crashes (attempt to index local 'item' (a nil value)).",
-      "description": "Every save/load menu action checks that the selected row still exists.",
+      "description": "The delete and load actions of the save/load menus check that the selected row still exists. The two places where the game already handles a missing row (it clears the preview) are left as shipped.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -6766,7 +6879,12 @@
     "soc.dialog.wounded-enemy-crash": [
       "d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4",
       "d24280998f92802fcc016a120efeaefc0f343ac05131c19e1fb3f15b896ddef4",
-      "fb4941ba935dffed1d778d0c05fa4691d3d9f42474a6eeede153f87d133c8a66"
+      "fb4941ba935dffed1d778d0c05fa4691d3d9f42474a6eeede153f87d133c8a66",
+      "3d99cc6bfc7af0c55a4bd6d6683853ea4897dd51e9fcf5f25c533d8cb1af670f",
+      "2b49f908e937ec2ef3965e5e977cd31d52acc14084f72e376fd964d97862b74a",
+      "25de0df7418af52c9b553105b918a88ddfbffbef5e66b96db8dc8d6299278e3e",
+      "3149911ad356f66de31698f4201fc21818ee072197686c3ef450f75b009007b8",
+      "257d5872164cda5ec7e806ae015174a72586a714c97129d3d4b29c46c1d44e78"
     ],
     "soc.dialog.yurik-options-out-of-order": [
       "baf38c4e00959e211c1ca708ebe40e949c37ac4833b154bdff04fbdf1cad0254"

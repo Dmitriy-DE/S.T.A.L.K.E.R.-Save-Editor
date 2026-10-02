@@ -85,7 +85,7 @@ in scripts.
 | Marsh creature entity deleted right after creation (race) | — | todo: no log; SRP rewrote sr_bloodsucker |
 | 'You are saving too much' | — | research: a guard against the engine's packet buffer; removing it is unsafe without engine RE |
 | Logic loaded before the player exists (save corruption) | — | todo: cause not pinned down |
-| Flea Market basement mugging corrupts the game | — | todo: SRP replaces a story-id deletion with effectors |
+| Flea Market basement mugging corrupts the game | `cs.save.flea-market-basement-object` | done #245 |
 
 ## Method: faults confirmed by GSC (Enhanced Edition)
 
@@ -124,6 +124,9 @@ Candidates seen in the diffs and deliberately not ported:
     `xr_remark` crash; `cs.crash.sim-combat` 1.1.0 also repairs offline damage that was 0 for squads weaker than 3.
   - CS Yantar factory scene (#244): three misspelt info portions, found by `tools/check_infos.py`; also
     `tools/check_condfuncs.py`. Their other hits are cut content (traced one by one).
+  - CS (#245): offered faction-war tasks no longer become active on load (`task_manager.script`, as SRP and the EE do);
+    Flea Market basement scene no longer deletes story object 700 after it is gone (SRP's remedy, cause not proven).
+    Totals after #245: CS 63 catalogued / 61 recommended (EE 41).
   - Totals after #244: CS 62 catalogued / 60 recommended (EE 40). Before it, after #243: SoC 35 (EE 19), CS 61 catalogued / 59 recommended (EE 39), CoP 35 catalogued / 21 recommended (EE 24).
     Every preset was installed into and removed from a pristine copy of the real install. Nothing was run in the games.
 

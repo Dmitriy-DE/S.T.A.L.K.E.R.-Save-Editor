@@ -6,7 +6,8 @@ copee-all). For the retail build and for the Enhanced Edition of each game it
   1. checks each patch: file present, SHA-256 of the original, anchor found exactly once at the moment it is applied,
      line endings of the replacement match the file, text fits the code page;
   2. writes the patched tree to OUT_DIR/<name>;
-  3. compiles every changed script (luac5.1 -p) and lists globals a changed script newly reads or assigns;
+  3. compiles every changed script (luac5.1 -p), lists globals a changed script newly reads or assigns, and runs
+     tools/lua_harness on the scripts it covers;
   4. runs the static checkers on the original and on the patched tree and prints what the patches added or removed.
 Exit code 1 when a patch fails or the patched tree has a finding the original does not have."""
 import collections, hashlib, json, os, re, shutil, subprocess, sys
@@ -105,6 +106,23 @@ def scripts_check(dest, changed):
     return out
 
 
+def lua_harness(dest, changed):
+    """Runs tools/lua_harness on the scripts it covers; returns failures as text lines."""
+    rel = 'scripts/smart_terrain.script'
+    if rel not in changed or shutil.which('lua5.1') is None:
+        return []
+    harness = os.path.join(HERE, 'lua_harness')
+    original, patched = os.path.join(dest, 'original', rel), os.path.join(dest, 'patched', rel)
+    runs = [('smart_jobs.lua', [patched]), ('smart_jobs_diff.lua', [original, patched, '1000']),
+            ('smart_jobs_overload.lua', [patched, '1000'])]
+    out = []
+    for script, args in runs:
+        r = subprocess.run(['lua5.1', os.path.join(harness, script)] + args, capture_output=True, text=True)
+        if r.returncode:
+            out.append(f'HARNESS {script}: ' + (r.stdout.strip().splitlines() or [r.stderr.strip()])[-1])
+    return out
+
+
 def overlay(dumps, tree, dest, changed):
     """A full copy of the dump (hard links) with the patched files written over it; returns its path."""
     full = dest + '-full'
@@ -169,7 +187,7 @@ def main():
         for name, tree, jobs in ((game, retail, retail_jobs), (game + 'EE', ee, ee_jobs)):
             errors, changed = build(dumps, out, name, tree, jobs)
             dest = os.path.join(out, name)
-            notes = scripts_check(dest, changed)
+            notes = scripts_check(dest, changed) + lua_harness(dest, changed)
             full = overlay(dumps, tree, dest, changed)
             base_roots = [full, os.path.join(dumps, tree), os.path.join(dumps, 'cs-scripts')]
             orig_full = overlay(dumps, tree, dest + '-orig', [])
@@ -183,7 +201,7 @@ def main():
                   f'{len(notes)} script notes, checkers +{len(added)} -{len(removed)}')
             for line in errors + notes + ['+ ' + a for a in added] + ['- ' + r for r in removed]:
                 print('  ' + line)
-            bad = bad or bool(errors) or bool(added) or any(n.startswith('SYNTAX') for n in notes)
+            bad = bad or bool(errors) or bool(added) or any(n.startswith(('SYNTAX', 'HARNESS')) for n in notes)
     sys.exit(1 if bad else 0)
 
 

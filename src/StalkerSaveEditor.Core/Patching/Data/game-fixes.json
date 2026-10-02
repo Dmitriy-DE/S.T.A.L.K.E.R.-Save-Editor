@@ -6213,7 +6213,7 @@
     {
       "id": "cs.crash.smart-terrain-no-free-job",
       "game": "ClearSky",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "title": "No 'Insufficient smart_terrain jobs' crash when a camp gets more people than it has places",
       "supportedSteamBuildIds": [
         "11450472"
@@ -6225,15 +6225,78 @@
       "textPatches": [
         {
           "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\t\t\t\telseif v.job_id == npc_data.job_id then\r\n",
+          "replacementText": "\t\t\t\telseif v.npc_id == npc_data.se_obj.id then\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\tprintf(\"smart [%s] unregister npc [%s]\", self:name(), obj:name())\r\n\r\n\tlocal n = self.npc_info[obj.id]\r\n",
+          "replacementText": "\tprintf(\"smart [%s] unregister npc [%s]\", self:name(), obj:name())\r\n\r\n\tlocal n = self.npc_info[obj.id]\r\n\tif n ~= nil and (n.job_link == nil or n.job_link.npc_id ~= obj.id) then\r\n\t\t-- he shares a job that another NPC owns (or has none): the owner's entry must stay as it is\r\n\t\tn.job_link = {}\r\n\tend\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\tself.dead_time[self.npc_info[obj.id].job_id] = game.get_game_time()\r\n\r\n\tself.npc_info[obj.id].job_link.npc_id = nil\r\n",
+          "replacementText": "\tlocal dead_job_link = self.npc_info[obj.id].job_link\r\n\tif dead_job_link ~= nil and dead_job_link.npc_id == obj.id then\r\n\t\tself.dead_time[self.npc_info[obj.id].job_id] = game.get_game_time()\r\n\t\tdead_job_link.npc_id = nil\r\n\tend\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
           "expectedText": "\t\tif selected_job_id == nil then\r\n\t\t\tprint_table(self.jobs)\r\n\t\t\tabort(\"Insufficient smart_terrain jobs %s\", self:name())\r\n\t\tend\r\n",
-          "replacementText": "\t\tif selected_job_id == nil then\r\n\t\t\t-- every suitable job is taken: share one instead of stopping the game\r\n\t\t\tlocal function any_job(jobs)\r\n\t\t\t\tfor k,v in pairs(jobs) do\r\n\t\t\t\t\tif job_avail_to_npc(npc_info, v, self) then\r\n\t\t\t\t\t\tif v.job_id == nil then\r\n\t\t\t\t\t\t\tlocal link = any_job(v.jobs)\r\n\t\t\t\t\t\t\tif link ~= nil then\r\n\t\t\t\t\t\t\t\treturn link\r\n\t\t\t\t\t\t\tend\r\n\t\t\t\t\t\telse\r\n\t\t\t\t\t\t\treturn v\r\n\t\t\t\t\t\tend\r\n\t\t\t\t\tend\r\n\t\t\t\tend\r\n\t\t\tend\r\n\t\t\tlocal shared = any_job(self.jobs)\r\n\t\t\tif shared == nil then\r\n\t\t\t\tabort(\"Insufficient smart_terrain jobs %s\", self:name())\r\n\t\t\tend\r\n\t\t\tif npc_info.job_id ~= shared.job_id then\r\n\t\t\t\tif npc_info.job_link ~= nil and npc_info.job_link.npc_id == npc_info.se_obj.id then\r\n\t\t\t\t\tself.npc_by_job_section[self.job_data[npc_info.job_link.job_id].section] = nil\r\n\t\t\t\t\tnpc_info.job_link.npc_id = nil\r\n\t\t\t\tend\r\n\t\t\t\tnpc_info.job_id = shared.job_id\r\n\t\t\t\tnpc_info.job_prior = shared._prior\r\n\t\t\t\tnpc_info.job_link = shared\r\n\t\t\t\tnpc_info.begin_job = false\r\n\t\t\t\tlocal shared_storage = db.storage[npc_info.se_obj.id]\r\n\t\t\t\tif shared_storage ~= nil then\r\n\t\t\t\t\txr_logic.switch_to_section(shared_storage.object, self.ltx, \"nil\")\r\n\t\t\t\tend\r\n\t\t\tend\r\n\t\tend\r\n",
+          "replacementText": "\t\tif selected_job_id == nil and self.job_data[npc_info.job_id] == nil then\r\n\t\t\t-- no free job and he has none yet: he does a job that is already held, alongside its owner, instead of\r\n\t\t\t-- stopping the game. The job stays its owner's; he takes a free one as soon as there is one.\r\n\t\t\tlocal function any_job(jobs)\r\n\t\t\t\tfor k,v in pairs(jobs) do\r\n\t\t\t\t\tif job_avail_to_npc(npc_info, v, self) then\r\n\t\t\t\t\t\tif v.job_id == nil then\r\n\t\t\t\t\t\t\tlocal link = any_job(v.jobs)\r\n\t\t\t\t\t\t\tif link ~= nil then\r\n\t\t\t\t\t\t\t\treturn link\r\n\t\t\t\t\t\t\tend\r\n\t\t\t\t\t\telse\r\n\t\t\t\t\t\t\treturn v\r\n\t\t\t\t\t\tend\r\n\t\t\t\t\tend\r\n\t\t\t\tend\r\n\t\t\tend\r\n\t\t\tlocal shared = any_job(self.jobs)\r\n\t\t\tif shared == nil then\r\n\t\t\t\t-- jobs on which somebody died a short while ago are closed; sharing one is better than stopping\r\n\t\t\t\tlocal dead_time = self.dead_time\r\n\t\t\t\tself.dead_time = {}\r\n\t\t\t\tshared = any_job(self.jobs)\r\n\t\t\t\tself.dead_time = dead_time\r\n\t\t\tend\r\n\t\t\tif shared == nil then\r\n\t\t\t\tabort(\"Insufficient smart_terrain jobs %s\", self:name())\r\n\t\t\tend\r\n\t\t\tnpc_info.job_id = shared.job_id\r\n\t\t\tnpc_info.job_prior = shared._prior\r\n\t\t\tnpc_info.job_link = shared\r\n\t\t\tnpc_info.begin_job = false\r\n\t\t\tlocal shared_storage = db.storage[npc_info.se_obj.id]\r\n\t\t\tif shared_storage ~= nil then\r\n\t\t\t\txr_logic.switch_to_section(shared_storage.object, self.ltx, \"nil\")\r\n\t\t\tend\r\n\t\tend\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\t\tif selected_job_id ~= npc_info.job_id and selected_job_link ~= nil then\r\n",
+          "replacementText": "\t\tif selected_job_link ~= nil and (selected_job_id ~= npc_info.job_id or selected_job_link.npc_id ~= npc_info.se_obj.id) then\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\t\t\tif npc_info.job_link ~= nil then\r\n\t\t\t\tself.npc_by_job_section[self.job_data[npc_info.job_link.job_id].section] = nil\r\n",
+          "replacementText": "\t\t\tif npc_info.job_link ~= nil and npc_info.job_link.npc_id == npc_info.se_obj.id then\r\n\t\t\t\tself.npc_by_job_section[self.job_data[npc_info.job_link.job_id].section] = nil\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\t\tif selected_job_id ~= v.job_id and selected_job_link ~= nil then\r\n",
+          "replacementText": "\t\tif selected_job_link ~= nil and (selected_job_id ~= v.job_id or selected_job_link.npc_id ~= v.se_obj.id) then\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\t\t\tif v.job_link ~= nil then\r\n",
+          "replacementText": "\t\t\tif v.job_link ~= nil and v.job_link.npc_id == v.se_obj.id then\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\tlocal npc_id = npc:id()\r\n\tlocal npc_info = self.npc_info[npc_id]\r\n",
+          "replacementText": "\tlocal npc_id = npc:id()\r\n\tlocal npc_info = self.npc_info[npc_id]\r\n\tlocal swap_with = self.npc_by_job_section[npc_info.need_job]\r\n\tif (swap_with == nil or self.npc_info[swap_with] == nil) and npc_info.job_link ~= nil and npc_info.job_link.npc_id == npc_id then\r\n\t\t-- nobody to swap with: below the game forgets this NPC's job without freeing it, and the job would stay\r\n\t\t-- taken (by nobody) until the next load\r\n\t\tself.npc_by_job_section[self.job_data[npc_info.job_link.job_id].section] = nil\r\n\t\tnpc_info.job_link.npc_id = nil\r\n\tend\r\n",
+          "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/smart_terrain.script",
+          "expectedText": "\tif npc_info.job_link ~= nil then\r\n\t\tself.npc_by_job_section[self.job_data[npc_info.job_link.job_id].section] = nil\r\n",
+          "replacementText": "\tif npc_info.job_link ~= nil and npc_info.job_link.npc_id == npc_info.se_obj.id then\r\n\t\tself.npc_by_job_section[self.job_data[npc_info.job_link.job_id].section] = nil\r\n",
           "expectedFileSha256": "2a2033513aa6ec5ce15d4b40d925961b375aeed44e16975c6d7550c85705f6f7",
           "codePage": 28591
         }
       ],
       "source": "Our own change for the retail Steam build. The crash is listed in the SRP 1.1.5 version history (val_smart_terrain_9_6, gar_smart_terrain_6_6).",
       "problem": "Every NPC in a camp must hold one of the camp's jobs. When more NPCs arrive than there are suitable free jobs (two squads meet in the small wagon camp of the Dark Valley, for example), the game stops with 'Insufficient smart_terrain jobs <camp>'.",
-      "description": "An NPC that finds no free job takes a suitable job that is already held and does it alongside its holder; he moves to a free job as soon as one appears. The game still stops if the camp has no suitable job at all. SRP avoids the situation by reworking squad movement; this is our own smaller remedy and it has not been run in the game.",
+      "description": "An NPC that finds no free job does a suitable job that is already held, alongside its owner. The job stays its owner's: when the extra NPC leaves, dies or moves on, the owner's place and the camp's record of who does which job are not touched, and the extra NPC takes a free job as soon as there is one. The game still stops if the camp has no job at all that suits the NPC. SRP avoids the situation by reworking squad movement; this is our own smaller remedy. Its bookkeeping was run outside the game (register, leave, death, job swap, periodic re-selection); it has not been run in the game.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -7116,6 +7179,15 @@
       "81c28586ef5b5306705bb9350b5ac05ef852a6d4eba3a86a271587bfb844ce33"
     ],
     "cs.crash.smart-terrain-no-free-job": [
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
+      "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c",
       "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c"
     ],
     "cs.dialog.bloodsucker-pda-return": [

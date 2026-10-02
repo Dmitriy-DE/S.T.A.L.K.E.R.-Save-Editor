@@ -8,20 +8,12 @@ namespace StalkerSaveEditor.Core.Tests.Diagnostics;
 [Collection("AppLog")]
 public sealed class DiagnosticsTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "se-logs-" + Guid.NewGuid().ToString("N"));
+    private readonly TemporaryAppLog _log = new();
+    private readonly string _directory;
 
-    public DiagnosticsTests() => AppLog.Configure(_directory);
+    public DiagnosticsTests() => _directory = _log.Directory;
 
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
-        catch (IOException)
-        {
-        }
-    }
+    public void Dispose() => _log.Dispose();
 
     [Fact]
     public void The_tail_cap_counts_utf8_bytes_and_never_splits_a_character()

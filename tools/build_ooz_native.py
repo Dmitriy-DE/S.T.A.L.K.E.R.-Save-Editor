@@ -56,7 +56,30 @@ def _source_root(work: Path, archive_path: Path) -> Path:
     candidates = sorted(path for path in work.iterdir() if path.is_dir() and path.name.startswith("pyooz-"))
     if len(candidates) != 1:
         raise SystemExit("the pyooz archive has no single source root")
+    apply_vendor_patches(candidates[0])
     return candidates[0]
+
+
+# Our changes to the vendored sources, applied after the archive's hash was checked. Each one replaces an exact
+# text that must occur once: a different upstream version fails the build instead of being patched blindly.
+VENDOR_PATCHES = (
+    # lzna.cpp initialised short_length[12][4] as short_length[0][i] for i < 48: an out-of-bounds index on the
+    # inner array (undefined behaviour, reported by the compiler). Same values, written through both indexes.
+    (
+        "ooz/dep/ooz/lzna.cpp",
+        "  for (i = 0; i < 48; i++)\n    lut->short_length[0][i] = 0x2000;\n",
+        "  for (i = 0; i < 12; i++)\n    for (int j = 0; j < 4; j++)\n      lut->short_length[i][j] = 0x2000;\n",
+    ),
+)
+
+
+def apply_vendor_patches(source_root: Path) -> None:
+    for relative, expected, replacement in VENDOR_PATCHES:
+        path = source_root / relative
+        text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        if text.count(expected) != 1:
+            raise SystemExit(f"{relative}: the text of a vendor patch was not found exactly once")
+        path.write_text(text.replace(expected, replacement), encoding="utf-8", newline="\n")
 
 
 def _emscripten_env() -> tuple[dict[str, str], Path]:

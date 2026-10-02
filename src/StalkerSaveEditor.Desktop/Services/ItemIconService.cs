@@ -53,47 +53,73 @@ public static class ItemIconService
     public static void Show(Avalonia.Controls.Image image, string releaseId, string itemKey)
     {
         ArgumentNullException.ThrowIfNull(image);
+        var request = $"{releaseId}|{itemKey}";
+        Requested.Remove(image);
+        Requested.Add(image, request);
         image.Source = Load(releaseId, itemKey);
         if (image.Source is not null || HostPlatform.FetchAsset is not { } fetch) return;
         var relative = IconKey(releaseId.Replace("-ee", string.Empty, StringComparison.Ordinal), itemKey);
         if (relative is null) return;
-        BackgroundTask.Run(ShowFetchedAsync(image, fetch, "Assets/Icons/" + relative, $"{releaseId}|{itemKey}"), "item icon");
+        BackgroundTask.Run(ShowFetchedAsync(image, fetch, "Assets/Icons/" + relative, request), "item icon");
     }
+
+    // What each Image was last asked to show. List rows are recycled: by the time a download ends the same Image
+    // may already belong to another item, and must not get the old item's picture.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Avalonia.Controls.Image, string> Requested = [];
 
     private static async Task ShowFetchedAsync(Avalonia.Controls.Image image, Func<string, Task<byte[]?>> fetch, string path, string cacheKey)
     {
+        // One download per icon, however many rows ask for it at once.
+        var bitmap = await Remote.GetOrAdd(cacheKey, _ => FetchAsync(fetch, path));
+        Trim(Remote, static task => task.IsCompletedSuccessfully && task.Result is null);
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (Requested.TryGetValue(image, out var current) && current == cacheKey) image.Source = bitmap;
+        });
+    }
+
+    private static async Task<Bitmap?> FetchAsync(Func<string, Task<byte[]?>> fetch, string path)
+    {
         try
         {
-            if (Remote.TryGetValue(cacheKey, out var known))
-            {
-                image.Source = known;
-                return;
-            }
-
             var bytes = await fetch(path);
-            Bitmap? bitmap = null;
-            if (bytes is { Length: > 0 })
-            {
-                using var stream = new MemoryStream(bytes);
-                bitmap = new Bitmap(stream);
-            }
-
-            Remote[cacheKey] = bitmap;
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => image.Source = bitmap);
+            if (bytes is not { Length: > 0 }) return null;
+            using var stream = new MemoryStream(bytes);
+            return new Bitmap(stream);
         }
         catch (Exception exception) when (exception is IOException or ArgumentException or InvalidOperationException or NotSupportedException or HttpRequestException)
         {
-            Remote[cacheKey] = null;
+            return null;
         }
     }
 
-    private static readonly ConcurrentDictionary<string, Bitmap?> Remote = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Task<Bitmap?>> Remote = new(StringComparer.Ordinal);
+
+    internal const int MaximumCachedKeys = 4096;
+
+    /// <summary>
+    /// "No such icon" answers are worth remembering only for a while: item keys come from every opened save and mod,
+    /// so past the limit the misses are forgotten (a later request just looks again). Loaded bitmaps stay: the UI
+    /// may still be showing them.
+    /// </summary>
+    private static void Trim<T>(ConcurrentDictionary<string, T> cache, Func<T, bool> isMiss)
+    {
+        if (cache.Count <= MaximumCachedKeys) return;
+        foreach (var (key, value) in cache)
+        {
+            if (isMiss(value)) cache.TryRemove(key, out _);
+        }
+    }
+
+    internal static int CachedKeyCount => Cache.Count;
 
     public static Bitmap? Load(string releaseId, string itemKey)
     {
         if (string.IsNullOrWhiteSpace(itemKey)) return null;
         var family = releaseId.Replace("-ee", string.Empty, StringComparison.Ordinal);
-        return Cache.GetOrAdd($"{family}|{itemKey}", _ => LoadUncached(family, itemKey));
+        var bitmap = Cache.GetOrAdd($"{family}|{itemKey}", _ => LoadUncached(family, itemKey));
+        if (bitmap is null) Trim(Cache, static value => value is null);
+        return bitmap;
     }
 
     private static Bitmap? LoadUncached(string family, string itemKey)

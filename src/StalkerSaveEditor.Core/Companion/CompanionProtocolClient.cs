@@ -168,6 +168,9 @@ public sealed class CompanionProtocolClient
                 }
 
                 var remaining = _timeout - elapsed.Elapsed;
+                // The time may run out while the reply file is being checked; a negative delay would throw an
+                // argument error instead of the timeout the caller expects.
+                if (remaining <= TimeSpan.Zero) break;
                 await Task.Delay(remaining < _pollInterval ? remaining : _pollInterval, cancellationToken)
                     .ConfigureAwait(false);
             }

@@ -43,8 +43,11 @@ public static partial class AppLog
 
     public static string Directory => _directory ?? AppPaths.Logs;
 
-    /// <summary>Points the log at a directory (tests, portable mode). Default: <see cref="AppPaths.Logs"/>.</summary>
-    public static void Configure(string directory)
+    /// <summary>
+    /// Points the log at a directory (tests, portable mode); null returns to the default, <see cref="AppPaths.Logs"/>.
+    /// When this returns no write to the previous directory is in progress and none will start.
+    /// </summary>
+    public static void Configure(string? directory)
     {
         lock (Gate)
         {

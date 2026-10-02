@@ -3069,8 +3069,8 @@
     {
       "id": "cs.crash.anomaly-zone-missing-artefact",
       "game": "ClearSky",
-      "version": "1.0.0",
-      "title": "Anomaly field no longer crashes on an artefact that was already removed",
+      "version": "1.1.0",
+      "title": "Anomaly field no longer crashes on an artefact that was already removed; each anomaly field saves only its own artefacts",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -3085,11 +3085,18 @@
           "replacementText": "\t\tlocal art = alife():object(k)\r\n\t\tif art == nil then\r\n\t\telseif cl_pos ~= nil then",
           "expectedFileSha256": "38bba252b08b32b42dc3c2a23e340773ba24b72677a1b346460908ec47f451f1",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/bind_anomaly_zone.script",
+          "expectedText": "\tfor k,v in pairs(artefact_ways_by_id) do\r\n\t\tcount = count + 1\r\n\tend\r\n\tthread:w_u16(count)\r\n\tfor k,v in pairs(artefact_ways_by_id) do\r\n\t\tthread:w_u16(k)\r\n\t\tthread:w_stringZ(v)\r\n\tend\r\n",
+          "replacementText": "\tfor k,v in pairs(artefact_ways_by_id) do\r\n\t\tif rawequal(parent_zones_by_artefact_id[k], self) then\r\n\t\t\tcount = count + 1\r\n\t\tend\r\n\tend\r\n\tthread:w_u16(count)\r\n\tfor k,v in pairs(artefact_ways_by_id) do\r\n\t\tif rawequal(parent_zones_by_artefact_id[k], self) then\r\n\t\t\tthread:w_u16(k)\r\n\t\t\tthread:w_stringZ(v)\r\n\t\tend\r\n\tend\r\n",
+          "expectedFileSha256": "38bba252b08b32b42dc3c2a23e340773ba24b72677a1b346460908ec47f451f1",
+          "codePage": 28591
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
-      "problem": "An anomaly field lists its artefacts; one removed in the meantime crashes: bind_anomaly_zone.script: attempt to index local 'art' (a nil value).",
-      "description": "A removed artefact is skipped (the Enhanced Edition already has this check).",
+      "problem": "An anomaly field lists its artefacts; one removed in the meantime crashes: bind_anomaly_zone.script: attempt to index local 'art' (a nil value). Saving: every anomaly field writes the whole shared list of field artefacts, not only its own. After a load each field claims every artefact and the last one loaded wins, so picking an artefact up is counted against the wrong field: that field respawns artefacts it never lost and the right one never does.",
+      "description": "A removed artefact is skipped (the Enhanced Edition already has this check). A field saves only the artefacts it owns. The save layout is unchanged; old saves load as before.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -6023,6 +6030,140 @@
       "references": [
         "Sky Reclamation Project 1.1.5, version history (list of known faults)"
       ]
+    },
+    {
+      "id": "cs.dialog.bloodsucker-pda-return",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Dark Valley: Yar's task cannot be handed in without the bloodsucker's PDA",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/dialogs_darkvalley.script",
+          "expectedText": "function return_pda_bloodsucker(first_speaker, second_speaker)\r\n\tdialogs.relocate_item_section_from_actor(first_speaker, second_speaker, \"device_pda_bloodsucker\")\r\nend\r\n",
+          "replacementText": "function return_pda_bloodsucker(first_speaker, second_speaker)\r\n\tif db.actor:object(\"device_pda_bloodsucker\") ~= nil then\r\n\t\tdialogs.relocate_item_section_from_actor(first_speaker, second_speaker, \"device_pda_bloodsucker\")\r\n\tend\r\nend\r\n\r\nfunction has_pda_bloodsucker(first_speaker, second_speaker)\r\n\treturn db.actor ~= nil and db.actor:object(\"device_pda_bloodsucker\") ~= nil\r\nend\r\n\r\nfunction hasnt_pda_bloodsucker(first_speaker, second_speaker)\r\n\treturn not has_pda_bloodsucker(first_speaker, second_speaker)\r\nend\r\n",
+          "expectedFileSha256": "b6c253c6e7f83617f8279e8ac9cad1a20801457ad54c3e8c80f3da8f292ab1fc",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/gameplay/dialogs_darkvalley.xml",
+          "expectedText": "                <text>val_freedom_fixer_hello_dialog_212</text>\r\n                <dont_has_info>val_night_bloodsucker_complete</dont_has_info>\r\n",
+          "replacementText": "                <text>val_freedom_fixer_hello_dialog_212</text>\r\n                <precondition>dialogs_darkvalley.hasnt_pda_bloodsucker</precondition>\r\n",
+          "expectedFileSha256": "fb222d0512aa67eb0ecc818b4fd3a7ccd87c4981b71e61919368fda3ca5fba6b",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/gameplay/dialogs_darkvalley.xml",
+          "expectedText": "                <action>dialogs_darkvalley.return_pda_bloodsucker</action>\r\n                <has_info>val_night_bloodsucker_complete</has_info>\r\n",
+          "replacementText": "                <precondition>dialogs_darkvalley.has_pda_bloodsucker</precondition>\r\n                <action>dialogs_darkvalley.return_pda_bloodsucker</action>\r\n",
+          "expectedFileSha256": "fb222d0512aa67eb0ecc818b4fd3a7ccd87c4981b71e61919368fda3ca5fba6b",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "After the night hunt Yar takes the PDA found on the bloodsucker. The phrase only tests that the hunt is over, then hands over an item the player may no longer carry (moved to a stash, for example): the script passes 'nothing' to the transfer call.",
+      "description": "The phrase is offered only while the PDA is in the inventory; without it Yar's 'not yet' phrase is shown. The hand-over itself also checks the item.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
+    },
+    {
+      "id": "cs.quest.orest-task-chain",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Agroprom: Orest's tasks stay available when one of them is cancelled",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/misc/tm_agroprom.ltx",
+          "expectedText": "target_cond = {-agr_smart_terrain_3_2_simulation_task_complete =target_smart_name(agr_smart_terrain_2_3)} true",
+          "replacementText": "target_cond = {-agr_smart_terrain_2_3_simulation_task_complete =target_smart_name(agr_smart_terrain_2_3)} true",
+          "expectedFileSha256": "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/tm_agroprom.ltx",
+          "expectedText": "on_complete = %+agr_smart_terrain_6_4_simulation_task_complete%\r\n",
+          "replacementText": "on_complete = %+agr_smart_terrain_6_4_simulation_task_complete%\r\non_reversed = %+agr_smart_terrain_6_4_simulation_task_complete%\r\n",
+          "expectedFileSha256": "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/tm_agroprom.ltx",
+          "expectedText": "on_complete = %+agr_smart_terrain_2_3_simulation_task_complete%\r\n",
+          "replacementText": "on_complete = %+agr_smart_terrain_2_3_simulation_task_complete%\r\non_reversed = %+agr_smart_terrain_2_3_simulation_task_complete%\r\n",
+          "expectedFileSha256": "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/tm_agroprom.ltx",
+          "expectedText": "on_complete = %+agr_smart_terrain_4_2_simulation_task_complete%\r\n",
+          "replacementText": "on_complete = %+agr_smart_terrain_4_2_simulation_task_complete%\r\non_reversed = %+agr_smart_terrain_4_2_simulation_task_complete%\r\n",
+          "expectedFileSha256": "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "Orest gives three 'clear the camp' tasks in a row; each next one needs the previous to be marked as finished. The mark is set only on completion, so when a task is cancelled (somebody else clears the camp first) the following tasks never open. The second task also tests a mark with a misspelt name (3_2 instead of 2_3), so it stays on offer after it has been done.",
+      "description": "A cancelled task sets the same mark as a completed one, and the second task tests its own mark.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
+    },
+    {
+      "id": "cs.trade.sakharov-shotgun-ammo",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Yantar: Sakharov sells shotgun ammunition at his own price",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/misc/trade/trade_saharov.ltx",
+          "expectedText": "ammo_11.5x70_buck\t\t= 1.2, 1.2\r\nammo_11.5x76_dart\t\t= 1.2, 1.2\r\nammo_11.5x76_zhekan\t\t= 1.2, 1.2\r\n",
+          "replacementText": "ammo_12x70_buck\t\t= 1.2, 1.2\r\nammo_12x76_dart\t\t= 1.2, 1.2\r\nammo_12x76_zhekan\t\t= 1.2, 1.2\r\n",
+          "expectedFileSha256": "502dc616c11ba98378cb588b322bed6de927b27ecfb1be62b2307538fb65a576",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "Sakharov's price list names three shotgun rounds '11.5x70' and '11.5x76'. No such items exist, so his multiplier is not applied to the 12x70 and 12x76 rounds he stocks.",
+      "description": "The three names are corrected.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -6371,6 +6512,20 @@
     ],
     "cs.crash.smart-terrain-no-free-job": [
       "8fadadf2fc03bfb0a79e68871f705e16d99cafdf1e4189b75ef576904f473c0c"
+    ],
+    "cs.dialog.bloodsucker-pda-return": [
+      "b6c253c6e7f83617f8279e8ac9cad1a20801457ad54c3e8c80f3da8f292ab1fc",
+      "44f071c57fed6a5c071789b321c3fbb25f2eec5d2c7971346daca7e3a7f0c751",
+      "44f071c57fed6a5c071789b321c3fbb25f2eec5d2c7971346daca7e3a7f0c751"
+    ],
+    "cs.quest.orest-task-chain": [
+      "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437",
+      "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437",
+      "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437",
+      "8f56edf84ea9c3a7aab0d323281a6dd9ef638b102aa54f07cac1680e0f9f4437"
+    ],
+    "cs.trade.sakharov-shotgun-ammo": [
+      "502dc616c11ba98378cb588b322bed6de927b27ecfb1be62b2307538fb65a576"
     ]
   }
 }

@@ -2968,7 +2968,7 @@
     {
       "id": "cs.crash.sim-combat",
       "game": "ClearSky",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "title": "Squad-combat script no longer crashes on a missing player or a vanished squad; weak squads no longer fight for ever offline",
       "supportedSteamBuildIds": [
         "11450472"
@@ -3005,11 +3005,18 @@
           "replacementText": "\t\t\tlocal casualities = data._squad_power * (0.2 + 0.13 * math.random())\r\n",
           "expectedFileSha256": "78b19aef9e179a00c0b128a554907b10ba18bdb36f307f1a6bf7ca8e53b96061",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/sim_combat.script",
+          "expectedText": "\t\t\t\tif vv._stage == \"combat\" then\r\n\t\t\t\t\tlocal enemy_squad = self.board.squads[kk]\r\n\t\t\t\t\tif enemy_squad.player_id ~= squad.player_id then\r\n",
+          "replacementText": "\t\t\t\tif vv._stage == \"combat\" or vv._stage == \"idle\" then\r\n\t\t\t\t\tlocal enemy_squad = self.board.squads[kk]\r\n\t\t\t\t\tif enemy_squad.player_id ~= squad.player_id then\r\n\t\t\t\t\t\tvv._stage = \"combat\"\r\n",
+          "expectedFileSha256": "78b19aef9e179a00c0b128a554907b10ba18bdb36f307f1a6bf7ca8e53b96061",
+          "codePage": 28591
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
-      "problem": "sim_combat.script crashes when it runs before the player is loaded (attempt to index field 'actor' (a nil value)) or when the attacking squad of a 'help' task no longer exists (attempt to index local 'attack_squad_obj' (a nil value)). Offline fights: the damage a squad deals is drawn with math.random(power/5, power/3), which cuts both bounds down to whole numbers. For a squad weaker than 3 both become 0, so two weak squads deal no damage to each other, the fight never ends and the camp stays 'in combat' for ever, which stalls the faction war around it.",
-      "description": "Cover calculation and the \"player arrived\" check wait until the player exists; a help task is only considered while the attacking squad exists. The offline damage is drawn as a fraction between one fifth and one third of the squad power, as the original line intended.",
+      "problem": "sim_combat.script crashes when it runs before the player is loaded (attempt to index field 'actor' (a nil value)) or when the attacking squad of a 'help' task no longer exists (attempt to index local 'attack_squad_obj' (a nil value)). Offline fights: the damage a squad deals is drawn with math.random(power/5, power/3), which cuts both bounds down to whole numbers. For a squad weaker than 3 both become 0, so two weak squads deal no damage to each other, the fight never ends and the camp stays 'in combat' for ever, which stalls the faction war around it. An offline squad in combat only hits enemy squads that are themselves in the 'combat' stage; an enemy squad still marked 'idle' is never hit and never fights back, so the fight does not end.",
+      "description": "Cover calculation and the \"player arrived\" check wait until the player exists; a help task is only considered while the attacking squad exists. The offline damage is drawn as a fraction between one fifth and one third of the squad power, as the original line intended. An offline attacker also hits enemy squads that are still 'idle' and puts them into combat (as SRP does).",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -3022,7 +3029,7 @@
     {
       "id": "cs.crash.capture-task-missing-squad",
       "game": "ClearSky",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "title": "Task crashes fixed: capture task for a missing squad, story task for a missing NPC (Wild Napr); 'capture' and 'defend' tasks no longer stop the game on a missing squad or call time",
       "supportedSteamBuildIds": [
         "11450472"
@@ -3116,11 +3123,18 @@
           "replacementText": "\t\tlocal source_smart = self.board.smarts[self.board.squads[self.src_squad_id].smart_id]\r\n\t\tlocal source_smart_squads = source_smart and source_smart.squads or {}\r\n",
           "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\t\t\t\t\t\tif self.counter_attack_community == vv.player_id then\r\n",
+          "replacementText": "\t\t\t\t\t\tlocal script_target = vv:get_script_target()\r\n\t\t\t\t\t\tif self.counter_attack_community == vv.player_id and (script_target == nil or script_target == target_obj.id) then\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code; the Wild Napr crash message is from the SRP 1.1.5 version history.",
       "problem": "Giving a 'capture' task to a squad that was already removed crashes: task_objects.script: attempt to index field '?' (a nil value). Also: a story task whose target NPC is not on his job (Wild Napr while the Flea Market is fighting, or after he died offline) aborts the game: wrong target for storyline quest: logic@work5,gar_smart_terrain_6_3. 'Capture' tasks: when the camp is taken, the script announces the counter-attack through the first allied squad in the camp. If no squad is there any more, or the former owner is unknown, it indexes a missing value and the game stops; and it waits for the announcement to end without a time limit, so the task can hang for ever. 'Defend' tasks: the time of the last call for help is set only when a defending squad is in the camp; without one the next check compares with a missing time and the game stops.",
-      "description": "The capture task is given only if the squad still exists; a story task whose target NPC is missing is simply not given for now. The counter-attack is skipped when there is nobody to announce it, the wait for the announcement ends after a minute, and the 'defend' call time is always set (also when an older save is loaded without it). The delayed 'defend' task also tolerates an attacking squad that has vanished or is between camps.",
+      "description": "The capture task is given only if the squad still exists; a story task whose target NPC is missing is simply not given for now. The counter-attack is skipped when there is nobody to announce it, the wait for the announcement ends after a minute, and the 'defend' call time is always set (also when an older save is loaded without it). The delayed 'defend' task also tolerates an attacking squad that has vanished or is between camps. A counter-attack no longer takes a neighbouring squad that has its own scripted target elsewhere.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -6462,6 +6476,137 @@
       "references": [
         "Sky Reclamation Project 1.1.5, version history (list of known faults)"
       ]
+    },
+    {
+      "id": "cs.logic.attack-squads-skip-post-jobs",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Faction war: fighters of an attacking squad no longer take stationary posts on the way",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_conditions.script",
+          "expectedText": "function is_squad_enemy_to_actor(actor, npc, p)\r\n",
+          "replacementText": "-- for the \"suitable\" field of job logic: the NPC belongs to a squad that is on its way to attack a camp\r\nfunction npc_is_in_attacking_squad(actor, se_npc)\r\n\tlocal squad = se_npc ~= nil and se_npc.squad_id ~= nil and sim_board.get_sim_board().squads[se_npc.squad_id]\r\n\tif squad and squad.current_action and squad.current_action.name == \"attack_point\" then\r\n\t\treturn true\r\n\tend\r\n\treturn false\r\nend\r\n\r\nfunction is_squad_enemy_to_actor(actor, npc, p)\r\n",
+          "expectedFileSha256": "2184193ffce66579ca4340bb0e1427e23f88eb411cb5896ea4f33f5cd46d1201",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work1] ;night trader\r\nactive = walker@trade_work1\r\nsuitable = {=npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work1] ;night trader\r\nactive = walker@trade_work1\r\nsuitable = {=npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work2] ;evening trader & fixer\r\nactive = walker@trade_work2\r\nsuitable = {-gar_flea_market_fixer_dead =check_npc_name(gar_digger_fixer) !is_smart_in_combat(gar_smart_terrain_6_3)}, {+gar_flea_market_fixer_dead =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work2] ;evening trader & fixer\r\nactive = walker@trade_work2\r\nsuitable = {-gar_flea_market_fixer_dead =check_npc_name(gar_digger_fixer) !is_smart_in_combat(gar_smart_terrain_6_3)}, {+gar_flea_market_fixer_dead =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work3] ;24h trader\r\nactive = walker@trade_work3\r\nsuitable = {=npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work3] ;24h trader\r\nactive = walker@trade_work3\r\nsuitable = {=npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work6] ;buyer from night trader\r\nactive = walker@work6\r\nsuitable = {=is_dark_night =npc_community(stalker) =time_period(50:25) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work6] ;buyer from night trader\r\nactive = walker@work6\r\nsuitable = {=is_dark_night =npc_community(stalker) =time_period(50:25) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work7] ;buyer from evening trader\r\nactive = walker@work7\r\nsuitable = {!is_day =npc_community(stalker) =time_period(40:20) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work7] ;buyer from evening trader\r\nactive = walker@work7\r\nsuitable = {!is_day =npc_community(stalker) =time_period(40:20) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work8] ;buyer from 24h trader\r\nactive = walker@work8\r\nsuitable = {=npc_community(stalker) =time_period(30:15) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work8] ;buyer from 24h trader\r\nactive = walker@work8\r\nsuitable = {=npc_community(stalker) =time_period(30:15) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work9] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work9] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work10] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work10] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work11] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work11] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work12] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work12] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_flea_market.ltx",
+          "expectedText": "[logic@work13] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3)}\r\n",
+          "replacementText": "[logic@work13] ; unique kamp work\r\nactive = kamp\r\nsuitable = {=is_dark_night =npc_community(stalker) !is_smart_in_combat(gar_smart_terrain_6_3) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "0ad13e348f2fc6e1c7772a731463389fde2477642400557aea942be1e7c21fb1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_bandit_base.ltx",
+          "expectedText": "[logic@commentator_1]\r\nactive = walker@main_commentator_1\r\nsuitable = {-gar_bandit_base_minigame_dead !is_smart_in_combat(gar_smart_terrain_3_5) =npc_community(bandit)}\r\n",
+          "replacementText": "[logic@commentator_1]\r\nactive = walker@main_commentator_1\r\nsuitable = {-gar_bandit_base_minigame_dead !is_smart_in_combat(gar_smart_terrain_3_5) =npc_community(bandit) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "d5cb4ea3574629f47f6b2b93200ce481bd2d1d9d90d4d76e3d680a1c9d2d793a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/garbage/gar_bandit_base.ltx",
+          "expectedText": "[logic@commentator_2]\r\nactive = walker@main_commentator_2\r\nsuitable = {-gar_bandit_base_minigame_dead !is_smart_in_combat(gar_smart_terrain_3_5) =npc_community(bandit)}\r\n",
+          "replacementText": "[logic@commentator_2]\r\nactive = walker@main_commentator_2\r\nsuitable = {-gar_bandit_base_minigame_dead !is_smart_in_combat(gar_smart_terrain_3_5) =npc_community(bandit) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "d5cb4ea3574629f47f6b2b93200ce481bd2d1d9d90d4d76e3d680a1c9d2d793a",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/marsh/mar_csky_guide_at_11_11.ltx",
+          "expectedText": "[logic@conductor]\r\nactive = walker@main_conductor\r\nsuitable = {=npc_community(csky)}\r\n",
+          "replacementText": "[logic@conductor]\r\nactive = walker@main_conductor\r\nsuitable = {=npc_community(csky) !npc_is_in_attacking_squad}\r\n",
+          "expectedFileSha256": "73545fd255ac929c8aca51fd2c10ed25659f7264d35cb403b3895699a6d0b8aa",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build; the fault and the remedy follow SRP 1.1.5 (Decane), the lines were taken from the retail files.",
+      "problem": "Some camps have posts for 'any stalker here': the traders and night posts of the Flea Market, the guide at the Southern Farmstead, the commentators at the bandit base. A member, often the leader, of a squad that is passing through on its way to attack a camp can take such a post and stays on it. His squad then never reaches its target and the faction war around it stops.",
+      "description": "The posts are closed to members of a squad whose current order is to attack a camp (a new condition 'npc_is_in_attacking_squad', as in SRP).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (Swamp faction war standstill; bandit squad at the Depot; Flea Market squad)"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -6727,6 +6872,7 @@
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965"
     ],
     "cs.crash.limansk-missing-logic": [
@@ -6851,6 +6997,23 @@
     ],
     "cs.quest.compass-task-order": [
       "0a75be1144f216d834b40aa24d790a958a0226ca6d696232981c80208b0b9899"
+    ],
+    "cs.logic.attack-squads-skip-post-jobs": [
+      "4b5bf7e3c2a3e5ac1dceea89cc65712951a20d2fb671e46724bfb045e05f8b46",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "bdfdaa27eeafb06d3f9bb407ddd226688da00c0b2f5edf1c4b436043514e2b1e",
+      "d5cb4ea3574629f47f6b2b93200ce481bd2d1d9d90d4d76e3d680a1c9d2d793a",
+      "d5cb4ea3574629f47f6b2b93200ce481bd2d1d9d90d4d76e3d680a1c9d2d793a",
+      "73545fd255ac929c8aca51fd2c10ed25659f7264d35cb403b3895699a6d0b8aa"
     ]
   }
 }

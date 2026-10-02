@@ -129,6 +129,9 @@ Candidates seen in the diffs and deliberately not ported:
     Totals after #245: CS 63 catalogued / 61 recommended (EE 41).
   - CS (#246): `cs.crash.smart-terrain-no-free-job` — an NPC with no free job shares a held one instead of the
     'Insufficient smart_terrain jobs' abort. Our own remedy, behaviour not observed in the game. CS 64 / 62 (EE 42).
+  - CS (#247): anomaly fields save only their own artefacts (`cs.crash.anomaly-zone-missing-artefact` 1.1.0), bloodsucker
+    PDA hand-in, Orest's task chain (`on_reversed` + `3_2`/`2_3` typo), Sakharov's `11.5x70` ammo names. Tools
+    `check_module_calls.py`, `check_trade_items.py`. CS 67 / 65 (EE 45).
   - Totals after #244: CS 62 catalogued / 60 recommended (EE 40). Before it, after #243: SoC 35 (EE 19), CS 61 catalogued / 59 recommended (EE 39), CoP 35 catalogued / 21 recommended (EE 24).
     Every preset was installed into and removed from a pristine copy of the real install. Nothing was run in the games.
 

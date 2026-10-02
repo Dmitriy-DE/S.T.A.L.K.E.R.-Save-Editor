@@ -23,7 +23,7 @@ Authors are credited in every entry (open-source project, attribution, no sale).
 |---|---|---|---|---|
 | CS | SRP 1.1.5 (Decane) | github.com/Decane/SRP | 506 changelog entries (319 fixes); 611 changed + 66 new files | diffed against retail; 25 individual fixes ported |
 | SoC | ZRP 1.07 R5RC (NatVac) | metacognix.com/files/stlkrsoc | hundreds of fixes | change logs used as the list of known faults; 26 fixes (15 config, 8 crash, 3 logic) |
-| SoC / CS / CoP | GSC's own Enhanced Edition scripts | the installed EE games | retail vs EE: `tools/ee_diff.py` | faults GSC fixed itself; the retail fix is written by us (SoC 7, CS 9, CoP 5) |
+| SoC / CS / CoP | GSC's own Enhanced Edition scripts | the installed EE games | retail vs EE: `tools/ee_diff.py` | faults GSC fixed itself; the retail fix is written by us (SoC 10, CS 11 + 3 retail-only additions, CoP 6) |
 | CoP | stalker-cop-patch (victor-homyakov) | github | 13 items, 24 files | 18 ported |
 | CoP | Pripyat Reclamation Patch | ModDB (files deleted) | — | 6 ported earlier; source mirror needed |
 | CoP EE | UCoPEEP | Steam Workshop 3487808500 | 1 gameplay change | ported (#184) |
@@ -95,23 +95,21 @@ ignored. A guard or a corrected condition that GSC added in the EE proves the re
 for the retail file by us (the EE engine has functions retail lacks, so EE code is not copied) and gets an EE variant
 only when the EE file still has the fault.
 
-Candidates seen in the diffs and not ported yet:
+Candidates seen in the diffs and deliberately not ported:
 
-| Game | File | What GSC changed |
-|---|---|---|
-| SoC | `xr_patrol.script` | patrol manager stops the game on a missing commander → returns nothing (callers must cope) |
-| SoC | `xr_logic.script` | logic initialised before the player exists; `selective` as an alias of `active` |
-| SoC | `gulag_dark_valley.script` | the "sos" bloodsucker job is bound to one creature instead of any bloodsucker |
-| SoC | `dialogs_military.script` | reward item of a Freedom dialog |
-| SoC | `agroprom_tasks.script` | "find Strelok's stash" completes when leaving the underground with the stash found |
-| CS | `sr_bloodsucker.script` | reaction switched off for squad members who are not in the level (same file as `cs.crash.marsh-creature-no-squad`, whose EE variant must stay valid) |
-| CS | `task_manager.script` | upgrade-search tasks stored under another key — the key is written into saves, so a retail fix must keep old saves readable |
-| CS | `treasure_manager.script` | stash states saved in table order, which is not stable |
-| CS | `sound_manager.script`, `state_mgr.script`, `xr_kamp.script` | nil guards; deliberate stops turned into log lines |
-| CoP | `dialogs.script`, `dialogs_jupiter.script` | Jupiter task conditions (`jup_a10`, `jup_a12`); the EE uses a new info portion, so the retail fix also needs the config entry and a check that the dialog can repeat |
-| CoP | `outro_cond.script` | Noah's ending slide ignores the death of his dog |
+| Game | File | What GSC changed | Why not |
+|---|---|---|---|
+| SoC | `xr_logic.script` | logic initialised before the player exists; `selective` as an alias of `active` | the EE callers retry; retail callers do not, so the object would stay without logic |
+| SoC | `dialogs_military.script` | reward item of a Freedom dialog | a reward change, not a fault |
+| CS | `sound_manager.script` | nil guards around the EE's new sound API | the guarded calls do not exist in retail |
+| CoP | `dialogs.script` (`jup_a10` autosave) | extra condition `jup_a10_vano_give_task` | no retail script or config gives that info portion |
+| CoP | `outro_cond.script` | Noah's slide also needs `zat_b18_noah_dog_death` to be absent | same: the info portion does not exist in retail |
 
 ## Change log
+
+- 2026-10-02 — remaining candidates (#237): `retailOnly` patches (an EE variant skips them), CS stash flag order /
+  upgrade-task ids / illegal state, SoC patrol without commander / Agroprom exit / Dark Valley scene, CoP Goldfish once.
+  `tools/fix_realcheck.sh` repeats the real-install round trip for all three games (SoC 29, CS 53, CoP 17 fixes).
 
 - 2026-10-02 — CS logic batch (#233): four more EE-confirmed faults; preset (51 fixes) installed into and removed from
   a pristine copy of the real install.

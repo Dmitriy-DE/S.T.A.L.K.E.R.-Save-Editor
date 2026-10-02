@@ -5542,8 +5542,8 @@
     {
       "id": "cs.logic.dark-valley-holdup-after-base",
       "game": "ClearSky",
-      "version": "1.0.0",
-      "title": "Dark Valley: the Freedom outposts stop holding you up once you have reached their base",
+      "version": "1.1.0",
+      "title": "Dark Valley: the Freedom outposts hold you up only between the Fang lead and reaching their base",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -5565,11 +5565,25 @@
           "replacementText": "on_info = {+val_talked_to_blockpost_leader_complete} nil, {+val_come_to_freedom_base_complete} nil",
           "expectedFileSha256": "743ce0403a14ee314ae5d3d8ba6bfc0dbb50fcb5fa0eb0ffda65b27672138488",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/darkvalley/val_logic_robbery_s.ltx",
+          "expectedText": "[logic]\r\nactive = sr_robbery\r\n",
+          "replacementText": "[logic]\r\nactive = sr_idle@before_fang\r\n\r\n[sr_idle@before_fang]\r\non_info = {+esc_bring_habar_complete} sr_robbery\r\n",
+          "expectedFileSha256": "1638fedc9e3679744c0fdc9f923696630e1f12545a89e9e076e907d6d97e0f6f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/darkvalley/val_logic_robbery_n.ltx",
+          "expectedText": "[logic]\r\nactive = sr_robbery\r\n",
+          "replacementText": "[logic]\r\nactive = sr_idle@before_fang\r\n\r\n[sr_idle@before_fang]\r\non_info = {+esc_bring_habar_complete} sr_robbery\r\n",
+          "expectedFileSha256": "743ce0403a14ee314ae5d3d8ba6bfc0dbb50fcb5fa0eb0ffda65b27672138488",
+          "codePage": 28591
         }
       ],
       "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
-      "problem": "The Freedom outposts at the two western entrances hold the player at gunpoint until he talks to the outpost commander. If the player reaches the Freedom base without that talk, the hold-up stays switched on for the rest of the game.",
-      "description": "The hold-up is also switched off when the base has been reached.",
+      "problem": "The Freedom outposts at the two western entrances hold the player at gunpoint until he talks to the outpost commander. If the player reaches the Freedom base without that talk, the hold-up stays switched on for the rest of the game. The hold-up is also active from the start of the game, so a player who walks into the Dark Valley before Sidorovich sends him after Fang is held up for a story reason that does not exist yet.",
+      "description": "The hold-up is also switched off when the base has been reached. The hold-up starts only after Sidorovich has given the lead on Fang.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -6221,6 +6235,73 @@
       "references": [
         "Sky Reclamation Project 1.1.5, version history (list of known faults)"
       ]
+    },
+    {
+      "id": "cs.logic.wounded-autoheal-after-load",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Wounded NPCs recover on their own after a save is loaded",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_wounded.script",
+          "expectedText": "\t\t\tif begin_wounded == nil then\r\n\t\t\t\txr_logic.pstor_store(self.object, \"begin_wounded\", current_time)\r\n",
+          "replacementText": "\t\t\tif begin_wounded == nil or current_time < begin_wounded then\r\n\t\t\t\txr_logic.pstor_store(self.object, \"begin_wounded\", current_time)\r\n",
+          "expectedFileSha256": "e700b303b6514b50399a18935406708f82f5963e5953a6964f4e4342e41d8514",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "A heavily wounded NPC whom nobody helps gets a medkit from the script after a minute. The start of that minute is kept in the save as the engine's running time, which starts again from zero in every game session. After loading a save in a new session the stored start lies in the future, the minute never ends and the NPC stays on the ground for ever.",
+      "description": "When the stored start is later than the current time, the minute is started again.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (wounded start time saved incorrectly)"
+      ]
+    },
+    {
+      "id": "cop.logic.wounded-autoheal-after-load",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Wounded NPCs recover on their own after a save is loaded",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_wounded.script",
+          "expectedText": "\t\t\tif begin_wounded == nil then\r\n\t\t\t\txr_logic.pstor_store(self.object, \"begin_wounded\", current_time)\r\n",
+          "replacementText": "\t\t\tif begin_wounded == nil or current_time < begin_wounded then\r\n\t\t\t\txr_logic.pstor_store(self.object, \"begin_wounded\", current_time)\r\n",
+          "expectedFileSha256": "3df20a197970c87f0af89697eedd591d997b743f7d0548a86fc171625f861978",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change; the same code as in Clear Sky, where SRP lists the fault. The Enhanced Edition has the same fault. Not part of stalker-cop-patch.",
+      "problem": "A heavily wounded NPC whom nobody helps gets a medkit from the script after a minute. The start of that minute is kept in the save as the engine's running time, which starts again from zero in every game session. After loading a save in a new session the stored start lies in the future, the minute never ends and the NPC stays on the ground for ever.",
+      "description": "When the stored start is later than the current time, the minute is started again.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (wounded start time saved incorrectly)",
+        "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -6529,6 +6610,8 @@
     ],
     "cs.logic.dark-valley-holdup-after-base": [
       "85ccc394baa1c9f300d0cfa8a3189f028be6d7ebca070af37344ac519ccef143",
+      "82e70574102280b796aea0f78419f365dc923dd1b7064216fabc2b8996c4dd4f",
+      "85ccc394baa1c9f300d0cfa8a3189f028be6d7ebca070af37344ac519ccef143",
       "82e70574102280b796aea0f78419f365dc923dd1b7064216fabc2b8996c4dd4f"
     ],
     "soc.crash.remark-target-not-ready": [
@@ -6589,6 +6672,12 @@
     ],
     "cs.trade.sakharov-shotgun-ammo": [
       "502dc616c11ba98378cb588b322bed6de927b27ecfb1be62b2307538fb65a576"
+    ],
+    "cs.logic.wounded-autoheal-after-load": [
+      "01f5be40bbee8a115432434188e0ab949307b8c09340e20873c813560cf1274f"
+    ],
+    "cop.logic.wounded-autoheal-after-load": [
+      "c72f695d3fb134c473a878c4b7deaf1f9404117b452a7af3f97822e2fa601a29"
     ]
   }
 }

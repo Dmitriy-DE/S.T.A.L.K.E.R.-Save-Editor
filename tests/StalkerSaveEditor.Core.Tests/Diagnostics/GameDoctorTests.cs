@@ -89,9 +89,9 @@ public sealed class GameDoctorTests
 
         var check = Assert.Single(report.Checks, candidate => candidate.Id == "game-fixes");
         Assert.Equal(GameDoctorStatus.Warning, check.Status);
-        Assert.Contains("65 of 65 safe recommendation(s) are not installed", check.Detail, StringComparison.Ordinal);
-        Assert.Contains("67 fix(es) are catalogued", check.Detail, StringComparison.Ordinal);
-        Assert.Equal(65, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
+        Assert.Contains("66 of 66 safe recommendation(s) are not installed", check.Detail, StringComparison.Ordinal);
+        Assert.Contains("68 fix(es) are catalogued", check.Detail, StringComparison.Ordinal);
+        Assert.Equal(66, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
     }
 
     [Fact]

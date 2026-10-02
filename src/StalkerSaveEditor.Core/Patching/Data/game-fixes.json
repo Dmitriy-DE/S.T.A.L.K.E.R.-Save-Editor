@@ -4885,6 +4885,152 @@
         "https://www.metacognix.com/stlkrsoc/",
         "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
       ]
+    },
+    {
+      "id": "cs.logic.subanimation-exit",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "NPCs finish their sub-animations and stop the music when they leave them",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/state_mgr_animation.script",
+          "expectedText": "\t\t\t\tif self.mgr.subanim > 0 then\r\n\t\t\t\t\tfor key = self.mgr.subanim, 0 do\r\n",
+          "replacementText": "\t\t\t\tif self.mgr.subanim > 0 and state_mgr_animation_list.animations[self.states.target_state].subanim ~= nil then\r\n\t\t\t\t\tfor key = self.mgr.subanim, 0, -1 do\r\n",
+          "expectedFileSha256": "4631f022aad944b502a118b2569f9b5173b51a93bf23d1b8d6d2c2c204f151a8",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/state_mgr_animation.script",
+          "expectedText": "\t\t\tif self.mgr.subanim > 0 then\r\n\t\t\t\tfor key = self.mgr.subanim, 0 do\r\n",
+          "replacementText": "\t\t\tif self.mgr.subanim > 0 and state_mgr_animation_list.animations[self.states.target_state].subanim ~= nil then\r\n\t\t\t\tfor key = self.mgr.subanim, 0, -1 do\r\n",
+          "expectedFileSha256": "4631f022aad944b502a118b2569f9b5173b51a93bf23d1b8d6d2c2c204f151a8",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "When an NPC leaves an animation that has sub-animations (playing the guitar or the harmonica, for example), the script is meant to walk back through them, play each exit animation and stop the music. The loop counts from the current sub-animation down to zero without a negative step, so it never runs: the exit animations are skipped and the tune can keep playing.",
+      "description": "The loop counts down, and is skipped for animations that have no sub-animations.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.logic.guide-own-location",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Guides no longer offer a trip to the place where they stand",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/guiders.script",
+          "expectedText": "\t\t\tif(npc_smart_id ~= 65535 and npc_smart_id ~= smart.id) or (npc:story_id() ~= 4294967296) then\r\n",
+          "replacementText": "\t\t\tif(npc_smart_id ~= 65535 and npc_smart_id ~= smart.id) and (npc:story_id() ~= 4294967296) then\r\n",
+          "expectedFileSha256": "c6cc0751aa87fea684649ebc49bd0996cf3192d8dc33317c8f12475141931ddc",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "A guide lists every place he can take you to except his own. The exception is joined with a second test by 'or', and that second test (a story id compared with a number no id can have) is always true, so the exception never works and the guide's own location is in the list.",
+      "description": "The two tests are joined with 'and', as in the Enhanced Edition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.logic.cordon-support-payment",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Cordon: the 500 RU for the attack on the ATP are really paid",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/dialogs_escape.script",
+          "expectedText": "function give_money_for_support(first_speaker, second_speaker)\r\n\t\tdialogs.relocate_money(first_speaker, 500, \"out\")\r\nend\r\n",
+          "replacementText": "function give_money_for_support(first_speaker, second_speaker)\r\n\t\tdialogs.relocate_money(second_speaker, 500, \"out\")\r\nend\r\n\r\nfunction has_money_for_support(first_speaker, second_speaker)\r\n\treturn db.actor ~= nil and db.actor:money() >= 500\r\nend\r\n",
+          "expectedFileSha256": "09aaac284940dd65187ae9831ded79e90890799500ccd255abe91ee13e175bfc",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/gameplay/dialogs_escape.xml",
+          "expectedText": "                <action>dialogs_escape.give_money_for_support</action>\r\n",
+          "replacementText": "                <precondition>dialogs_escape.has_money_for_support</precondition>\r\n                <action>dialogs_escape.give_money_for_support</action>\r\n",
+          "expectedFileSha256": "f191e3f384b3750df93f35501d65c3ed6e4717f2abab09bf1396ff201400b569",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "Hiring the stalkers to attack the ATP costs 500 RU. The script hands the money to the first speaker of the phrase, which is the player himself, so nothing is paid; and the offer can be accepted with less than 500 RU.",
+      "description": "The money goes to the stalker, and the phrase is offered only when the player has 500 RU.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.logic.shooting-range-exact-bet",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Shooting range: a bet equal to all your money is accepted",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/minigame_dialogs.script",
+          "expectedText": "multiplier[dist]<db.actor:money()\r\n",
+          "replacementText": "multiplier[dist]<=db.actor:money()\r\n",
+          "expectedFileSha256": "88891a25ebe9b5913497705bcc8cf07e4624efbba7d6f6e148ffb08df1df4eb1",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "The shooting range checks that the bet is less than your money, so with exactly the amount of the bet you are told you cannot afford it.",
+      "description": "The bet may equal your money.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
     }
   ],
   "enhancedEditionSha256": {

@@ -6,6 +6,9 @@ using Xunit;
 
 namespace StalkerSaveEditor.Core.Tests.Desktop;
 
+// Not in parallel with other classes: the appearance is one per process, and every settings view model created
+// elsewhere applies its own, which reset the theme between this class's change and its check (seen in CI).
+[Collection(AvaloniaViewTestGroup.Name)]
 public sealed class SettingsAndAudioTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "se-settings-" + Guid.NewGuid().ToString("N"));

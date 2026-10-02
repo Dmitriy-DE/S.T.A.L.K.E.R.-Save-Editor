@@ -353,18 +353,22 @@ internal static class SaveLibraryLoader
         DateTime lastModified)
     {
         const string formatId = "stalker2";
-        var (canEditMoney, moneyReason) = CheckCapability(formatId, "edit_money");
-        var (canEditStacks, stacksReason) = CheckCapability(formatId, "edit_stacks");
-        var (canEditDurability, durabilityReason) = CheckCapability(formatId, "edit_durability");
-        var (canEditPlacement, placementReason) = CheckCapability(formatId, "edit_placement");
-        var (canEditUpgrades, upgradesReason) = CheckCapability(formatId, "edit_upgrades");
-        var (canEditRelations, relationsReason) = CheckCapability(formatId, "edit_relations");
-        var (canEditPlayerFaction, playerFactionReason) = CheckCapability(formatId, "edit_player_faction");
+        // A save in the layout of game 1.0.x is shown, never edited (Core refuses to write it as well).
+        (bool Allowed, string? Reason) Capability(string capability) => save.IsLegacy
+            ? (false, L.T("Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново."))
+            : CheckCapability(formatId, capability);
+        var (canEditMoney, moneyReason) = Capability("edit_money");
+        var (canEditStacks, stacksReason) = Capability("edit_stacks");
+        var (canEditDurability, durabilityReason) = Capability("edit_durability");
+        var (canEditPlacement, placementReason) = Capability("edit_placement");
+        var (canEditUpgrades, upgradesReason) = Capability("edit_upgrades");
+        var (canEditRelations, relationsReason) = Capability("edit_relations");
+        var (canEditPlayerFaction, playerFactionReason) = Capability("edit_player_faction");
         var canEditFaction = canEditRelations || canEditPlayerFaction;
         var factionReason = canEditFaction ? null : (relationsReason ?? playerFactionReason);
-        var (canEditStashes, stashesReason) = CheckCapability(formatId, "move_items");
-        var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
-        var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
+        var (canEditStashes, stashesReason) = Capability("move_items");
+        var (canAddItems, addReason) = Capability("add_items");
+        var (canRemoveItems, removeReason) = Capability("remove_items");
 
         var catalog = SaveNaming.TryCatalog(formatId, out var bundle) ? bundle.Items : null;
         var s2Items = Stalker2ItemCatalog.LoadEmbedded();

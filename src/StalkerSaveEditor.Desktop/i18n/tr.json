@@ -1804,6 +1804,7 @@
  "Сохранение": "Kayıt",
  "Сохранение ещё выполняется. Дождись его завершения перед закрытием.": "Kaydetme sürüyor. Kapatmadan önce bitmesini bekle.",
  "Сохранение записано и проверено. Резервная копия создана.": "Kayıt yazıldı ve doğrulandı. Yedek oluşturuldu.",
+ "Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново.": "Bu kayıt oyunun 1.0.x sürümüyle yazılmış: salt okunur. Güncel oyun sürümünde yükleyip yeniden kaydedin.",
  "Сохранение записано, но повторная проверка не завершилась; редактор пока заблокирован.": "Kayıt yazıldı ancak yeniden kontrol tamamlanmadı; düzenleyici şimdilik kilitli.",
  "Сохранение записано. Проверяем результат…": "Kayıt yazıldı. Sonuç kontrol ediliyor…",
  "Сохранение из Steam Cloud открыто: {0}. Выбери изменения для сохранения.": "Steam Cloud kaydı açıldı: {0}. Kaydedilecek değişiklikleri seç.",

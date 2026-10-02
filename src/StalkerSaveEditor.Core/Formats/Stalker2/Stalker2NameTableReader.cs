@@ -10,8 +10,12 @@ public sealed class Stalker2NameTables
     private const byte BaseSelector = 4;
     private readonly ReadOnlyCollection<IReadOnlyList<string>> _tables;
 
-    internal Stalker2NameTables(IEnumerable<IEnumerable<string>> tables)
+    private readonly bool _singleTable;
+
+    /// <param name="singleTable">Game 1.0.x: one table for everything, a record names its entry with two bytes.</param>
+    internal Stalker2NameTables(IEnumerable<IEnumerable<string>> tables, bool singleTable = false)
     {
+        _singleTable = singleTable;
         var values = tables
             .Select(table => (IReadOnlyList<string>)Array.AsReadOnly(table.ToArray()))
             .ToArray();
@@ -20,6 +24,15 @@ public sealed class Stalker2NameTables
 
     public string? Resolve(ReadOnlySpan<byte> typeKey)
     {
+        if (_singleTable)
+        {
+            if (typeKey.Length < 2) return null;
+            var entry = typeKey[0] | (typeKey[1] << 8);
+            if (_tables.Count == 0 || entry >= _tables[0].Count) return null;
+            var name = _tables[0][entry].Trim();
+            return name.Length == 0 ? null : name;
+        }
+
         if (typeKey.Length != 3 || typeKey[0] < BaseSelector) return null;
         var selector = typeKey[0] - BaseSelector;
         var index = typeKey[1] | (typeKey[2] << 8);
@@ -39,6 +52,8 @@ public static class Stalker2NameTableReader
         0x0A, 0x00, (byte)'G', (byte)'u', (byte)'n', (byte)'A',
         (byte)'K', (byte)'7', (byte)'4', (byte)'_', (byte)'S', (byte)'T',
     ];
+    // "Player" with its length: the first entry of the single table.
+    private static readonly byte[] SingleTableStart = [0x06, 0x00, (byte)'P', (byte)'l', (byte)'a', (byte)'y', (byte)'e', (byte)'r'];
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public static Stalker2NameTables? Locate(
@@ -78,13 +93,33 @@ public static class Stalker2NameTableReader
         return null;
     }
 
+    /// <summary>
+    /// Game 1.0.x keeps one table of every name at the very end of the save. It is recognised by its first entry and
+    /// accepted only when it runs exactly to the last byte.
+    /// </summary>
+    public static Stalker2NameTables? LocateSingleTable(ReadOnlySpan<byte> raw)
+    {
+        var searchFrom = 0;
+        while (searchFrom <= raw.Length - SingleTableStart.Length)
+        {
+            var relative = raw[searchFrom..].IndexOf(SingleTableStart);
+            if (relative < 0) return null;
+            var tableStart = searchFrom + relative - sizeof(ushort);
+            var names = ParseTable(raw, tableStart, out var end, ushort.MaxValue);
+            if (names is not null && end == raw.Length) return new Stalker2NameTables([names], singleTable: true);
+            searchFrom += relative + 1;
+        }
+
+        return null;
+    }
+
     /// <param name="end">Where the table ends (the parser already knows it; nothing is re-encoded to find out).</param>
-    private static ReadOnlyCollection<string>? ParseTable(ReadOnlySpan<byte> raw, int start, out int end)
+    private static ReadOnlyCollection<string>? ParseTable(ReadOnlySpan<byte> raw, int start, out int end, int maximumEntries = MaximumEntries)
     {
         end = start;
         if (start < 0 || raw.Length - start < sizeof(ushort)) return null;
         var count = BinaryPrimitives.ReadUInt16LittleEndian(raw[start..]);
-        if (count is 0 or > MaximumEntries) return null;
+        if (count == 0 || count > maximumEntries) return null;
 
         var names = new string[count];
         var offset = start + sizeof(ushort);

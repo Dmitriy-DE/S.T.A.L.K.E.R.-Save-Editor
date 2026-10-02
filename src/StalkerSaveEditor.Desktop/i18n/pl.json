@@ -1806,6 +1806,7 @@
  "Сохранение": "Zapis",
  "Сохранение ещё выполняется. Дождись его завершения перед закрытием.": "Zapisywanie wciąż trwa. Poczekaj na zakończenie przed zamknięciem.",
  "Сохранение записано и проверено. Резервная копия создана.": "Zapis został zapisany i sprawdzony. Utworzono kopię zapasową.",
+ "Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново.": "Ten zapis utworzyła gra w wersji 1.0.x: tylko do odczytu. Wczytaj go w aktualnej wersji gry i zapisz ponownie.",
  "Сохранение записано, но повторная проверка не завершилась; редактор пока заблокирован.": "Zapis został zapisany, ale ponowne sprawdzenie się nie zakończyło; edytor jest na razie zablokowany.",
  "Сохранение записано. Проверяем результат…": "Zapis zapisany. Sprawdzamy wynik…",
  "Сохранение из Steam Cloud открыто: {0}. Выбери изменения для сохранения.": "Otwarto zapis ze Steam Cloud: {0}. Wybierz zmiany do zapisania.",

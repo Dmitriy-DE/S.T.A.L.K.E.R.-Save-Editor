@@ -1805,6 +1805,7 @@
  "Сохранение": "Partida",
  "Сохранение ещё выполняется. Дождись его завершения перед закрытием.": "El guardado sigue en curso. Espera a que termine antes de cerrar.",
  "Сохранение записано и проверено. Резервная копия создана.": "La partida se escribió y verificó. Se creó una copia de seguridad.",
+ "Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново.": "Esta partida fue escrita por la versión 1.0.x del juego: solo lectura. Cárgala en la versión actual del juego y guarda de nuevo.",
  "Сохранение записано, но повторная проверка не завершилась; редактор пока заблокирован.": "La partida se escribió, pero la nueva verificación no terminó; el editor queda bloqueado por ahora.",
  "Сохранение записано. Проверяем результат…": "Partida escrita. Comprobando el resultado…",
  "Сохранение из Steam Cloud открыто: {0}. Выбери изменения для сохранения.": "Partida de Steam Cloud abierta: {0}. Elige los cambios que guardar.",

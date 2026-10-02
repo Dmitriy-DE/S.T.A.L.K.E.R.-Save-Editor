@@ -35,6 +35,7 @@ public static class Stalker2DurabilityWriter
         }
 
         var parsed = Stalker2SaveReader.FromBytes(sourceBytes);
+        Stalker2SaveReader.RequireWritableLayout(parsed);
         if (!CapabilityRegistry.Get(parsed.ReleaseId, "edit_durability").Writable)
         {
             throw Error($"Durability editing is not enabled for {parsed.ReleaseId}.");

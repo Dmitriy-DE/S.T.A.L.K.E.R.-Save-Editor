@@ -20,8 +20,10 @@ public sealed class Stalker2InventoryLayout
         int declaredGridCount,
         int gridHandleCount,
         IEnumerable<uint> unresolvedHandles,
-        IEnumerable<string> warnings)
+        IEnumerable<string> warnings,
+        bool isLegacy = false)
     {
+        IsLegacy = isLegacy;
         AnchorOffset = anchorOffset;
         MoneyOffset = moneyOffset;
         OwnedFlagOffset = ownedFlagOffset;
@@ -36,6 +38,12 @@ public sealed class Stalker2InventoryLayout
         UnresolvedHandles = Array.AsReadOnly(unresolvedHandles.Distinct().Order().ToArray());
         Warnings = Array.AsReadOnly(warnings.ToArray());
     }
+
+    /// <summary>
+    /// The inventory block as game 1.0.x wrote it (December 2024): other bytes around the wallet and six-byte grid
+    /// cells. Such a save is read; no writer accepts it, because nothing written in this shape was ever loaded by a game.
+    /// </summary>
+    public bool IsLegacy { get; }
 
     public int AnchorOffset { get; }
 
@@ -224,6 +232,11 @@ public sealed class Stalker2InventoryResult
 public static class Stalker2InventoryReader
 {
     private const int GridRecordSize = 8;
+    private const int LegacyGridRecordSize = 6;
+    private const int LegacyRecordShift = 3;
+    private const int LegacyContainerIdStart = 8;
+    private const int LegacyContainerIdLength = 12;
+    private const int LegacyWalletHeaderLength = 10;
     private const int GridWidth = 8;
     private const int MaximumOwnedHandles = 4096;
     private const int MaximumGridCells = 8192;
@@ -245,13 +258,24 @@ public static class Stalker2InventoryReader
     {
         var anchor = Stalker2SaveReader.GetWalletAnchor();
         var anchors = FindAll(raw, anchor);
-        if (anchors.Count != 1)
+        var legacy = false;
+        int anchorOffset;
+        int moneyOffset;
+        if (anchors.Count == 1)
+        {
+            anchorOffset = anchors[0];
+            moneyOffset = checked(anchorOffset + anchor.Length);
+        }
+        else if (anchors.Count == 0 && TryLocateLegacyWallet(raw, out anchorOffset, out moneyOffset))
+        {
+            legacy = true;
+        }
+        else
         {
             throw Error($"Inventory wallet anchor occurs {anchors.Count} times; expected exactly one.");
         }
 
-        var anchorOffset = anchors[0];
-        var moneyOffset = checked(anchorOffset + anchor.Length);
+        var gridRecordSize = legacy ? LegacyGridRecordSize : GridRecordSize;
         var ownedFlagOffset = checked(moneyOffset + sizeof(uint));
         var ownedCountOffset = checked(moneyOffset + 2 * sizeof(uint));
         RequireRange(raw, ownedCountOffset, sizeof(ushort), "Owned-handle header is truncated.");
@@ -270,7 +294,9 @@ public static class Stalker2InventoryReader
             owned[index] = BinaryPrimitives.ReadUInt32LittleEndian(raw[(ownedHandlesOffset + index * sizeof(uint))..]);
         }
 
-        if (owned.Length > 0 && owned.Count(handle => (handle >> 24) == 0x30) < Math.Max(4, owned.Length / 2))
+        // The old layout keeps emptied slots in the list, so only the live handles are judged there.
+        var judged = legacy ? owned.Count(handle => handle != Tombstone) : owned.Length;
+        if (owned.Length > 0 && owned.Count(handle => (handle >> 24) == 0x30) < Math.Max(4, judged / 2))
         {
             throw Error("Owned-handle array does not resemble player object handles.");
         }
@@ -283,7 +309,7 @@ public static class Stalker2InventoryReader
         }
 
         var gridOffset = checked(gridCountOffset + sizeof(ushort));
-        var gridBytes = checked(gridCount * GridRecordSize);
+        var gridBytes = checked(gridCount * gridRecordSize);
         RequireRange(raw, gridOffset, gridBytes, "Inventory grid is truncated.");
 
         var cells = new List<Stalker2GridCell>(gridCount);
@@ -307,10 +333,10 @@ public static class Stalker2InventoryReader
         var gridPositions = new Dictionary<(ushort X, ushort Y), uint>();
         for (var index = 0; index < gridCount; index++)
         {
-            var offset = checked(gridOffset + index * GridRecordSize);
+            var offset = checked(gridOffset + index * gridRecordSize);
             var handle = BinaryPrimitives.ReadUInt32LittleEndian(raw[offset..]);
-            var x = BinaryPrimitives.ReadUInt16LittleEndian(raw[(offset + sizeof(uint))..]);
-            var y = BinaryPrimitives.ReadUInt16LittleEndian(raw[(offset + sizeof(uint) + sizeof(ushort))..]);
+            ushort x = legacy ? raw[offset + sizeof(uint)] : BinaryPrimitives.ReadUInt16LittleEndian(raw[(offset + sizeof(uint))..]);
+            ushort y = legacy ? raw[offset + sizeof(uint) + 1] : BinaryPrimitives.ReadUInt16LittleEndian(raw[(offset + sizeof(uint) + sizeof(ushort))..]);
             allGridHandles.Add(handle);
             if (!ownedSet.Contains(handle))
             {
@@ -355,7 +381,38 @@ public static class Stalker2InventoryReader
             gridCount,
             allGridHandles.Count,
             unresolved,
-            warnings);
+            warnings,
+            legacy);
+    }
+
+    /// <summary>
+    /// Game 1.0.x: the container's type id is followed by its list of sub-containers (handle 0x38…, 1), a
+    /// ten-byte header, then the wallet. Accepted only when every part has exactly this shape and the id is unique.
+    /// </summary>
+    private static bool TryLocateLegacyWallet(ReadOnlySpan<byte> raw, out int anchorOffset, out int moneyOffset)
+    {
+        anchorOffset = moneyOffset = 0;
+        var id = Stalker2SaveReader.GetWalletAnchor().AsSpan(LegacyContainerIdStart, LegacyContainerIdLength);
+        var found = FindAll(raw, id.ToArray());
+        if (found.Count != 1) return false;
+        var offset = found[0] + LegacyContainerIdLength;
+        if (offset + sizeof(ushort) > raw.Length) return false;
+        var pairs = BinaryPrimitives.ReadUInt16LittleEndian(raw[offset..]);
+        offset += sizeof(ushort);
+        if (pairs > 64 || offset + pairs * 8 + LegacyWalletHeaderLength + sizeof(uint) > raw.Length) return false;
+        for (var index = 0; index < pairs; index++, offset += 8)
+        {
+            if (raw[offset + 3] != 0x38 || BinaryPrimitives.ReadUInt32LittleEndian(raw[(offset + 4)..]) != 1) return false;
+        }
+
+        // Four zero bytes, then one small number twice: as four bytes and as two.
+        var header = raw.Slice(offset, LegacyWalletHeaderLength);
+        var number = BinaryPrimitives.ReadUInt32LittleEndian(header[4..]);
+        if (BinaryPrimitives.ReadUInt32LittleEndian(header) != 0 || number == 0 || number > ushort.MaxValue ||
+            BinaryPrimitives.ReadUInt16LittleEndian(header[8..]) != number) return false;
+        anchorOffset = found[0];
+        moneyOffset = offset + LegacyWalletHeaderLength;
+        return true;
     }
 
     public static Stalker2InventoryResult Read(
@@ -363,7 +420,9 @@ public static class Stalker2InventoryReader
         Stalker2InventoryLayout? layout = null)
     {
         layout ??= LocateLayout(raw);
-        var objects = BuildObjectIndex(raw);
+        // Object records of game 1.0.x are three bytes shorter between the type key and the stack marker.
+        var legacy = layout.IsLegacy;
+        var objects = BuildObjectIndex(raw, legacy ? LegacyRecordShift : 0);
         var cellsByHandle = new Dictionary<uint, List<Stalker2GridCell>>();
         foreach (var cell in layout.GridCells)
         {
@@ -389,7 +448,7 @@ public static class Stalker2InventoryReader
         {
             if (offset + 11 <= raw.Length) typeKeys.Add(raw.Slice(offset + 8, 3).ToArray());
         }
-        var names = Stalker2NameTableReader.Locate(raw, typeKeys);
+        var names = legacy ? Stalker2NameTableReader.LocateSingleTable(raw) : Stalker2NameTableReader.Locate(raw, typeKeys);
         var items = new List<Stalker2InventoryItem>();
         var unresolved = layout.UnresolvedHandles.ToHashSet();
         var warnings = layout.Warnings.ToList();
@@ -429,12 +488,12 @@ public static class Stalker2InventoryReader
                 warnings.Add($"Handle {FormatHandle(pair.Key)}: неизвестный object kind={record.Kind}, только read-only");
             }
 
-            var editable = !unresolved.Contains(pair.Key) &&
+            var editable = !legacy && !unresolved.Contains(pair.Key) &&
                 ((record.Count > 1 && StackKinds.Contains(record.Kind)) ||
                  (record.Count >= 1 && SingleStackKinds.Contains(record.Kind)));
             var typeKeyBytes = raw.Slice(record.Offset + 8, 3);
             var displayName = DisplayName(names, typeKeyBytes);
-            var weaponState = record.Kind == 0 && names is not null
+            var weaponState = !legacy && record.Kind == 0 && names is not null
                 ? Stalker2ItemState.ReadWeaponCondition(
                     raw,
                     pair.Key,
@@ -476,6 +535,8 @@ public static class Stalker2InventoryReader
         var gridHandles = layout.GridCells.Select(cell => cell.Handle).ToHashSet();
         foreach (var handle in layout.OwnedHandles)
         {
+            // Worn and carried items are told apart by fields whose place in the old records is not known.
+            if (legacy) break;
             if (handle == Tombstone || gridHandles.Contains(handle) || unresolved.Contains(handle)) continue;
             var candidates = FindObjectCandidates(objects, handle);
             if (candidates.Count != 1) continue;
@@ -493,7 +554,7 @@ public static class Stalker2InventoryReader
                 ? Stalker2ItemState.ReadArmorUpgrades(raw, armorState, names)
                 : null;
             if (armorUpgrades is { Count: 0 }) armorUpgrades = null;
-            var weaponState = record.Kind == 0 && names is not null
+            var weaponState = !legacy && record.Kind == 0 && names is not null
                 ? Stalker2ItemState.ReadWeaponCondition(
                     raw,
                     handle,
@@ -557,7 +618,14 @@ public static class Stalker2InventoryReader
             warnings.Add($"Owned handle {FormatHandle(handle)}: отсутствует однозначный object record");
         }
 
-        var orphans = LocateOrphans(raw, objects, layout, gridHandles, unresolved);
+        var orphans = legacy
+            ? Array.AsReadOnly(Array.Empty<Stalker2OrphanItem>())
+            : LocateOrphans(raw, objects, layout, gridHandles, unresolved);
+        if (legacy)
+        {
+            warnings.Add("Сохранение записано игрой версии 1.0.x: показаны деньги и предметы в сетке рюкзака; надетое снаряжение и состояние предметов не читаются, правка недоступна.");
+        }
+
         foreach (var orphan in orphans)
         {
             if (!KnownKinds.Contains(orphan.KindCode))
@@ -615,25 +683,26 @@ public static class Stalker2InventoryReader
     /// fixed distance from its handle, so the pass visits the marker bytes instead of searching the whole save once per
     /// handle (which was O(handles × save size), with up to 4096 handles).
     /// </summary>
-    private static Dictionary<uint, List<ObjectCandidate>> BuildObjectIndex(ReadOnlySpan<byte> raw)
+    private static Dictionary<uint, List<ObjectCandidate>> BuildObjectIndex(ReadOnlySpan<byte> raw, int shift)
     {
         var index = new Dictionary<uint, List<ObjectCandidate>>();
-        var position = StackMarkerOffset;
+        var position = StackMarkerOffset - shift;
         while (position < raw.Length)
         {
             var relative = raw[position..].IndexOf((byte)0x38);
             if (relative < 0) break;
-            var offset = position + relative - StackMarkerOffset;
+            var offset = position + relative - (StackMarkerOffset - shift);
             position += relative + 1;
+            if (offset < 0) continue;
             if (raw.Length - offset < MinimumObjectCandidateLength) break;
-            var count = BinaryPrimitives.ReadUInt32LittleEndian(raw[(offset + StackCountOffset)..]);
+            var count = BinaryPrimitives.ReadUInt32LittleEndian(raw[(offset + StackCountOffset - shift)..]);
             if (count is < 1 or > 10_000_000) continue;
             var weight = BitConverter.Int32BitsToSingle(
-                BinaryPrimitives.ReadInt32LittleEndian(raw[(offset + StackWeightOffset)..]));
+                BinaryPrimitives.ReadInt32LittleEndian(raw[(offset + StackWeightOffset - shift)..]));
             if (!float.IsFinite(weight) || weight < 0 || weight > 10_000_000) continue;
             var handle = BinaryPrimitives.ReadUInt32LittleEndian(raw[offset..]);
             if (!index.TryGetValue(handle, out var candidates)) index[handle] = candidates = [];
-            candidates.Add(new ObjectCandidate(offset, count, weight, raw[offset + StackKindOffset]));
+            candidates.Add(new ObjectCandidate(offset, count, weight, raw[offset + StackKindOffset - shift]));
         }
 
         return index;

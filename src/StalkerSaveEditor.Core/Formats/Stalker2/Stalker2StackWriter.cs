@@ -33,6 +33,7 @@ public static class Stalker2StackWriter
         }
 
         var parsed = Stalker2SaveReader.FromBytes(sourceBytes);
+        Stalker2SaveReader.RequireWritableLayout(parsed);
         if (!CapabilityRegistry.Get(parsed.ReleaseId, "edit_stacks").Writable)
         {
             throw Error($"Stack editing is not enabled for {parsed.ReleaseId}.");

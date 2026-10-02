@@ -6816,6 +6816,39 @@
       "references": [
         "Sky Reclamation Project 1.1.5, version history ((CoP import) invalid compound vector comparison in mark_msaa_edges.ps)"
       ]
+    },
+    {
+      "id": "cs.crash.hospital-jump-down-animation",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Hospital: no 'cant find animation for slot' crash when an enemy jumps down from the upper floor",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/state_mgr_animation_list.script",
+          "expectedText": "\t\t\t\t\t\tinto \t= {\t[2]\t= {\t\"jump_down_0\" }},\r\n",
+          "replacementText": "\t\t\t\t\t\tinto \t= {\t[2]\t= {\t\"jump_down_0\" },\r\n\t\t\t\t\t\t\t\t\t[0] = {\t\"jump_down_0\" }},\r\n",
+          "expectedFileSha256": "6020d9d5b9c7b91ac5d43f45b0d329444c1d8a0412f1220887e7a27a3a14c176",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change. The fault was found from a crash log posted on the Steam forum of Clear Sky (thread \"Persistent crash at limansk hospital\") and traced to the animation list; SRP 1.1.5 and the Enhanced Edition still have it.",
+      "problem": "In the Limansk hospital one enemy (the second-floor ambush, kat_hosp_z3_floor2_enemy_1) jumps down to the player. The jump animation 'jump_down_0' is listed only for one weapon type; its two sister animations also have the entry for any weapon. When the enemy holds another weapon the script stops the game: 'cant find animation for slot 8'. Players report it as a crash that repeats at the same place.",
+      "description": "Adds the missing 'any weapon' entry to 'jump_down_0', the same one 'jump_down_1' and 'jump_down_2' have. Nothing else in the animation list changes.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor.",
+      "references": [
+        "https://steamcommunity.com/app/20510/discussions/0/3132792921893743264/"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -7237,6 +7270,9 @@
       "d5cb4ea3574629f47f6b2b93200ce481bd2d1d9d90d4d76e3d680a1c9d2d793a",
       "d5cb4ea3574629f47f6b2b93200ce481bd2d1d9d90d4d76e3d680a1c9d2d793a",
       "73545fd255ac929c8aca51fd2c10ed25659f7264d35cb403b3895699a6d0b8aa"
+    ],
+    "cs.crash.hospital-jump-down-animation": [
+      "6020d9d5b9c7b91ac5d43f45b0d329444c1d8a0412f1220887e7a27a3a14c176"
     ]
   }
 }

@@ -8,7 +8,7 @@ public sealed class GameFixEnhancedEditionTests
 {
     [Theory]
     [InlineData(GameTarget.ShadowOfChernobylEnhancedEdition, "24067120", 20)]
-    [InlineData(GameTarget.ClearSkyEnhancedEdition, "24067129", 50)]
+    [InlineData(GameTarget.ClearSkyEnhancedEdition, "24067129", 51)]
     [InlineData(GameTarget.CallOfPripyatEnhancedEdition, "24067133", 25)]
     public void Each_edition_gets_the_variants_verified_against_its_files(GameTarget game, string build, int count)
     {

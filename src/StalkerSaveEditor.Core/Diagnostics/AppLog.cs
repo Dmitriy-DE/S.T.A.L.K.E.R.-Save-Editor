@@ -72,7 +72,7 @@ public static partial class AppLog
                 var directory = Directory;
                 System.IO.Directory.CreateDirectory(directory);
                 var path = Path.Combine(directory, FileName);
-                if (File.Exists(path) && new FileInfo(path).Length + line.Length > MaxBytes)
+                if (File.Exists(path) && new FileInfo(path).Length + System.Text.Encoding.UTF8.GetByteCount(line) > MaxBytes)
                 {
                     Rotate(path);
                 }
@@ -198,6 +198,23 @@ public static class DiagnosticsBundle
 {
     private const int MaxBytes = 2 * 1024 * 1024;
 
+    /// <summary>
+    /// The last <paramref name="maximumBytes"/> of a text file, read from its end: a game or mod log can be gigabytes,
+    /// and only its tail goes into the report. The first, possibly cut, line is dropped.
+    /// </summary>
+    internal static string ReadTail(string path, int maximumBytes)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var start = Math.Max(0, stream.Length - maximumBytes);
+        stream.Seek(start, SeekOrigin.Begin);
+        var buffer = new byte[(int)Math.Min(maximumBytes, stream.Length - start)];
+        var read = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+        var text = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
+        if (start == 0) return text;
+        var firstBreak = text.IndexOf('\n');
+        return firstBreak >= 0 ? text[(firstBreak + 1)..] : text;
+    }
+
     /// <param name="since">Only log lines written after this time (the daily report sends what is new).</param>
     public static byte[] Create(string? environmentReport = null, IEnumerable<string>? extraLogs = null, DateTime? since = null)
     {
@@ -230,7 +247,7 @@ public static class DiagnosticsBundle
             if (builder.Length >= MaxBytes || !File.Exists(path)) continue;
             try
             {
-                var text = AppLog.Redact(File.ReadAllText(path));
+                var text = AppLog.Redact(ReadTail(path, 256 * 1024));
                 var room = Math.Min(MaxBytes - builder.Length, 256 * 1024);
                 builder.Append("--- ").Append(Path.GetFileName(path)).Append(" ---\n").Append(text.Length > room ? text[^room..] : text).Append('\n');
             }

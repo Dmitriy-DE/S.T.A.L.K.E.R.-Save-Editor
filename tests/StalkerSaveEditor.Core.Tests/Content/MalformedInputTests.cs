@@ -62,6 +62,50 @@ public sealed class MalformedInputTests
         Assert.Equal("2", resolved["b"]["y"]);
     }
 
+    [Fact]
+    public void A_log_tail_is_read_from_the_end_and_starts_on_a_whole_line()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"tail-{Guid.NewGuid():N}.log");
+        try
+        {
+            File.WriteAllLines(path, Enumerable.Range(0, 20_000).Select(index => $"line {index:D6} с кириллицей"));
+            var tail = StalkerSaveEditor.Core.Diagnostics.DiagnosticsBundle.ReadTail(path, 4096);
+
+            Assert.True(System.Text.Encoding.UTF8.GetByteCount(tail) <= 4096);
+            Assert.StartsWith("line ", tail, StringComparison.Ordinal);
+            Assert.EndsWith("line 019999 с кириллицей" + Environment.NewLine, tail, StringComparison.Ordinal);
+            Assert.Equal(File.ReadAllText(path), StalkerSaveEditor.Core.Diagnostics.DiagnosticsBundle.ReadTail(path, 64 * 1024 * 1024));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void A_small_container_cannot_ask_for_more_than_its_budget()
+    {
+        // Size field says 100 MiB; the CRC is valid, so only the budget stands between the header and the allocation.
+        var body = new byte[12];
+        BinaryPrimitives.WriteUInt32LittleEndian(body, 100 * 1024 * 1024);
+        var packed = body.Concat(BitConverter.GetBytes(Crc32(body))).ToArray();
+
+        var error = Assert.Throws<StalkerSaveEditor.Core.Formats.Stalker2.Stalker2FormatException>(
+            () => StalkerSaveEditor.Core.Formats.Stalker2.Stalker2SaveReader.Unpack(packed, 16 * 1024 * 1024));
+        Assert.Contains("unpacked size", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static uint Crc32(ReadOnlySpan<byte> bytes)
+    {
+        var crc = 0xFFFFFFFFu;
+        foreach (var value in bytes)
+        {
+            crc ^= value;
+            for (var bit = 0; bit < 8; bit++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+        }
+        return ~crc;
+    }
+
     private static byte[] UncompressedDds(int width, int height, uint pitch, uint redMask)
     {
         var data = new byte[128 + width * height * 4];

@@ -115,6 +115,13 @@ public static class SaveSlotDiscovery
 
                 try
                 {
+                    // The size is known before reading: a huge unrelated file with a save extension is not loaded.
+                    if (file.Length > Codecs.KrakenCodec.MaximumUnpackedSize)
+                    {
+                        slots.Add(new SaveSlot(fullPath, candidate.GameId, candidate.ReleaseId, file.Length, file.LastWriteTimeUtc,
+                            null, null, "The file is larger than any save this version can read."));
+                        continue;
+                    }
                     var formatId = DetectFormat(File.ReadAllBytes(fullPath));
                     slots.Add(new SaveSlot(
                         fullPath,

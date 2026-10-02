@@ -56,7 +56,7 @@ public sealed class ToolkitEnvironmentViewModelTests
 
         viewModel.LoadConfig();
         var stale = viewModel.ConfigSettings.First(row => row.Key == "g_fov");
-        Assert.StartsWith(first.GameDirectory, viewModel.UserLtxPath, StringComparison.Ordinal);
+        Assert.Contains(Path.GetFileName(first.Root), viewModel.UserLtxPath, StringComparison.Ordinal);   // macOS resolves /var to /private/var
 
         selected = second.GameDirectory;
         stale.ValueInput = "90";
@@ -66,7 +66,7 @@ public sealed class ToolkitEnvironmentViewModelTests
         Assert.Equal(string.Empty, viewModel.UserLtxPath);
 
         viewModel.LoadConfig();
-        Assert.StartsWith(second.GameDirectory, viewModel.UserLtxPath, StringComparison.Ordinal);
+        Assert.Contains(Path.GetFileName(second.Root), viewModel.UserLtxPath, StringComparison.Ordinal);
         var row = viewModel.ConfigSettings.First(setting => setting.Key == "g_fov");
         row.ValueInput = "90";
         viewModel.ApplyConfig(row);

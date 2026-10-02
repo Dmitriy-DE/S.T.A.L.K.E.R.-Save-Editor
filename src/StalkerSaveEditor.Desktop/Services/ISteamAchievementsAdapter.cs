@@ -1,5 +1,3 @@
-using StalkerSaveEditor.Steam;
-
 namespace StalkerSaveEditor.Desktop.Services;
 
 public interface ISteamAchievementsAdapter
@@ -10,44 +8,25 @@ public interface ISteamAchievementsAdapter
     Task<SteamAchievement> SetAsync(int appId, string apiName, bool achieved, CancellationToken cancellationToken = default);
 }
 
-public sealed class SteamAchievementsAdapter : ISteamAchievementsAdapter
+/// <summary>One achievement as the screen shows it (the Steam project has its own type; the UI does not depend on it).</summary>
+public sealed record SteamAchievement(
+    string ApiName,
+    string Name,
+    string Description,
+    bool Achieved,
+    uint UnlockTime,
+    bool Hidden);
+
+/// <summary>What a host without Steam (the web edition) offers: nothing, with a reason.</summary>
+public sealed class UnavailableSteamAchievementsAdapter : ISteamAchievementsAdapter
 {
-    private readonly SteamAchievementsClient _client;
+    public bool IsAvailable(int appId) => false;
 
-    public SteamAchievementsAdapter() : this(new SteamAchievementsClient()) { }
-
-    internal SteamAchievementsAdapter(SteamAchievementsClient client)
-    {
-        _client = client ?? throw new ArgumentNullException(nameof(client));
-    }
-
-    public bool IsAvailable(int appId)
-    {
-        try
-        {
-            return _client.CheckAvailability(appId).Available;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    public string? GetAvailabilityMessage(int appId)
-    {
-        try
-        {
-            return _client.CheckAvailability(appId).Reason;
-        }
-        catch (Exception ex)
-        {
-            return L.T("Steam недоступен: {0}", ex.Message);
-        }
-    }
+    public string? GetAvailabilityMessage(int appId) => L.T("Steam недоступен: {0}", "host");
 
     public Task<IReadOnlyList<SteamAchievement>> ListAsync(int appId, CancellationToken cancellationToken = default) =>
-        _client.ListAsync(appId, cancellationToken);
+        Task.FromResult<IReadOnlyList<SteamAchievement>>([]);
 
     public Task<SteamAchievement> SetAsync(int appId, string apiName, bool achieved, CancellationToken cancellationToken = default) =>
-        _client.SetAsync(appId, apiName, achieved, cancellationToken);
+        throw new PlatformNotSupportedException("Steam is not available in this edition.");
 }

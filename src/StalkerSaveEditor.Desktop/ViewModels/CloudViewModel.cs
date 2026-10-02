@@ -32,7 +32,7 @@ public sealed class CloudViewModel : ObservableViewModel
         Func<IReadOnlyList<LocalSaveReference>>? localSaveFilesProvider = null,
         Action<string>? onSaveDownloaded = null)
     {
-        _cloudService = cloudService ?? new CloudServiceAdapter();
+        _cloudService = cloudService ?? HostPlatform.CreateCloudService?.Invoke() ?? new UnavailableCloudServiceAdapter();
         _backupDirectoryProvider = backupDirectoryProvider ?? (() => StalkerSaveEditor.Core.Diagnostics.AppPaths.Backups);
         _localSaveFilesProvider = localSaveFilesProvider ?? (() => Array.Empty<LocalSaveReference>());
         _onSaveDownloaded = onSaveDownloaded;
@@ -195,7 +195,7 @@ public sealed class CloudViewModel : ObservableViewModel
             foreach (var appId in appIds)
             {
                 // Only saves of the same game can be the local side of that game's cloud files.
-                var release = Services.CloudServiceAdapter.GetReleaseId(appId);
+                var release = Services.CloudGames.ReleaseId(appId);
                 var localPaths = localSaves.Where(save => string.Equals(save.ReleaseId, release, StringComparison.Ordinal)).Select(save => save.Path).ToArray();
                 var files = await _cloudService.ListCloudFilesAsync(appId, localPaths);
                 foreach (var f in files)

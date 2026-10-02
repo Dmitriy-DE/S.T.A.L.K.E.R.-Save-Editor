@@ -2,7 +2,10 @@ using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Steam;
 
-namespace StalkerSaveEditor.Desktop.Services;
+using StalkerSaveEditor.Desktop;
+using StalkerSaveEditor.Desktop.Services;
+
+namespace StalkerSaveEditor.Host;
 
 public sealed class CloudServiceAdapter : ICloudServiceAdapter
 {
@@ -255,12 +258,5 @@ public sealed class CloudServiceAdapter : ICloudServiceAdapter
         }
     }
 
-    internal static string GetReleaseId(int appId) => appId switch
-    {
-        4500 => "stalker-soc",
-        20510 => "stalker-cs",
-        41700 => "stalker-cop",
-        1643320 => "stalker2",
-        _ => "unknown"
-    };
+    internal static string GetReleaseId(int appId) => CloudGames.ReleaseId(appId);
 }

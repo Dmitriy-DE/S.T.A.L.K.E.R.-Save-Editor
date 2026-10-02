@@ -43,3 +43,20 @@ public interface ICloudServiceAdapter
     Task<byte[]> ReadCloudFileAsync(int appId, string remotePath, CancellationToken cancellationToken = default);
     Task<CloudWriteResult> WriteCloudFileAsync(int appId, string remotePath, byte[] data, string backupDirectory, CancellationToken cancellationToken = default);
 }
+
+/// <summary>What a host without Steam (the web edition) offers.</summary>
+public sealed class UnavailableCloudServiceAdapter : ICloudServiceAdapter
+{
+    public bool IsSteamAvailable => false;
+
+    public string? SteamStatusMessage => L.T("Steam недоступен: {0}", "host");
+
+    public Task<IReadOnlyList<CloudFileModel>> ListCloudFilesAsync(int appId, IEnumerable<string> localSavePaths, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<CloudFileModel>>([]);
+
+    public Task<byte[]> ReadCloudFileAsync(int appId, string remotePath, CancellationToken cancellationToken = default) =>
+        throw new PlatformNotSupportedException("Steam is not available in this edition.");
+
+    public Task<CloudWriteResult> WriteCloudFileAsync(int appId, string remotePath, byte[] data, string backupDirectory, CancellationToken cancellationToken = default) =>
+        throw new PlatformNotSupportedException("Steam is not available in this edition.");
+}

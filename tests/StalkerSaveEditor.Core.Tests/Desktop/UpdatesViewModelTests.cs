@@ -1,7 +1,6 @@
 using Xunit;
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.ViewModels;
-using StalkerSaveEditor.Updater;
 
 namespace StalkerSaveEditor.Core.Tests.Desktop;
 
@@ -94,7 +93,7 @@ public sealed class UpdatesViewModelTests
     public async Task CheckAsync_WhenUpdateAvailable_SetsAvailableStateAndBanner()
     {
         var artifact = new UpdateArtifact("linux", "x64", "package", "update-2.0.0.tar.gz", 1024, "abc", "https://example.com/update");
-        var manifest = new UpdateManifest(1, "stable", "2.0.0", "sha123", "2026-09-28", new Dictionary<string, UpdateArtifact>());
+        var manifest = new UpdateManifestInfo("2.0.0", "2026-09-28");
         var adapter = new FakeUpdateAdapter
         {
             CurrentVersion = "1.0.0",
@@ -160,7 +159,7 @@ public sealed class UpdatesViewModelTests
         try
         {
             var artifact = new UpdateArtifact("linux", "x64", "package", "update.zip", 100, "hash", "https://example.com");
-            var manifest = new UpdateManifest(1, "stable", "1.1.0", "sha", "now", new Dictionary<string, UpdateArtifact>());
+            var manifest = new UpdateManifestInfo("1.1.0", "now");
             var adapter = new FakeUpdateAdapter
             {
                 CheckResult = new UpdateCheckResult(UpdateState.Available, manifest, artifact),
@@ -192,7 +191,7 @@ public sealed class UpdatesViewModelTests
         try
         {
             var artifact = new UpdateArtifact("linux", "x64", "package", "update.zip", 100, "hash", "https://example.com");
-            var manifest = new UpdateManifest(1, "stable", "1.1.0", "sha", "now", new Dictionary<string, UpdateArtifact>());
+            var manifest = new UpdateManifestInfo("1.1.0", "now");
             var adapter = new FakeUpdateAdapter
             {
                 CheckResult = new UpdateCheckResult(UpdateState.Available, manifest, artifact),

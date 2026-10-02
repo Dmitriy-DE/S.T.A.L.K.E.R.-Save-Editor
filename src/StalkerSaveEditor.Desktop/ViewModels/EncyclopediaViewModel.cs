@@ -18,7 +18,6 @@ public sealed class EncyclopediaItemViewModel : ObservableViewModel
         string releaseId,
         ItemDefinition definition,
         string displayName,
-        byte[]? iconPng,
         Func<bool> canAdd,
         Func<bool> canSpawn,
         Action add,
@@ -27,7 +26,6 @@ public sealed class EncyclopediaItemViewModel : ObservableViewModel
         ReleaseId = releaseId;
         Definition = definition;
         DisplayName = displayName;
-        IconPng = iconPng;
         _canAdd = canAdd;
         _canSpawn = canSpawn;
         _add = add;
@@ -43,7 +41,6 @@ public sealed class EncyclopediaItemViewModel : ObservableViewModel
     public string? Category => Definition.Category;
     public double? Weight => Definition.UnitWeight;
     public int? Cost => Definition.Cost;
-    public byte[]? IconPng { get; }
     public bool CanAddToSave => _canAddToSave;
     public bool CanSpawnViaCompanion => _canSpawnViaCompanion;
     public string AddDisabledReason => CanAddToSave ? string.Empty : L.T("Выберите совместимое сохранение с поддержкой добавления предметов.");
@@ -188,7 +185,6 @@ public sealed class EncyclopediaViewModel : ObservableViewModel
                 content.Status.ReleaseId,
                 entry.item,
                 entry.Name,
-                content.IconPng(entry.item.Key),
                 () => _canAdd(content.Status.ReleaseId),
                 () => _canSpawn(content.Status.ReleaseId),
                 () => _add(content.Status.ReleaseId, entry.item.Key),

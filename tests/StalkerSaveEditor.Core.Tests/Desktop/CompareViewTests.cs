@@ -26,11 +26,12 @@ public sealed class CompareViewTests
         viewModel.SelectedTab = "overview";
 
         var root = MainWindow.BuildRoot(viewModel);
+        // A screen is built when it is first shown.
+        Assert.DoesNotContain(root.GetLogicalDescendants().OfType<Control>(), control => control.Name == "compare-screen");
+
+        viewModel.SelectedTab = "compare";
         var compare = root.GetLogicalDescendants().OfType<Control>()
             .Single(control => control.Name == "compare-screen");
-
-        Assert.False(compare.IsVisible);
-        viewModel.SelectedTab = "compare";
         Assert.True(compare.IsVisible);
         viewModel.SelectedTab = "inventory";
         Assert.False(compare.IsVisible);

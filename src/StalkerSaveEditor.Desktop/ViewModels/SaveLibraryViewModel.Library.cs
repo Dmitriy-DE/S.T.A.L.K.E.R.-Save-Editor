@@ -97,7 +97,7 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         // A batch can arrive after the finished list (the continuation may run first): then it is already shown.
         if (version != _libraryVersion || version == _appliedLibraryVersion) return;
         foreach (var save in batch) Saves.Add(save);
-        Timeline.SetSaves(Saves);
+        // The history is built once, when the whole library is in (rebuilding it per batch cost N²/batch rows).
         SelectedSave ??= Saves.FirstOrDefault();
         OnPropertyChanged(nameof(IsFirstRunWizardVisible));
         OnPropertyChanged(nameof(ShouldShowEmptyState));

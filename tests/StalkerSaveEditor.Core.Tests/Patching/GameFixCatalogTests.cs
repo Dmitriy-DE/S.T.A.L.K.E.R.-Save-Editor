@@ -53,7 +53,7 @@ public sealed class GameFixCatalogTests
     public void Shipped_catalogue_contains_archive_verified_clear_sky_fixes_and_populates_safe_presets()
     {
         var fixes = GameFixCatalog.ForGame(GameTarget.ClearSky);
-        Assert.Equal(53, fixes.Count);
+        Assert.Equal(55, fixes.Count);
         var fix = Assert.Single(fixes, candidate => candidate.Id == "cs.quest.dead-wild-napr");
         Assert.Equal("cs.quest.dead-wild-napr", fix.Id);
         Assert.Equal(GameFixCategory.Essential, fix.Category);
@@ -77,7 +77,7 @@ public sealed class GameFixCatalogTests
         Assert.All(pathOwners, group => Assert.Single(group.Select(entry => entry.Id).Distinct(StringComparer.Ordinal)));
         Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.EssentialOnly));
         Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended));
-        Assert.Equal(51, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
+        Assert.Equal(53, GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended).Count);
         Assert.Contains(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Id == fix.Id);
         Assert.DoesNotContain(GameFixCatalog.ForPreset(GameTarget.ClearSky, GameFixPreset.Recommended), candidate => candidate.Category == GameFixCategory.Community);
 
@@ -103,6 +103,31 @@ public sealed class GameFixCatalogTests
         Assert.Equal(2, sniperPatches.Count);
         Assert.Contains(sniperPatches, patch => patch.ExpectedText.StartsWith("[danger_condition]\r\n", StringComparison.Ordinal));
         Assert.Contains(sniperPatches, patch => patch.ExpectedText.StartsWith("[danger_condition@2]\r\n", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void No_game_file_is_claimed_by_two_fixes()
+    {
+        // The engine installs one fix per file; two entries on one file could never both be installed.
+        var owners = GameFixCatalog.All
+            .SelectMany(fix => GameFixEngine.ManagedPaths(fix).Select(path => (fix.Game, Path: path.ToLowerInvariant(), fix.Id)))
+            .GroupBy(entry => (entry.Game, entry.Path))
+            .Where(group => group.Select(entry => entry.Id).Distinct(StringComparer.Ordinal).Count() > 1)
+            .Select(group => $"{group.Key.Game} {group.Key.Path}: {string.Join(", ", group.Select(entry => entry.Id).Distinct())}")
+            .ToArray();
+
+        Assert.Empty(owners);
+    }
+
+    [Fact]
+    public void A_retail_only_patch_is_left_out_of_the_enhanced_edition_variant()
+    {
+        var retail = GameFixCatalog.All.Single(fix => fix.Id == "cs.crash.treasure-given-twice");
+        var enhanced = GameFixCatalog.All.Single(fix => fix.Id == "cs.crash.treasure-given-twice.ee");
+
+        Assert.Contains(retail.TextPatches, patch => patch.RetailOnly);
+        Assert.DoesNotContain(enhanced.TextPatches, patch => patch.RetailOnly);
+        Assert.Equal(retail.TextPatches.Count(patch => !patch.RetailOnly), enhanced.TextPatches.Count);
     }
 
     [Fact]
@@ -154,7 +179,7 @@ public sealed class GameFixCatalogTests
         });
 
         var recommended = GameFixCatalog.ForPreset(GameTarget.CallOfPripyat, GameFixPreset.Recommended);
-        Assert.Equal(16, recommended.Count);
+        Assert.Equal(17, recommended.Count);
         Assert.Contains(recommended, fix => fix.Id == "cop.weapon.spas12-sight-alignment");
         Assert.Contains(recommended, fix => fix.Id == "cop.weapon.val-sight-alignment");
         Assert.Contains(recommended, fix => fix.Id == "cop.dialog.correct-anomaly-name");
@@ -210,8 +235,8 @@ public sealed class GameFixCatalogTests
         viewModel.SelectedTarget = Assert.Single(viewModel.Targets, target => target.Id == "cs");
 
         Assert.Equal(5, viewModel.Categories.Count);
-        Assert.Equal(26, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Essential).Count);
+        Assert.Equal(27, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Essential).Count);
         Assert.Equal(0, Assert.Single(viewModel.Categories, category => category.Category == GameFixCategory.Experimental).Count);
-        Assert.Contains("53", viewModel.CatalogueStatus, StringComparison.Ordinal);
+        Assert.Contains("55", viewModel.CatalogueStatus, StringComparison.Ordinal);
     }
 }

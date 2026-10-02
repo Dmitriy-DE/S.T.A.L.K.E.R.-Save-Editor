@@ -114,7 +114,7 @@ Candidates seen in the diffs and deliberately not ported:
 
 ## Change log
 
-- 2026-10-02 — four more batches (#240–#243), 17 new fixes and one extended:
+- 2026-10-02 — five more batches (#240–#244), 18 new fixes and one extended:
   - CS from the SRP fault list (#240): mutant killed by nobody (`mob_death`), attack logic key `agressive`, Freedom exo
     bleeding sign, carry-weight tooltip of five suits, Dark Valley hold-up after reaching the base.
   - SoC from the ZRP diff (#241): `xr_remark` global `st`, guarded zone without attacker, X-18 danger key, Shell artefact name.
@@ -122,7 +122,9 @@ Candidates seen in the diffs and deliberately not ported:
     Gauss squad `walker@base_1`, X-8 poltergeist line without `=`.
   - New tool `tools/lua_globals.py` (#243): globals read but never defined. SoC `mob_death` and `xr_hit` crashes, CS
     `xr_remark` crash; `cs.crash.sim-combat` 1.1.0 also repairs offline damage that was 0 for squads weaker than 3.
-  - Totals after #243: SoC 35 (EE 19), CS 61 catalogued / 59 recommended (EE 39), CoP 35 catalogued / 21 recommended (EE 24).
+  - CS Yantar factory scene (#244): three misspelt info portions, found by `tools/check_infos.py`; also
+    `tools/check_condfuncs.py`. Their other hits are cut content (traced one by one).
+  - Totals after #244: CS 62 catalogued / 60 recommended (EE 40). Before it, after #243: SoC 35 (EE 19), CS 61 catalogued / 59 recommended (EE 39), CoP 35 catalogued / 21 recommended (EE 24).
     Every preset was installed into and removed from a pristine copy of the real install. Nothing was run in the games.
 
 - 2026-10-02 — remaining candidates (#237): `retailOnly` patches (an EE variant skips them), CS stash flag order /

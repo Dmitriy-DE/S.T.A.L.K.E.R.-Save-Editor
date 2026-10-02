@@ -1,14 +1,7 @@
 using StalkerSaveEditor.Core.Diagnostics;
-using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Backups;
-using StalkerSaveEditor.Core.Capabilities;
-using StalkerSaveEditor.Core.Catalogs;
-using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Editing;
-using StalkerSaveEditor.Core.Formats.Enhanced;
-using StalkerSaveEditor.Core.Formats.Stalker2;
 using StalkerSaveEditor.Core.Formats.XRay;
 using StalkerSaveEditor.Desktop.Services;
 

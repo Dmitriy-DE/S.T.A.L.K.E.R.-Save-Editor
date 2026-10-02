@@ -44,7 +44,6 @@ public static class GameFixCatalog
 
     public const string DatasetVersion = "2026.09.4";
     public const string PreviousDatasetVersion = "2026.09.3";
-    public const GameFixPreset DefaultPreset = GameFixPreset.Recommended;
 
     private static IReadOnlyList<GameFixDefinition>? _all;
 

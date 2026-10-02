@@ -1,13 +1,10 @@
 using System.Buffers.Binary;
-using System.Text;
 
 namespace StalkerSaveEditor.Core.Formats.XRay;
 
 public static partial class XRayTrilogyReader
 {
-    private static List<ObjectRecord> ParseObjects(
-        ReadOnlySpan<byte> raw,
-        XRayChunk chunk)
+    private static List<ObjectRecord> ParseObjects(XRayChunk chunk)
     {
         var reader = new SpanReader(chunk.Data.Span, "OBJECT chunk");
         var count = reader.ReadUInt32();

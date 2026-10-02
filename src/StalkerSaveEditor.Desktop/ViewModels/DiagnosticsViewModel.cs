@@ -1,6 +1,5 @@
 using StalkerSaveEditor.Desktop.Services;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using StalkerSaveEditor.Core.Diagnostics;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;

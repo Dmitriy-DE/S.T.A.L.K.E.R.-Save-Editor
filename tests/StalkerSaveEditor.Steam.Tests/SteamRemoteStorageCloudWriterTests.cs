@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.XRay;
-using StalkerSaveEditor.Steam;
 using Xunit;
 
 namespace StalkerSaveEditor.Steam.Tests;

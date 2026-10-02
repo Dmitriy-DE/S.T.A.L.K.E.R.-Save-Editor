@@ -1,5 +1,4 @@
 using System.Text.Json;
-using StalkerSaveEditor.Steam;
 using Xunit;
 
 namespace StalkerSaveEditor.Steam.Tests;

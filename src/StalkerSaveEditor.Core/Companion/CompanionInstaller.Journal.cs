@@ -1,11 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using StalkerSaveEditor.Core.Formats.XRay;
-using StalkerSaveEditor.Core.Patching;
-using StalkerSaveEditor.Core.Storage;
 
 namespace StalkerSaveEditor.Core.Companion;
 
@@ -175,7 +169,6 @@ public sealed partial class CompanionInstaller
     }
 
     private ReadOnlyCollection<string> RollbackInstall(
-        string gameDirectory,
         IReadOnlyList<(string Path, byte[]? Before)> applied,
         IReadOnlyList<(string Path, byte[] Bytes)> staleFiles)
     {

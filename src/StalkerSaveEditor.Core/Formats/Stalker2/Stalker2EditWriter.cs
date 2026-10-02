@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Editing;
 
 namespace StalkerSaveEditor.Core.Formats.Stalker2;

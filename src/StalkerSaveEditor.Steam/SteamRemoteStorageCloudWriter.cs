@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.XRay;
 

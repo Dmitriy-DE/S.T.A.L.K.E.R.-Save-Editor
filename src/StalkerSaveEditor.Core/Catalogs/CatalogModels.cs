@@ -178,8 +178,6 @@ public sealed class ItemCatalog
         if (nameKeyMatches.Length == 1) return nameKeyMatches[0];
         return ResolveDisplayName(normalized);
     }
-
-    internal ItemCatalog WithItems(IEnumerable<ItemDefinition> items) => new(ReleaseId, items);
 }
 
 public sealed record FactionDefinition

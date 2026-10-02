@@ -25,7 +25,6 @@ public static class Stalker2ItemState
 {
     private const byte ArmorKind = 1;
     private const byte WeaponKind = 0;
-    private const byte BaseNameTableSelector = 4;
     private const int ArmorNestedRelativeOffset = 0x23;
     private const int ArmorConditionRelativeOffset = 4;
     private const int WeaponScanLimit = 0x800;

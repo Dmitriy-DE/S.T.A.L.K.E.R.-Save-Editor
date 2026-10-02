@@ -1,6 +1,5 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
-using System.Text;
 using StalkerSaveEditor.Core.Editing;
 
 namespace StalkerSaveEditor.Core.Formats.XRay;

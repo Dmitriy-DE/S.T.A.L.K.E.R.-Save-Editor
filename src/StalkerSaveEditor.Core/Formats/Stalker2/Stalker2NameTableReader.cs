@@ -18,8 +18,6 @@ public sealed class Stalker2NameTables
         _tables = Array.AsReadOnly(values);
     }
 
-    public IReadOnlyList<IReadOnlyList<string>> Tables => _tables;
-
     public string? Resolve(ReadOnlySpan<byte> typeKey)
     {
         if (typeKey.Length != 3 || typeKey[0] < BaseSelector) return null;

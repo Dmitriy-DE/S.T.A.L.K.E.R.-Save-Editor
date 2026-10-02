@@ -44,7 +44,6 @@ public sealed class EncyclopediaItemViewModel : ObservableViewModel
     public double? Weight => Definition.UnitWeight;
     public int? Cost => Definition.Cost;
     public byte[]? IconPng { get; }
-    public bool HasIcon => IconPng is { Length: > 0 };
     public bool CanAddToSave => _canAddToSave;
     public bool CanSpawnViaCompanion => _canSpawnViaCompanion;
     public string AddDisabledReason => CanAddToSave ? string.Empty : L.T("Выберите совместимое сохранение с поддержкой добавления предметов.");

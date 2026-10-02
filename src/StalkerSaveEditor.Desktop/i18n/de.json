@@ -1805,6 +1805,7 @@
  "Сохранение": "Spielstand",
  "Сохранение ещё выполняется. Дождись его завершения перед закрытием.": "Das Speichern läuft noch. Warte vor dem Schließen, bis es abgeschlossen ist.",
  "Сохранение записано и проверено. Резервная копия создана.": "Der Spielstand wurde geschrieben und geprüft. Eine Sicherung wurde erstellt.",
+ "Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново.": "Dieser Spielstand wurde von Spielversion 1.0.x geschrieben: nur lesbar. Lade ihn in der aktuellen Spielversion und speichere erneut.",
  "Сохранение записано, но повторная проверка не завершилась; редактор пока заблокирован.": "Der Spielstand wurde geschrieben, aber die erneute Prüfung wurde nicht abgeschlossen; der Editor ist vorerst gesperrt.",
  "Сохранение записано. Проверяем результат…": "Spielstand geschrieben. Ergebnis wird geprüft…",
  "Сохранение из Steam Cloud открыто: {0}. Выбери изменения для сохранения.": "Steam-Cloud-Spielstand geöffnet: {0}. Wähle die zu speichernden Änderungen.",

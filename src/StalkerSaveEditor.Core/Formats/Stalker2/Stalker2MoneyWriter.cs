@@ -35,6 +35,7 @@ public static class Stalker2MoneyWriter
         }
 
         var parsed = Stalker2SaveReader.FromBytes(sourceBytes);
+        Stalker2SaveReader.RequireWritableLayout(parsed);
         if (parsed.Money == money)
         {
             return new PreparedEdit(plan, sourceBytes);

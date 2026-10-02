@@ -24,11 +24,12 @@ public static class Stalker2SaveReader
     private static Stalker2Save FromBytesUncached(ReadOnlySpan<byte> data)
     {
         var container = ReadContainer(data);
-        if (container.MoneyAnchorCount != 1)
+        if (container.MoneyAnchorCount > 1)
         {
             throw Error($"Wallet anchor occurs {container.MoneyAnchorCount} times; expected exactly one.");
         }
 
+        // No anchor at all: the layout of game 1.0.x, which LocateLayout accepts only in its exact shape.
         var layout = Stalker2InventoryReader.LocateLayout(container.Raw);
         var inventory = Stalker2InventoryReader.Read(container.Raw, layout);
         var moneyOffset = layout.MoneyOffset;
@@ -48,11 +49,23 @@ public static class Stalker2SaveReader
     {
         try
         {
-            return ReadContainer(data).MoneyAnchorCount == 1;
+            var container = ReadContainer(data);
+            return container.MoneyAnchorCount == 1 ||
+                (container.MoneyAnchorCount == 0 && Stalker2InventoryReader.LocateLayout(container.Raw).IsLegacy);
         }
         catch (Stalker2FormatException)
         {
             return false;
+        }
+    }
+
+    /// <summary>Every S2 writer calls this first: a save in the layout of game 1.0.x is never written.</summary>
+    internal static void RequireWritableLayout(Stalker2Save save)
+    {
+        if (save.IsLegacy)
+        {
+            throw new NotSupportedException(
+                "This save was written by game version 1.0.x. It can be read, but its layout is not supported for editing; load it in the current game and save again.");
         }
     }
 
@@ -242,6 +255,9 @@ public sealed class Stalker2Save
     public uint Money { get; }
 
     public int MoneyAnchorCount { get; }
+
+    /// <summary>Written by game 1.0.x: readable, never editable (see <see cref="Stalker2InventoryLayout.IsLegacy"/>).</summary>
+    public bool IsLegacy => Layout.IsLegacy;
 
     public Stalker2InventoryLayout Layout { get; }
 

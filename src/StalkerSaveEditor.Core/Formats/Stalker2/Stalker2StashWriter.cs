@@ -44,6 +44,7 @@ public static class Stalker2StashWriter
         }
 
         var parsed = Stalker2SaveReader.FromBytes(sourceBytes);
+        Stalker2SaveReader.RequireWritableLayout(parsed);
         var capability = CapabilityRegistry.Get(parsed.ReleaseId, "move_items");
         if (!capability.Writable)
         {

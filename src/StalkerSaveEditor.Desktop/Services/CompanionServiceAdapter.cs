@@ -17,6 +17,9 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
     // Per-game state: client + hotkey service created lazily when a game dir is known.
     private readonly Dictionary<string, GameRuntime> _runtimes = [];
 
+    // A replaced runtime that is still switching its hotkeys off in the game.
+    private readonly Dictionary<string, Task> _retiring = new(StringComparer.Ordinal);
+
     // Stores the user-specified or auto-detected game directory per game.
     // Keyed by release id: the retail game and its Enhanced Edition are separate installs.
     private readonly Dictionary<string, string?> _userGameDirs = new(StringComparer.Ordinal);
@@ -39,8 +42,27 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         // Invalidate any cached runtime when the game dir changes.
         if (_runtimes.Remove(gameReleaseId, out var old))
         {
-            BackgroundTask.Run(old.DisposeAsync(), "companion dispose");
+            // Remembered, not fire-and-forget: the old runtime's "hotkeys off" must reach the game before a new
+            // runtime for the same release sends "hotkeys on", or the game ends up off while the editor shows on.
+            var previous = _retiring.GetValueOrDefault(gameReleaseId) ?? Task.CompletedTask;
+            var retiring = RetireAsync(previous, old);
+            _retiring[gameReleaseId] = retiring;
+            BackgroundTask.Run(retiring, "companion dispose");
         }
+    }
+
+    private static async Task RetireAsync(Task previous, GameRuntime old)
+    {
+        try
+        {
+            await previous.ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Reported by the background task that owns it.
+        }
+
+        await old.DisposeAsync().ConfigureAwait(false);
     }
 
     public string? GetUserGameDirectory(string gameReleaseId) => _userGameDirs.GetValueOrDefault(gameReleaseId);
@@ -236,6 +258,17 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
                 // Create or reuse runtime.
                 if (!_runtimes.TryGetValue(gameReleaseId, out var rt))
                 {
+                    if (_retiring.Remove(gameReleaseId, out var retiring))
+                    {
+                        try
+                        {
+                            await retiring.WaitAsync(ct).ConfigureAwait(false);
+                        }
+                        catch (Exception exception) when (exception is not OperationCanceledException and not OutOfMemoryException)
+                        {
+                        }
+                    }
+
                     var client = new CompanionProtocolClient(gameDir);
                     var svc = new CompanionHotkeyService(client);
                     rt = new GameRuntime(client, svc);
@@ -288,6 +321,18 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
         }
 
         _runtimes.Clear();
+        foreach (var retiring in _retiring.Values)
+        {
+            try
+            {
+                await retiring.ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+            }
+        }
+
+        _retiring.Clear();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

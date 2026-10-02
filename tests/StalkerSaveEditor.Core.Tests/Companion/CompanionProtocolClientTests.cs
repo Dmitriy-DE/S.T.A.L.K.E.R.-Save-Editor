@@ -196,10 +196,13 @@ public sealed class CompanionProtocolClientTests
         {
             var pending = client.SendAsync("info", cancellationToken: cancellation.Token);
             while (!File.Exists(commandPath)) await Task.Delay(10);
+            Assert.True(CompanionProtocolClient.HasSendGate(client.AppDataDirectory));
             cancellation.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
         }
         Assert.False(File.Exists(commandPath));
+        // The per-folder send gate lives only while somebody uses it.
+        Assert.False(CompanionProtocolClient.HasSendGate(client.AppDataDirectory));
 
         // The next request is not blocked by a leftover command.
         using (var cancellation = new CancellationTokenSource())

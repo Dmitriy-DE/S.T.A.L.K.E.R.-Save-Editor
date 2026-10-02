@@ -103,7 +103,7 @@ public sealed class GameFixEngineTests
         };
         var engine = TestEngine();
 
-        Assert.Throws<IOException>(() => engine.ApplyFixes(GameTarget.ClearSky, GameFixPreset.Recommended, [first, second], fixture.GameDirectory));
+        Assert.ThrowsAny<IOException>(() => engine.ApplyFixes(GameTarget.ClearSky, GameFixPreset.Recommended, [first, second], fixture.GameDirectory));
 
         Assert.Equal("first = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/first.script")));
         Assert.Equal("second = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/second.script")));
@@ -327,7 +327,7 @@ public sealed class GameFixEngineTests
         var path = fixture.GetFile("gamedata/scripts/task.script");
         engine.Install(first, fixture.GameDirectory);
 
-        Assert.Throws<IOException>(() => engine.Update(second, fixture.GameDirectory));
+        Assert.ThrowsAny<IOException>(() => engine.Update(second, fixture.GameDirectory));
 
         Assert.Equal("local state = 2\n", File.ReadAllText(path));
         var installed = Assert.Single(engine.ListInstalled(fixture.GameDirectory));
@@ -427,7 +427,7 @@ public sealed class GameFixEngineTests
         };
         var fileSystem = new FailOnTargetMoveFileSystem(fixture.GetFile("gamedata/scripts/second.script"));
 
-        Assert.Throws<IOException>(() => new GameFixEngine(fileSystem, allowSyntheticDefinitions: true).Install(definition, fixture.GameDirectory));
+        Assert.ThrowsAny<IOException>(() => new GameFixEngine(fileSystem, allowSyntheticDefinitions: true).Install(definition, fixture.GameDirectory));
 
         Assert.Equal("first = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/first.script")));
         Assert.Equal("second = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/second.script")));
@@ -447,9 +447,10 @@ public sealed class GameFixEngineTests
         // first: the install write succeeds, the rollback write fails; second: the install write fails.
         var fileSystem = new ScriptedMoveFileSystem((destination, attempt) => destination == second || (destination == first && attempt == 2));
 
-        var error = Assert.Throws<IOException>(() => new GameFixEngine(fileSystem, allowSyntheticDefinitions: true).Install(definition, fixture.GameDirectory));
+        var error = Assert.ThrowsAny<IOException>(() => new GameFixEngine(fileSystem, allowSyntheticDefinitions: true).Install(definition, fixture.GameDirectory));
 
         Assert.Contains("could not all be restored", error.Message, StringComparison.Ordinal);
+        Assert.Equal(GameFixFailure.RollbackIncomplete, Assert.IsType<GameFixOperationException>(error).Failure);
         Assert.Equal("first = 2\n", File.ReadAllText(first));
         var state = Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.rollback-fails");
         Assert.Equal("first = 1\n", File.ReadAllText(Path.Combine(state, "backups", "file-0000.before")));
@@ -462,6 +463,51 @@ public sealed class GameFixEngineTests
         Assert.Equal("second = 2\n", File.ReadAllText(second));
         Assert.False(File.Exists(Path.Combine(state, "transaction.json")));
         Assert.False(File.Exists(Path.Combine(state, "RECOVERY.txt")));
+    }
+
+    [Fact]
+    public void A_failed_install_says_whether_it_was_refused_or_the_disk_failed()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.failure-kind");
+        var second = fixture.GetFile("gamedata/scripts/second.script");
+
+        var disk = Assert.Throws<GameFixOperationException>(() =>
+            new GameFixEngine(new ScriptedMoveFileSystem((destination, _) => destination == second), allowSyntheticDefinitions: true)
+                .Install(definition, fixture.GameDirectory));
+        Assert.Equal(GameFixFailure.Io, disk.Failure);
+
+        // The file changes between the check and the write: a refusal, not an I/O error.
+        var refused = Assert.Throws<GameFixOperationException>(() =>
+            new GameFixEngine(new FailOnTargetMoveFileSystem(changeTargetAfterBackup: second), allowSyntheticDefinitions: true)
+                .Install(definition, fixture.GameDirectory));
+        Assert.Equal(GameFixFailure.Refused, refused.Failure);
+        Assert.IsAssignableFrom<IOException>(refused);
+    }
+
+    [Fact]
+    public void One_damaged_state_folder_is_reported_without_hiding_the_other_fixes()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.healthy");
+        TestEngine().Install(definition, fixture.GameDirectory);
+        var broken = Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.broken");
+        Directory.CreateDirectory(broken);
+        File.WriteAllText(Path.Combine(broken, "manifest.json"), "{ not json");
+
+        // Screens and reports: the healthy fix is listed, the damaged one is named.
+        var installed = TestEngine().ListInstalled(fixture.GameDirectory, out var issues);
+        Assert.Equal(["cs.test.healthy"], installed.Select(fix => fix.Id));
+        Assert.Contains("cs.test.broken", Assert.Single(issues), StringComparison.Ordinal);
+        Assert.Equal(2, TestEngine().GetManagedFileStatus(fixture.GameDirectory, out var fileIssues).Count);
+        Assert.Single(fileIssues);
+
+        // Anything that changes the game still refuses a folder it cannot read completely.
+        Assert.Throws<InvalidDataException>(() => TestEngine().ListInstalled(fixture.GameDirectory));
     }
 
     [Fact]
@@ -569,13 +615,13 @@ public sealed class GameFixEngineTests
         Assert.Throws<ProcessKilled>(() => killed.Install(definition, fixture.GameDirectory));
         File.WriteAllText(first, "first = 3\n");
 
-        var error = Assert.Throws<IOException>(() => TestEngine().RecoverInterrupted(fixture.GameDirectory));
+        var error = Assert.ThrowsAny<IOException>(() => TestEngine().RecoverInterrupted(fixture.GameDirectory));
 
         Assert.Contains("changed by something else", error.Message, StringComparison.Ordinal);
         Assert.Equal("first = 3\n", File.ReadAllText(first));
         var state = Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.killed-then-edited");
         Assert.Equal("first = 1\n", File.ReadAllText(Path.Combine(state, "backups", "file-0000.before")));
-        Assert.Throws<IOException>(() => TestEngine().Install(definition, fixture.GameDirectory));
+        Assert.ThrowsAny<IOException>(() => TestEngine().Install(definition, fixture.GameDirectory));
     }
 
     [Fact]
@@ -590,7 +636,7 @@ public sealed class GameFixEngineTests
         var second = fixture.GetFile("gamedata/scripts/second.script");
         var failing = new GameFixEngine(new ScriptedMoveFileSystem((destination, _) => destination == second), allowSyntheticDefinitions: true);
 
-        var error = Assert.Throws<IOException>(() => failing.Uninstall(definition, fixture.GameDirectory));
+        var error = Assert.ThrowsAny<IOException>(() => failing.Uninstall(definition, fixture.GameDirectory));
 
         Assert.DoesNotContain("rollback problems", error.Message, StringComparison.Ordinal);
         Assert.Equal("first = 2\n", File.ReadAllText(first));
@@ -618,7 +664,7 @@ public sealed class GameFixEngineTests
         var definition = fixture.Fix("cs.test.fresh-sha", "local state = 1", "local state = 2");
         var fileSystem = new FailOnTargetMoveFileSystem(changeTargetAfterBackup: path);
 
-        Assert.Throws<IOException>(() => new GameFixEngine(fileSystem, allowSyntheticDefinitions: true).Install(definition, fixture.GameDirectory));
+        Assert.ThrowsAny<IOException>(() => new GameFixEngine(fileSystem, allowSyntheticDefinitions: true).Install(definition, fixture.GameDirectory));
 
         Assert.Equal("external update\n", File.ReadAllText(path));
         Assert.False(Directory.Exists(Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes")));

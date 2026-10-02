@@ -120,6 +120,33 @@ public sealed record GameFixDefinition(
     private readonly IReadOnlyList<SpawnEditOperation> _spawnEdits = [];
 }
 
+/// <summary>Why a Game Fix operation stopped; lets the UI and the CLI tell "refused" from "the disk failed".</summary>
+public enum GameFixFailure
+{
+    /// <summary>A precondition did not hold (a file changed, a conflict, an unsupported build); nothing is wrong with the disk.</summary>
+    Refused,
+    /// <summary>Reading or writing failed; the game files were put back.</summary>
+    Io,
+    /// <summary>The operation failed and the game files could not all be put back.</summary>
+    RollbackIncomplete,
+}
+
+/// <summary>
+/// A failed install, update, removal or preset. Still an <see cref="IOException"/> for existing callers; the
+/// original exception is the inner one.
+/// </summary>
+public sealed class GameFixOperationException(GameFixFailure failure, string message, Exception innerException)
+    : IOException(message, innerException)
+{
+    public GameFixFailure Failure { get; } = failure;
+
+    internal static GameFixFailure KindOf(Exception cause, int rollbackErrors) =>
+        rollbackErrors > 0 ? GameFixFailure.RollbackIncomplete
+        : cause is GameFixOperationException known ? known.Failure
+        : cause is IOException or UnauthorizedAccessException ? GameFixFailure.Io
+        : GameFixFailure.Refused;
+}
+
 public sealed record GameFixInstallResult(bool Changed, GameFixState State, IReadOnlyList<string> Files);
 
 public sealed record GameFixUninstallCheck(bool CanUninstall, string? Reason, IReadOnlyList<string> Files);
@@ -189,10 +216,24 @@ public sealed partial class GameFixEngine
             : GameFixState.Modified;
     }
 
-    public IReadOnlyList<GameFixInstalledInfo> ListInstalled(string gameDirectory)
+    public IReadOnlyList<GameFixInstalledInfo> ListInstalled(string gameDirectory) => ListInstalled(gameDirectory, strictIssues: null);
+
+    /// <summary>
+    /// For screens and reports: one fix whose state folder is damaged is named in <paramref name="issues"/> and left
+    /// out, and the others are still listed. Installing, removing and snapshots keep using the strict form, which
+    /// refuses to work on a game folder it cannot read completely.
+    /// </summary>
+    public IReadOnlyList<GameFixInstalledInfo> ListInstalled(string gameDirectory, out IReadOnlyList<string> issues)
+    {
+        var found = new List<string>();
+        issues = found;
+        return ListInstalled(gameDirectory, found);
+    }
+
+    private GameFixInstalledInfo[] ListInstalled(string gameDirectory, List<string>? strictIssues)
     {
         var root = NormalizeRoot(gameDirectory);
-        return ReadActiveManifests(root)
+        return ReadActiveManifests(root, strictIssues)
             .Select(manifest => new GameFixInstalledInfo(
                 manifest.FixId,
                 manifest.Game,
@@ -207,10 +248,20 @@ public sealed partial class GameFixEngine
             .ToArray();
     }
 
-    public IReadOnlyList<GameFixManagedFileStatus> GetManagedFileStatus(string gameDirectory)
+    public IReadOnlyList<GameFixManagedFileStatus> GetManagedFileStatus(string gameDirectory) => GetManagedFileStatus(gameDirectory, strictIssues: null);
+
+    /// <summary>The tolerant form of <see cref="GetManagedFileStatus(string)"/>; see <see cref="ListInstalled(string, out IReadOnlyList{string})"/>.</summary>
+    public IReadOnlyList<GameFixManagedFileStatus> GetManagedFileStatus(string gameDirectory, out IReadOnlyList<string> issues)
+    {
+        var found = new List<string>();
+        issues = found;
+        return GetManagedFileStatus(gameDirectory, found);
+    }
+
+    private GameFixManagedFileStatus[] GetManagedFileStatus(string gameDirectory, List<string>? strictIssues)
     {
         var root = NormalizeRoot(gameDirectory);
-        return ReadActiveManifests(root)
+        return ReadActiveManifests(root, strictIssues)
             .SelectMany(manifest => manifest.Files.Select(file =>
             {
                 var path = ResolveGamePath(root, file.RelativePath);
@@ -414,7 +465,7 @@ public sealed partial class GameFixEngine
                 // Some game files could not be put back. The recovery copies are the only way to restore them, so
                 // nothing is cleaned up: the state directory stays and blocks reuse until the files are restored.
                 var kept = WriteRecoveryNote(fixDirectory, definition.Id, changes, applied, rollbackErrors);
-                throw new IOException(
+                throw new GameFixOperationException(GameFixFailure.RollbackIncomplete,
                     $"Game Fix installation failed: {exception.Message}; the game files could not all be restored ({string.Join("; ", rollbackErrors)}). " +
                     $"The original files are kept in {backupDirectory}{kept}.", exception);
             }
@@ -449,7 +500,7 @@ public sealed partial class GameFixEngine
                 rollbackErrors.Add(rollbackException.Message);
             }
 
-            throw new IOException(rollbackErrors.Count == 0
+            throw new GameFixOperationException(GameFixOperationException.KindOf(exception, rollbackErrors.Count), rollbackErrors.Count == 0
                 ? $"Game Fix installation failed: {exception.Message}"
                 : $"Game Fix installation failed: {exception.Message}; rollback problems: {string.Join("; ", rollbackErrors)}", exception);
         }
@@ -554,7 +605,7 @@ public sealed partial class GameFixEngine
                 rollbackErrors.Add("manifest: " + rollbackException.Message);
             }
 
-            throw new IOException(rollbackErrors.Count == 0
+            throw new GameFixOperationException(GameFixOperationException.KindOf(exception, rollbackErrors.Count), rollbackErrors.Count == 0
                 ? $"Game Fix update failed; the previous version was restored: {exception.Message}"
                 : $"Game Fix update failed: {exception.Message}; rollback problems: {string.Join("; ", rollbackErrors)}", exception);
         }
@@ -642,7 +693,7 @@ public sealed partial class GameFixEngine
                 }
             }
 
-            throw new IOException(rollbackErrors.Count == 0
+            throw new GameFixOperationException(GameFixOperationException.KindOf(exception, rollbackErrors.Count), rollbackErrors.Count == 0
                 ? $"Preset application failed; newly installed fixes were rolled back: {exception.Message}"
                 : $"Preset application failed: {exception.Message}; rollback problems: {string.Join("; ", rollbackErrors)}", exception);
         }
@@ -796,7 +847,7 @@ public sealed partial class GameFixEngine
                 rollbackErrors.Add(rollbackException.Message);
             }
 
-            throw new IOException(rollbackErrors.Count == 0
+            throw new GameFixOperationException(GameFixOperationException.KindOf(exception, rollbackErrors.Count), rollbackErrors.Count == 0
                 ? $"Game Fix removal failed: {exception.Message}"
                 : $"Game Fix removal failed: {exception.Message}; rollback problems: {string.Join("; ", rollbackErrors)}", exception);
         }
@@ -1237,7 +1288,8 @@ public sealed partial class GameFixEngine
             throw new InvalidOperationException("Game Fix overlaps a Companion-managed file; layered transformations are not supported for " + overlap);
     }
 
-    private List<GameFixManifest> ReadActiveManifests(string root)
+    /// <param name="issues">Null: any unreadable state folder is an error. A list: it is recorded there and skipped.</param>
+    private List<GameFixManifest> ReadActiveManifests(string root, List<string>? issues = null)
     {
         var directory = Path.Combine(root, StateDirectoryName);
         if (!_fileSystem.DirectoryExists(directory)) return [];
@@ -1245,17 +1297,24 @@ public sealed partial class GameFixEngine
         var result = new List<GameFixManifest>();
         foreach (var fixDirectory in _fileSystem.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly))
         {
-            CheckExistingPathForLinks(root, fixDirectory);
-            var manifestPath = Path.Combine(fixDirectory, ManifestFileName);
-            CheckExistingPathForLinks(root, manifestPath);
-            if (!_fileSystem.FileExists(manifestPath))
+            try
             {
-                // An installation that was killed before its manifest: nothing is installed, the next operation undoes it.
-                if (_fileSystem.FileExists(Path.Combine(fixDirectory, JournalFileName))) continue;
-                throw new InvalidDataException("Game Fix state directory is missing a manifest: " + Path.GetFileName(fixDirectory));
+                CheckExistingPathForLinks(root, fixDirectory);
+                var manifestPath = Path.Combine(fixDirectory, ManifestFileName);
+                CheckExistingPathForLinks(root, manifestPath);
+                if (!_fileSystem.FileExists(manifestPath))
+                {
+                    // An installation that was killed before its manifest: nothing is installed, the next operation undoes it.
+                    if (_fileSystem.FileExists(Path.Combine(fixDirectory, JournalFileName))) continue;
+                    throw new InvalidDataException("Game Fix state directory is missing a manifest: " + Path.GetFileName(fixDirectory));
+                }
+                var manifest = ReadManifest(manifestPath, Path.GetFileName(fixDirectory), _fileSystem);
+                if (manifest.Installed) result.Add(manifest);
             }
-            var manifest = ReadManifest(manifestPath, Path.GetFileName(fixDirectory), _fileSystem);
-            if (manifest.Installed) result.Add(manifest);
+            catch (Exception exception) when (issues is not null && exception is InvalidDataException or IOException or UnauthorizedAccessException)
+            {
+                issues.Add(Path.GetFileName(fixDirectory) + ": " + exception.Message);
+            }
         }
         return result;
     }

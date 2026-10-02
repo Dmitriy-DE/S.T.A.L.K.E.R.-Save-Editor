@@ -23,7 +23,7 @@ Authors are credited in every entry (open-source project, attribution, no sale).
 |---|---|---|---|---|
 | CS | SRP 1.1.5 (Decane) | github.com/Decane/SRP | 506 changelog entries (319 fixes); 611 changed + 66 new files | diffed against retail; 25 individual fixes ported |
 | SoC | ZRP 1.07 R5RC (NatVac) | metacognix.com/files/stlkrsoc | hundreds of fixes | change logs used as the list of known faults; 26 fixes (15 config, 8 crash, 3 logic) |
-| SoC / CS / CoP | GSC's own Enhanced Edition scripts | the installed EE games | retail vs EE: `tools/ee_diff.py` | faults GSC fixed itself; the retail fix is written by us (SoC 7, CS 5, CoP 5) |
+| SoC / CS / CoP | GSC's own Enhanced Edition scripts | the installed EE games | retail vs EE: `tools/ee_diff.py` | faults GSC fixed itself; the retail fix is written by us (SoC 7, CS 9, CoP 5) |
 | CoP | stalker-cop-patch (victor-homyakov) | github | 13 items, 24 files | 18 ported |
 | CoP | Pripyat Reclamation Patch | ModDB (files deleted) | — | 6 ported earlier; source mirror needed |
 | CoP EE | UCoPEEP | Steam Workshop 3487808500 | 1 gameplay change | ported (#184) |
@@ -43,7 +43,7 @@ in scripts.
 | FP-2 | Research tools: pack diff (`fixes build-pack`), missing logic-section checker (`tools/check_logic_refs.py`) | done | #187, #192 |
 | FP-3 | Hunk extractor: split each source diff into minimal anchored text changes, grouped per file, mapped to changelog entries | todo | |
 | FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | in progress (SRP crash list: 26 of 33 done) | #189–#193 |
-| FP-5 | CS desirable fixes (quests, rewards, NPC logic) | in progress: 5 EE-confirmed (mutant without squad, helicopter save, patrol index, trade, flare timer) | #227 |
+| FP-5 | CS desirable fixes (quests, rewards, NPC logic) | in progress: 5 EE-confirmed crash/save fixes (#227), 4 logic fixes (sub-animations, guides, Cordon support payment, shooting range bet) | #227, #233 |
 | FP-6 | SRP optional fixes (balance, sound, extras), off by default | todo | |
 | FP-7 | SoC critical + desirable fixes as our own entries | in progress: 8 crash fixes, 3 logic fixes | #226, #231 |
 | FP-8 | ZRP optional fixes | todo | |
@@ -105,16 +105,16 @@ Candidates seen in the diffs and not ported yet:
 | SoC | `dialogs_military.script` | reward item of a Freedom dialog |
 | SoC | `agroprom_tasks.script` | "find Strelok's stash" completes when leaving the underground with the stash found |
 | CS | `sr_bloodsucker.script` | reaction switched off for squad members who are not in the level (same file as `cs.crash.marsh-creature-no-squad`, whose EE variant must stay valid) |
-| CS | `guiders.script` | guide availability condition (`or` → `and`) |
-| CS | `state_mgr_animation.script` | sub-animation loop never ran (`for key = n, 0 do`) |
-| CS | `task_manager.script` | upgrade-search tasks stored under the wrong key |
-| CS | `dialogs_escape.script`, `minigame_dialogs.script` | who pays 500 RU for support; bet equal to the player's money |
+| CS | `task_manager.script` | upgrade-search tasks stored under another key — the key is written into saves, so a retail fix must keep old saves readable |
 | CS | `treasure_manager.script` | stash states saved in table order, which is not stable |
 | CS | `sound_manager.script`, `state_mgr.script`, `xr_kamp.script` | nil guards; deliberate stops turned into log lines |
-| CoP | `dialogs.script`, `dialogs_jupiter.script` | Jupiter task conditions (`jup_a10`, `jup_a12`) |
+| CoP | `dialogs.script`, `dialogs_jupiter.script` | Jupiter task conditions (`jup_a10`, `jup_a12`); the EE uses a new info portion, so the retail fix also needs the config entry and a check that the dialog can repeat |
 | CoP | `outro_cond.script` | Noah's ending slide ignores the death of his dog |
 
 ## Change log
+
+- 2026-10-02 — CS logic batch (#233): four more EE-confirmed faults; preset (51 fixes) installed into and removed from
+  a pristine copy of the real install.
 
 - 2026-10-02 — SoC, CS, CoP batches (#226–#228, #231): 8 SoC crash fixes and 3 logic fixes, 5 CS and 5 CoP fixes for
   faults GSC fixed in the Enhanced Editions. New research tools: `fixes extract`, `tools/ee_diff.py`. Each preset was

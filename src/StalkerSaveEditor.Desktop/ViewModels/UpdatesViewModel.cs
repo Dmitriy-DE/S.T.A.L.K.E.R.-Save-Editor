@@ -1,4 +1,3 @@
-using System.IO;
 using StalkerSaveEditor.Desktop.Services;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;

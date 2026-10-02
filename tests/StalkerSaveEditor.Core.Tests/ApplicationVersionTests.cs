@@ -1,4 +1,3 @@
-using StalkerSaveEditor.Core;
 using Xunit;
 
 namespace StalkerSaveEditor.Core.Tests;

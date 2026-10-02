@@ -59,10 +59,6 @@ public sealed class TransitionViewModel : ObservableViewModel
     public string TypeDisplay => string.IsNullOrWhiteSpace(Name) ? "level_changer" : Name;
     public string ParentDisplay => ParentId == 0 ? L.T("0 (мир)") : $"0x{ParentId:X4} ({ParentId})";
     public string VersionDisplay => ObjectVersion != 0 ? $"v{ObjectVersion}" : "—";
-    public string CoordinatesDisplay => (PosX.HasValue && PosY.HasValue && PosZ.HasValue)
-        ? $"{PosX.Value:F1}, {PosY.Value:F1}, {PosZ.Value:F1}"
-        : "—";
-    public string SilentDisplay => Silent.HasValue ? (Silent.Value ? L.T("Да") : L.T("Нет")) : "—";
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Bound by the view.")]
     public string StatusDisplay => L.T("Только чтение");
 }

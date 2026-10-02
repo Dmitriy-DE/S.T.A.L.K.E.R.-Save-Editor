@@ -1,9 +1,4 @@
-using System.Collections.ObjectModel;
 using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using StalkerSaveEditor.Core.Formats.XRay;
 using StalkerSaveEditor.Core.Patching;
 using StalkerSaveEditor.Core.Storage;
 

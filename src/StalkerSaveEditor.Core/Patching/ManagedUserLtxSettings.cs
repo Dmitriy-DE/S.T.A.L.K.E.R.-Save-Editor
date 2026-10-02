@@ -45,8 +45,6 @@ public static partial class ManagedUserLtxSettings
             ["cl_dynamiccrosshair"] = new("cl_dynamiccrosshair", "Dynamic crosshair", Toggle: true),
         };
 
-    public static IReadOnlyList<string> KnownKeys => Definitions.Keys.Order(StringComparer.Ordinal).ToArray();
-
     public static string DefaultStateDirectory => AppPaths.ToolkitConfig;
 
     /// <summary>Returns the current and first-seen values. An absent original key means the game engine default was in effect.</summary>
@@ -215,8 +213,6 @@ public static partial class ManagedUserLtxSettings
 
         return normalizedValues;
     }
-
-    public static void ValidateOverrides(IReadOnlyDictionary<string, string> values) => _ = NormalizeOverrides(values);
 
     /// <summary>Restores the provider's ownership record from a verified toolkit snapshot after its values are present.</summary>
     public static void RestoreOwnershipManifest(string userLtxPath, string? stateDirectory, byte[]? manifestBytes)

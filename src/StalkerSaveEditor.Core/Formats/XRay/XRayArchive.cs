@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using StalkerSaveEditor.Core.Codecs;
 
 namespace StalkerSaveEditor.Core.Formats.XRay;
@@ -170,7 +169,4 @@ public sealed record XRayArchiveEntry(
     uint UncompressedSize,
     uint CompressedSize,
     uint Crc32,
-    uint Offset)
-{
-    public bool IsCompressed => CompressedSize != UncompressedSize;
-}
+    uint Offset);

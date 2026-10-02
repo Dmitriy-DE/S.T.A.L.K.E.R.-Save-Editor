@@ -1,7 +1,6 @@
 using System.Text.Json;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.Stalker2;
-using StalkerSaveEditor.Steam;
 using Xunit;
 
 namespace StalkerSaveEditor.Steam.Tests;

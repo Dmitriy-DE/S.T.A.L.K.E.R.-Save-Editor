@@ -1,7 +1,6 @@
 using System.Buffers.Binary;
 using System.Collections.ObjectModel;
 using System.Text;
-using StalkerSaveEditor.Core.Codecs;
 
 namespace StalkerSaveEditor.Core.Formats.XRay;
 

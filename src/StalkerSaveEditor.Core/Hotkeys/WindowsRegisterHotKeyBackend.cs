@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using StalkerSaveEditor.Core.Companion;
 
 namespace StalkerSaveEditor.Core.Hotkeys;
 

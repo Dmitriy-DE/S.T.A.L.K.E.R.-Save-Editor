@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Xunit;
 using StalkerSaveEditor.Desktop.ViewModels;
 

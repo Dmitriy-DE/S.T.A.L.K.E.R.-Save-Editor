@@ -31,10 +31,10 @@ public static class CompareView
     {
         var content = new StackPanel { Spacing = 12, Margin = new Thickness(18) };
         content.Children.Add(BuildHeader());
-        content.Children.Add(BuildCandidatePicker(viewModel));
+        content.Children.Add(BuildCandidatePicker());
         content.Children.Add(BuildSavePairAndSummary(viewModel));
         content.Children.Add(BuildFilterCard(viewModel));
-        content.Children.Add(BuildDifferenceTable(viewModel));
+        content.Children.Add(BuildDifferenceTable());
         content.Children.Add(BuildActions(viewModel));
 
         return new Border
@@ -72,7 +72,7 @@ public static class CompareView
         return stack;
     }
 
-    private static Control BuildCandidatePicker(CompareViewModel viewModel)
+    private static Control BuildCandidatePicker()
     {
         var row = new Grid
         {
@@ -157,7 +157,7 @@ public static class CompareView
             ColumnSpacing = 10,
         };
         row.Children.Add(BuildSavePair(viewModel));
-        var summary = BuildSummary(viewModel);
+        var summary = BuildSummary();
         Grid.SetColumn(summary, 1);
         row.Children.Add(summary);
         return row;
@@ -214,7 +214,7 @@ public static class CompareView
         return StalkerTheme.Card(content);
     }
 
-    private static Control BuildSummary(CompareViewModel viewModel)
+    private static Control BuildSummary()
     {
         var grid = new Grid
         {
@@ -381,7 +381,7 @@ public static class CompareView
         return control;
     }
 
-    private static Control BuildDifferenceTable(CompareViewModel viewModel)
+    private static Control BuildDifferenceTable()
     {
         var panel = new StackPanel { Spacing = 8 };
         var status = new TextBlock

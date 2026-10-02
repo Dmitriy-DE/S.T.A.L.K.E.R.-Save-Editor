@@ -38,9 +38,6 @@ public static class StalkerTheme
     public static Color BorderSubtle => _borderSubtle;
     public static Color Border => _border;
     public static Color BorderMetal => _borderMetal;
-    public static Color BorderFocus => _accent;
-    public static Color AccentAmber => _accent;
-    public static Color AccentDim => _accentDim;
     public static Color Rust => _rust;
     public static Color Success => _success;
     public static Color Warning => _warning;

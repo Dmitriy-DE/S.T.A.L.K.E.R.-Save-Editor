@@ -27,9 +27,6 @@ public static class GameContentRegistry
         return false;
     }
 
-    public static bool TryGetContent(string releaseId, out GameContent content) =>
-        Loaded.TryGetValue(releaseId.Replace("-ee", string.Empty, StringComparison.Ordinal), out content!);
-
     public static IReadOnlyList<GameContent> GetLoadedContents() =>
         Loaded.Values.OrderBy(content => content.Status.ReleaseId, StringComparer.Ordinal).ToArray();
 

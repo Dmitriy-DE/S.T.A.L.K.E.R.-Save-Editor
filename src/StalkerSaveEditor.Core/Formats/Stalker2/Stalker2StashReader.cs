@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Collections.ObjectModel;
 
 namespace StalkerSaveEditor.Core.Formats.Stalker2;
 

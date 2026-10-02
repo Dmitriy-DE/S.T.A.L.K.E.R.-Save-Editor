@@ -1,4 +1,3 @@
-using StalkerSaveEditor.Steam;
 using System.Text.Json;
 using Xunit;
 

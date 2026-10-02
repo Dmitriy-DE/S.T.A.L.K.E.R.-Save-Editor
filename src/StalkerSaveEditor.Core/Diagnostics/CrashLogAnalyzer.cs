@@ -99,6 +99,16 @@ public static partial class CrashLogAnalyzer
             _ => "No recognized crash marker was found.",
         };
 
+        // The scripts stop the game on purpose by formatting nil (abort() in _g.script): the Lua error is then always
+        // the same, and the reason is the "ERROR: …" line the script wrote just before it.
+        if (ScriptAbortRegex().IsMatch(text))
+        {
+            var reason = lines.Select(lineText => AbortReasonRegex().Match(lineText)).LastOrDefault(match => match.Success);
+            summary = reason is not null
+                ? reason.Groups["reason"].Value.Trim()
+                : "A script stopped the game on purpose (abort); its reason is the 'ERROR:' line earlier in the log, which this text does not contain.";
+        }
+
         var evidence = lines
             .Where(lineText => FatalFieldRegex().IsMatch(lineText) || LuaMarkerRegex().IsMatch(lineText) || EngineMarkerRegex().IsMatch(lineText))
             .Select(lineText => lineText.Trim())
@@ -184,6 +194,12 @@ public static partial class CrashLogAnalyzer
 
     [GeneratedRegex(@"(?im)^\s*\[error\]\s*(?:Expression|Function|File|Line|Description|Arguments?(?: \d)?)\s*:", RegexOptions.CultureInvariant)]
     private static partial Regex FatalFieldRegex();
+
+    [GeneratedRegex(@"_g\.script:\d+:\s*bad argument #2 to 'format' \(string expected, got nil\)", RegexOptions.CultureInvariant)]
+    private static partial Regex ScriptAbortRegex();
+
+    [GeneratedRegex(@"\bERROR:\s*(?<reason>\S.*)$", RegexOptions.CultureInvariant)]
+    private static partial Regex AbortReasonRegex();
 
     [GeneratedRegex(@"(?im)(?<file>(?:[A-Za-z]:)?[^\r\n:]*?\.script):(?<line>\d+)(?::|\s|$)", RegexOptions.CultureInvariant)]
     private static partial Regex ScriptFrameRegex();

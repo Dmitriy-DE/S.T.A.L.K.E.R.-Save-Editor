@@ -3314,7 +3314,7 @@
     {
       "id": "cs.crash.squad-action-finished-twice",
       "game": "ClearSky",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "title": "Squad script crashes fixed: action ended during its update, 'help' task with no match",
       "supportedSteamBuildIds": [
         "11450472"
@@ -3337,11 +3337,18 @@
           "replacementText": "\t\t\tlocal task = tm:select_task(\"defend_smart_delay\", target_smart.smrt, vv.player_id)\r\n\t\t\tif task == nil then\r\n\t\t\t\treturn\r\n\t\t\tend\r\n",
           "expectedFileSha256": "939a0e1c730e009bbe2b5f50081ed089c415917b2c29036b8919ae3a3a7945e2",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/sim_squad_generic.script",
+          "expectedText": "if self.assigned_target_smart_id ~= nil then\r\n\t\t\t\tstr = game.translate_string(str)",
+          "replacementText": "if self.assigned_target_smart_id ~= nil and self.board.smarts[self.assigned_target_smart_id] ~= nil then\r\n\t\t\t\tstr = game.translate_string(str)",
+          "expectedFileSha256": "939a0e1c730e009bbe2b5f50081ed089c415917b2c29036b8919ae3a3a7945e2",
+          "codePage": 28591
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
-      "problem": "A squad's current action can be cleared while it updates; finalizing it then crashes: sim_squad_generic.script: attempt to index field 'current_action' (a nil value). Also: when the game offers the player a 'help' (delayed defence) task and no task fits, it crashes: sim_squad_generic.script: attempt to index local 'task' (a nil value).",
-      "description": "The action is finalized only if it still exists; the 'help' task is skipped when no task fits.",
+      "problem": "A squad's current action can be cleared while it updates; finalizing it then crashes: sim_squad_generic.script: attempt to index field 'current_action' (a nil value). Also: when the game offers the player a 'help' (delayed defence) task and no task fits, it crashes: sim_squad_generic.script: attempt to index local 'task' (a nil value). A third fault in the same script: the map hint of a squad that is on its way to attack names its target camp; when that camp is not in the simulation table the hint stops the game (sim_squad_generic.script: attempt to index field '?' (a nil value), reported on the Steam forum when talking to Father Valerian).",
+      "description": "The action is finalized only if it still exists; the 'help' task is skipped when no task fits. The map hint names the target only when the camp is known.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -7099,6 +7106,7 @@
       "7d589cd2284ce08879ea010e4ce8e7cfb6c4183133469a0ee945c7520658c6c4"
     ],
     "cs.crash.squad-action-finished-twice": [
+      "5f21049a8d6ea319112b15b6d559d0a44abc5a32762e16dff9119284631b6bd7",
       "5f21049a8d6ea319112b15b6d559d0a44abc5a32762e16dff9119284631b6bd7",
       "5f21049a8d6ea319112b15b6d559d0a44abc5a32762e16dff9119284631b6bd7"
     ],

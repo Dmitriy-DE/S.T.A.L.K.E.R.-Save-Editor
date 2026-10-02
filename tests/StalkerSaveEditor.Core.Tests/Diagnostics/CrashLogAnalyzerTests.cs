@@ -55,4 +55,31 @@ public sealed class CrashLogAnalyzerTests
         Assert.Null(result.KnownIssueId);
         Assert.Contains("no recognized crash marker", result.Summary, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void A_script_abort_is_summarised_by_the_reason_the_script_logged()
+    {
+        const string log = """
+            ! [LUA][ERROR] ERROR: Insufficient smart_terrain jobs val_smart_terrain_9_6
+            FATAL ERROR
+            [error]Expression    : fatal error
+            [error]Function      : CScriptEngine::lua_error
+            [error]Arguments     : LUA error: ...\\gamedata\\scripts\\_g.script:975: bad argument #2 to 'format' (string expected, got nil)
+            """;
+
+        var analysis = CrashLogAnalyzer.Analyze(log, "cs");
+
+        Assert.Equal("Insufficient smart_terrain jobs val_smart_terrain_9_6", analysis.Summary);
+        Assert.Equal("cs.insufficient-smart-jobs", analysis.KnownIssueId);
+    }
+
+    [Fact]
+    public void A_script_abort_without_its_reason_line_says_where_the_reason_is()
+    {
+        var analysis = CrashLogAnalyzer.Analyze(
+            "[error]Arguments     : LUA error: ...\\scripts\\_g.script:975: bad argument #2 to 'format' (string expected, got nil)", "cs");
+
+        Assert.Contains("'ERROR:' line", analysis.Summary, StringComparison.Ordinal);
+        Assert.Null(analysis.KnownIssueId);
+    }
 }

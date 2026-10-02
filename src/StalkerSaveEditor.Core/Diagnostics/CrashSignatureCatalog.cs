@@ -72,6 +72,19 @@ public static class CrashSignatureCatalog
             Pattern = P(@"cant find animation for slot"),
             FixId = "cs.crash.hospital-jump-down-animation",
         },
+        new("cs.squad-hint-unknown-target", ClearSky, "Map hint of an attacking squad whose target camp is unknown", CrashAdvice.InstallFix,
+            "The hint of a squad on its way to attack names the target camp; when the camp is not in the simulation table the script stops the game.",
+            "https://steamcommunity.com/app/20510/discussions/0/1471967529575318261/")
+        {
+            Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index field '\?' \(a nil value\)"),
+            FixId = "cs.crash.squad-action-finished-twice",
+        },
+        new("cs.pstor-unknown-type", ClearSky, "Saved NPC data cannot be read back", CrashAdvice.CorruptSave,
+            "While loading, the stored variables of an object contain a value type the game does not know: the save holds another object's data at this place.",
+            "https://steamcommunity.com/app/20510/discussions/0/558747922713833080")
+        {
+            Pattern = P(@"pstor_load_all: not registered type N \d+ encountered"),
+        },
         new("cs.sim-combat-actor-nil", ClearSky, "Loading a save during a squad fight", CrashAdvice.InstallFix,
             "sim_combat.script reads the actor before it exists right after a save is loaded; loading again usually works.", Srp)
         {

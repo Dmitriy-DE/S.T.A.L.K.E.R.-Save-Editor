@@ -5902,6 +5902,54 @@
       "references": [
         "tools/lua_globals.py run over the retail scripts"
       ]
+    },
+    {
+      "id": "cs.logic.yantar-factory-scene-typos",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Yantar factory: two of Lefty's men follow the scene instead of standing still",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/yantar/yan_scene_6_stalker_5.ltx",
+          "expectedText": "{+yan_destroy_zombi20 _cut5 ",
+          "replacementText": "{+yan_destroy_zombi20_cut5 ",
+          "expectedFileSha256": "f2bf30446854149ae039fa099fccd2199e48d50486012c952bddd06b932158b4",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/yantar/yan_scene_6_stalker_7.ltx",
+          "expectedText": "%=play_sound(yan_naprnik_roof_5:stalker)% camper@go2_1",
+          "replacementText": "%=play_sound(yan_naprnik_roof_5:stalker)% camper@go2_2",
+          "expectedFileSha256": "63dd28f6be0d6a1b038b2611d8a84bc2dadf6b4caa838ebc8860cf7c4b90f904",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/yantar/yan_scene_6_stalker_7.ltx",
+          "expectedText": "{+yan_naprnik_roof1}  %=play_sound(yan_naprnik_roof1:stalker)%",
+          "replacementText": "{+yan_naprnik_roof_1}  %=play_sound(yan_naprnik_roof_1:stalker)%",
+          "expectedFileSha256": "63dd28f6be0d6a1b038b2611d8a84bc2dadf6b4caa838ebc8860cf7c4b90f904",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check for info portions that logic tests but nothing gives. SRP 1.1.5 corrects the same lines.",
+      "problem": "In the defence of the Yantar factory two stalkers wait for events whose names are misspelt in their logic. One tests 'yan_destroy_zombi20 _cut5' (with a space), so he never moves to his second firing position. The roof helper tests 'yan_naprnik_roof5' and 'yan_naprnik_roof1', while the scene gives 'yan_naprnik_roof_5' and 'yan_naprnik_roof_1', so he skips a stage and never says his last radio line.",
+      "description": "The names are spelled as the scene gives them. The Enhanced Edition still has both mistakes.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/check_infos.py run over the retail configs",
+        "Sky Reclamation Project 1.1.5 (same lines corrected)"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -6239,6 +6287,11 @@
     ],
     "cs.crash.remark-target-not-ready": [
       "fe19e927517f2da1fd5129f80a2c6977ff48297ebce72bfca1d3eba4be37c7ee"
+    ],
+    "cs.logic.yantar-factory-scene-typos": [
+      "ec17c7a453ac3914a9ab7247a03d157433fec8b05dee1fe7362ad6063ea4ed9f",
+      "63dd28f6be0d6a1b038b2611d8a84bc2dadf6b4caa838ebc8860cf7c4b90f904",
+      "63dd28f6be0d6a1b038b2611d8a84bc2dadf6b4caa838ebc8860cf7c4b90f904"
     ]
   }
 }

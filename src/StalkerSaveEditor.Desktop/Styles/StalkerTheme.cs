@@ -79,7 +79,7 @@ public static class StalkerTheme
     {
         CurrentThemeId = themeId is "clear-sky" or "day" ? themeId : "zone";
         CurrentAccentId = accentId is "teal" or "blue" or "rust" ? accentId : "amber";
-        CurrentUiScalePercent = uiScalePercent is 125 or 150 ? uiScalePercent : 100;
+        CurrentUiScalePercent = uiScalePercent is >= 100 and <= 200 ? uiScalePercent : 100;
 
         var palette = CurrentThemeId switch
         {

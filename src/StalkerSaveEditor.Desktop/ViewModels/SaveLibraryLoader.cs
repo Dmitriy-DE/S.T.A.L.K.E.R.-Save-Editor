@@ -259,15 +259,16 @@ internal static class SaveLibraryLoader
 
         var stashes = save.Stashes.Select(s => new StashViewModel(
             s.Handle,
-            s.Name,
-            s.Level,
+            PlaceNames.Stash(formatId, s.Name, s.Handle),
+            PlaceNames.LevelOfObject(formatId, s.Name) ?? (s.Level is null ? null : L.T(s.Level)),
             s.Items.Select(i => new StashItemViewModel(
                 i.Handle,
                 i.TypeKey,
                 SaveNaming.OfficialNames.Resolve(formatId, "items", i.TypeKey, SaveNaming.NamesLanguage) ?? i.TypeKey,
                 i.Count ?? 1,
                 canEdit: canEditStashes,
-                disabledReason: stashesReason))));
+                disabledReason: stashesReason)),
+            objectName: s.Name));
 
         var factionRelations = new List<FactionRelationViewModel>();
         var factionCatalog = catalog?.Factions;
@@ -292,12 +293,20 @@ internal static class SaveLibraryLoader
         }
 
         // Real level changers from X-Ray registry (read-only per AGENTS.md)
-        var transitions = save.LevelChangers.Select(lc => new TransitionViewModel(
-            lc.Handle,
-            lc.Name,
-            lc.NameReplace,
-            lc.ParentId,
-            lc.ObjectVersion)).ToList();
+        var destinations = XRayRelocation.ReadDestinations(save);
+        var transitions = save.LevelChangers.Select(lc =>
+        {
+            destinations.TryGetValue(lc.Handle, out var destination);
+            return new TransitionViewModel(
+                lc.Handle,
+                lc.Name,
+                lc.NameReplace,
+                lc.ParentId,
+                lc.ObjectVersion,
+                sourceLevel: PlaceNames.LevelOfObject(formatId, lc.NameReplace),
+                destLevel: destination is null ? null : PlaceNames.Level(formatId, destination.DestLevelName),
+                destPoint: destination?.DestLevelPointName);
+        }).ToList();
 
         return new SaveFileSummary(
             path,
@@ -339,7 +348,7 @@ internal static class SaveLibraryLoader
             Progress = XRayProgressReader.Read(save),
             Weather = XRayWeatherReader.Read(save),
             RelocationAnchors = XRayRelocation.IsSupported(formatId)
-                ? XRayRelocation.ReadAnchors(save).Select(anchor => new RelocationAnchorViewModel(anchor)).ToArray()
+                ? XRayRelocation.ReadAnchors(save).Select(anchor => new RelocationAnchorViewModel(anchor, PlaceNames.Level(formatId, anchor.DestinationLevel))).ToArray()
                 : [],
             ActorLocation = XRayRelocation.IsSupported(formatId) ? XRayRelocation.ReadActorLocation(save) : null,
         };

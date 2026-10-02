@@ -30,6 +30,34 @@ public sealed partial class MainWindow : Window
         Background = StalkerTheme.BrushBgBase;
 
         Content = BuildRoot(_viewModel);
+        if (SaveLibraryViewModel.InteractiveApp)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            Opened += (_, _) => FitToScreen();
+        }
+        else
+        {
+            _viewModel.Settings.AutoUiScalePercent = SettingsViewModel.AutoScaleFor(Width);
+        }
+    }
+
+    /// <summary>
+    /// The window opens almost as large as the display allows and the interface is enlarged to match: the fixed
+    /// 1260 × 820 start left small print in a corner of a Full HD screen.
+    /// </summary>
+    private void FitToScreen()
+    {
+        if ((Screens.ScreenFromWindow(this) ?? Screens.Primary) is not { } screen) return;
+        var scaling = screen.Scaling > 0 ? screen.Scaling : 1;
+        var area = screen.WorkingArea;
+        double width = area.Width / scaling, height = area.Height / scaling;
+        _viewModel.Settings.AutoUiScalePercent = SettingsViewModel.AutoScaleFor(width);
+        if (WindowState != WindowState.Normal) return;
+        Width = Math.Max(MinWidth, Math.Floor(width * 0.94));
+        Height = Math.Max(MinHeight, Math.Floor(height * 0.92));
+        Position = new PixelPoint(
+            area.X + (int)((area.Width - Width * scaling) / 2),
+            area.Y + (int)((area.Height - Height * scaling) / 2));
     }
 
     /// <summary>Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) undo and redo draft edits, Ctrl+S writes the save.</summary>

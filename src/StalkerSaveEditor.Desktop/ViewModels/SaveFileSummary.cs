@@ -303,7 +303,7 @@ public sealed class SaveFileSummary
     } : "—";
 }
 
-public sealed record RelocationAnchorViewModel(StalkerSaveEditor.Core.Formats.XRay.XRayRelocationAnchor Anchor)
+public sealed record RelocationAnchorViewModel(StalkerSaveEditor.Core.Formats.XRay.XRayRelocationAnchor Anchor, string? LevelName = null)
 {
-    public string Display => $"{Anchor.DestinationLevel} · {Anchor.DestinationPoint}";
+    public string Display => $"{LevelName ?? Anchor.DestinationLevel} · {Anchor.DestinationPoint}";
 }

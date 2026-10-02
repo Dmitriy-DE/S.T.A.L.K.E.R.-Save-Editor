@@ -47,6 +47,23 @@ public static class XRayRelocation
             BinaryPrimitives.ReadUInt32LittleEndian(raw[(actor.StateOffset + StateLevelVertexOffset)..]));
     }
 
+    /// <summary>Where each level changer of the save leads, by object handle; changers whose destination is not read are absent.</summary>
+    public static IReadOnlyDictionary<ushort, XRayLevelChangerStateSuffix> ReadDestinations(XRayTrilogySave save)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+        var raw = save.Container.Raw.Span;
+        var result = new Dictionary<ushort, XRayLevelChangerStateSuffix>();
+        foreach (var changer in save.RegistryObjects.Where(item => item.Name == "level_changer"))
+        {
+            if (FindDestination(raw.Slice(changer.StateOffset, changer.StateLength), changer.Version) is { } suffix)
+            {
+                result[changer.ObjectId] = suffix;
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>Distinct destinations of the level changers in the save, ordered by level and point.</summary>
     public static IReadOnlyList<XRayRelocationAnchor> ReadAnchors(XRayTrilogySave save)
     {
@@ -139,14 +156,18 @@ public static class XRayRelocation
     }
 
     /// <summary>
-    /// The level-changer STATE ends with the destination block (after the restrictor shapes, whose length varies).
-    /// The block is the first offset where the verified suffix parses with identifier-like names and only
-    /// short trailing strings follow (Clear Sky and later keep a hint and a logic name after it).
+    /// The level-changer STATE ends with the destination block, after the restrictor shapes whose length varies.
+    /// The block is accepted only where everything around it agrees: the shape list (count, then spheres of 16 and
+    /// boxes of 48 bytes, then the restrictor type) ends exactly there, the names are identifiers, the position is
+    /// finite and only the known trailer follows. One such place must exist; with none or several the destination
+    /// is not reported, because the move writes these numbers into the actor.
     /// </summary>
     internal static XRayLevelChangerStateSuffix? FindDestination(ReadOnlySpan<byte> state, int version)
     {
+        XRayLevelChangerStateSuffix? found = null;
         for (var start = 2; start + 32 < state.Length; start++)
         {
+            if (!ShapesEndAt(state, start)) continue;
             XRayLevelChangerStateSuffix suffix;
             try
             {
@@ -159,10 +180,42 @@ public static class XRayRelocation
 
             if (!IsIdentifier(suffix.DestLevelName) || !IsIdentifier(suffix.DestLevelPointName)) continue;
             if (suffix.DestPosition is not { } p || !float.IsFinite(p.X) || !float.IsFinite(p.Y) || !float.IsFinite(p.Z)) continue;
-            if (IsStringTail(state[(start + suffix.ConsumedBytes)..])) return suffix;
+            if (!IsStringTail(state[(start + suffix.ConsumedBytes)..])) continue;
+            if (found is not null) return null;
+            found = suffix;
         }
 
-        return null;
+        return found;
+    }
+
+    /// <summary>A restrictor shape list (u8 count; per shape u8 kind, sphere 16 or box 48 bytes; u8 restrictor type) ends at <paramref name="end"/>.</summary>
+    private static bool ShapesEndAt(ReadOnlySpan<byte> state, int end)
+    {
+        const int MaximumShapes = 32, Sphere = 16, Box = 48, LastRestrictorType = 5;
+        if (state[end - 1] > LastRestrictorType) return false;
+        for (var count = 1; count <= MaximumShapes; count++)
+        {
+            // Shortest and longest list of this many shapes; every start between them in steps of the size difference.
+            for (var boxes = 0; boxes <= count; boxes++)
+            {
+                var first = end - 2 - count - boxes * Box - (count - boxes) * Sphere;
+                if (first < 0) break;
+                if (state[first] != count) continue;
+                var position = first + 1;
+                var valid = true;
+                for (var shape = 0; shape < count && valid; shape++)
+                {
+                    var kind = state[position];
+                    valid = kind <= 1;
+                    position += 1 + (kind == 1 ? Box : Sphere);
+                    if (position > end - 1) valid = false;
+                }
+
+                if (valid && position == end - 1) return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -190,7 +243,7 @@ public static class XRayRelocation
     }
 
     private static bool IsIdentifier(string text) =>
-        text.Length is > 0 and < 128 && text.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
+        text.Length is > 0 and < 128 && text.All(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_');
 
     private static XRayVector3 ReadVector(ReadOnlySpan<byte> raw, int offset) => new(
         BinaryPrimitives.ReadSingleLittleEndian(raw[offset..]),

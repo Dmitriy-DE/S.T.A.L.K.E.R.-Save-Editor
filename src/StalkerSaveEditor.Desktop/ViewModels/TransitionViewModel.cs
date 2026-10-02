@@ -22,14 +22,31 @@ public sealed class TransitionViewModel : ObservableViewModel
         string name,
         string nameReplace,
         ushort parentId = 0,
-        int objectVersion = 0)
+        int objectVersion = 0,
+        string? sourceLevel = null,
+        string? destLevel = null,
+        string? destPoint = null)
     {
         Handle = handle;
         Name = name;
         NameReplace = nameReplace;
         ParentId = parentId;
         ObjectVersion = objectVersion;
+        SourceLevel = sourceLevel;
+        DestLevel = destLevel;
+        DestPoint = destPoint;
     }
+
+    /// <summary>"Zaton → Jupiter" when both ends are known, the destination alone otherwise, else the object's name.</summary>
+    public string RouteDisplay => (SourceLevel, DestLevel) switch
+    {
+        ({ Length: > 0 } from, { Length: > 0 } to) => $"{from} → {to}",
+        (_, { Length: > 0 } to) => $"→ {to}",
+        _ => DisplayName,
+    };
+
+    /// <summary>The names the save itself uses: the object and the point the player arrives at.</summary>
+    public string TechnicalDisplay => string.IsNullOrEmpty(DestPoint) ? DisplayName : $"{DisplayName} · {DestPoint}";
 
     public TransitionViewModel(
         string sourceLevel,

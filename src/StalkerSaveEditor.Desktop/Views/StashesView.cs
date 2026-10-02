@@ -107,6 +107,17 @@ public static class StashesView
             }),
         };
 
+        if (stash.ObjectName.Length > 0 && !string.Equals(stash.ObjectName, stash.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            stack.Children.Insert(0, new TextBlock
+            {
+                Text = stash.ObjectName,
+                FontSize = 11,
+                Foreground = StalkerTheme.BrushTextMuted,
+                Margin = new Thickness(4, 0, 0, 2),
+            });
+        }
+
         // A stash can hold thousands of items (2243 in a real CoP save): only the visible rows are built.
         itemsControl.ItemsPanel = new Avalonia.Controls.Templates.FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
         stack.Children.Add(new ScrollViewer

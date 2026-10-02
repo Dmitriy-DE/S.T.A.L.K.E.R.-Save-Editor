@@ -3,7 +3,6 @@ using System.Text.Json;
 using StalkerSaveEditor.Core.Capabilities;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.Stalker2;
-using StalkerSaveEditor.Core.Formats.XRay;
 using Xunit;
 
 namespace StalkerSaveEditor.Core.Tests.Editing;

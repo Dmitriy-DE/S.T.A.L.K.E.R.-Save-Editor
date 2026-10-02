@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using StalkerSaveEditor.Core.Companion;
@@ -121,8 +120,7 @@ public sealed partial class ToolkitSnapshotService
     {
         var gameRoot = CanonicalDirectory(gameDirectory);
         var definitions = GameFixCatalog.ForPreset(target, preset);
-        var report = GameDoctor.Analyze(target, gameRoot);
-        var compatibleBuild = report.SteamBuildId is { } buildId && definitions.Count > 0 &&
+        var compatibleBuild = GameDoctor.Identify(target, gameRoot).SteamBuildId is { } buildId && definitions.Count > 0 &&
             definitions.All(definition => definition.SupportedSteamBuildIds.Contains(buildId, StringComparer.Ordinal));
         var requiresChange = compatibleBuild && definitions.Any(definition =>
             _engine.GetStatus(definition, gameRoot) != GameFixState.Installed);

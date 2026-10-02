@@ -1,4 +1,3 @@
-using System.IO;
 using StalkerSaveEditor.Core.Capabilities;
 using StalkerSaveEditor.Core.Catalogs;
 using StalkerSaveEditor.Core.Formats.Enhanced;

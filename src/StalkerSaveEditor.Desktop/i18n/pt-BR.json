@@ -1805,6 +1805,7 @@
  "Сохранение": "Save",
  "Сохранение ещё выполняется. Дождись его завершения перед закрытием.": "O salvamento ainda está em andamento. Aguarde a conclusão antes de fechar.",
  "Сохранение записано и проверено. Резервная копия создана.": "O save foi gravado e verificado. Um backup foi criado.",
+ "Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново.": "Este save foi gravado pela versão 1.0.x do jogo: somente leitura. Carregue-o na versão atual do jogo e salve novamente.",
  "Сохранение записано, но повторная проверка не завершилась; редактор пока заблокирован.": "O save foi gravado, mas a nova verificação não terminou; o editor está bloqueado por enquanto.",
  "Сохранение записано. Проверяем результат…": "Save gravado. Verificando o resultado…",
  "Сохранение из Steam Cloud открыто: {0}. Выбери изменения для сохранения.": "Save do Steam Cloud aberto: {0}. Escolha as alterações para salvar.",

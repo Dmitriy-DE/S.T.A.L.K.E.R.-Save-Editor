@@ -1,7 +1,5 @@
 using Avalonia;
-using Avalonia.Automation;
 using Avalonia.Controls;
-using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -9,7 +7,6 @@ using Avalonia.Platform.Storage;
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
-using StalkerSaveEditor.Desktop.Views;
 
 namespace StalkerSaveEditor.Desktop;
 

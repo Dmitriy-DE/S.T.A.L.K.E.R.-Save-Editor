@@ -1806,6 +1806,7 @@
  "Сохранение": "Pozice",
  "Сохранение ещё выполняется. Дождись его завершения перед закрытием.": "Ukládání stále probíhá. Před zavřením počkej na dokončení.",
  "Сохранение записано и проверено. Резервная копия создана.": "Pozice byla zapsána a ověřena. Záloha byla vytvořena.",
+ "Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново.": "Tuto uloženou pozici zapsala hra verze 1.0.x: pouze pro čtení. Načtěte ji v aktuální verzi hry a uložte znovu.",
  "Сохранение записано, но повторная проверка не завершилась; редактор пока заблокирован.": "Pozice byla zapsána, ale opakovaná kontrola nedoběhla; editor je zatím zablokován.",
  "Сохранение записано. Проверяем результат…": "Pozice zapsána. Kontroluji výsledek…",
  "Сохранение из Steam Cloud открыто: {0}. Выбери изменения для сохранения.": "Pozice ze Steam Cloud otevřena: {0}. Vyber změny k uložení.",

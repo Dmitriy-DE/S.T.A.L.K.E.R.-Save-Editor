@@ -89,6 +89,19 @@ public static class GameDoctor
     private static readonly string[] ClearSkyMarkers = ["fsgame.ltx", "fsgame_cs.ltx"];
     private static readonly string[] CallOfPripyatMarkers = ["fsgame.ltx", "fsgame_cop.ltx"];
 
+    /// <summary>
+    /// Only what a writer needs before it touches a game folder: does the folder look like this game, and which Steam
+    /// build is it. <see cref="Analyze"/> reports the same two facts and then inspects loose files, the companion and
+    /// every installed fix, which costs more with each fix that is already installed.
+    /// </summary>
+    public static (bool IsInstallation, string? SteamBuildId) Identify(GameTarget target, string gameDirectory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
+        var fullPath = Path.GetFullPath(gameDirectory);
+        if (!Directory.Exists(fullPath)) return (false, null);
+        return (HasExpectedMarker(target, fullPath), TryReadSteamBuildId(fullPath, GameTargetCatalog.Get(target).SteamAppId));
+    }
+
     public static GameDoctorReport Analyze(GameTarget target, string gameDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);

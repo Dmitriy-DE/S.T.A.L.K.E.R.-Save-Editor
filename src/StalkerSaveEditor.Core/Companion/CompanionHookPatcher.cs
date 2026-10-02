@@ -12,8 +12,6 @@ internal static partial class CompanionHookPatcher
     private const string UseObjectAnchor = "self.object:set_callback(callback.on_item_drop, self.on_item_drop, self)";
     private const string UseObjectHook = "if save_editor_companion then self.object:set_callback(callback.use_object, function(_, obj) save_editor_companion.on_use(obj) end) end";
     private const string MenuFunctionAnchor = "function main_menu:OnKeyboard";
-    private const string WindowKeyAnchor = "if keyboard_action == WINDOW_KEY_PRESSED then";
-    private const string QuitKeyAnchor = "if dik == DIK_Q then";
     private const string MenuHook = "if save_editor_companion_ui then save_editor_companion_ui.on_menu_key(dik, self) end";
     private const string QuestInclude = "#include \"save_editor_companion.ltx\"";
 
@@ -163,7 +161,7 @@ internal static partial class CompanionHookPatcher
         var anchorIndex = FindUnique(text, anchor, file);
         if (Count(text, hook) > 0)
         {
-            if (Count(text, hook) == 1 && string.Equals(NextLineAfterAnchor(text, anchorIndex, anchor.Length), hook, StringComparison.Ordinal))
+            if (Count(text, hook) == 1 && string.Equals(NextLineAfterAnchor(text, anchorIndex), hook, StringComparison.Ordinal))
             {
                 return text;
             }
@@ -231,7 +229,7 @@ internal static partial class CompanionHookPatcher
     private static string RemoveAfterAnchorLine(string text, string anchor, string hook, string file)
     {
         var anchorIndex = FindUnique(text, anchor, file);
-        if (Count(text, hook) != 1 || !string.Equals(NextLineAfterAnchor(text, anchorIndex, anchor.Length), hook, StringComparison.Ordinal))
+        if (Count(text, hook) != 1 || !string.Equals(NextLineAfterAnchor(text, anchorIndex), hook, StringComparison.Ordinal))
         {
             throw AnchorError(file, "installed companion hook is missing or ambiguous");
         }
@@ -247,8 +245,6 @@ internal static partial class CompanionHookPatcher
     {
         if (Count(text, hook) > 0)
         {
-            var lineStart = text.LastIndexOf('\n', Math.Max(endKeywordStart - 1, 0));
-            lineStart = lineStart < 0 ? 0 : lineStart + 1;
             var lineEnd = FindLineContentEnd(text, endKeywordStart);
             var afterLine = lineEnd + NewlineLengthAt(text, lineEnd);
             if (Count(text, hook) == 1 && string.Equals(NextLine(text, afterLine), hook, StringComparison.Ordinal))
@@ -282,8 +278,6 @@ internal static partial class CompanionHookPatcher
 
     private static string RemoveAfterBlockLine(string text, int endKeywordStart, string hook, string file)
     {
-        var start = text.LastIndexOf('\n', Math.Max(endKeywordStart - 1, 0));
-        start = start < 0 ? 0 : start + 1;
         var end = FindLineContentEnd(text, endKeywordStart);
         var lineBreakLength = NewlineLengthAt(text, end);
         var hookStart = end + lineBreakLength;
@@ -436,7 +430,7 @@ internal static partial class CompanionHookPatcher
         return absoluteStart + matches[0].Index;
     }
 
-    private static string? NextLineAfterAnchor(string text, int anchorStart, int anchorLength)
+    private static string? NextLineAfterAnchor(string text, int anchorStart)
     {
         var anchorLineEnd = FindLineContentEnd(text, anchorStart);
         var newlineLength = NewlineLengthAt(text, anchorLineEnd);

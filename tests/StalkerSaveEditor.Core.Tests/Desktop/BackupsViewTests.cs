@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.LogicalTree;
 using StalkerSaveEditor.Core.Backups;
-using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.ViewModels;
 using StalkerSaveEditor.Desktop.Views;
 using Xunit;

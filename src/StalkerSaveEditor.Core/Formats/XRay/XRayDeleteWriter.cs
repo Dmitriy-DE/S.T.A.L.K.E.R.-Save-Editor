@@ -10,7 +10,6 @@ public static class XRayDeleteWriter
 {
     private const int ClientPlaceOffset = 1;
     private const int SlotCount = 14;
-    private const ushort ActorParentId = 0;
 
     public static PreparedEdit Prepare(ReadOnlySpan<byte> source, EditPlan plan)
     {

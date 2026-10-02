@@ -1805,6 +1805,7 @@
  "Сохранение": "Save",
  "Сохранение ещё выполняется. Дождись его завершения перед закрытием.": "Saving is still in progress. Wait for it to finish before closing.",
  "Сохранение записано и проверено. Резервная копия создана.": "The save was written and verified. A backup was created.",
+ "Сохранение записано игрой версии 1.0.x: только чтение. Загрузите его в текущей версии игры и сохраните заново.": "This save was written by game version 1.0.x: read-only. Load it in the current game version and save again.",
  "Сохранение записано, но повторная проверка не завершилась; редактор пока заблокирован.": "The save was written, but the re-check did not finish; the editor is locked for now.",
  "Сохранение записано. Проверяем результат…": "Save written. Checking the result…",
  "Сохранение из Steam Cloud открыто: {0}. Выбери изменения для сохранения.": "Steam Cloud save opened: {0}. Choose the changes to save.",

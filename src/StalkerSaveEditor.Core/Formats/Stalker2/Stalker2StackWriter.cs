@@ -33,6 +33,7 @@ public static class Stalker2StackWriter
         }
 
         var parsed = Stalker2SaveReader.FromBytes(sourceBytes);
+        Stalker2SaveReader.RequireWritableLayout(parsed);
         if (!CapabilityRegistry.Get(parsed.ReleaseId, "edit_stacks").Writable)
         {
             throw Error($"Stack editing is not enabled for {parsed.ReleaseId}.");
@@ -52,6 +53,12 @@ public static class Stalker2StackWriter
                 count > (uint)item.CountMax)
             {
                 throw Error($"Object 0x{handle:X8} is not a confirmed editable S2 stack or exceeds its max_stack.");
+            }
+
+            if (!Stalker2InventoryReader.IsEditableStack(item.KindCode, count))
+            {
+                // Said here, before anything is packed: the read-back below would refuse the same thing in vaguer words.
+                throw Error($"Object 0x{handle:X8} cannot be reduced to {count}: for this kind of item only a stack of two or more is confirmed.");
             }
 
             var countOffset = checked(item.RecordOffset + StackCountOffset);

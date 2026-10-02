@@ -1,15 +1,5 @@
 using StalkerSaveEditor.Core.Diagnostics;
-using System.Collections.ObjectModel;
-using System.Globalization;
-using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Backups;
-using StalkerSaveEditor.Core.Capabilities;
-using StalkerSaveEditor.Core.Catalogs;
-using StalkerSaveEditor.Core.Companion;
-using StalkerSaveEditor.Core.Editing;
-using StalkerSaveEditor.Core.Formats.Enhanced;
-using StalkerSaveEditor.Core.Formats.Stalker2;
-using StalkerSaveEditor.Core.Formats.XRay;
 using StalkerSaveEditor.Desktop.Services;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
@@ -131,19 +121,42 @@ public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposa
         OnPropertyChanged(nameof(ShouldShowEmptyState));
     }
 
+    private int _backupListVersion;
+
+    /// <summary>
+    /// Lists the backups. The first listing of a session hashes every backup file, so in the running application it
+    /// happens off the UI thread and the list is filled when it is ready; a newer request replaces an older one.
+    /// </summary>
     public void RefreshBackups()
+    {
+        var backupDir = _backupDirectoryProvider();
+        if (!InteractiveApp)
+        {
+            ShowBackups(ReadBackups(backupDir));
+            return;
+        }
+
+        var version = ++_backupListVersion;
+        BackgroundTask.Run(
+            Task.Run(() =>
+            {
+                var records = ReadBackups(backupDir);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (version == _backupListVersion && !_disposed) ShowBackups(records);
+                });
+            }, _lifetime.Token),
+            "backup list");
+    }
+
+    private static IReadOnlyList<LocalSaveBackupRecord> ReadBackups(string backupDir) =>
+        Directory.Exists(backupDir) ? LocalSaveStorage.ListBackups([backupDir]) : [];
+
+    private void ShowBackups(IReadOnlyList<LocalSaveBackupRecord> records)
     {
         var selectedJournalPath = SelectedBackup?.JournalPath;
         Backups.Clear();
-        var backupDir = _backupDirectoryProvider();
-        if (Directory.Exists(backupDir))
-        {
-            var records = LocalSaveStorage.ListBackups([backupDir]);
-            foreach (var r in records)
-            {
-                Backups.Add(new BackupRecordViewModel(r));
-            }
-        }
+        foreach (var record in records) Backups.Add(new BackupRecordViewModel(record));
 
         SelectedBackup = Backups.FirstOrDefault(backup => backup.JournalPath == selectedJournalPath)
             ?? Backups.FirstOrDefault(backup => backup.CanRestore)

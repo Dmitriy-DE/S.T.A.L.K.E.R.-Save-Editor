@@ -1,4 +1,3 @@
-using StalkerSaveEditor.Desktop;
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Steam;
 using SteamAchievement = StalkerSaveEditor.Desktop.Services.SteamAchievement;

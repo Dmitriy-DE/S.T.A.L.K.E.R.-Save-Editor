@@ -15,7 +15,6 @@ public sealed class BackupRecordViewModel(LocalSaveBackupRecord record) : Observ
     public string SourceName => Path.GetFileName(Record.SourcePath);
     public string SourceSha256 => Record.SourceSha256;
     public string? OutputPath => Record.OutputPath;
-    public string? OutputName => Record.OutputPath is not null ? Path.GetFileName(Record.OutputPath) : null;
     public string? ActualSha256 => Record.ActualSha256;
     public BackupVerificationStatus Status => Record.Status;
     public string? Error => Record.Error;

@@ -1,4 +1,4 @@
-# Handoff — state on 2026-10-02 (after v1.2.0)
+# Handoff — state on 2026-10-02 (v1.3.0)
 
 Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap/STATE.md`, and
 `docs/roadmap/AUDIT_2026-10-02.md` (what the documents promise against what the code has).
@@ -8,7 +8,7 @@ Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap
 | What | Where |
 |---|---|
 | Code (only live repo) | `github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor` (renamed from `-Next`). Python repo `S.T.A.L.K.E.R.-Save_Editor` is archived, ignore it. |
-| Released | v1.2.0 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
+| Released | v1.3.0 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
 | Web edition | `stalker-save-editor.pages.dev` (C# WASM, deployed by hand) |
 | Local worktrees | `~/Projects/save-editor-next-claude` (Claude merge queue), `~/Projects/save-editor-review-claude` (Claude edits — never edit where a queue script runs: it resets hard), `~/Projects/save-editor-next` (Codex) |
 | Owner's games (Linux, Proton) | `~/.local/share/Steam/steamapps/common/` — SoC, CS (+OGSM mod), CoP, three EE; S2 via GFN only (no mods there) |
@@ -22,6 +22,7 @@ Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap
 
 ```
 export TMPDIR=~/.cache/claude-pytest
+python3 tools/build_ooz_native.py --output-dir artifacts/native   # once per clone: the S2 tests need the native Kraken library
 dotnet build StalkerSaveEditor.sln -c Release -warnaserror
 dotnet test StalkerSaveEditor.sln -c Release --no-build
 ./tools/check_companion.sh
@@ -41,29 +42,30 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
    The tool signs latest.json → latest.json.sig with `~/.config/stalker-save-editor/update-signing-key.pem` (ECDSA P-256, never in git; the public key is embedded in `UpdateSignature`). From 1.2.1 the app rejects an unsigned or wrongly signed manifest. Losing the key means shipping a new public key in a release signed by the old one.
 4. Web: `DOTNET_ROOT=~/.dotnet PATH=~/.dotnet:$PATH dotnet publish src/StalkerSaveEditor.Browser -c Release -o artifacts/web` then `npx wrangler@4 pages deploy artifacts/web/wwwroot --project-name=stalker-save-editor --branch=main`.
 
-## Done
+## Done and not done
 
-- Save editing for SoC/CS/CoP (+EE): money, stacks, condition, placement, upgrades, relations, add/remove items, stashes (take, put, create in stash); S2: money, stacks, condition. Backup + journal + atomic swap + read-back for every write.
-- Read-only save data: PDA tasks with state and times (incl. CoP EE), kill statistics (SoC/CS), weather (CS 62/62, CoP), actor location, installed game build; task changes in Compare.
-- 1.2.0 review fixes: async commands no longer async void, X11 re-grab crash, background task failures logged, resumable companion uninstall, audio races, library refresh cancel; Game Fix catalogue is JSON data; logs record writes/fixes/companion commands (redacted).
-- Quest Doctor (SoC 4 rules, CS 3 rules): detect a dead NPC whose death flag is missing, repair the save, open the preventing Game Fix. Crash signatures (18 CS from SRP, 6 SoC from ZRP) in Game Doctor.
-- Game Fixes: 115 retail (CS 55, SoC 29, CoP 31) plus Enhanced Edition variants; installs and removals are journaled and survive a killed process. Experimental actor relocation to level-changer destinations (TP).
-- Steam: cloud read/download/upload with confirmation and no retries, achievements.
-- UI: 15 languages, game sounds/music, icons from the installed game, previews, compare, drafts with undo, diagnostics and daily redacted reports. Saves open off the UI thread; ReadyToRun builds (window start ~0.35 s).
-- Companion mod: full in-game menu for SoC/CS/CoP (L4 in CoP only), rebindable hotkeys; S2 UE4SS mod experimental.
-- CI: 3 OS + web; runtime gate on the packaged app; benchmark gate tolerant of slow runners.
+What the program does and how far it is verified: `docs/roadmap/STATE.md`. What is left, split into "needs the owner"
+and "can be done without the owner": `docs/roadmap/README.md`. Game fixes: `FIX-PACKS.md` (sources, what was not
+taken and why) and `FIX-AUDIT-2026-10-02.md` (a record per fix, the regression pass over the whole catalogue).
 
-## Not done / next
+## Game fixes: checks before a PR that touches the catalogue
 
-0. **Fix packs (active):** plan and tracker in `docs/roadmap/FIX-PACKS.md` — update its task table and change log in every related PR. Method that works: compare retail scripts with the Enhanced Edition (`tools/ee_diff.py`), write the retail fix ourselves, check the whole preset on a hard-linked copy of the real install (`tools/fix_realcheck.sh`). One fix per game file: add patches to the existing entry (`retailOnly` when the EE already has the change).
-0a. **Code reviews of 2026-10-01:** tracker `docs/roadmap/REVIEW-2026-10-01.md`; every row is done, measured `wontfix` or `kept` with a reason (#204–#239).
+```
+python3 tools/fix_regress.py ~/Projects/fix-sources ~/.cache/claude-pytest/fix-regress   # every patch against the dumps of six games, checkers, Lua harness
+bash tools/fix_realcheck.sh                                                              # install and remove every fix on copies of the six real installs
+```
+The dumps are made with `fixes extract TARGET GAME_DIR OUT --archives-only scripts/ configs/ shaders/`. Every new or
+changed fix gets a record in the audit document: the game function, who uses it, what changes for the player, how far
+the logic was checked. A remedy of our own design is run in `tools/lua_harness` before it is catalogued: reading it was
+not enough once (`cs.crash.smart-terrain-no-free-job` 1.0.0).
 
-1. **Owner in game (L5):** a CS/CoP save written by the editor (grows ~4×), Quest Doctor repair, relocation (TP), stash moves, fixes, companion in SoC/CS/EE, S2 companion god/noclip/timespeed (needs S2 on PC with UE4SS).
-2. **Refactors left** (no user-visible change): the big classes are split into partial files (#238) — turning those parts into separate classes is next; list recycling (#90), analyzers for Desktop/App, headless tooling out of the App exe, one file-transaction primitive for snapshots/backups (fixes and companion have journals since #217).
-3. **Needs owner material:** S2 save pairs for add items/upgrades/relations; S2 game files for content packs (CP-4); UCoPEEP/Workshop files (subscribe) to port external fixes; update signing key; CI publish secrets; Workshop upload.
-4. Translation review by native speakers (TR-1).
+## Merge queue
 
-Frontend v2: Codex rebuilt shell/themes + 8 screens (#160, #163–#169); Claude polished the other 12 (#170) and took over the frontend on 2026-09-30.
+`~/Projects/fix-sources/tools/run-queue.sh` merges the PRs listed in `full-queue.txt` one at a time (cherry-pick of the
+PR's own commits onto `main`, build, tests, CI, squash). A stacked PR must point at `main` before it is merged: #240
+was squash-merged into the branch below it and never reached `main` (repaired by #253; the queue now retargets).
+
+Frontend v2: Codex rebuilt shell/themes + 8 screens (#160, #163–#169); Claude polished the other 12 (#170) and owns the frontend since 2026-09-30.
 
 ## Lessons (do not repeat)
 

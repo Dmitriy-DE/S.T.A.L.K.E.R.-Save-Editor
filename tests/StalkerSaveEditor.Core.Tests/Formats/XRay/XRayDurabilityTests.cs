@@ -1,4 +1,3 @@
-using System.Text.Json;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Core.Formats.Enhanced;
 using StalkerSaveEditor.Core.Formats.XRay;

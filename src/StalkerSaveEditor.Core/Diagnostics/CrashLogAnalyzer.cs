@@ -34,6 +34,34 @@ public sealed record CrashLogAnalysis(
 /// </summary>
 public static partial class CrashLogAnalyzer
 {
+    /// <summary>
+    /// Analyzes a log file or a game minidump (<c>*.mdmp</c>), told apart by content. Only the last 256 KiB of a log
+    /// are read; a dump larger than 64 MiB is refused.
+    /// </summary>
+    public static CrashLogAnalysis AnalyzeFile(string path, string? game = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var info = new FileInfo(path);
+        var modified = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
+        using var stream = info.OpenRead();
+        Span<byte> head = stackalloc byte[32];
+        var read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+        if (CrashDumpReader.IsMinidump(head[..read]))
+        {
+            const long maximumDump = 64L * 1024 * 1024;
+            if (stream.Length > maximumDump) throw new InvalidDataException("The dump file is too large to inspect.");
+            var dump = new byte[stream.Length];
+            stream.Position = 0;
+            stream.ReadExactly(dump);
+            return Analyze(CrashDumpReader.ToLogText(dump), game, modified);
+        }
+
+        const int tail = 256 * 1024;
+        stream.Position = Math.Max(0, stream.Length - tail);
+        using var reader = new StreamReader(stream, System.Text.Encoding.Latin1);
+        return Analyze(reader.ReadToEnd(), game, modified);
+    }
+
     public static CrashLogAnalysis Analyze(string text, string? game = null, DateTimeOffset? fileLastWriteTimeUtc = null)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -63,11 +91,23 @@ public static partial class CrashLogAnalyzer
 
         var summary = kind switch
         {
-            CrashLogKind.FatalError => FirstNonEmpty(expression, description, "Fatal error marker found."),
+            // "fatal error" / "<no expression>" are the engine's placeholders: the Arguments line then holds the message.
+            CrashLogKind.FatalError => FirstNonEmpty(
+                Meaningful(expression), Meaningful(description), FindValue(lines, "Arguments"), expression, description, "Fatal error marker found."),
             CrashLogKind.LuaError => FindLuaSummary(lines),
             CrashLogKind.EngineError => FirstNonEmpty(FindEngineSummary(lines), "Engine error marker found."),
             _ => "No recognized crash marker was found.",
         };
+
+        // The scripts stop the game on purpose by formatting nil (abort() in _g.script): the Lua error is then always
+        // the same, and the reason is the "ERROR: …" line the script wrote just before it.
+        if (ScriptAbortRegex().IsMatch(text))
+        {
+            var reason = lines.Select(lineText => AbortReasonRegex().Match(lineText)).LastOrDefault(match => match.Success);
+            summary = reason is not null
+                ? reason.Groups["reason"].Value.Trim()
+                : "A script stopped the game on purpose (abort); its reason is the 'ERROR:' line earlier in the log, which this text does not contain.";
+        }
 
         var evidence = lines
             .Where(lineText => FatalFieldRegex().IsMatch(lineText) || LuaMarkerRegex().IsMatch(lineText) || EngineMarkerRegex().IsMatch(lineText))
@@ -99,6 +139,9 @@ public static partial class CrashLogAnalyzer
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         return lines.Select(line => pattern.Match(line)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
     }
+
+    private static string? Meaningful(string? value) =>
+        value is null || value.Trim() is "fatal error" or "<no expression>" or "" ? null : value;
 
     private static int? ParseLine(string? text) =>
         int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number) && number > 0
@@ -149,8 +192,14 @@ public static partial class CrashLogAnalyzer
     [GeneratedRegex(@"(?im)(?:EXCEPTION_ACCESS_VIOLATION|Unhandled Exception|DEVICE_REMOVED)", RegexOptions.CultureInvariant)]
     private static partial Regex EngineMarkerRegex();
 
-    [GeneratedRegex(@"(?im)^\s*\[error\]\s*(?:Expression|Function|File|Line|Description)\s*:", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?im)^\s*\[error\]\s*(?:Expression|Function|File|Line|Description|Arguments?(?: \d)?)\s*:", RegexOptions.CultureInvariant)]
     private static partial Regex FatalFieldRegex();
+
+    [GeneratedRegex(@"_g\.script:\d+:\s*bad argument #2 to 'format' \(string expected, got nil\)", RegexOptions.CultureInvariant)]
+    private static partial Regex ScriptAbortRegex();
+
+    [GeneratedRegex(@"\bERROR:\s*(?<reason>\S.*)$", RegexOptions.CultureInvariant)]
+    private static partial Regex AbortReasonRegex();
 
     [GeneratedRegex(@"(?im)(?<file>(?:[A-Za-z]:)?[^\r\n:]*?\.script):(?<line>\d+)(?::|\s|$)", RegexOptions.CultureInvariant)]
     private static partial Regex ScriptFrameRegex();

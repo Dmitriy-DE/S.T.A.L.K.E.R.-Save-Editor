@@ -1,7 +1,6 @@
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
 using StalkerSaveEditor.Desktop.ViewModels;
-using Avalonia.Media;
 using Xunit;
 
 namespace StalkerSaveEditor.Core.Tests.Desktop;

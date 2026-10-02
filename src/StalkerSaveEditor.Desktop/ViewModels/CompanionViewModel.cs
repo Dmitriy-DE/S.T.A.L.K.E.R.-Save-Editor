@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Hotkeys;
 using StalkerSaveEditor.Desktop.Services;
 using ICompanionService = StalkerSaveEditor.Desktop.Services.ICompanionService;

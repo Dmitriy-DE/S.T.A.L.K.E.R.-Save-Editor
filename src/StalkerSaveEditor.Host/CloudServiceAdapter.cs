@@ -1,8 +1,6 @@
 using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Editing;
 using StalkerSaveEditor.Steam;
-
-using StalkerSaveEditor.Desktop;
 using StalkerSaveEditor.Desktop.Services;
 
 namespace StalkerSaveEditor.Host;

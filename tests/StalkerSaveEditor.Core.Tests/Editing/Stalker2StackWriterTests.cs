@@ -74,6 +74,18 @@ public sealed class Stalker2StackWriterTests
             })));
     }
 
+    [Theory]
+    [InlineData(4, 1u, true)]    // consumable
+    [InlineData(5, 1u, true)]    // ammunition
+    [InlineData(7, 1u, true)]    // grenade
+    [InlineData(8, 2u, true)]    // carried quest item: only as a stack of two or more
+    [InlineData(8, 1u, false)]   // found on real saves: reducing such a stack to one was refused only after packing
+    [InlineData(0, 5u, false)]   // a weapon is not a stack
+    public void A_stack_count_is_writable_only_for_confirmed_kinds(byte kind, uint count, bool expected)
+    {
+        Assert.Equal(expected, Stalker2InventoryReader.IsEditableStack(kind, count));
+    }
+
     [Fact]
     public void Rejects_an_unknown_inventory_kind()
     {

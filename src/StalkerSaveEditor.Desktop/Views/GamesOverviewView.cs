@@ -5,7 +5,6 @@ using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.VisualTree;
 using StalkerSaveEditor.Core.Diagnostics;
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.Styles;
@@ -16,7 +15,6 @@ namespace StalkerSaveEditor.Desktop.Views;
 public static class GamesOverviewView
 {
     private static readonly BoolVisibilityConverter VisibleWhenTrue = new(invert: false);
-    private static readonly EmptyTextConverter IsEmpty = new(invert: false);
     private static readonly EmptyTextConverter IsNotEmpty = new(invert: true);
 
     public static Control Build(SaveLibraryViewModel vm)

@@ -59,10 +59,31 @@ public static class CrashSignatureCatalog
             FixId = "cs.quest.dead-wild-napr",
             QuestRuleId = "cs.wild-napr-dead",
         },
-        new("cs.insufficient-smart-jobs", ClearSky, "Too many stalkers for one camp", CrashAdvice.CommunityPatch,
+        new("cs.insufficient-smart-jobs", ClearSky, "Too many stalkers for one camp", CrashAdvice.InstallFix,
             "More squads were sent to a smart terrain than it has jobs (Dark Valley wagon, Army Warehouses rocks and others).", Srp)
         {
             Pattern = P(@"Insufficient smart_terrain jobs"),
+            FixId = "cs.crash.smart-terrain-no-free-job",
+        },
+        new("cs.hospital-jump-down-animation", ClearSky, "Hospital enemy jumps down with a weapon the animation is not listed for", CrashAdvice.InstallFix,
+            "The jump animation of one Limansk hospital enemy is listed for a single weapon type; with any other weapon the script stops the game.",
+            "https://steamcommunity.com/app/20510/discussions/0/3132792921893743264/")
+        {
+            Pattern = P(@"cant find animation for slot"),
+            FixId = "cs.crash.hospital-jump-down-animation",
+        },
+        new("cs.squad-hint-unknown-target", ClearSky, "Map hint of an attacking squad whose target camp is unknown", CrashAdvice.InstallFix,
+            "The hint of a squad on its way to attack names the target camp; when the camp is not in the simulation table the script stops the game.",
+            "https://steamcommunity.com/app/20510/discussions/0/1471967529575318261/")
+        {
+            Pattern = P(@"sim_squad_generic\.script:\d+:\s*attempt to index field '\?' \(a nil value\)"),
+            FixId = "cs.crash.squad-action-finished-twice",
+        },
+        new("cs.pstor-unknown-type", ClearSky, "Saved NPC data cannot be read back", CrashAdvice.CorruptSave,
+            "While loading, the stored variables of an object contain a value type the game does not know: the save holds another object's data at this place.",
+            "https://steamcommunity.com/app/20510/discussions/0/558747922713833080")
+        {
+            Pattern = P(@"pstor_load_all: not registered type N \d+ encountered"),
         },
         new("cs.sim-combat-actor-nil", ClearSky, "Loading a save during a squad fight", CrashAdvice.InstallFix,
             "sim_combat.script reads the actor before it exists right after a save is loaded; loading again usually works.", Srp)
@@ -177,25 +198,29 @@ public static class CrashSignatureCatalog
         {
             Pattern = P(@"You are saving too much"),
         },
-        new("cs.patrol-point-cordon-bonfire", ClearSky, "Patrol point at the Cordon forest bonfire", CrashAdvice.CommunityPatch,
+        new("cs.patrol-point-cordon-bonfire", ClearSky, "Patrol point at the Cordon forest bonfire", CrashAdvice.InstallFix,
             "A stalker patrolling the 'Bonfire in forest' reached a waypoint that is not on the level graph.", Srp)
         {
             Pattern = P(@"patrol path\s*\[esc_smart_terrain_3_7_walker_1_walk\]"),
+            FixId = "cs.crash.all-spawn-errors",
         },
-        new("cs.patrol-red-forest-trader", ClearSky, "Red Forest mine trader left his desk", CrashAdvice.CommunityPatch,
+        new("cs.patrol-red-forest-trader", ClearSky, "Red Forest mine trader left his desk", CrashAdvice.InstallFix,
             "The trader in the mine strayed from his spot and his patrol path became unreachable.", Srp)
         {
             Pattern = P(@"patrol path\s*\[red_smart_terrain_3_2_patrol_1_walk\] is inaccessible"),
+            FixId = "cs.crash.red-forest-mine-trader-path",
         },
-        new("cs.patrol-agroprom-orest", ClearSky, "Orest displaced in Agroprom", CrashAdvice.CommunityPatch,
+        new("cs.patrol-agroprom-orest", ClearSky, "Orest displaced in Agroprom", CrashAdvice.InstallFix,
             "Orest was pushed out of his space restrictor and his walk path became unreachable.", Srp)
         {
             Pattern = P(@"patrol path\s*\[agr_stalker_leader_walk\] is inaccessible"),
+            FixId = "cs.crash.agroprom-orest-path",
         },
-        new("cs.missing-rukzak-model", ClearSky, "Missing backpack model", CrashAdvice.CommunityPatch,
+        new("cs.missing-rukzak-model", ClearSky, "Missing backpack model", CrashAdvice.InstallFix,
             "The game referenced a backpack mesh that is not shipped.", Srp)
         {
             Pattern = P(@"Can't find model file 'dynamics\\equipments\\item_rukzak\.ogf'"),
+            FixId = "cs.crash.missing-backpack-model",
         },
         new("cs.treasure-box-in-use", ClearSky, "Stash refilled while Stringov is alive", CrashAdvice.InstallFix,
             "Re-entering the Garbage tried to fill a stash that was already filled.", Srp)
@@ -209,10 +234,11 @@ public static class CrashSignatureCatalog
             Pattern = P(@"There is no squad \[red_pursuit_bounty_hunters_squad_\d+\] in sim_board"),
             FixId = "cs.crash.relation-to-missing-squad",
         },
-        new("cs.military-dogs-path", ClearSky, "Army Warehouses mutant attack path", CrashAdvice.CommunityPatch,
+        new("cs.military-dogs-path", ClearSky, "Army Warehouses mutant attack path", CrashAdvice.InstallFix,
             "A mutant squad attacking the military base had no path between two smart terrains (new game needed after the patch).", Srp)
         {
             Pattern = P(@"Path between \[mil_smart_terrain_7_11\] and \[mil_smart_terrain_7_10\] doesnt exist"),
+            FixId = "cs.crash.all-spawn-errors",
         },
         new("soc.gulag-job-nil", Shadow, "Camp member without a job", CrashAdvice.InstallFix,
             "A camp checked a job swap for a member that had no job at that moment.", Zrp)

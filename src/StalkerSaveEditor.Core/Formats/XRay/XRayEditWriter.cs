@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using StalkerSaveEditor.Core.Catalogs;
 using StalkerSaveEditor.Core.Editing;
 

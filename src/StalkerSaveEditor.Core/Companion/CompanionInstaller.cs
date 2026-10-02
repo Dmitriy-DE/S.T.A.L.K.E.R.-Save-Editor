@@ -1,11 +1,8 @@
 using System.Collections.ObjectModel;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using StalkerSaveEditor.Core.Formats.XRay;
 using StalkerSaveEditor.Core.Patching;
-using StalkerSaveEditor.Core.Storage;
 
 namespace StalkerSaveEditor.Core.Companion;
 
@@ -309,7 +306,7 @@ public sealed partial class CompanionInstaller
         var gameDataWasPresent = priorManifest?.GameDataCreatedFromScratch == false ||
             priorManifest is null && _fileSystem.DirectoryExists(gameDataDirectory);
         var gameDataCreated = priorManifest?.GameDataCreatedFromScratch ?? !gameDataWasPresent;
-        var manifestFiles = CreateFileManifest(gameDirectory, plan, oldFiles);
+        var manifestFiles = CreateFileManifest(plan, oldFiles);
         var nextManifest = new InstallManifest(
             ManifestSchemaVersion,
             definition.Id,
@@ -465,7 +462,6 @@ public sealed partial class CompanionInstaller
     }
 
     private static List<InstallFileManifest> CreateFileManifest(
-        string gameDirectory,
         IReadOnlyList<PlannedInstallFile> plan,
         IReadOnlyDictionary<string, InstallFileManifest> oldFiles)
     {
@@ -571,7 +567,7 @@ public sealed partial class CompanionInstaller
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
-            var rollbackErrors = RollbackInstall(gameDirectory, applied, staleOriginals);
+            var rollbackErrors = RollbackInstall(applied, staleOriginals);
             if (rollbackErrors.Count == 0)
             {
                 // Rolled back in-process; when it could not be, the journal stays and the next operation retries.

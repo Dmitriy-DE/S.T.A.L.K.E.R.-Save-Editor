@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Text;
 
 namespace StalkerSaveEditor.Core.Formats.XRay;
 
@@ -94,7 +93,7 @@ public static partial class XRayTrilogyReader
             alifeVersion,
             objectChunk.Data.Span,
             enhanced);
-        var records = ParseObjects(container.Raw.Span, objectChunk);
+        var records = ParseObjects(objectChunk);
         ObjectRecord? actor = null;
         var actorCount = 0;
         foreach (var record in records)

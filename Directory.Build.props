@@ -7,8 +7,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Above the Python 0.7.x line: the shared R2 manifest must never offer the old app as an update. -->
     <Version>1.2.0</Version>
-    <!-- One source: file properties, crash reports and the updater all show the same number. -->
-    <AssemblyVersion>$(Version).0</AssemblyVersion>
-    <FileVersion>$(Version).0</FileVersion>
+    <!-- One source: file properties, crash reports and the updater all show the same number. The numeric part only:
+         a build may pass a version with a suffix (1.2.0-rc1, 0.0.0-ci), which a file version cannot hold. -->
+    <AssemblyVersion>$([System.Text.RegularExpressions.Regex]::Match($(Version), '^\d+(\.\d+){0,2}').Value).0</AssemblyVersion>
+    <FileVersion>$(AssemblyVersion)</FileVersion>
   </PropertyGroup>
 </Project>

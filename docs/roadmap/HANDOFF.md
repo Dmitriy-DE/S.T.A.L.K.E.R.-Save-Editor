@@ -1,4 +1,4 @@
-# Handoff — state on 2026-09-30 (v1.2.0)
+# Handoff — state on 2026-10-02 (v1.2.0 released; main is ahead of it)
 
 Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap/STATE.md`.
 
@@ -15,7 +15,7 @@ Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap
 
 ## Projects
 
-`Core` (formats, writers, backups, companion installer, patching, doctors) · `Steam` (libsteam_api worker, cloud) · `Updater` · `Desktop` (Avalonia UI library, shared with web) · `App` (desktop host) · `Browser` (WASM host, not in the .sln) · `Cli` (NativeAOT). Mod: `mods/companion/{soc,cs,cop,s2}`.
+`Core` (formats, writers, backups, companion installer, patching, doctors) · `Steam` (libsteam_api worker, cloud) · `Updater` · `Desktop` (Avalonia UI library, shared with web) · `Host` (Steam and updater services behind the UI's interfaces) · `App` (desktop host) · `Browser` (WASM host, not in the .sln) · `Cli` (NativeAOT). Mod: `mods/companion/{soc,cs,cop,s2}`.
 
 ## Checks before any PR
 
@@ -39,28 +39,28 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
    The tool signs latest.json → latest.json.sig with `~/.config/stalker-save-editor/update-signing-key.pem` (ECDSA P-256, never in git; the public key is embedded in `UpdateSignature`). From 1.2.1 the app rejects an unsigned or wrongly signed manifest. Losing the key means shipping a new public key in a release signed by the old one.
 4. Web: `DOTNET_ROOT=~/.dotnet PATH=~/.dotnet:$PATH dotnet publish src/StalkerSaveEditor.Browser -c Release -o artifacts/web` then `npx wrangler@4 pages deploy artifacts/web/wwwroot --project-name=stalker-save-editor --branch=main`.
 
-## Done
+## Done and not done
 
-- Save editing for SoC/CS/CoP (+EE): money, stacks, condition, placement, upgrades, relations, add/remove items, stashes (take, put, create in stash); S2: money, stacks, condition. Backup + journal + atomic swap + read-back for every write.
-- Read-only save data: PDA tasks with state and times (incl. CoP EE), kill statistics (SoC/CS), weather (CS 62/62, CoP), actor location, installed game build; task changes in Compare.
-- 1.2.0 review fixes: async commands no longer async void, X11 re-grab crash, background task failures logged, resumable companion uninstall, audio races, library refresh cancel; Game Fix catalogue is JSON data; logs record writes/fixes/companion commands (redacted).
-- Quest Doctor (SoC 4 rules, CS 3 rules): detect a dead NPC whose death flag is missing, repair the save, open the preventing Game Fix. Crash signatures (18 CS from SRP, 6 SoC from ZRP) in Game Doctor.
-- Game Fixes: 64 retail + 54 Enhanced Edition variants. Experimental actor relocation to level-changer destinations (TP).
-- Steam: cloud read/download/upload with confirmation and no retries, achievements.
-- UI: 15 languages, game sounds/music, icons from the installed game, previews, compare, drafts with undo, diagnostics and daily redacted reports. Saves open off the UI thread; ReadyToRun builds (window start ~0.35 s).
-- Companion mod: full in-game menu for SoC/CS/CoP (L4 in CoP only), rebindable hotkeys; S2 UE4SS mod experimental.
-- CI: 3 OS + web; runtime gate on the packaged app; benchmark gate tolerant of slow runners.
+What the program does and how far it is verified: `docs/roadmap/STATE.md`. What is left, split into "needs the owner"
+and "can be done without the owner": `docs/roadmap/README.md`. Game fixes: `FIX-PACKS.md` (sources, what was not
+taken and why) and `FIX-AUDIT-2026-10-02.md` (a record per fix, the regression pass over the whole catalogue).
 
-## Not done / next
+## Game fixes: checks before a PR that touches the catalogue
 
-0. **Fix packs (active):** plan and tracker in `docs/roadmap/FIX-PACKS.md` — update its task table and change log in every related PR.
+```
+python3 tools/fix_regress.py ~/Projects/fix-sources ~/.cache/claude-pytest/fix-regress   # every patch against the dumps of six games, checkers, Lua harness
+bash tools/fix_realcheck.sh                                                              # install and remove every fix on copies of the six real installs
+```
+The dumps are made with `fixes extract TARGET GAME_DIR OUT --archives-only scripts/ configs/ shaders/`. Every new or
+changed fix gets a record in the audit document: the game function, who uses it, what changes for the player, how far
+the logic was checked. A remedy of our own design is run in `tools/lua_harness` before it is catalogued: reading it was
+not enough once (`cs.crash.smart-terrain-no-free-job` 1.0.0).
 
-1. **Owner in game (L5):** a CS/CoP save written by the editor (grows ~4×), Quest Doctor repair, relocation (TP), stash moves, fixes, companion in SoC/CS/EE, S2 companion god/noclip/timespeed (needs S2 on PC with UE4SS).
-2. **Refactors deferred** (no user-visible change): split SaveLibraryViewModel (loader / edit session / VM), list recycling (#90), analyzers for Desktop/App, headless tooling out of the App exe, one file-transaction primitive for fixes/companion/snapshots/backups (after L5).
-3. **Needs owner material:** S2 save pairs for add items/upgrades/relations; S2 game files for content packs (CP-4); UCoPEEP/Workshop files (subscribe) to port external fixes; update signing key; CI publish secrets; Workshop upload.
-4. Translation review by native speakers (TR-1).
+## Merge queue
 
-Frontend v2: Codex rebuilt shell/themes + 8 screens (#160, #163–#169); Claude polished the other 12 (#170) and took over the frontend on 2026-09-30.
+`~/Projects/fix-sources/tools/run-queue.sh` merges the PRs listed in `full-queue.txt` one at a time (cherry-pick of the
+PR's own commits onto `main`, build, tests, CI, squash). A stacked PR must point at `main` before it is merged: #240
+was squash-merged into the branch below it and never reached `main` (repaired by #253; the queue now retargets).
 
 ## Lessons (do not repeat)
 

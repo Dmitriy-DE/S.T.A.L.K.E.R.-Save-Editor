@@ -254,7 +254,7 @@ public sealed class CliCommandTests
             var install = Assert.Single(response.RootElement.GetProperty("installations").EnumerateArray());
             Assert.Equal("cop", install.GetProperty("game").GetString());
             Assert.Equal("19000000", install.GetProperty("buildId").GetString());
-            Assert.Equal(11, install.GetProperty("selectedFixCount").GetInt32());
+            Assert.Equal(16, install.GetProperty("selectedFixCount").GetInt32());
             Assert.Empty(install.GetProperty("installedFixIds").EnumerateArray());
             Assert.False(Directory.Exists(Path.Combine(gameDirectory, ".save-editor-game-fixes")));
         }

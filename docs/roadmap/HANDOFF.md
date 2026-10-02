@@ -22,6 +22,7 @@ Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap
 
 ```
 export TMPDIR=~/.cache/claude-pytest
+python3 tools/build_ooz_native.py --output-dir artifacts/native   # once per clone: the S2 tests need the native Kraken library
 dotnet build StalkerSaveEditor.sln -c Release -warnaserror
 dotnet test StalkerSaveEditor.sln -c Release --no-build
 ./tools/check_companion.sh

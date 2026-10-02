@@ -165,7 +165,7 @@ public sealed class CliCommandTests
         Assert.Equal(0, json.ExitCode);
         using var catalogue = JsonDocument.Parse(json.Output);
         var entries = catalogue.RootElement.EnumerateArray().ToArray();
-        Assert.Equal(68, entries.Length);
+        Assert.Equal(72, entries.Length);
         Assert.Contains(entries, entry => entry.GetProperty("id").GetString() == "cs.quest.dead-wild-napr");
         Assert.All(entries, entry =>
         {
@@ -196,14 +196,14 @@ public sealed class CliCommandTests
             var json = Run("fixes", "status", "cs", root, "--json");
 
             Assert.Equal(0, human.ExitCode);
-            Assert.Contains("68 catalogued;", human.Output, StringComparison.Ordinal);
+            Assert.Contains("72 catalogued;", human.Output, StringComparison.Ordinal);
             Assert.Equal(0, json.ExitCode);
             using var status = JsonDocument.Parse(json.Output);
             var statusRoot = status.RootElement;
             Assert.Equal("11450472", statusRoot.GetProperty("buildId").GetString());
-            Assert.Equal(68, statusRoot.GetProperty("availableFixes").GetArrayLength());
+            Assert.Equal(72, statusRoot.GetProperty("availableFixes").GetArrayLength());
             var recommended = statusRoot.GetProperty("recommendedFixIds").EnumerateArray().Select(id => id.GetString()).ToArray();
-            Assert.Equal(66, recommended.Length);
+            Assert.Equal(70, recommended.Length);
             Assert.NotEmpty(recommended);
             Assert.All(recommended, id => Assert.Contains(statusRoot.GetProperty("availableFixes").EnumerateArray(), fix => fix.GetProperty("id").GetString() == id));
             Assert.Null(statusRoot.GetProperty("catalogueNote").GetString());

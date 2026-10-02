@@ -5293,6 +5293,213 @@
       "references": [
         "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
       ]
+    },
+    {
+      "id": "cs.crash.mutant-killed-by-nobody",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "No crash when a scripted mutant dies without a killer",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/mob_death.script",
+          "expectedText": "\tif who ~= nil then\r\n\t\tprintf(\"mob_death: [%s] killed by [%s]\", victim:name(), who:name())\r\n\t\tlocal death = db.storage[victim:id()].death\r\n\t\tif not death then\r\n\t\t\tdeath = {}\r\n\t\t\tdb.storage[victim:id()].death = death\r\n\t\tend\r\n",
+          "replacementText": "\tlocal death = db.storage[victim:id()].death\r\n\tif not death then\r\n\t\tdeath = {}\r\n\t\tdb.storage[victim:id()].death = death\r\n\tend\r\n\tif who ~= nil then\r\n\t\tprintf(\"mob_death: [%s] killed by [%s]\", victim:name(), who:name())\r\n",
+          "expectedFileSha256": "073ad7d95f5363f1d3af58418760b4f904ffeba922dca84339a0f744934f5884",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "A mutant whose logic has an 'on_death' section (the Agroprom underground controller and bloodsucker, for example) can die with no killer: from an anomaly, from bleeding, from a script. The death handler then writes to a table that was only created in the other branch of the code, and the game stops with 'attempt to index global 'death' (a nil value)'.",
+      "description": "The table is created before both branches.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
+    },
+    {
+      "id": "cs.logic.mutant-attack-aggressive",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Mutant squads sent to attack a camp really attack",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/gulag_general.script",
+          "expectedText": "\"[mob_home@\"..sect_name..\"]\\n\"..\r\n                                    \"agressive = true\\n\"..\r\n",
+          "replacementText": "\"[mob_home@\"..sect_name..\"]\\n\"..\r\n                                    \"aggressive = true\\n\"..\r\n",
+          "expectedFileSha256": "8a4ee937be67e8d90fe1175ba43ef42a79c2255802317310fb79a28889ce6bff",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/gulag_general.script",
+          "expectedText": "\"[mob_home@\"..sect_name..\"_arrived]\\n\"..\r\n                                    \"agressive = true\\n\"..\r\n",
+          "replacementText": "\"[mob_home@\"..sect_name..\"_arrived]\\n\"..\r\n                                    \"aggressive = true\\n\"..\r\n",
+          "expectedFileSha256": "8a4ee937be67e8d90fe1175ba43ef42a79c2255802317310fb79a28889ce6bff",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "The logic generated for a mutant squad that is sent to attack a camp sets 'agressive = true'. The mutant scheme reads 'aggressive', so the flag is lost and the mutants walk to the camp sluggishly and do not attack until something provokes them.",
+      "description": "The key is spelled as the scheme reads it, as in the Enhanced Edition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.item.freedom-exo-life-support",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Freedom exoskeleton: the 'Life support system' upgrade slows bleeding instead of speeding it up",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/misc/outfit_upgrades/o_svoboda_exo_outfit_up.ltx",
+          "expectedText": "health_restore_speed\t\t\t= 0.0006\r\nbleeding_restore_speed\t\t\t= -0.006\r\n",
+          "replacementText": "health_restore_speed\t\t\t= 0.0006\r\nbleeding_restore_speed\t\t\t= 0.006\r\n",
+          "expectedFileSha256": "c14966bdcdc7970211f1204f56be08c939044e412dd5bc9edc20cb113b826adf",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "The third-tier life support upgrade of the Freedom exoskeleton has its bleeding value with a minus sign, so wounds bleed faster after the upgrade. The same upgrade of the ordinary exoskeleton has +0.006.",
+      "description": "The value is +0.006, as for the ordinary exoskeleton and in the Enhanced Edition. An already upgraded suit keeps the old value.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.ui.carry-weight-upgrade-tooltip",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Armour upgrades: the second carry weight upgrade shows +15 kg, not +5",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/misc/outfit_upgrades/o_cs_heavy_outfit_up.ltx",
+          "expectedText": "value\t\t= +5\r\nadditional_inventory_weight\t\t= 15",
+          "replacementText": "value\t\t= +15\r\nadditional_inventory_weight\t\t= 15",
+          "expectedFileSha256": "c45d03e77babef8dc47a5c482ec05132d6a43f83edcf2c6a1115a88ed116f5eb",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/outfit_upgrades/o_dolg_heavy_outfit_up.ltx",
+          "expectedText": "value\t\t= +5\r\nadditional_inventory_weight\t\t= 15",
+          "replacementText": "value\t\t= +15\r\nadditional_inventory_weight\t\t= 15",
+          "expectedFileSha256": "14e5399703675dfab77c16ee6c02bd82114b8b74ee9cd794bcd6e530c6a56baf",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/outfit_upgrades/o_military_outfit_up.ltx",
+          "expectedText": "value\t\t= +5\r\nadditional_inventory_weight\t\t= 15",
+          "replacementText": "value\t\t= +15\r\nadditional_inventory_weight\t\t= 15",
+          "expectedFileSha256": "76d0c5734c42f363961605f9c213a362f22cbe8a56435745b5fee8e4b9cbd1a2",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/outfit_upgrades/o_specops_outfit_up.ltx",
+          "expectedText": "value\t\t= +5\r\nadditional_inventory_weight\t\t= 15",
+          "replacementText": "value\t\t= +15\r\nadditional_inventory_weight\t\t= 15",
+          "expectedFileSha256": "b1d01dc021254b5e7628dde261b5904fe88d31adc5dd38b499691b647b4e6cec",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/misc/outfit_upgrades/o_svoboda_heavy_outfit_up.ltx",
+          "expectedText": "value\t\t= +5\r\nadditional_inventory_weight\t\t= 15",
+          "replacementText": "value\t\t= +15\r\nadditional_inventory_weight\t\t= 15",
+          "expectedFileSha256": "8a4aaeadb516649368a34e9eedd2e2902aee64a7d916635596be7168b9672bb1",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "The second-tier carry weight upgrade of five suits adds 15 kg, but its tooltip says +5.",
+      "description": "The tooltip shows the real value, as in the Enhanced Edition. Only the text changes.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.logic.dark-valley-holdup-after-base",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Dark Valley: the Freedom outposts stop holding you up once you have reached their base",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/darkvalley/val_logic_robbery_s.ltx",
+          "expectedText": "on_info = {+val_talked_to_blockpost_leader_complete} nil",
+          "replacementText": "on_info = {+val_talked_to_blockpost_leader_complete} nil, {+val_come_to_freedom_base_complete} nil",
+          "expectedFileSha256": "1638fedc9e3679744c0fdc9f923696630e1f12545a89e9e076e907d6d97e0f6f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/darkvalley/val_logic_robbery_n.ltx",
+          "expectedText": "on_info = {+val_talked_to_blockpost_leader_complete} nil",
+          "replacementText": "on_info = {+val_talked_to_blockpost_leader_complete} nil, {+val_come_to_freedom_base_complete} nil",
+          "expectedFileSha256": "743ce0403a14ee314ae5d3d8ba6bfc0dbb50fcb5fa0eb0ffda65b27672138488",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is listed in the SRP 1.1.5 version history; the code was read in the retail files.",
+      "problem": "The Freedom outposts at the two western entrances hold the player at gunpoint until he talks to the outpost commander. If the player reaches the Freedom base without that talk, the hold-up stays switched on for the rest of the game.",
+      "description": "The hold-up is also switched off when the base has been reached.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "Sky Reclamation Project 1.1.5, version history (list of known faults)"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -5589,6 +5796,13 @@
     ],
     "soc.crash.gulag-job-nil": [
       "aba7dc0f50399ec05a826f49d25b71710114cdf256592bf6fe975a820031ce43"
+    ],
+    "cs.crash.mutant-killed-by-nobody": [
+      "2bef98c0750f5b6e7eef038700d7930a9ccc95a5ea13285ee2b203c17608716e"
+    ],
+    "cs.logic.dark-valley-holdup-after-base": [
+      "85ccc394baa1c9f300d0cfa8a3189f028be6d7ebca070af37344ac519ccef143",
+      "82e70574102280b796aea0f78419f365dc923dd1b7064216fabc2b8996c4dd4f"
     ]
   }
 }

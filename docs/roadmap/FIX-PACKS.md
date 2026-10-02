@@ -40,14 +40,14 @@ in scripts.
 | # | Task | Status | PR |
 |---|---|---|---|
 | FP-1 | Engine: whole-file overlay operation + content store | done | #185 |
-| FP-2 | Research tools: pack diff (`fixes build-pack`), missing logic-section checker (`tools/check_logic_refs.py`) | done | #187, #192 |
+| FP-2 | Research tools: pack diff (`fixes build-pack`), missing logic-section checker (`tools/check_logic_refs.py`), undefined-global checker (`tools/lua_globals.py`, #243) | done | #187, #192 |
 | FP-3 | Hunk extractor: split each source diff into minimal anchored text changes, grouped per file, mapped to changelog entries | todo | |
 | FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | in progress (SRP crash list: 26 of 33 done) | #189–#193 |
-| FP-5 | CS desirable fixes (quests, rewards, NPC logic) | in progress: 5 EE-confirmed crash/save fixes (#227), 4 logic fixes (sub-animations, guides, Cordon support payment, shooting range bet) | #227, #233 |
+| FP-5 | CS desirable fixes (quests, rewards, NPC logic) | in progress: 5 EE-confirmed crash/save fixes (#227), 4 logic fixes (sub-animations, guides, Cordon support payment, shooting range bet), 5 from the SRP fault list, remark crash, offline combat | #227, #233, #240, #243 |
 | FP-6 | SRP optional fixes (balance, sound, extras), off by default | todo | |
-| FP-7 | SoC critical + desirable fixes as our own entries | in progress: 8 crash fixes, 3 logic fixes | #226, #231 |
+| FP-7 | SoC critical + desirable fixes as our own entries | in progress: 12 crash fixes, 5 logic/config fixes (#237, #241, #243 added to the first 11) | #226, #231, #237, #241, #243 |
 | FP-8 | ZRP optional fixes | todo | |
-| FP-9 | CoP: EE-confirmed fixes; remaining stalker-cop-patch items; PRP source mirror | in progress: 5 EE-confirmed | #228 |
+| FP-9 | CoP: EE-confirmed fixes; remaining stalker-cop-patch items; PRP source mirror | in progress: 5 EE-confirmed, Goldfish once, 4 found by our own checkers | #228, #237, #242 |
 | FP-10 | EE variants for every ported fix where the EE file allows | in progress (full EE dump + `tools/ee_variants.py`; CS EE 36) | #200 |
 | FP-11 | Steam Workshop package of the companion (.pack writer + upload after owner OK) | todo | |
 | FP-12 | Structural all.spawn editor (`AllSpawnEditor`, `Structured` fixes) + SRP's all.spawn errors | done: 43 edits; SRP clean-ups/gameplay not ported | #201 |
@@ -104,8 +104,26 @@ Candidates seen in the diffs and deliberately not ported:
 | CS | `sound_manager.script` | nil guards around the EE's new sound API | the guarded calls do not exist in retail |
 | CoP | `dialogs.script` (`jup_a10` autosave) | extra condition `jup_a10_vano_give_task` | no retail script or config gives that info portion |
 | CoP | `outro_cond.script` | Noah's slide also needs `zat_b18_noah_dog_death` to be absent | same: the info portion does not exist in retail |
+| CS | `w_spas12_up.ltx`, `w_wincheaster1300_up.ltx` (SRP) | accuracy upgrade no longer removes 2 rounds | GSC kept the −2 in the EE: balance, not a fault |
+| CS | `xr_wounded.script` (SRP) | start time of the heavily wounded state saved differently | changes what is written into the save |
+| CS | `val_sr_quest_night_bloodsucker.ltx` (SRP) | task also fails by day after the hunt is done | makes the task stricter; not a fault |
+| SoC | `dialogs_darkvalley` (ZRP) | guard against paying the bandit toll twice | without the rest of ZRP's dialog rework the phrase can dead-end |
+| SoC | `sar_decoding.ltx`, `m_flesh.ltx` (ZRP) | decoder timer guard; missing comma in a velocity line | not proven that the retail lines misbehave |
+| CoP | `zat_b7_duty_illicit_dealer_b5.ltx` (own check) | five `combat_ignore_cond` lines lack a `}` | repairing them changes who fights whom in a quest fight that works as shipped |
+| CoP / CS / SoC | unreachable code found by `tools/lua_globals.py` | `sim_board:set_actor_community` (CoP), negative ammo tooltip and second `unregister_squad` (CS), `barman_need_kill_veterans` (SoC) | nothing in the shipped game reaches them |
 
 ## Change log
+
+- 2026-10-02 — four more batches (#240–#243), 17 new fixes and one extended:
+  - CS from the SRP fault list (#240): mutant killed by nobody (`mob_death`), attack logic key `agressive`, Freedom exo
+    bleeding sign, carry-weight tooltip of five suits, Dark Valley hold-up after reaching the base.
+  - SoC from the ZRP diff (#241): `xr_remark` global `st`, guarded zone without attacker, X-18 danger key, Shell artefact name.
+  - CoP by our own checkers (#242, nothing lists these): Kopachi zombie squad condlist, laundry second door section,
+    Gauss squad `walker@base_1`, X-8 poltergeist line without `=`.
+  - New tool `tools/lua_globals.py` (#243): globals read but never defined. SoC `mob_death` and `xr_hit` crashes, CS
+    `xr_remark` crash; `cs.crash.sim-combat` 1.1.0 also repairs offline damage that was 0 for squads weaker than 3.
+  - Totals after #243: SoC 35 (EE 19), CS 61 catalogued / 59 recommended (EE 39), CoP 35 catalogued / 21 recommended (EE 24).
+    Every preset was installed into and removed from a pristine copy of the real install. Nothing was run in the games.
 
 - 2026-10-02 — remaining candidates (#237): `retailOnly` patches (an EE variant skips them), CS stash flag order /
   upgrade-task ids / illegal state, SoC patrol without commander / Agroprom exit / Dark Valley scene, CoP Goldfish once.

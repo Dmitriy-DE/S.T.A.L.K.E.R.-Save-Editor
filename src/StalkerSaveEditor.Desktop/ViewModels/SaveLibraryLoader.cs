@@ -231,12 +231,12 @@ internal static class SaveLibraryLoader
         var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
         var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
-        var catalog = SaveLibraryViewModel.TryCatalog(formatId, out var bundle) ? bundle : null;
+        var catalog = SaveNaming.TryCatalog(formatId, out var bundle) ? bundle : null;
         var upgradeCatalog = catalog?.Upgrades;
 
         var inventory = save.Inventory.Select(item =>
         {
-            var localizedName = SaveLibraryViewModel.OfficialNames.Resolve(formatId, "items", item.TypeKey, SaveLibraryViewModel.NamesLanguage)
+            var localizedName = SaveNaming.OfficialNames.Resolve(formatId, "items", item.TypeKey, SaveNaming.NamesLanguage)
                 ?? item.TypeKey;
             var availableUpgrades = upgradeCatalog?.ForItem(item.TypeKey);
             return new InventoryLineViewModel(
@@ -268,7 +268,7 @@ internal static class SaveLibraryLoader
             s.Items.Select(i => new StashItemViewModel(
                 i.Handle,
                 i.TypeKey,
-                SaveLibraryViewModel.OfficialNames.Resolve(formatId, "items", i.TypeKey, SaveLibraryViewModel.NamesLanguage) ?? i.TypeKey,
+                SaveNaming.OfficialNames.Resolve(formatId, "items", i.TypeKey, SaveNaming.NamesLanguage) ?? i.TypeKey,
                 i.Count ?? 1,
                 canEdit: canEditStashes,
                 disabledReason: stashesReason))));
@@ -281,7 +281,7 @@ internal static class SaveLibraryLoader
             {
                 var factionDef = factionCatalog.Factions.FirstOrDefault(f => f.NumericId == relation.CommunityIndex);
                 var commKey = factionDef?.Key ?? $"faction_{relation.CommunityIndex}";
-                var localizedFaction = SaveLibraryViewModel.OfficialNames.Resolve(formatId, "factions", commKey, SaveLibraryViewModel.NamesLanguage)
+                var localizedFaction = SaveNaming.OfficialNames.Resolve(formatId, "factions", commKey, SaveNaming.NamesLanguage)
                     ?? factionDef?.DisplayName
                     ?? commKey;
                 factionRelations.Add(new FactionRelationViewModel(commKey, localizedFaction, relation.Value, canEditFactions, factionReason));
@@ -370,9 +370,9 @@ internal static class SaveLibraryLoader
         var (canAddItems, addReason) = CheckCapability(formatId, "add_items");
         var (canRemoveItems, removeReason) = CheckCapability(formatId, "remove_items");
 
-        var catalog = SaveLibraryViewModel.TryCatalog(formatId, out var bundle) ? bundle.Items : null;
+        var catalog = SaveNaming.TryCatalog(formatId, out var bundle) ? bundle.Items : null;
         var s2Items = Stalker2ItemCatalog.LoadEmbedded();
-        var language = SaveLibraryViewModel.NamesLanguage;
+        var language = SaveNaming.NamesLanguage;
         var inventory = save.Inventory.Select(item => new InventoryLineViewModel(
             s2Items.Name(item.DisplayName, language) ?? item.DisplayName ?? catalog?.Resolve(item.TypeKey)?.DisplayName ?? item.TypeKey,
             item.TypeKey,

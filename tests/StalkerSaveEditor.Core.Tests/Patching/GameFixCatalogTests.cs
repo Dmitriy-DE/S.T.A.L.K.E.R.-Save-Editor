@@ -197,7 +197,7 @@ public sealed class GameFixCatalogTests
         Assert.Contains(recommended, fix => fix.Id == "cop.prp.sky-stretching-fix");
         Assert.DoesNotContain(recommended, fix => fix.Id == "cop.prp.knife-hit-reach");
         Assert.DoesNotContain(GameFixCatalog.ForPreset(GameTarget.CallOfPripyat, GameFixPreset.AllSafeFixes), fix => fix.Category == GameFixCategory.Community);
-        Assert.Equal(11, GameFixCatalog.PreviousPresetCount(GameTarget.CallOfPripyat, GameFixPreset.Recommended));
+        Assert.Equal(10, GameFixCatalog.PreviousPresetCount(GameTarget.CallOfPripyat, GameFixPreset.Recommended));
 
         var russianText = fixes.SelectMany(fix => fix.TextPatches).Where(patch => patch.RelativePath.Contains("/text/rus/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(russianText);

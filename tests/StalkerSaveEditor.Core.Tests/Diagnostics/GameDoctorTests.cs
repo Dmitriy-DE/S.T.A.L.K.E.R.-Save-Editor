@@ -44,6 +44,18 @@ public sealed class GameDoctorTests
         var report = GameDoctor.Analyze(GameTarget.ClearSky, fixture.Root);
 
         Assert.Equal("19000000", report.SteamBuildId);
+        // What the fix engine asks before a write must agree with the full report.
+        Assert.Equal((true, "19000000"), GameDoctor.Identify(GameTarget.ClearSky, fixture.Root));
+    }
+
+    [Fact]
+    public void Identify_refuses_a_missing_folder_and_a_folder_without_the_game_marker()
+    {
+        using var fixture = new GameFixture();
+        Directory.CreateDirectory(fixture.Root);
+
+        Assert.Equal((false, null), GameDoctor.Identify(GameTarget.ClearSky, fixture.Root));
+        Assert.Equal((false, null), GameDoctor.Identify(GameTarget.ClearSky, Path.Combine(fixture.Root, "missing")));
     }
 
     [Fact]

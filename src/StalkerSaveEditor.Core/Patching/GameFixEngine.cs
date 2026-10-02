@@ -131,8 +131,8 @@ public sealed partial class GameFixEngine
         var root = NormalizeRoot(gameDirectory);
         CheckExistingPathForLinks(root, GetFixDirectory(root, definition.Id));
         RecoverInterrupted(root);
-        var doctor = GameDoctor.Analyze(definition.Game, root);
-        if (doctor.Checks.Any(check => check.Id == "installation" && check.Status != GameDoctorStatus.Ok))
+        var doctor = GameDoctor.Identify(definition.Game, root);
+        if (!doctor.IsInstallation)
             throw new InvalidOperationException("The selected directory does not pass the structural game check.");
         if (doctor.SteamBuildId is null || !definition.SupportedSteamBuildIds.Contains(doctor.SteamBuildId, StringComparer.Ordinal))
             throw new NotSupportedException("This fix does not list the detected Steam build as supported.");
@@ -176,13 +176,18 @@ public sealed partial class GameFixEngine
             if (activeIds.Contains(conflict)) throw new InvalidOperationException($"This fix conflicts with installed fix: {conflict}");
         }
 
-        var operations = definition.TextPatches.Select(operation =>
+        var managedPaths = activeManifests.SelectMany(manifest => manifest.Files).Select(file => file.RelativePath).ToHashSet(PathComparer);
+        string Unmanaged(string relativePath)
         {
-            var normalized = NormalizeRelativePath(operation.RelativePath);
-            if (activeManifests.SelectMany(manifest => manifest.Files).Any(file => PathComparer.Equals(file.RelativePath, normalized)))
+            var normalized = NormalizeRelativePath(relativePath);
+            if (managedPaths.Contains(normalized))
                 throw new InvalidOperationException($"Another active Game Fix manages {normalized}; layered transformations are not supported for this file.");
-            return (Operation: operation, RelativePath: normalized);
-        }).ToArray();
+            return normalized;
+        }
+
+        var operations = definition.TextPatches
+            .Select(operation => (Operation: operation, RelativePath: Unmanaged(operation.RelativePath)))
+            .ToArray();
 
         if (priorManifest is not null)
         {
@@ -195,19 +200,10 @@ public sealed partial class GameFixEngine
                 throw new InvalidOperationException("A fix version transition must keep the same managed file set so its recovery state remains authoritative.");
         }
 
-        var overlayOperations = definition.Overlays.Select(overlay =>
-        {
-            var normalized = NormalizeRelativePath(overlay.RelativePath);
-            if (activeManifests.SelectMany(manifest => manifest.Files).Any(file => PathComparer.Equals(file.RelativePath, normalized)))
-                throw new InvalidOperationException($"Another active Game Fix manages {normalized}; layered transformations are not supported for this file.");
-            return (Overlay: overlay, RelativePath: normalized);
-        }).ToArray();
-        var spawnPaths = definition.SpawnEdits.Select(edit => NormalizeRelativePath(edit.RelativePath)).Distinct(PathComparer).ToArray();
-        foreach (var spawnPath in spawnPaths)
-        {
-            if (activeManifests.SelectMany(manifest => manifest.Files).Any(file => PathComparer.Equals(file.RelativePath, spawnPath)))
-                throw new InvalidOperationException($"Another active Game Fix manages {spawnPath}; layered transformations are not supported for this file.");
-        }
+        var overlayOperations = definition.Overlays
+            .Select(overlay => (Overlay: overlay, RelativePath: Unmanaged(overlay.RelativePath)))
+            .ToArray();
+        var spawnPaths = definition.SpawnEdits.Select(edit => Unmanaged(edit.RelativePath)).Distinct(PathComparer).ToArray();
         EnsureNoCompanionOverlap(root, operations.Select(operation => operation.RelativePath).Concat(overlayOperations.Select(overlay => overlay.RelativePath)).Concat(spawnPaths));
         var changes = PrepareChanges(definition.Game, root, operations);
         changes.AddRange(overlayOperations.Select(overlay => PrepareOverlay(definition.Game, root, overlay.Overlay, overlay.RelativePath)));
@@ -360,8 +356,8 @@ public sealed partial class GameFixEngine
             !Version.TryParse(definition.Version, out var newVersion) || newVersion <= oldVersion)
             throw new NotSupportedException("Fix updates must use an increasing numeric version; downgrade and ambiguous version transitions are blocked.");
 
-        var doctor = GameDoctor.Analyze(definition.Game, root);
-        if (doctor.Checks.Any(check => check.Id == "installation" && check.Status != GameDoctorStatus.Ok))
+        var doctor = GameDoctor.Identify(definition.Game, root);
+        if (!doctor.IsInstallation)
             throw new InvalidOperationException("The selected directory does not pass the structural game check.");
         if (doctor.SteamBuildId is null || !definition.SupportedSteamBuildIds.Contains(doctor.SteamBuildId, StringComparer.Ordinal))
             throw new NotSupportedException("The updated fix does not list the detected Steam build as supported.");
@@ -476,8 +472,8 @@ public sealed partial class GameFixEngine
             throw new InvalidOperationException("A preset cannot contain the same fix more than once.");
 
         var root = NormalizeRoot(gameDirectory);
-        var doctor = GameDoctor.Analyze(game, root);
-        if (doctor.Checks.Any(check => check.Id == "installation" && check.Status != GameDoctorStatus.Ok))
+        var doctor = GameDoctor.Identify(game, root);
+        if (!doctor.IsInstallation)
             throw new InvalidOperationException("The selected directory does not pass the structural game check.");
 
         if (selected.Length > 0 && (doctor.SteamBuildId is null || selected.Any(definition =>

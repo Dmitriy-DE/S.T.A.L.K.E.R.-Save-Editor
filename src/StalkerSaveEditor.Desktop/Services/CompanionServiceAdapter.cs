@@ -1,3 +1,4 @@
+using StalkerSaveEditor.Core.Diagnostics;
 using StalkerSaveEditor.Core.Companion;
 using StalkerSaveEditor.Core.Hotkeys;
 
@@ -329,6 +330,7 @@ public sealed class CompanionServiceAdapter : ICompanionService, IAsyncDisposabl
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
+                AppLog.Warn("companion runtime did not shut down cleanly", exception);
             }
         }
 

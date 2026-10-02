@@ -16,14 +16,12 @@ namespace StalkerSaveEditor.Desktop.ViewModels;
 
 public sealed partial class SaveLibraryViewModel : ObservableViewModel, IDisposable
 {
-    private static readonly IReadOnlyDictionary<string, CatalogBundle> Catalogs = CatalogBundleReader.LoadEmbedded();
-    internal static bool TryCatalog(string releaseId, out CatalogBundle bundle) =>
-        GameContentRegistry.TryGetCatalog(releaseId, out bundle) || Catalogs.TryGetValue(releaseId, out bundle!);
+    // Catalogue and name lookups live in SaveNaming (the loader uses them too); these forward for existing callers.
+    internal static bool TryCatalog(string releaseId, out CatalogBundle bundle) => SaveNaming.TryCatalog(releaseId, out bundle);
 
-    internal static readonly OfficialNamesCatalog OfficialNames = OfficialNamesCatalog.LoadEmbedded();
+    internal static OfficialNamesCatalog OfficialNames => SaveNaming.OfficialNames;
 
-    /// <summary>The editor's language as the name catalogs spell it (zh_CN, pt_BR).</summary>
-    internal static string NamesLanguage => I18nService.Instance.CurrentLanguage.Replace('-', '_');
+    internal static string NamesLanguage => SaveNaming.NamesLanguage;
 
     private readonly Func<IReadOnlyList<string>> _saveDirectoriesProvider;
     private readonly Func<string> _backupDirectoryProvider;

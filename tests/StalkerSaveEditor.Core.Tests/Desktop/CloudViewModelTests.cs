@@ -77,7 +77,7 @@ public sealed class CloudViewModelTests
 
         Assert.Equal(2, vm.CloudSaves.Count);
         Assert.Contains(vm.CloudSaves, s => s.FileName == "cop_quicksave.sav" && s.ComparisonBadgeText == "Только в облаке");
-        Assert.Contains(vm.CloudSaves, s => s.FileName == "s2_quicksave.sav" && s.ComparisonBadgeText == "Совпадает");
+        Assert.Contains(vm.CloudSaves, s => s.FileName == "s2_quicksave.sav" && s.ComparisonBadgeText == "Размер и время совпадают");
     }
 
     [Fact]

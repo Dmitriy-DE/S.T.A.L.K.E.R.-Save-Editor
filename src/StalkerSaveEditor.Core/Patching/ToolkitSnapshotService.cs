@@ -338,9 +338,13 @@ public sealed partial class ToolkitSnapshotService
             if (desiredInstalled) throw new NotSupportedException("Companion snapshot restore is unavailable because its provider is not configured.");
             return;
         }
-        var game = ToCompanionGame(target);
         var manifest = Path.Combine(gameRoot, ".save-editor-companion", "manifest.json");
         var currentlyManaged = File.Exists(manifest);
+        // The companion exists for the original trilogy only. For any other target "absent → absent" is nothing to do;
+        // asking for it (or finding one there) is still refused below.
+        if (!desiredInstalled && !currentlyManaged && target is not (GameTarget.ShadowOfChernobyl or GameTarget.ClearSky or GameTarget.CallOfPripyat))
+            return;
+        var game = ToCompanionGame(target);
         if (currentlyManaged)
         {
             var status = _companion.GetStatus(game, gameRoot);

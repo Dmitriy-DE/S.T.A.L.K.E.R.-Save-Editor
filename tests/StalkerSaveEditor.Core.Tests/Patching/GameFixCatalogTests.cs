@@ -8,6 +8,27 @@ namespace StalkerSaveEditor.Core.Tests.Patching;
 public sealed class GameFixCatalogTests
 {
     [Fact]
+    public void Lookup_presets_and_counts_cover_exactly_what_a_game_lists_including_enhanced_editions()
+    {
+        foreach (var game in Enum.GetValues<GameTarget>())
+        {
+            var listed = GameFixCatalog.ForGame(game);
+            foreach (var fix in listed)
+            {
+                Assert.True(GameFixCatalog.TryGet(fix.Id, out var found), fix.Id);
+                Assert.Equal(game, found!.Game);
+            }
+            Assert.Equal(listed.Count, GameFixCatalog.CategoryCounts(game).Values.Sum());
+            var recommended = GameFixCatalog.ForPreset(game, GameFixPreset.Recommended);
+            Assert.All(recommended, fix => Assert.Contains(fix, listed));
+            Assert.Equal(
+                listed.Where(fix => fix.Maturity == GameFixMaturity.Validated && fix.Category is GameFixCategory.Essential or GameFixCategory.Recommended).Select(fix => fix.Id).Order(),
+                recommended.Select(fix => fix.Id).Order());
+        }
+        Assert.NotEmpty(GameFixCatalog.ForPreset(GameTarget.ClearSkyEnhancedEdition, GameFixPreset.Recommended));
+    }
+
+    [Fact]
     public void All_spawn_fix_is_structured_and_pinned_to_the_retail_file()
     {
         var fix = GameFixCatalog.All.Single(candidate => candidate.Id == "cs.crash.all-spawn-errors");

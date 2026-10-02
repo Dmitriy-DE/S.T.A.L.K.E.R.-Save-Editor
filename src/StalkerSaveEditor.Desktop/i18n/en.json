@@ -1606,6 +1606,7 @@
  "Различий: {0}. Слева — «{1}», справа — выбранный сейв.": "Differences: {0}. Left — \"{1}\", right — the selected save.",
  "Различия": "Differences",
  "Размер": "Size",
+ "Размер и время совпадают": "Size and time match",
  "Размер контейнера": "Container size",
  "Размер предмета неизвестен.": "The item size is unknown.",
  "Размер файла:": "File size:",

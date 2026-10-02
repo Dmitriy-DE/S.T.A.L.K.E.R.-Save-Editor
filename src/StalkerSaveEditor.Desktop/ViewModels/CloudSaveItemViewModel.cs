@@ -33,7 +33,8 @@ public sealed class CloudSaveItemViewModel : ObservableViewModel
 
     public string ComparisonBadgeText => Model.Comparison switch
     {
-        CloudComparison.Identical => L.T("Совпадает"),
+        // Size and time match; the bytes are not downloaded to compare, so the label does not claim more.
+        CloudComparison.Identical => L.T("Размер и время совпадают"),
         CloudComparison.RemoteNewer => L.T("Облачный новее"),
         CloudComparison.LocalNewer => L.T("Локальный новее"),
         CloudComparison.RemoteOnly => L.T("Только в облаке"),

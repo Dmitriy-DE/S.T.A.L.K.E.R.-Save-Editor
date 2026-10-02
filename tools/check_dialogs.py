@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find dialog tree errors that crash X-Ray. Research tool for our own fixes (docs/roadmap/FIX-PACKS.md).
+"""Find dialog tree errors that crash X-Ray. Research tool for our own fixes (docs/GAME_FIXES.md).
 Checks: <next> pointing at a missing phrase, duplicate phrase ids, no start phrase 0, and (with --scripts DIR)
 <precondition>/<action>/<script_text> calling a module or function that does not exist.
 usage: check_dialogs.py [--scripts DIR] FILE.xml..."""

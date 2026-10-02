@@ -16,7 +16,7 @@
     then renames it to save_editor_out.txt
   Command line:  v1 <id> <command> [args...]
   Reply line:    v1 <id> ok|error|unsupported <text>
-  See docs/MOD_COMPANION_PROTOCOL.md.
+  See docs/COMPANION.md.
 
   Hook: vanilla X-Ray has no plugin loader, so bind_stalker.script needs one
   line in actor_binder:update(delta):

@@ -153,7 +153,7 @@ dotnet run --project src/StalkerSaveEditor.App
 
 ## Verification Levels & Reliability (L1–L5)
 
-In accordance with our [Reliability Charter](docs/roadmap/RL-reliability.md), every feature is categorized by its verified confidence level:
+In accordance with our [Reliability Charter](docs/roadmap/README.md), every feature is categorized by its verified confidence level:
 
 - **L1 (Synthetic Round-Trip)**: Bit-level serializer/parser round-trips and checksum verification on synthetic fixtures.
 - **L2 (Synthetic UI Headless & Test Suite)**: ViewModel unit tests, Avalonia headless UI rendering, Lua 5.1 syntax checks, and complete i18n audits.
@@ -165,15 +165,15 @@ In accordance with our [Reliability Charter](docs/roadmap/RL-reliability.md), ev
 
 ## Documentation Links
 
-- [Project Roadmap & State](docs/roadmap/STATE.md)
-- [Reliability & Verification Levels (L1–L5)](docs/roadmap/RL-reliability.md)
+- [Project Roadmap & State](docs/roadmap/README.md)
+- [Reliability & Verification Levels (L1–L5)](docs/roadmap/README.md)
 - [In-Game Companion Mod & Protocol Guide](docs/COMPANION.md)
-- [Companion Protocol Specification (v1)](docs/MOD_COMPANION_PROTOCOL.md)
+- [Companion Protocol Specification (v1)](docs/COMPANION.md)
 - [Cross-Platform Packaging & Distribution Guide](docs/PACKAGING.md)
 - [Architecture Guidelines](ARCHITECTURE.md)
-- [Installed-game patching architecture](docs/PATCHING_ARCHITECTURE.md)
+- [Installed-game patching architecture](docs/GAME_FIXES.md)
 - [Game Fix catalogue and safety model](docs/GAME_FIXES.md)
-- [Game Fix research ledger](docs/GAME_FIX_RESEARCH.md)
-- [Game / Save Doctor and Crash Analyzer](docs/GAME_DOCTOR.md)
-- [Profiles, snapshots and rollback status](docs/PROFILES.md)
+- [Game Fix research ledger](docs/GAME_FIXES.md)
+- [Game / Save Doctor and Crash Analyzer](docs/DIAGNOSTICS.md)
+- [Profiles, snapshots and rollback status](docs/DIAGNOSTICS.md)
 - [Safety Rules & Agent Guidelines](AGENTS.md)

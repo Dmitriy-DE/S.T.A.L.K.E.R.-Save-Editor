@@ -1,6 +1,6 @@
 # Handoff — state on 2026-10-02 (v1.3.1)
 
-Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md` and `docs/roadmap/STATE.md`.
+Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md` and `docs/roadmap/README.md`.
 
 ## Where things are
 
@@ -48,8 +48,8 @@ New UI text: `L.T("русский текст")` + `python3 tools/add_translation
 
 ## Done and not done
 
-What the program does and how far it is verified: `docs/roadmap/STATE.md`. What is left, split into "needs the owner"
-and "can be done without the owner": `docs/roadmap/README.md`. Game fixes: `FIX-PACKS.md` (sources, what was not
+What the program does and how far it is verified: `docs/roadmap/README.md`. What is left, split into "needs the owner"
+and "can be done without the owner": `docs/roadmap/README.md`. Game fixes: `docs/GAME_FIXES.md` (sources, what was not
 taken and why) and `FIX-AUDIT-2026-10-02.md` (a record per fix, the regression pass over the whole catalogue).
 
 ## Game fixes: checks before a PR that touches the catalogue

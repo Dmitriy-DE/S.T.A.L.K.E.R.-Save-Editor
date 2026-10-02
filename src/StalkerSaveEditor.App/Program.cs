@@ -233,17 +233,26 @@ internal static class Program
         {
             if (index >= steps.Length || !opening.IsCompleted) return;
             phase = steps[index].Name;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             steps[index++].Run();
+            var set = watch.ElapsedMilliseconds;
+            Dispatcher.UIThread.RunJobs(DispatcherPriority.Loaded);
+            var layout = watch.ElapsedMilliseconds;
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            if (Environment.GetEnvironmentVariable("SE_DEBUG_LAYOUT") == "1")
+                Console.WriteLine($"  [{phase}] change {set} ms, layout {layout - set} ms, render {watch.ElapsedMilliseconds - layout} ms");
         });
         stepper.Start();
         var render = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) => AvaloniaHeadlessPlatform.ForceRenderTimerTick());
         render.Start();
         Dispatcher.UIThread.MainLoop(done.Token);
+        var rows = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<ListBoxItem>().Count();
+        var controls = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).Count();
         window.Close();
 
         Console.WriteLine($"UI measure: {Path.GetFileName(savePath)}; language {language ?? "default"}; {seconds}s");
         foreach (var (name, gap) in perPhase) Console.WriteLine($"  {name}: {gap.TotalMilliseconds:0} ms");
+        Console.WriteLine($"Controls on screen at the end: {controls}, list rows built: {rows} of {viewModel.FilteredInventory.Count} shown items");
         Console.WriteLine($"Longest UI-thread gap after the window is up: {worst.TotalMilliseconds:0} ms (during: {worstAt})");
         return worst.TotalMilliseconds > 100 ? 1 : 0;
     }

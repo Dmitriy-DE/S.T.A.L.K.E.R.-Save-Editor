@@ -1,5 +1,4 @@
 using StalkerSaveEditor.Desktop.Services;
-using StalkerSaveEditor.Steam;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 

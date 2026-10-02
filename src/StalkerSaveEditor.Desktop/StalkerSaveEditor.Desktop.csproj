@@ -13,13 +13,12 @@
     <EmbeddedResource Include="Assets/icon-aliases.json" LogicalName="StalkerSaveEditor.Desktop.icon-aliases.json" />
     <None Include="Assets/PROVENANCE.json" CopyToOutputDirectory="PreserveNewest" />
     <InternalsVisibleTo Include="StalkerSaveEditor.Core.Tests" />
+    <InternalsVisibleTo Include="StalkerSaveEditor.Host" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="NVorbis" />
     <ProjectReference Include="../StalkerSaveEditor.Core/StalkerSaveEditor.Core.csproj" />
-    <ProjectReference Include="../StalkerSaveEditor.Steam/StalkerSaveEditor.Steam.csproj" />
-    <ProjectReference Include="../StalkerSaveEditor.Updater/StalkerSaveEditor.Updater.csproj" />
   </ItemGroup>
 </Project>

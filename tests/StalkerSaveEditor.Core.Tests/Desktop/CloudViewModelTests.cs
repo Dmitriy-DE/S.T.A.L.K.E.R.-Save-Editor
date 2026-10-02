@@ -1,6 +1,7 @@
 using System.IO;
 using StalkerSaveEditor.Core.Tests;
 using StalkerSaveEditor.Desktop.Services;
+using StalkerSaveEditor.Host;
 using StalkerSaveEditor.Desktop.ViewModels;
 using Xunit;
 

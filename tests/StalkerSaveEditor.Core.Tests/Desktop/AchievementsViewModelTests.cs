@@ -1,6 +1,5 @@
 using StalkerSaveEditor.Desktop.Services;
 using StalkerSaveEditor.Desktop.ViewModels;
-using StalkerSaveEditor.Steam;
 using Xunit;
 
 namespace StalkerSaveEditor.Core.Tests.Desktop;

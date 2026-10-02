@@ -23,6 +23,17 @@ public static class HostPlatform
     public static Func<string, Task>? ExportFile { get; set; }
 
     /// <summary>
+    /// Desktop-only services (Steam cloud, achievements, self-update), supplied by the host application. The UI
+    /// library has no reference to Steam or the updater; a host that sets nothing (the web edition) gets the
+    /// "not available" implementations.
+    /// </summary>
+    public static Func<ICloudServiceAdapter>? CreateCloudService { get; set; }
+
+    public static Func<ISteamAchievementsAdapter>? CreateAchievementsService { get; set; }
+
+    public static Func<IUpdateServiceAdapter>? CreateUpdateService { get; set; }
+
+    /// <summary>
     /// The web edition keeps opened saves in memory, and parsing allocates the unpacked save on top, so an opened file
     /// gets a budget well below the format ceiling.
     /// </summary>

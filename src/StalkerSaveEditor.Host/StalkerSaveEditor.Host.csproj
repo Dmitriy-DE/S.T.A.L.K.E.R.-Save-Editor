@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- What only an installed desktop application can do: Steam (cloud, achievements) and self-update. The UI
+       library (Desktop) knows these services as interfaces; the web edition never references this project. -->
+  <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="StalkerSaveEditor.Core.Tests" />
+    <ProjectReference Include="../StalkerSaveEditor.Desktop/StalkerSaveEditor.Desktop.csproj" />
+    <ProjectReference Include="../StalkerSaveEditor.Steam/StalkerSaveEditor.Steam.csproj" />
+    <ProjectReference Include="../StalkerSaveEditor.Updater/StalkerSaveEditor.Updater.csproj" />
+  </ItemGroup>
+</Project>

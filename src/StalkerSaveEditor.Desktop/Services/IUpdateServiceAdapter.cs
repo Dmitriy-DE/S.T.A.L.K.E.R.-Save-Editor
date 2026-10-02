@@ -1,5 +1,3 @@
-using StalkerSaveEditor.Updater;
-
 namespace StalkerSaveEditor.Desktop.Services;
 
 public interface IUpdateServiceAdapter
@@ -10,67 +8,44 @@ public interface IUpdateServiceAdapter
     Task<UpdateInstallResult> InstallAsync(string downloadedPath, UpdateArtifact artifact, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default);
 }
 
-public sealed class UpdateServiceAdapter : IUpdateServiceAdapter, IDisposable
+public enum UpdateState
 {
-    private readonly UpdateService? _service;
-    private readonly UpdateInstallation? _installation;
-    private readonly string? _unavailableReason;
-    private readonly string _downloadDirectory;
+    Current,
+    Available,
+    Unavailable,
+    Invalid,
+}
 
-    public UpdateServiceAdapter(string? currentVersion = null, string? downloadDirectory = null)
-    {
-        CurrentVersion = currentVersion
-            ?? StalkerSaveEditor.Core.ApplicationVersion.Current;
+public enum UpdateInstallState
+{
+    Succeeded,
+    Cancelled,
+    Failed,
+    OpenedExternally,
+}
 
-        try
-        {
-            _installation = UpdateInstallationDetector.Detect();
-            _service = new UpdateService(CurrentVersion, _installation);
-        }
-        catch (Exception exception) when (exception is UpdateManifestException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            // The web host, an unknown platform, or an installation that cannot be identified: no self-update.
-            // Nothing is guessed (a made-up installation would check, download and then fail to install).
-            _installation = null;
-            _service = null;
-            _unavailableReason = exception.Message;
-        }
+/// <summary>The update models the screen works with. The updater project has its own; the host maps between them.</summary>
+public sealed record UpdateArtifact(string Target, string Architecture, string Kind, string File, long Size, string Sha256, string Url);
 
-        _downloadDirectory = downloadDirectory ?? Path.Combine(Path.GetTempPath(), "stalker-save-editor-updates");
-    }
+public sealed record UpdateManifestInfo(string Version, string PublishedAt);
 
-    internal UpdateServiceAdapter(UpdateService service, UpdateInstallation installation, string currentVersion, string? downloadDirectory = null)
-    {
-        _service = service ?? throw new ArgumentNullException(nameof(service));
-        _installation = installation ?? throw new ArgumentNullException(nameof(installation));
-        CurrentVersion = currentVersion;
-        _downloadDirectory = downloadDirectory ?? Path.Combine(Path.GetTempPath(), "stalker-save-editor-updates");
-    }
+public sealed record UpdateCheckResult(UpdateState State, UpdateManifestInfo? Manifest = null, UpdateArtifact? Artifact = null, string? Error = null);
 
-    public string CurrentVersion { get; }
+public sealed record UpdateProgress(string Stage, string Message, long? CompletedBytes = null, long? TotalBytes = null);
+
+public sealed record UpdateInstallResult(UpdateInstallState State, int? ExitCode, string Message);
+
+/// <summary>What a host without self-update (the web edition) offers.</summary>
+public sealed class UnavailableUpdateServiceAdapter : IUpdateServiceAdapter
+{
+    public string CurrentVersion => StalkerSaveEditor.Core.ApplicationVersion.Current;
 
     public Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default) =>
-        Service.CheckAsync(cancellationToken);
+        Task.FromResult(new UpdateCheckResult(UpdateState.Unavailable));
 
-    private UpdateService Service => _service ?? throw new PlatformNotSupportedException(_unavailableReason is null
-        ? "Updates are not available on this platform."
-        : "Updates are not available: " + _unavailableReason);
+    public Task<string> DownloadAsync(UpdateArtifact artifact, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default) =>
+        throw new PlatformNotSupportedException("Updates are not available on this platform.");
 
-    public Task<string> DownloadAsync(
-        UpdateArtifact artifact,
-        IProgress<UpdateProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        var destination = Path.Combine(_downloadDirectory, artifact.File);
-        return Service.DownloadAsync(artifact, destination, progress, cancellationToken);
-    }
-
-    public Task<UpdateInstallResult> InstallAsync(
-        string downloadedPath,
-        UpdateArtifact artifact,
-        IProgress<UpdateProgress>? progress = null,
-        CancellationToken cancellationToken = default) =>
-        Service.InstallAsync(artifact, downloadedPath, _installation ?? throw new PlatformNotSupportedException("Updates are not available on this platform."), progress, cancellationToken);
-
-    public void Dispose() => _service?.Dispose();
+    public Task<UpdateInstallResult> InstallAsync(string downloadedPath, UpdateArtifact artifact, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default) =>
+        throw new PlatformNotSupportedException("Updates are not available on this platform.");
 }

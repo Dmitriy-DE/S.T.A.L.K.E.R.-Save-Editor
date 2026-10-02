@@ -33,7 +33,10 @@ src/
   StalkerSaveEditor.Updater/       state machine: Checking → Downloading →
                                    Verifying → WaitingForPermission → Installing →
                                    Restarting → Completed | Failed (real exit code)
-  StalkerSaveEditor.Desktop/       Avalonia app
+  StalkerSaveEditor.Desktop/       Avalonia UI library (views, view models), shared with the web edition;
+                                   knows Steam and the updater only as interfaces (HostPlatform factories)
+  StalkerSaveEditor.Host/          desktop-only services behind those interfaces: Steam cloud, achievements,
+                                   self-update; referenced by the App, never by the Browser host
   StalkerSaveEditor.Cli/           inspect / prepare / verify, JSON output
 tests/
   StalkerSaveEditor.Core.Tests/    parity with golden vectors, negative cases

@@ -78,6 +78,12 @@ public static class LocalSaveReplacement
 
         var files = fileSystem ?? new LocalSaveFileSystem();
         var sourceFullPath = Path.GetFullPath(sourcePath);
+        // Reading follows a link but the atomic replace swaps the link itself: the game's real file would keep the old
+        // bytes while the editor reports success. In-place editing through a link is refused.
+        if (fileSystem is null && new FileInfo(sourceFullPath) is { Exists: true, LinkTarget: not null })
+        {
+            throw new IOException("The save is a symbolic link; open the file it points to instead.");
+        }
         var sourceBytes = files.ReadAllBytes(sourceFullPath);
         var sourceSha256 = Sha256(sourceBytes);
         if (!string.Equals(sourceSha256, prepared.SourceSha256, StringComparison.Ordinal))

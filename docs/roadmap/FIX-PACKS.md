@@ -72,7 +72,7 @@ in scripts.
 | Wild Napr task (`wrong target for storyline quest`) | `cs.crash.capture-task-missing-squad` (2 more patches) | done #200 |
 | NPC offline during dialogue/trade | `cs.crash.npc-offline-during-dialog` (own `pda.dialog_open` flag) | done #195 |
 | Smart terrain overloading: Army Warehouses camp 2_1 | `cs.crash.all-spawn-errors` (capacity, new game) | done #201 |
-| Smart terrain overloading: Dark Valley wagon 9_6, scripted target + joining squad | — | todo: SRP reworks the simulation (sim_board / sim_squad_generic); needs its own analysis |
+| Smart terrain overloading: Dark Valley wagon 9_6, scripted target + joining squad | `cs.crash.smart-terrain-no-free-job` (job sharing instead of the abort) | done #246, not run in the game |
 | Marsh creature scene (Agroprom, Swamps) | `cs.crash.marsh-creature-no-squad` (log: `npc_squad` nil) | done #196 |
 | Buggy dialog trees | — (`tools/check_dialogs.py`: none reachable in retail) | closed #195/#196 |
 | Waypoint: Cordon bonfire | `cs.crash.all-spawn-errors` | done #198 → #201 |
@@ -127,6 +127,8 @@ Candidates seen in the diffs and deliberately not ported:
   - CS (#245): offered faction-war tasks no longer become active on load (`task_manager.script`, as SRP and the EE do);
     Flea Market basement scene no longer deletes story object 700 after it is gone (SRP's remedy, cause not proven).
     Totals after #245: CS 63 catalogued / 61 recommended (EE 41).
+  - CS (#246): `cs.crash.smart-terrain-no-free-job` — an NPC with no free job shares a held one instead of the
+    'Insufficient smart_terrain jobs' abort. Our own remedy, behaviour not observed in the game. CS 64 / 62 (EE 42).
   - Totals after #244: CS 62 catalogued / 60 recommended (EE 40). Before it, after #243: SoC 35 (EE 19), CS 61 catalogued / 59 recommended (EE 39), CoP 35 catalogued / 21 recommended (EE 24).
     Every preset was installed into and removed from a pristine copy of the real install. Nothing was run in the games.
 

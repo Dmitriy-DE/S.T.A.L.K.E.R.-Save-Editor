@@ -9,7 +9,8 @@ used. The Python repo is frozen for new features once this port reaches parity
 ## Stack
 
 - .NET 10 (LTS), C# latest, nullable enabled, warnings as errors.
-- Avalonia 11.x, MVVM (CommunityToolkit.Mvvm).
+- Avalonia 11.x, MVVM with the project's own small base (`ObservableViewModel`, `RelayCommand`); no MVVM toolkit package.
+  Screens are built in C# (`Views/*View.cs`), screen ids are `AppTabs`.
 - xUnit for tests.
 - CI on Windows, Linux (Ubuntu 24.04) and macOS (arm64) from the first commit.
 
@@ -95,7 +96,7 @@ does not create a new writer or capability.
 | `diagnostics.py` | Desktop/Diagnostics | KEEP |
 | `service.py` | `Core/EditorService` | REDESIGN: thin facade over Formats + Editing |
 | `ui/*` (PySide6) | `StalkerSaveEditor.Desktop` | REDESIGN in Avalonia |
-| `web/*` (Pyodide) | — | later: Blazor WASM over Core, decision after parity |
+| `web/*` (Pyodide) | `StalkerSaveEditor.Browser` | DONE: the same Avalonia UI compiled to WebAssembly (decision D15) |
 
 ## Order (roadmap CS-2 … CS-8)
 

@@ -14,7 +14,7 @@ using StalkerSaveEditor.Desktop.Services;
 
 namespace StalkerSaveEditor.Desktop.ViewModels;
 
-public sealed class SaveLibraryViewModel : ObservableViewModel
+public sealed class SaveLibraryViewModel : ObservableViewModel, IDisposable
 {
     private static readonly IReadOnlyDictionary<string, CatalogBundle> Catalogs = CatalogBundleReader.LoadEmbedded();
     internal static bool TryCatalog(string releaseId, out CatalogBundle bundle) =>
@@ -33,7 +33,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private SaveFileSummary? _selectedSave;
     private BackupRecordViewModel? _selectedBackup;
 
-    private string _selectedTab = "overview";
+    private string _selectedTab = AppTabs.Overview;
     private string _moneyInput = string.Empty;
     private string _statusMessage = string.Empty;
     private bool _isSaving;
@@ -74,7 +74,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         SaveDoctor.OpenGameFixRequested += fixId =>
         {
             GameFixes.ShowFix(fixId);
-            SelectedTab = "game-fixes";
+            SelectedTab = AppTabs.GameFixes;
         };
         _draftStore = new DraftStore(draftsDirectory);
         _draft = new DraftSession(_draftStore);
@@ -89,7 +89,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         RedoCommand = new RelayCommand(Redo, () => CanRedo);
         DiscardDraftCommand = new RelayCommand(DiscardDraft, () => HasDraftChanges);
 
-        SelectTabCommand = new RelayCommand<string>(tab => SelectedTab = tab ?? "overview");
+        SelectTabCommand = new RelayCommand<string>(tab => SelectedTab = AppTabs.Normalize(tab));
         AddMoneyCommand = new RelayCommand<string>(AddMoney);
         RemoveSelectedItemCommand = new RelayCommand(RemoveSelectedItem, () => SelectedItem is not null);
         RestoreConditionCommand = new RelayCommand<string>(SetItemCondition);
@@ -280,10 +280,12 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         get => _selectedTab;
         set
         {
+            // An id that names no screen (a caller's typo) shows the overview instead of an empty window.
+            value = AppTabs.Normalize(value);
             if (SetProperty(ref _selectedTab, value))
             {
                 if (InteractiveApp) GameAudioService.Instance.Play(SoundEvent.Tab);
-                if (value == "save-doctor" && SelectedSave is { } selectedSave)
+                if (value == AppTabs.SaveDoctor && SelectedSave is { } selectedSave)
                 {
                     SaveDoctor.SavePath = selectedSave.FilePath;
                     // Read-only check: run it at once instead of showing "choose a save" next to a chosen one.
@@ -381,57 +383,57 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
         if (Saves.Count > 0) DismissFirstRunWizard();
     }
 
-    public bool IsOverviewTab => SelectedTab == "overview";
-    public bool IsInventoryTab => SelectedTab == "inventory";
-    public bool IsFactionsTab => SelectedTab == "factions";
-    public bool IsStashesTab => SelectedTab == "stashes";
-    public bool IsTransitionsTab => SelectedTab == "transitions";
-    public bool IsBackupsTab => SelectedTab == "backups";
-    public bool IsCompareTab => SelectedTab == "compare";
-    public bool IsSettingsTab => SelectedTab == "settings";
-    public bool IsCapabilitiesTab => SelectedTab == "capabilities";
-    public bool IsCompanionTab => SelectedTab == "companion";
-    public bool IsCloudTab => SelectedTab == "cloud";
-    public bool IsAchievementsTab => SelectedTab == "achievements";
-    public bool IsGameDoctorTab => SelectedTab == "game-doctor";
-    public bool IsSaveDoctorTab => SelectedTab == "save-doctor";
-    public bool IsGameFixesTab => SelectedTab == "game-fixes";
-    public bool IsUpdatesTab => SelectedTab == "updates";
-    public bool IsTimelineTab => SelectedTab == "timeline";
-    public bool IsEncyclopediaTab => SelectedTab == "encyclopedia";
-    public bool IsToolkitEnvironmentTab => SelectedTab == "toolkit-environment";
-    public bool IsGamesOverviewTab => SelectedTab == "games";
+    public bool IsOverviewTab => SelectedTab == AppTabs.Overview;
+    public bool IsInventoryTab => SelectedTab == AppTabs.Inventory;
+    public bool IsFactionsTab => SelectedTab == AppTabs.Factions;
+    public bool IsStashesTab => SelectedTab == AppTabs.Stashes;
+    public bool IsTransitionsTab => SelectedTab == AppTabs.Transitions;
+    public bool IsBackupsTab => SelectedTab == AppTabs.Backups;
+    public bool IsCompareTab => SelectedTab == AppTabs.Compare;
+    public bool IsSettingsTab => SelectedTab == AppTabs.Settings;
+    public bool IsCapabilitiesTab => SelectedTab == AppTabs.Capabilities;
+    public bool IsCompanionTab => SelectedTab == AppTabs.Companion;
+    public bool IsCloudTab => SelectedTab == AppTabs.Cloud;
+    public bool IsAchievementsTab => SelectedTab == AppTabs.Achievements;
+    public bool IsGameDoctorTab => SelectedTab == AppTabs.GameDoctor;
+    public bool IsSaveDoctorTab => SelectedTab == AppTabs.SaveDoctor;
+    public bool IsGameFixesTab => SelectedTab == AppTabs.GameFixes;
+    public bool IsUpdatesTab => SelectedTab == AppTabs.Updates;
+    public bool IsTimelineTab => SelectedTab == AppTabs.Timeline;
+    public bool IsEncyclopediaTab => SelectedTab == AppTabs.Encyclopedia;
+    public bool IsToolkitEnvironmentTab => SelectedTab == AppTabs.ToolkitEnvironment;
+    public bool IsGamesOverviewTab => SelectedTab == AppTabs.Games;
 
-    public bool IsSaveWorkspace => SelectedTab is "overview" or "inventory" or "factions" or "stashes" or "transitions" or "backups" or "compare" or "timeline" or "save-doctor";
+    public bool IsSaveWorkspace => SelectedTab is AppTabs.Overview or AppTabs.Inventory or AppTabs.Factions or AppTabs.Stashes or AppTabs.Transitions or AppTabs.Backups or AppTabs.Compare or AppTabs.Timeline or AppTabs.SaveDoctor;
 
     public string CurrentGroupTitle => SelectedTab switch
     {
-        "games" or "game-fixes" or "game-doctor" or "toolkit-environment" or "companion" or "achievements" => L.T("ИГРЫ"),
-        "encyclopedia" or "capabilities" or "updates" or "settings" or "cloud" => L.T("ИНСТРУМЕНТЫ"),
+        AppTabs.Games or AppTabs.GameFixes or AppTabs.GameDoctor or AppTabs.ToolkitEnvironment or AppTabs.Companion or AppTabs.Achievements => L.T("ИГРЫ"),
+        AppTabs.Encyclopedia or AppTabs.Capabilities or AppTabs.Updates or AppTabs.Settings or AppTabs.Cloud => L.T("ИНСТРУМЕНТЫ"),
         _ => L.T("СОХРАНЕНИЯ"),
     };
 
     public string CurrentPageTitle => SelectedTab switch
     {
-        "inventory" => L.T("ИНВЕНТАРЬ"),
-        "factions" => L.T("ФРАКЦИИ"),
-        "stashes" => L.T("ТАЙНИКИ"),
-        "transitions" => L.T("ПЕРЕХОДЫ"),
-        "backups" => L.T("БЭКАПЫ"),
-        "compare" => L.T("СРАВНЕНИЕ"),
-        "timeline" => L.T("ИСТОРИЯ СОХРАНЕНИЙ"),
-        "save-doctor" => L.T("ДОКТОР СОХРАНЕНИЯ"),
-        "game-fixes" => L.T("ИСПРАВЛЕНИЯ ИГРЫ"),
-        "games" => L.T("ИГРЫ И ИНСТРУМЕНТЫ"),
-        "game-doctor" => L.T("ДОКТОР ИГРЫ"),
-        "toolkit-environment" => L.T("СРЕДА ИГРЫ"),
-        "companion" => L.T("КОМПАНЬОН"),
-        "achievements" => L.T("ДОСТИЖЕНИЯ"),
-        "cloud" => L.T("ОБЛАКО"),
-        "encyclopedia" => L.T("ЭНЦИКЛОПЕДИЯ"),
-        "capabilities" => L.T("ВОЗМОЖНОСТИ"),
-        "updates" => L.T("ОБНОВЛЕНИЯ"),
-        "settings" => L.T("НАСТРОЙКИ"),
+        AppTabs.Inventory => L.T("ИНВЕНТАРЬ"),
+        AppTabs.Factions => L.T("ФРАКЦИИ"),
+        AppTabs.Stashes => L.T("ТАЙНИКИ"),
+        AppTabs.Transitions => L.T("ПЕРЕХОДЫ"),
+        AppTabs.Backups => L.T("БЭКАПЫ"),
+        AppTabs.Compare => L.T("СРАВНЕНИЕ"),
+        AppTabs.Timeline => L.T("ИСТОРИЯ СОХРАНЕНИЙ"),
+        AppTabs.SaveDoctor => L.T("ДОКТОР СОХРАНЕНИЯ"),
+        AppTabs.GameFixes => L.T("ИСПРАВЛЕНИЯ ИГРЫ"),
+        AppTabs.Games => L.T("ИГРЫ И ИНСТРУМЕНТЫ"),
+        AppTabs.GameDoctor => L.T("ДОКТОР ИГРЫ"),
+        AppTabs.ToolkitEnvironment => L.T("СРЕДА ИГРЫ"),
+        AppTabs.Companion => L.T("КОМПАНЬОН"),
+        AppTabs.Achievements => L.T("ДОСТИЖЕНИЯ"),
+        AppTabs.Cloud => L.T("ОБЛАКО"),
+        AppTabs.Encyclopedia => L.T("ЭНЦИКЛОПЕДИЯ"),
+        AppTabs.Capabilities => L.T("ВОЗМОЖНОСТИ"),
+        AppTabs.Updates => L.T("ОБНОВЛЕНИЯ"),
+        AppTabs.Settings => L.T("НАСТРОЙКИ"),
         _ => L.T("ОБЗОР"),
     };
 
@@ -687,7 +689,8 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
                     ? batch => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendBatch(batch, version))
                     : null,
                     // A newer refresh supersedes this one: stop parsing instead of finishing work nobody will show.
-                    () => version != Volatile.Read(ref _libraryVersion));
+                    // …and so does closing the window.
+                    () => version != Volatile.Read(ref _libraryVersion) || _disposed);
             });
             if (version == _libraryVersion)
             {
@@ -796,6 +799,23 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     /// <summary>Remove + insert: Avalonia's virtualizing list throws on a Replace notification for the selected row.</summary>
     private bool _selectedSaveChangedOnDisk;
     private Avalonia.Threading.DispatcherTimer? _diskWatch;
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _disposed;
+
+    /// <summary>Cancelled when the window that owns this view model closes; background work started here watches it.</summary>
+    public CancellationToken Lifetime => _lifetime.Token;
+
+    /// <summary>Stops the disk watch and tells background work to stop. Called when the main window closes.</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _diskWatch?.Stop();
+        _diskWatch = null;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+
 
     /// <summary>The selected save's file changed after it was read (the game or another tool saved over it).</summary>
     public bool SelectedSaveChangedOnDisk
@@ -881,7 +901,7 @@ public sealed class SaveLibraryViewModel : ObservableViewModel
     private void CompareTimelinePair(SaveFileSummary current, SaveFileSummary previous)
     {
         SelectedSave = current;
-        SelectedTab = "compare";
+        SelectedTab = AppTabs.Compare;
         Compare.Selected = Compare.Candidates.FirstOrDefault(candidate => candidate.Path == previous.FilePath);
     }
 

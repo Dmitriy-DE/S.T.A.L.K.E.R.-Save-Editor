@@ -21,6 +21,8 @@ public sealed class MainWindow : Window
     {
         _viewModel = viewModel ?? new SaveLibraryViewModel();
         DataContext = _viewModel;
+        // The view model owns a timer and background work; they end with the window.
+        Closed += (_, _) => _viewModel.Dispose();
 
         Title = "S.T.A.L.K.E.R. Save Editor";
         FontFamily = StalkerTheme.BodyFont;
@@ -215,7 +217,7 @@ public sealed class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
         });
         var open = StalkerTheme.StalkerButton(L.T("Открыть"), isPrimary: true, minWidth: 100);
-        open.Click += (_, _) => vm.SelectedTab = "settings";
+        open.Click += (_, _) => vm.SelectedTab = AppTabs.Settings;
         Grid.SetColumn(open, 1);
         grid.Children.Add(open);
         banner.Child = grid;
@@ -249,7 +251,7 @@ public sealed class MainWindow : Window
         grid.Children.Add(text);
 
         var openBtn = StalkerTheme.StalkerButton(L.T("Посмотреть"), isPrimary: true, minWidth: 100);
-        openBtn.Click += (_, _) => vm.SelectedTab = "updates";
+        openBtn.Click += (_, _) => vm.SelectedTab = AppTabs.Updates;
         Grid.SetColumn(openBtn, 1);
         grid.Children.Add(openBtn);
 
@@ -325,42 +327,42 @@ public sealed class MainWindow : Window
             var navigation = new StackPanel { Spacing = 2, Margin = new Thickness(5, 8) };
             AddGroup(navigation, L.T("СОХРАНЕНИЯ"),
             [
-                ("◉", L.T("ОБЗОР"), "overview"),
-                ("▤", L.T("ИНВЕНТАРЬ"), "inventory"),
-                ("⚑", L.T("ФРАКЦИИ"), "factions"),
-                ("◇", L.T("ТАЙНИКИ"), "stashes"),
-                ("⇄", L.T("ПЕРЕХОДЫ"), "transitions"),
-                ("▣", L.T("БЭКАПЫ"), "backups"),
-                ("⇆", L.T("СРАВНЕНИЕ"), "compare"),
-                ("◷", L.T("ИСТОРИЯ СОХРАНЕНИЙ"), "timeline"),
+                ("◉", L.T("ОБЗОР"), AppTabs.Overview),
+                ("▤", L.T("ИНВЕНТАРЬ"), AppTabs.Inventory),
+                ("⚑", L.T("ФРАКЦИИ"), AppTabs.Factions),
+                ("◇", L.T("ТАЙНИКИ"), AppTabs.Stashes),
+                ("⇄", L.T("ПЕРЕХОДЫ"), AppTabs.Transitions),
+                ("▣", L.T("БЭКАПЫ"), AppTabs.Backups),
+                ("⇆", L.T("СРАВНЕНИЕ"), AppTabs.Compare),
+                ("◷", L.T("ИСТОРИЯ СОХРАНЕНИЙ"), AppTabs.Timeline),
             ]);
             if (!HostPlatform.IsBrowser)
             {
-                AddItem(navigation, "✚", L.T("ДОКТОР СОХРАНЕНИЯ"), "save-doctor");
+                AddItem(navigation, "✚", L.T("ДОКТОР СОХРАНЕНИЯ"), AppTabs.SaveDoctor);
                 AddGroup(navigation, L.T("ИГРЫ"),
                 [
-                    ("◉", L.T("ОБЗОР ИГР"), "games"),
-                    ("⚒", L.T("ИСПРАВЛЕНИЯ ИГРЫ"), "game-fixes"),
-                    ("⌖", L.T("ДОКТОР ИГРЫ"), "game-doctor"),
-                    ("⚙", L.T("СРЕДА ИГРЫ"), "toolkit-environment"),
-                    ("●", L.T("КОМПАНЬОН"), "companion"),
-                    ("★", L.T("ДОСТИЖЕНИЯ"), "achievements"),
+                    ("◉", L.T("ОБЗОР ИГР"), AppTabs.Games),
+                    ("⚒", L.T("ИСПРАВЛЕНИЯ ИГРЫ"), AppTabs.GameFixes),
+                    ("⌖", L.T("ДОКТОР ИГРЫ"), AppTabs.GameDoctor),
+                    ("⚙", L.T("СРЕДА ИГРЫ"), AppTabs.ToolkitEnvironment),
+                    ("●", L.T("КОМПАНЬОН"), AppTabs.Companion),
+                    ("★", L.T("ДОСТИЖЕНИЯ"), AppTabs.Achievements),
                 ]);
                 AddGroup(navigation, L.T("ИНСТРУМЕНТЫ"),
                 [
-                    ("☁", L.T("ОБЛАКО"), "cloud"),
-                    ("≡", L.T("ЭНЦИКЛОПЕДИЯ"), "encyclopedia"),
-                    ("✓", L.T("ВОЗМОЖНОСТИ"), "capabilities"),
-                    ("↻", L.T("ОБНОВЛЕНИЯ"), "updates"),
-                    ("⚙", L.T("НАСТРОЙКИ"), "settings"),
+                    ("☁", L.T("ОБЛАКО"), AppTabs.Cloud),
+                    ("≡", L.T("ЭНЦИКЛОПЕДИЯ"), AppTabs.Encyclopedia),
+                    ("✓", L.T("ВОЗМОЖНОСТИ"), AppTabs.Capabilities),
+                    ("↻", L.T("ОБНОВЛЕНИЯ"), AppTabs.Updates),
+                    ("⚙", L.T("НАСТРОЙКИ"), AppTabs.Settings),
                 ]);
             }
             else
             {
                 AddGroup(navigation, L.T("ИНСТРУМЕНТЫ"),
                 [
-                    ("✓", L.T("ВОЗМОЖНОСТИ"), "capabilities"),
-                    ("⚙", L.T("НАСТРОЙКИ"), "settings"),
+                    ("✓", L.T("ВОЗМОЖНОСТИ"), AppTabs.Capabilities),
+                    ("⚙", L.T("НАСТРОЙКИ"), AppTabs.Settings),
                 ]);
             }
 
@@ -1181,7 +1183,7 @@ public sealed class MainWindow : Window
         };
 
         var settingsBtn = StalkerTheme.StalkerButton(L.T("Перейти в настройки"), isPrimary: false, minWidth: 140);
-        settingsBtn.Click += (_, _) => vm.SelectedTab = "settings";
+        settingsBtn.Click += (_, _) => vm.SelectedTab = AppTabs.Settings;
         bottomActions.Children.Add(settingsBtn);
 
         var dismissBtn = StalkerTheme.StalkerButton(L.T("Пропустить"), isPrimary: false, minWidth: 100);

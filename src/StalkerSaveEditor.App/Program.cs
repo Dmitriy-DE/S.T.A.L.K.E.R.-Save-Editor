@@ -219,10 +219,10 @@ internal static class Program
         var steps = new (string Name, Action Run)[]
         {
             ("open save", () => opening = viewModel.AddPreviewSaveAsync(savePath)),
-            ("inventory tab", () => viewModel.SelectedTab = "inventory"),
-            ("stashes tab", () => viewModel.SelectedTab = "stashes"),
-            ("overview tab", () => viewModel.SelectedTab = "overview"),
-            ("inventory tab again", () => viewModel.SelectedTab = "inventory"),
+            ("inventory tab", () => viewModel.SelectedTab = AppTabs.Inventory),
+            ("stashes tab", () => viewModel.SelectedTab = AppTabs.Stashes),
+            ("overview tab", () => viewModel.SelectedTab = AppTabs.Overview),
+            ("inventory tab again", () => viewModel.SelectedTab = AppTabs.Inventory),
         };
         using var done = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
         var index = 0;

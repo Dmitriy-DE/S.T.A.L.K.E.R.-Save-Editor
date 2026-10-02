@@ -17,15 +17,15 @@ public static class UpdateInstallationDetector
         string packageInstallRoot)
     {
         var platform = (platformName ?? (OperatingSystem.IsWindows()
-            ? "windows"
+            ? UpdatePlatform.Windows
             : OperatingSystem.IsMacOS()
-                ? "macos"
-                : "linux")).ToLowerInvariant();
+                ? UpdatePlatform.MacOS
+                : UpdatePlatform.Linux)).ToLowerInvariant();
         var target = platform switch
         {
-            "win32nt" or "windows" => "windows",
-            "darwin" or "macos" => "macos",
-            "unix" or "linux" => "linux",
+            "win32nt" or UpdatePlatform.Windows => UpdatePlatform.Windows,
+            "darwin" or UpdatePlatform.MacOS => UpdatePlatform.MacOS,
+            "unix" or UpdatePlatform.Linux => UpdatePlatform.Linux,
             _ => throw new UpdateManifestException($"Unsupported update platform: {platformName ?? platform}.")
         };
 
@@ -40,7 +40,7 @@ public static class UpdateInstallationDetector
             // Missing or inaccessible link metadata does not make a development install unsafe to inspect.
         }
 
-        var appBundle = target == "macos"
+        var appBundle = target == UpdatePlatform.MacOS
             ? GetAncestorsAndSelf(new DirectoryInfo(Path.GetDirectoryName(path)!))
                 .FirstOrDefault(parent => parent.Extension.Equals(".app", StringComparison.OrdinalIgnoreCase))
             : null;
@@ -48,18 +48,18 @@ public static class UpdateInstallationDetector
         var manifestPath = appBundle is null
             ? Path.Combine(root, "BUILD_MANIFEST.json")
             : Path.Combine(root, "Contents", "Resources", "BUILD_MANIFEST.json");
-        var architecture = target == "macos" && RuntimeInformation.ProcessArchitecture == Architecture.Arm64
-            ? "arm64"
-            : "x86_64";
+        var architecture = target == UpdatePlatform.MacOS && RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            ? UpdatePlatform.Arm64
+            : UpdatePlatform.X64;
 
-        if (target == "linux" && PathsEqual(root, packageInstallRoot))
+        if (target == UpdatePlatform.Linux && PathsEqual(root, packageInstallRoot))
         {
-            return new UpdateInstallation(target, architecture, "package", root, path);
+            return new UpdateInstallation(target, architecture, UpdatePlatform.Package, root, path);
         }
 
         if (!File.Exists(manifestPath))
         {
-            return new UpdateInstallation(target, architecture, "development", root, path);
+            return new UpdateInstallation(target, architecture, UpdatePlatform.Development, root, path);
         }
 
         try
@@ -80,9 +80,9 @@ public static class UpdateInstallationDetector
             }
 
             // Kind is how the app is installed, not which file updates it: a macOS .app is updated by a disk image.
-            var kind = target == "windows" && File.Exists(Path.Combine(root, "INSTALLER_MARKER"))
-                ? "installer"
-                : target == "macos" && appBundle is not null ? "app-bundle" : "portable";
+            var kind = target == UpdatePlatform.Windows && File.Exists(Path.Combine(root, "INSTALLER_MARKER"))
+                ? UpdatePlatform.Installer
+                : target == UpdatePlatform.MacOS && appBundle is not null ? UpdatePlatform.AppBundle : UpdatePlatform.Portable;
             return new UpdateInstallation(target, architecture, kind, root, path);
         }
         catch (UpdateManifestException)

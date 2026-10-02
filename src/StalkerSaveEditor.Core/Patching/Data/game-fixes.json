@@ -2927,7 +2927,7 @@
     {
       "id": "cs.crash.kamp-no-animation",
       "game": "ClearSky",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "title": "Campfire NPC with no usable animation no longer crashes the game",
       "supportedSteamBuildIds": [
         "11450472"
@@ -2943,11 +2943,19 @@
           "replacementText": "\t\tstate = #temp > 0 and temp[math.random(#temp)] or \"wait\"\r\n",
           "expectedFileSha256": "5ad70724d1c162fbc21b982658800c000f8be2ebc4a08904603ab03b4a39449a",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/xr_kamp.script",
+          "expectedText": "\t \t\t\tabort(\"Invalid AI map at kamp point [%s]\", self.kamp_name)\r\n",
+          "replacementText": "\t \t\t\tdest_vertex = self.patrol:level_vertex_id(0)\r\n",
+          "expectedFileSha256": "5ad70724d1c162fbc21b982658800c000f8be2ebc4a08904603ab03b4a39449a",
+          "codePage": 28591,
+          "retailOnly": true
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
-      "problem": "xr_kamp.script picks a random campfire animation from those the NPC can play; when none fits, math.random(0) crashes: bad argument #1 to 'random' (interval is empty).",
-      "description": "If no campfire animation fits, the NPC uses the basic \"wait\" state instead of crashing.",
+      "problem": "xr_kamp.script picks a random campfire animation from those the NPC can play; when none fits, math.random(0) crashes: bad argument #1 to 'random' (interval is empty). A second fault: when no walkable point is found around a campfire, the script stops the game on purpose (\"Invalid AI map at kamp point\").",
+      "description": "If no campfire animation fits, the NPC uses the basic \"wait\" state instead of crashing. In that case the stalker goes to the campfire's own point (retail only: the Enhanced Edition already handles it).",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -3315,8 +3323,8 @@
     {
       "id": "cs.crash.treasure-given-twice",
       "game": "ClearSky",
-      "version": "1.0.0",
-      "title": "Re-entering the Garbage no longer crashes on Stringov's stash",
+      "version": "1.1.0",
+      "title": "Re-entering the Garbage no longer crashes on Stringov's stash; stash information is not sold twice after a load",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -3331,11 +3339,35 @@
           "replacementText": "\t\t\tlocal active_treasure = get_active_treasure_by_target(treasures[treasure_id].target)\r\n\t\t\tif active_treasure ~= treasure_id then abort(\"Unable to give treasure [%s] because inventory box is already in use by treasure [%s]\", treasure_id, active_treasure) end",
           "expectedFileSha256": "2bbeb69072ebfe63965c6f0739e47e1af0c50183e5dc148ffc3331cc176fc19e",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/treasure_manager.script",
+          "expectedText": "\ttreasures = {}\r\n\r\n\tfor i=0,n-1 do\r\n\t\tresult, section, value  = treasure_ini:r_line(\"list\",i,\"\",\"\")\r\n\t\ttreasures[section] = CTreasure(treasure_ini, section)\r\n",
+          "replacementText": "\ttreasures = {}\r\n\ttreasures_order = {}\r\n\r\n\tfor i=0,n-1 do\r\n\t\tresult, section, value  = treasure_ini:r_line(\"list\",i,\"\",\"\")\r\n\t\ttreasures[section] = CTreasure(treasure_ini, section)\r\n\t\ttreasures_order[i + 1] = section\r\n",
+          "expectedFileSha256": "2bbeb69072ebfe63965c6f0739e47e1af0c50183e5dc148ffc3331cc176fc19e",
+          "codePage": 28591,
+          "retailOnly": true
+        },
+        {
+          "relativePath": "gamedata/scripts/treasure_manager.script",
+          "expectedText": "\tset_save_marker(thread, \"save\", false, \"treasure_manager\")\r\n\tfor k,v in pairs(treasures) do\r\n",
+          "replacementText": "\tset_save_marker(thread, \"save\", false, \"treasure_manager\")\r\n\tfor i = 1, #treasures_order do\r\n\t\tlocal v = treasures[treasures_order[i]]\r\n",
+          "expectedFileSha256": "2bbeb69072ebfe63965c6f0739e47e1af0c50183e5dc148ffc3331cc176fc19e",
+          "codePage": 28591,
+          "retailOnly": true
+        },
+        {
+          "relativePath": "gamedata/scripts/treasure_manager.script",
+          "expectedText": "\tset_save_marker(thread, \"load\", false, \"treasure_manager\")\r\n\tfor k,v in pairs(treasures) do\r\n",
+          "replacementText": "\tset_save_marker(thread, \"load\", false, \"treasure_manager\")\r\n\tfor i = 1, #treasures_order do\r\n\t\tlocal v = treasures[treasures_order[i]]\r\n",
+          "expectedFileSha256": "2bbeb69072ebfe63965c6f0739e47e1af0c50183e5dc148ffc3331cc176fc19e",
+          "codePage": 28591,
+          "retailOnly": true
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code.",
-      "problem": "While Stringov is alive, re-entering the Garbage gives his smuggler stash again: ERROR: Unable to give treasure [gar_treasure_quest_smuggler_weapons] because inventory box is already in use by treasure [gar_treasure_quest_smuggler_weapons].",
-      "description": "Giving a stash that is already given is ignored; a real conflict between two different stashes still stops the game as before.",
+      "problem": "While Stringov is alive, re-entering the Garbage gives his smuggler stash again: ERROR: Unable to give treasure [gar_treasure_quest_smuggler_weapons] because inventory box is already in use by treasure [gar_treasure_quest_smuggler_weapons]. A second fault in the same script: The save stores two flags per stash (known, already paid for) without names, in the order the game happens to walk its stash table. That order is not the same in every session, so after a load the flags land on other stashes: stashes you bought come back as unsold and traders sell the same information again (GSC: STTR-1106).",
+      "description": "Giving a stash that is already given is ignored; a real conflict between two different stashes still stops the game as before. The flags are written and read in the fixed order of the stash list. A save made before the fix is read in the new order once; from the next save on the flags stay with their stashes. (This part is retail only: the Enhanced Edition already has it.)",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -3470,7 +3502,7 @@
     {
       "id": "cs.crash.marsh-creature-no-squad",
       "game": "ClearSky",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "title": "Marsh creature ambush no longer crashes on a stalker without a squad",
       "supportedSteamBuildIds": [
         "11450472"
@@ -3486,11 +3518,19 @@
           "replacementText": "\tself.npc_squad \t\t\t\t= sim_board.get_sim_board().squads[alife():object(self.target_npc:id()).squad_id]\r\n\tif self.npc_squad == nil then\r\n\t\tself.npc_squad = {squad_npc = {[self.target_npc_id] = true}}\r\n\tend\r\n",
           "expectedFileSha256": "b94d0ea76e81fc81a5be29a67569e11bd8f6c0056027cf5abb5cf8153f3cad14",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/sr_bloodsucker.script",
+          "expectedText": "\t\t\tbloodsucker_reaction.disable_bloodsucker_reaction(db.storage[k].object)\r\n",
+          "replacementText": "\t\t\tif db.storage[k] ~= nil then bloodsucker_reaction.disable_bloodsucker_reaction(db.storage[k].object) end\r\n",
+          "expectedFileSha256": "b94d0ea76e81fc81a5be29a67569e11bd8f6c0056027cf5abb5cf8153f3cad14",
+          "codePage": 28591,
+          "retailOnly": true
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane) and STCS Redux 2.6.3 (credited to the Shoker mod team); our own guard in the retail script.",
-      "problem": "The marsh creature (bloodsucker) ambush in the Swamps and Agroprom makes the victim's squad react; if the victim has no squad any more, the game crashes: sr_bloodsucker.script:428: attempt to index field 'npc_squad' (a nil value).",
-      "description": "A victim without a squad reacts alone instead of crashing the game.",
+      "problem": "The marsh creature (bloodsucker) ambush in the Swamps and Agroprom makes the victim's squad react; if the victim has no squad any more, the game crashes: sr_bloodsucker.script:428: attempt to index field 'npc_squad' (a nil value). A second fault in the same scene: when it ends, the reaction is switched off for every squad member, including one who is no longer in the level (attempt to index field '?' (a nil value)).",
+      "description": "A victim without a squad reacts alone instead of crashing the game. Squad members who are not in the level are skipped (retail only: the Enhanced Edition already has this check).",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -5030,6 +5070,228 @@
       "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
       "references": [
         "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.logic.upgrade-task-id-leak",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Mechanics no longer take a new task id every time their upgrade tasks are checked",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/task_manager.script",
+          "expectedText": "\t\t\tlocal task = v:get_inited_task(obj, faction, self.id_generator:get_id())\r\n\t\t\tif self.inited_find_upgrade_tasks[obj:id()][task.id] == nil then\r\n",
+          "replacementText": "\t\t\tif self.inited_find_upgrade_tasks[obj:id()][v.base_id] == nil then\r\n\t\t\t\tlocal task = v:get_inited_task(obj, faction, self.id_generator:get_id())\r\n",
+          "expectedFileSha256": "92efd3d7c7f347c192fa94e8c4ad7023564b82a88772f09f5387d5da1218adb1",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "Every time a mechanic is asked which \"find the tool\" tasks he can give, the script first builds a new task and takes a new id from the task id pool, and only then notices that this task already exists. The pool is saved with the game and is never given back.",
+      "description": "The existing task is looked up first; a task and an id are created only for a task that does not exist yet. The key stays the same, so saves are unaffected.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cs.crash.illegal-state",
+      "game": "ClearSky",
+      "version": "1.0.0",
+      "title": "Crash when an NPC is given a state that does not exist",
+      "supportedSteamBuildIds": [
+        "11450472"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/state_mgr.script",
+          "expectedText": "\t\tabort(\"ERROR: ILLEGAL SET STATE CALLED!!! %s fo %s\", tostring(state_name), self.npc:name())\r\n",
+          "replacementText": "\t\tprintf(\"ERROR: ILLEGAL SET STATE CALLED!!! %s fo %s\", tostring(state_name), self.npc:name())\r\n\t\treturn\r\n",
+          "expectedFileSha256": "7f3fcd77e63c610e2b1cde8eb5dd08cdf207553a2566481d08bf0a48037055af",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
+      "problem": "When a script asks for an NPC state that is not in the state table, the state manager stops the game on purpose (\"ILLEGAL SET STATE CALLED\").",
+      "description": "The request is written to the log and ignored; the NPC keeps its current state.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Clear Sky - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.crash.patrol-without-commander",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Crash when a patrol member asks for orders and the patrol has no commander",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_patrol.script",
+          "expectedText": "    local commander = self.npc_list[self.commander_id].soldier\r\n    \r\n    local dir = commander:direction ()\r\n",
+          "replacementText": "    local commander_info = self.npc_list[self.commander_id]\r\n    if commander_info == nil or commander_info.soldier == nil then\r\n       return npc:level_vertex_id (), npc:direction (), self.current_state, false\r\n    end\r\n    local commander = commander_info.soldier\r\n    \r\n    local dir = commander:direction ()\r\n",
+          "expectedFileSha256": "ca5ba863452017450ada8ef8c03aaa491c09eb9fbaecb4d55e1a011c7aaf33aa",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) fixes the same places.",
+      "problem": "A patrol member takes his position from the patrol's commander. When the commander is gone (killed or removed) and nobody took over yet, the script reads a field of nothing and the game crashes: xr_patrol.script: attempt to index field '?' (a nil value).",
+      "description": "Without a commander the member holds his position until there is one.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.quest.agroprom-underground-exit",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Agroprom: Strelok's stash task completes when you leave the underground the way you came",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/agroprom_tasks.script",
+          "expectedText": "function agr_actor_enemy ()\r\n",
+          "replacementText": "function agr_gunslinger_check_complete()\r\n\tif has_alife_info(\"agr_find_gunslinger_cache_final\") then\r\n\t\treturn true\r\n\tend\r\n\treturn level.name() ~= \"l03u_agr_underground\" and has_alife_info(\"agr_find_gunslinger_cache_found\")\r\nend\r\n\r\nfunction agr_actor_enemy ()\r\n",
+          "expectedFileSha256": "7a05ce627af006b80ed782b88e451387b996409241e8c1616b95dc59267b09c9",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/gameplay/tasks_agroprom.xml",
+          "expectedText": "\t\t<infoportion_complete>agr_find_gunslinger_cache_final</infoportion_complete>\r\n\t\t<article>agroprom_find_gunslinger_cache</article>\r\n",
+          "replacementText": "\t\t<function_complete>agroprom_tasks.agr_gunslinger_check_complete</function_complete>\r\n\t\t<article>agroprom_find_gunslinger_cache</article>\r\n",
+          "expectedFileSha256": "ba43ee87a82fad48a915fe271ba265f7c71e1792efda4c6c1cbd5f3d17077142",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/config/gameplay/tasks_agroprom.xml",
+          "expectedText": "\t\t<map_location_hidden>1</map_location_hidden>\r\n\t\t<infoportion_complete>agr_find_gunslinger_cache_final</infoportion_complete>\r\n",
+          "replacementText": "\t\t<map_location_hidden>1</map_location_hidden>\r\n\t\t<function_complete>agroprom_tasks.agr_gunslinger_check_complete</function_complete>\r\n",
+          "expectedFileSha256": "ba43ee87a82fad48a915fe271ba265f7c71e1792efda4c6c1cbd5f3d17077142",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) fixes the same places.",
+      "problem": "After taking the documents from Strelok's stash the task waits for one particular exit of the underground. Leaving through the entrance you came in by does not complete it, and the objective stays in the PDA.",
+      "description": "The objective and the task also complete when the stash was found and the player is no longer in the underground.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "soc.logic.dark-valley-sos-bloodsucker",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Dark Valley: only the scripted bloodsucker plays the wounded-stalker scene",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/gulag_dark_valley.script",
+          "expectedText": "function sos_predicate_bs(npc_info) -- bloodsucker\r\n    return npc_info.community == \"bloodsucker\"\r\n",
+          "replacementText": "function sos_predicate_bs(npc_info) -- bloodsucker\r\n    return npc_info.story_id == 436\r\n",
+          "expectedFileSha256": "fa4a3e500283a3b3daafdb832028adfae2e57f6a0dd87362fec024a775f323f0",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it; ZRP 1.07 R5 (NatVac) fixes the same places.",
+      "problem": "The scene with the wounded stalker at the petrol station has a role for one particular bloodsucker, but the role is offered to any bloodsucker in the camp. Another one can take it and leave the scripted creature without its part.",
+      "description": "The role is bound to the scripted bloodsucker (story id 436, val_sos_bs).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/",
+        "S.T.A.L.K.E.R.: Shadow of Chornobyl - Enhanced Edition, gamedata/scripts (comparison with retail)"
+      ]
+    },
+    {
+      "id": "cop.quest.hostage-artefact-once",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Jupiter: the Goldfish for the hostage deal is handed over once",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/dialogs_jupiter.script",
+          "expectedText": "\tdialogs.relocate_item_section_to_actor(first_speaker, second_speaker, \"af_gold_fish\")\r\n\tif has_alife_info(\"jup_a12_stalker_prisoner_free_dialog_done\") then\r\n",
+          "replacementText": "\tif not has_alife_info(\"jup_a12_gave_artefact\") then\r\n\t\tdialogs.relocate_item_section_to_actor(first_speaker, second_speaker, \"af_gold_fish\")\r\n\t\tdb.actor:give_info_portion(\"jup_a12_gave_artefact\")\r\n\tend\r\n\tif has_alife_info(\"jup_a12_stalker_prisoner_free_dialog_done\") then\r\n",
+          "expectedFileSha256": "3b486f2b1481cb22ba1d302ed275f8e2c74101491a910f81c5088863aec42ee9",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/gameplay/info_jupiter.xml",
+          "expectedText": "\t<info_portion id=\"jup_a12_stalker_prisoner_free_dialog_done\"></info_portion>\r\n",
+          "replacementText": "\t<info_portion id=\"jup_a12_stalker_prisoner_free_dialog_done\"></info_portion>\r\n\t<info_portion id=\"jup_a12_gave_artefact\"></info_portion>\r\n",
+          "expectedFileSha256": "ad95f1c9b92bccabe5c6d1d7d482f767136ec4a04ef6d10e870da8b2b3d08682",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition scripts carry a fix for it.",
+      "problem": "Three different replies of the hostage negotiation run the same action that gives the Goldfish artefact, and nothing remembers that it was already given. Going through more than one of them gives the artefact again.",
+      "description": "The action remembers that the artefact was given (a new info portion, declared in the Jupiter info list) and gives it only once.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "S.T.A.L.K.E.R.: Call of Prypiat - Enhanced Edition, gamedata/scripts (comparison with retail)"
       ]
     }
   ],

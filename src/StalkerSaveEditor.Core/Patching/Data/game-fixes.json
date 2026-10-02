@@ -3022,8 +3022,8 @@
     {
       "id": "cs.crash.capture-task-missing-squad",
       "game": "ClearSky",
-      "version": "1.0.0",
-      "title": "Task crashes fixed: capture task for a missing squad, story task for a missing NPC (Wild Napr)",
+      "version": "1.1.0",
+      "title": "Task crashes fixed: capture task for a missing squad, story task for a missing NPC (Wild Napr); 'capture' and 'defend' tasks no longer stop the game on a missing squad or call time",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -3052,11 +3052,61 @@
           "replacementText": "\tlocal task = tm:select_task(task_type, target_obj, faction_name)\r\n\tif task == nil then\r\n\t\treturn\r\n\tend\r\n\ttask:give_task(faction_name)\r\n",
           "expectedFileSha256": "b10cdb3ac5feea8115bebdc434bdac9862235bd458f34bca6e49396c27147e38",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\t\t\tif self.counter_attack == true and\r\n\t\t\t\t self.counter_attack_community ~= \"none\" and\r\n\t\t\t\t self.board.players[self.counter_attack_community].brain.use_counter_attack == true\r\n",
+          "replacementText": "\t\t\tif self.counter_attack == true and\r\n\t\t\t\t self.counter_attack_community ~= nil and\r\n\t\t\t\t self.counter_attack_community ~= \"none\" and\r\n\t\t\t\t self.board.players[self.counter_attack_community] ~= nil and\r\n\t\t\t\t self.board.players[self.counter_attack_community].brain.use_counter_attack == true\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\t\t\t\t\tally_squad = vv\r\n\t\t\t\t\tbreak\r\n\t\t\t\tend\r\n",
+          "replacementText": "\t\t\t\t\tally_squad = vv\r\n\t\t\t\t\tbreak\r\n\t\t\t\tend\r\n\t\t\t\tif ally_squad == nil then\r\n\t\t\t\t\tself.counter_attack = false\r\n\t\t\t\t\treturn\r\n\t\t\t\tend\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "\t\t\t\t\tself.counter_sound_started = true\r\n\t\t\t\t\treturn\r\n\t\t\t\tend\r\n\t\t\t\tif not ally_squad.sound_manager:is_finished() then\r\n",
+          "replacementText": "\t\t\t\t\tself.counter_sound_started = true\r\n\t\t\t\t\tself.counter_sound_time = time_global()\r\n\t\t\t\t\treturn\r\n\t\t\t\tend\r\n\t\t\t\tif not ally_squad.sound_manager:is_finished() and self.counter_sound_time ~= nil and time_global() - self.counter_sound_time < 60000 then\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "function CDefendSmartTask:give_task(community)\r\n\ttask_objects.CGeneralTask.give_task(self, community)\r\n",
+          "replacementText": "function CDefendSmartTask:give_task(community)\r\n\ttask_objects.CGeneralTask.give_task(self, community)\r\n\tself.last_called_time = game.get_game_time()\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "function CDefendSmartTaskDelay:give_task(community)\r\n\ttask_objects.CGeneralTask.give_task(self, community)\r\n",
+          "replacementText": "function CDefendSmartTaskDelay:give_task(community)\r\n\ttask_objects.CGeneralTask.give_task(self, community)\r\n\tself.last_called_time = game.get_game_time()\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "function CDefendSmartTask:load(reader)\r\n\tset_save_marker(reader, \"load\", false, \"CDefendSmartTask\")\r\n\ttask_objects.CGeneralTask.load(self, reader)\r\n\tself.target = reader:r_u16()\r\n\tself.last_called_time = utils.r_CTime(reader)\r\n",
+          "replacementText": "function CDefendSmartTask:load(reader)\r\n\tset_save_marker(reader, \"load\", false, \"CDefendSmartTask\")\r\n\ttask_objects.CGeneralTask.load(self, reader)\r\n\tself.target = reader:r_u16()\r\n\tself.last_called_time = utils.r_CTime(reader)\r\n\tif self.last_called_time == nil then\r\n\t\tself.last_called_time = game.get_game_time()\r\n\tend\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_objects.script",
+          "expectedText": "function CDefendSmartTaskDelay:load(reader)\r\n\tset_save_marker(reader, \"load\", false, \"CDefendSmartTask\")\r\n\ttask_objects.CGeneralTask.load(self, reader)\r\n\tself.target = reader:r_u16()\r\n\tself.last_called_time = utils.r_CTime(reader)\r\n",
+          "replacementText": "function CDefendSmartTaskDelay:load(reader)\r\n\tset_save_marker(reader, \"load\", false, \"CDefendSmartTask\")\r\n\ttask_objects.CGeneralTask.load(self, reader)\r\n\tself.target = reader:r_u16()\r\n\tself.last_called_time = utils.r_CTime(reader)\r\n\tif self.last_called_time == nil then\r\n\t\tself.last_called_time = game.get_game_time()\r\n\tend\r\n",
+          "expectedFileSha256": "c7c325c4cb0c9403d9bc4ccdae1ab383292124b5dad3689f543a60046f8d49a1",
+          "codePage": 28591,
+          "retailOnly": true
         }
       ],
       "source": "Our fix for a crash listed in SRP 1.1.5 (Decane, github.com/Decane/SRP): we guard the crashing line in the retail script; not SRP's code; the Wild Napr crash message is from the SRP 1.1.5 version history.",
-      "problem": "Giving a 'capture' task to a squad that was already removed crashes: task_objects.script: attempt to index field '?' (a nil value). Also: a story task whose target NPC is not on his job (Wild Napr while the Flea Market is fighting, or after he died offline) aborts the game: wrong target for storyline quest: logic@work5,gar_smart_terrain_6_3.",
-      "description": "The capture task is given only if the squad still exists; a story task whose target NPC is missing is simply not given for now.",
+      "problem": "Giving a 'capture' task to a squad that was already removed crashes: task_objects.script: attempt to index field '?' (a nil value). Also: a story task whose target NPC is not on his job (Wild Napr while the Flea Market is fighting, or after he died offline) aborts the game: wrong target for storyline quest: logic@work5,gar_smart_terrain_6_3. 'Capture' tasks: when the camp is taken, the script announces the counter-attack through the first allied squad in the camp. If no squad is there any more, or the former owner is unknown, it indexes a missing value and the game stops; and it waits for the announcement to end without a time limit, so the task can hang for ever. 'Defend' tasks: the time of the last call for help is set only when a defending squad is in the camp; without one the next check compares with a missing time and the game stops.",
+      "description": "The capture task is given only if the squad still exists; a story task whose target NPC is missing is simply not given for now. The counter-attack is skipped when there is nobody to announce it, the wait for the announcement ends after a minute, and the 'defend' call time is always set (also when an older save is loaded without it).",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -5089,8 +5139,8 @@
     {
       "id": "cs.logic.upgrade-task-id-leak",
       "game": "ClearSky",
-      "version": "1.1.0",
-      "title": "Mechanics no longer take a new task id every time their upgrade tasks are checked; loading a save no longer turns offered faction-war tasks into active ones",
+      "version": "1.2.0",
+      "title": "Mechanics no longer take a new task id every time their upgrade tasks are checked; loading a save no longer turns offered faction-war tasks into active ones; mechanics' tasks are cancelled after a load too",
       "supportedSteamBuildIds": [
         "11450472"
       ],
@@ -5112,11 +5162,18 @@
           "replacementText": "\t\t\tif(obj.status==\"selected\") and ((t==\"eliminate_smart\") or (t==\"capture_smart\") or (t==\"defend_smart\") or (t==\"defend_smart_delay\")) then\r\n\t\t\t\tself.tasks_by_smarts[obj.target] = obj\r\n",
           "expectedFileSha256": "92efd3d7c7f347c192fa94e8c4ad7023564b82a88772f09f5387d5da1218adb1",
           "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/task_manager.script",
+          "expectedText": "\t\t\tself.inited_find_upgrade_tasks[k][kk] = self:get_task_by_entity_id(ei)\r\n",
+          "replacementText": "\t\t\tself.inited_find_upgrade_tasks[k][kk] = self:get_task_by_entity_id(ei)\r\n\t\t\tif self.inited_find_upgrade_tasks[k][kk] ~= nil and self.inited_find_upgrade_tasks[k][kk].target == nil then\r\n\t\t\t\tself.inited_find_upgrade_tasks[k][kk].target = k\r\n\t\t\tend\r\n",
+          "expectedFileSha256": "92efd3d7c7f347c192fa94e8c4ad7023564b82a88772f09f5387d5da1218adb1",
+          "codePage": 28591
         }
       ],
       "source": "Our own change for the retail Steam build. The fault is confirmed by GSC: the Enhanced Edition carries a fix for it.",
-      "problem": "Every time a mechanic is asked which \"find the tool\" tasks he can give, the script first builds a new task and takes a new id from the task id pool, and only then notices that this task already exists. The pool is saved with the game and is never given back. Loading a save: the table of camps that have an active capture, eliminate or defend task is filled from every saved task of those kinds, including tasks that were only offered and never accepted. In play that table gets a task only when it is accepted. After a load the game therefore believes dozens of camps are under an active player task: squads wait for the player, the faction war stalls and the hold-up scheme stops working at those camps.",
-      "description": "The existing task is looked up first; a task and an id are created only for a task that does not exist yet. The key stays the same, so saves are unaffected. On load only accepted tasks are put into the table, as in play (SRP and the Enhanced Edition do the same).",
+      "problem": "Every time a mechanic is asked which \"find the tool\" tasks he can give, the script first builds a new task and takes a new id from the task id pool, and only then notices that this task already exists. The pool is saved with the game and is never given back. Loading a save: the table of camps that have an active capture, eliminate or defend task is filled from every saved task of those kinds, including tasks that were only offered and never accepted. In play that table gets a task only when it is accepted. After a load the game therefore believes dozens of camps are under an active player task: squads wait for the player, the faction war stalls and the hold-up scheme stops working at those camps. A mechanic's 'find the flash drive' task forgets its mechanic when a save is loaded (the id is not saved), so the task is no longer cancelled when he dies or turns hostile and stays in the PDA for ever.",
+      "description": "The existing task is looked up first; a task and an id are created only for a task that does not exist yet. The key stays the same, so saves are unaffected. On load only accepted tasks are put into the table, as in play (SRP and the Enhanced Edition do the same). On load the mechanic is restored from the table the tasks are stored under; nothing new is written into the save.",
       "implementation": "ExactTextReplacement",
       "requiresNewGame": false,
       "saveCompatibility": "Unknown",
@@ -6421,7 +6478,13 @@
     "cs.crash.capture-task-missing-squad": [
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
       "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
-      "6ca034bd289e41f4247d3758f8938d40bff34042be7b4fc72f720232093ccf37"
+      "6ca034bd289e41f4247d3758f8938d40bff34042be7b4fc72f720232093ccf37",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965",
+      "01d2c7c260aeb78906c5c841454e782bc201ad2b0bc786b719f385504b067965"
     ],
     "cs.crash.limansk-missing-logic": [
       "c497cb4e69857db7aaba2d3b87d1ffc0203f46b3a773dd231a5ffaf01b57510f",

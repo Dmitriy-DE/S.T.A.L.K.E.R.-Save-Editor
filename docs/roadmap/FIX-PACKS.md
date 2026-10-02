@@ -22,7 +22,8 @@ Authors are credited in every entry (open-source project, attribution, no sale).
 | Game | Source | Where | Size | Status |
 |---|---|---|---|---|
 | CS | SRP 1.1.5 (Decane) | github.com/Decane/SRP | 506 changelog entries (319 fixes); 611 changed + 66 new files | diffed against retail; 25 individual fixes ported |
-| SoC | ZRP 1.07 R5RC (NatVac) | metacognix.com/files/stlkrsoc | hundreds of fixes | downloaded, not diffed yet; 15 ported |
+| SoC | ZRP 1.07 R5RC (NatVac) | metacognix.com/files/stlkrsoc | hundreds of fixes | change logs used as the list of known faults; 26 fixes (15 config, 8 crash, 3 logic) |
+| SoC / CS / CoP | GSC's own Enhanced Edition scripts | the installed EE games | retail vs EE: `tools/ee_diff.py` | faults GSC fixed itself; the retail fix is written by us (SoC 7, CS 5, CoP 5) |
 | CoP | stalker-cop-patch (victor-homyakov) | github | 13 items, 24 files | 18 ported |
 | CoP | Pripyat Reclamation Patch | ModDB (files deleted) | — | 6 ported earlier; source mirror needed |
 | CoP EE | UCoPEEP | Steam Workshop 3487808500 | 1 gameplay change | ported (#184) |
@@ -42,11 +43,11 @@ in scripts.
 | FP-2 | Research tools: pack diff (`fixes build-pack`), missing logic-section checker (`tools/check_logic_refs.py`) | done | #187, #192 |
 | FP-3 | Hunk extractor: split each source diff into minimal anchored text changes, grouped per file, mapped to changelog entries | todo | |
 | FP-4 | SRP critical fixes as our own entries (45: crashes, save corruption, stuck quests) + crash signatures | in progress (SRP crash list: 26 of 33 done) | #189–#193 |
-| FP-5 | SRP desirable fixes (quests, rewards, NPC logic) | todo | |
+| FP-5 | CS desirable fixes (quests, rewards, NPC logic) | in progress: 5 EE-confirmed (mutant without squad, helicopter save, patrol index, trade, flare timer) | #227 |
 | FP-6 | SRP optional fixes (balance, sound, extras), off by default | todo | |
-| FP-7 | ZRP critical + desirable fixes as our own entries | todo | |
+| FP-7 | SoC critical + desirable fixes as our own entries | in progress: 8 crash fixes, 3 logic fixes | #226, #231 |
 | FP-8 | ZRP optional fixes | todo | |
-| FP-9 | CoP: remaining stalker-cop-patch items; PRP source mirror | todo | |
+| FP-9 | CoP: EE-confirmed fixes; remaining stalker-cop-patch items; PRP source mirror | in progress: 5 EE-confirmed | #228 |
 | FP-10 | EE variants for every ported fix where the EE file allows | in progress (full EE dump + `tools/ee_variants.py`; CS EE 36) | #200 |
 | FP-11 | Steam Workshop package of the companion (.pack writer + upload after owner OK) | todo | |
 | FP-12 | Structural all.spawn editor (`AllSpawnEditor`, `Structured` fixes) + SRP's all.spawn errors | done: 43 edits; SRP clean-ups/gameplay not ported | #201 |
@@ -86,7 +87,39 @@ in scripts.
 | Logic loaded before the player exists (save corruption) | — | todo: cause not pinned down |
 | Flea Market basement mugging corrupts the game | — | todo: SRP replaces a story-id deletion with effectors |
 
+## Method: faults confirmed by GSC (Enhanced Edition)
+
+`fixes extract TARGET GAME_DIR OUT --archives-only scripts/ configs/` dumps a game as shipped; `tools/ee_diff.py RETAIL EE`
+prints what differs between the retail and the Enhanced Edition scripts with comments, whitespace and encoding
+ignored. A guard or a corrected condition that GSC added in the EE proves the retail fault. The fix is then written
+for the retail file by us (the EE engine has functions retail lacks, so EE code is not copied) and gets an EE variant
+only when the EE file still has the fault.
+
+Candidates seen in the diffs and not ported yet:
+
+| Game | File | What GSC changed |
+|---|---|---|
+| SoC | `xr_patrol.script` | patrol manager stops the game on a missing commander → returns nothing (callers must cope) |
+| SoC | `xr_logic.script` | logic initialised before the player exists; `selective` as an alias of `active` |
+| SoC | `gulag_dark_valley.script` | the "sos" bloodsucker job is bound to one creature instead of any bloodsucker |
+| SoC | `dialogs_military.script` | reward item of a Freedom dialog |
+| SoC | `agroprom_tasks.script` | "find Strelok's stash" completes when leaving the underground with the stash found |
+| CS | `sr_bloodsucker.script` | reaction switched off for squad members who are not in the level (same file as `cs.crash.marsh-creature-no-squad`, whose EE variant must stay valid) |
+| CS | `guiders.script` | guide availability condition (`or` → `and`) |
+| CS | `state_mgr_animation.script` | sub-animation loop never ran (`for key = n, 0 do`) |
+| CS | `task_manager.script` | upgrade-search tasks stored under the wrong key |
+| CS | `dialogs_escape.script`, `minigame_dialogs.script` | who pays 500 RU for support; bet equal to the player's money |
+| CS | `treasure_manager.script` | stash states saved in table order, which is not stable |
+| CS | `sound_manager.script`, `state_mgr.script`, `xr_kamp.script` | nil guards; deliberate stops turned into log lines |
+| CoP | `dialogs.script`, `dialogs_jupiter.script` | Jupiter task conditions (`jup_a10`, `jup_a12`) |
+| CoP | `outro_cond.script` | Noah's ending slide ignores the death of his dog |
+
 ## Change log
+
+- 2026-10-02 — SoC, CS, CoP batches (#226–#228, #231): 8 SoC crash fixes and 3 logic fixes, 5 CS and 5 CoP fixes for
+  faults GSC fixed in the Enhanced Editions. New research tools: `fixes extract`, `tools/ee_diff.py`. Each preset was
+  installed with the CLI into a hard-linked pristine copy of the real install and removed again without leftovers
+  (SoC 23, CS 47, CoP 16 fixes); every patched script passes `luac5.1 -p`. Nothing was run in the games.
 
 - 2026-09-30 — batches 11–13 (#200–#203) and FP-12 (#201): Wild Napr story task; structural all.spawn editor with 43 fixes
   (25 waypoints on existing saves, 18 object settings for new games) verified by re-parsing the real retail file; missing

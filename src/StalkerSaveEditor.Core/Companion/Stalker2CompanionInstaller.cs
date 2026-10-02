@@ -81,8 +81,23 @@ public sealed class Stalker2CompanionInstaller(string modSourceRoot)
         CopyDirectory(SourceDirectory, staging);
         var build = BundledBuild();
         File.WriteAllText(Path.Combine(staging, MarkerFileName), JsonSerializer.Serialize(new Dictionary<string, string> { ["build"] = build ?? "unknown" }, Stalker2MarkerJson.Default.DictionaryStringString));
-        if (Directory.Exists(target)) Directory.Delete(target, recursive: true); // ours: the marker was checked above
-        Directory.Move(staging, target);
+        // The installed copy (ours: the marker was checked above) is set aside, not deleted, until the new one is in
+        // place: a failure in between puts it back instead of leaving the game without the mod.
+        var previous = target + ".previous";
+        if (Directory.Exists(previous)) Directory.Delete(previous, recursive: true);
+        var hadTarget = Directory.Exists(target);
+        if (hadTarget) Directory.Move(target, previous);
+        try
+        {
+            Directory.Move(staging, target);
+        }
+        catch (Exception exception) when (hadTarget && exception is IOException or UnauthorizedAccessException)
+        {
+            if (!Directory.Exists(target)) Directory.Move(previous, target);
+            throw;
+        }
+
+        if (hadTarget) Directory.Delete(previous, recursive: true);
         return GetStatus(status.GameDirectory, steamRoots);
     }
 

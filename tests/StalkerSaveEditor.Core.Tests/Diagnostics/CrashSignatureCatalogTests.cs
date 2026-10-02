@@ -22,6 +22,9 @@ public sealed class CrashSignatureCatalogTests
     [Theory]
     [InlineData("[error]Arguments     : LUA error: ...\\sim_combat.script:419: attempt to index field 'actor' (a nil value)", "cs", "cs.sim-combat-actor-nil")]
     [InlineData("smart_terrain.script:483: Insufficient smart_terrain jobs val_smart_terrain_9_6", "cs", "cs.insufficient-smart-jobs")]
+    [InlineData("ERROR: cant find animation for slot 8", "cs", "cs.hospital-jump-down-animation")]
+    [InlineData("LUA error: ... clear sky\\gamedata\\scripts\\sim_squad_generic.script:1184: attempt to index field '?' (a nil value)", "cs", "cs.squad-hint-unknown-target")]
+    [InlineData("LUA error: xr_logic: pstor_load_all: not registered type N 147 encountered", "cs", "cs.pstor-unknown-type")]
     [InlineData("[error]Description   : entity not found. id_parent=1350 id_entity=1312 frame=11471", "soc", "soc.entity-not-found")]
     [InlineData("- Critical: SMapLocation binded to non-existent object id=4242", "soc", "soc.map-location-dead-object")]
     public void Quoted_messages_match_their_signature(string log, string game, string id)

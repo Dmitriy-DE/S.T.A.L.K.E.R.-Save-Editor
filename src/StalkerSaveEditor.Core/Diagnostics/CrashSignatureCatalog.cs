@@ -17,6 +17,8 @@ public enum CrashAdvice
     CommunityPatch,
     /// <summary>The save itself is damaged; only an older save helps.</summary>
     CorruptSave,
+    /// <summary>Game files are missing or left over from a mod: remove the loose <c>gamedata</c> files and verify the game files.</summary>
+    RepairInstallation,
 }
 
 /// <summary>A crash message documented by a community patch history, matched against a game log.</summary>
@@ -46,6 +48,8 @@ public static class CrashSignatureCatalog
     private const string Zrp = "ZRP 1.09 XR3a, gamedata/docs/CrashesStillInTheGame.txt (metacognix.com)";
     private const string ClearSky = "cs";
     private const string Shadow = "soc";
+    private const string AnyGame = "any";
+    private const string Players = "Players' crash logs, Steam discussions of the three games (2026-10)";
 
     private static Regex P(string pattern) =>
         new(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
@@ -300,6 +304,33 @@ public static class CrashSignatureCatalog
         {
             Pattern = P(@"bad argument #2 to 'format' \(string expected, got no value\)"),
         },
+        // The installation, not the game: what players' logs of all three games show most often. Kept last, so a
+        // message a fix or a patch explains is named first.
+        new("any.missing-model", AnyGame, "A model file is missing", CrashAdvice.RepairInstallation,
+            "The game asked for a model that is not on disk: files left by a removed mod name it, or game files are missing.", Players)
+        {
+            Pattern = P(@"Can't find model file '"),
+        },
+        new("any.missing-section", AnyGame, "A config section is missing", CrashAdvice.RepairInstallation,
+            "A config names a section no file defines: loose configs of a mod do not match the rest of the game.", Players)
+        {
+            Pattern = P(@"Can't open section '"),
+        },
+        new("any.missing-config-value", AnyGame, "A config value is missing", CrashAdvice.RepairInstallation,
+            "A section lacks a value the engine needs: the config comes from another version of the game or from a mod.", Players)
+        {
+            Pattern = P(@"Can't find variable \S+ in \["),
+        },
+        new("any.missing-string-table", AnyGame, "Text files are missing", CrashAdvice.RepairInstallation,
+            "The list of text files was not found: the language set in localization.ltx is not installed, or game files are missing.", Players)
+        {
+            Pattern = P(@"string table xml file not found"),
+        },
+        new("any.config-not-opened", AnyGame, "A game file could not be opened", CrashAdvice.RepairInstallation,
+            "A file the game needs was not opened (hFile>0): it is missing, locked or damaged by an edit.", Players)
+        {
+            Pattern = P(@"Expression\s*:\s*hFile>0"),
+        },
     ];
 
     /// <summary>The first signature whose pattern occurs in the log, limited to one game when it is known.</summary>
@@ -307,7 +338,7 @@ public static class CrashSignatureCatalog
     {
         ArgumentNullException.ThrowIfNull(text);
         var key = NormalizeGame(game);
-        return All.FirstOrDefault(signature => (key is null || signature.Game == key) && signature.Pattern.IsMatch(text));
+        return All.FirstOrDefault(signature => (key is null || signature.Game == key || signature.Game == AnyGame) && signature.Pattern.IsMatch(text));
     }
 
     private static string? NormalizeGame(string? game) => game?.Trim().ToLowerInvariant() switch

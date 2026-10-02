@@ -1,4 +1,4 @@
-# Handoff — state on 2026-10-02 (after v1.2.0)
+# Handoff — state on 2026-10-02 (v1.3.0)
 
 Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap/STATE.md`, and
 `docs/roadmap/AUDIT_2026-10-02.md` (what the documents promise against what the code has).
@@ -8,7 +8,7 @@ Read this first, then `AGENTS.md`, `ARCHITECTURE.md`, `README.md`, `docs/roadmap
 | What | Where |
 |---|---|
 | Code (only live repo) | `github.com/Dmitriy-DE/S.T.A.L.K.E.R.-Save-Editor` (renamed from `-Next`). Python repo `S.T.A.L.K.E.R.-Save_Editor` is archived, ignore it. |
-| Released | v1.2.0 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
+| Released | v1.3.0 (GitHub Release + R2 update server `save-editor-downloads.save-editor.workers.dev/latest.json`) |
 | Web edition | `stalker-save-editor.pages.dev` (C# WASM, deployed by hand) |
 | Local worktrees | `~/Projects/save-editor-next-claude` (Claude merge queue), `~/Projects/save-editor-review-claude` (Claude edits — never edit where a queue script runs: it resets hard), `~/Projects/save-editor-next` (Codex) |
 | Owner's games (Linux, Proton) | `~/.local/share/Steam/steamapps/common/` — SoC, CS (+OGSM mod), CoP, three EE; S2 via GFN only (no mods there) |

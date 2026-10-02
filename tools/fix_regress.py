@@ -127,7 +127,8 @@ def overlay(dumps, tree, dest, changed):
     """A full copy of the dump (hard links) with the patched files written over it; returns its path."""
     full = dest + '-full'
     shutil.rmtree(full, ignore_errors=True)
-    roots = [tree] + (['cs-scripts'] if tree == 'cs-all' else [])
+    # an older dump layout kept the retail Clear Sky scripts in a folder of their own
+    roots = [tree] + (['cs-scripts'] if tree == 'cs-all' and os.path.isdir(os.path.join(dumps, 'cs-scripts')) else [])
     for root in roots:
         src = os.path.join(dumps, root)
         dst = os.path.join(full, 'scripts') if root == 'cs-scripts' else full
@@ -141,7 +142,7 @@ def overlay(dumps, tree, dest, changed):
 
 def run_checkers(root, base_roots):
     """Findings of every checker as a set of lines with the tree prefix removed."""
-    cfg = 'config' if os.path.isdir(os.path.join(root, 'config')) else 'configs'
+    cfg = 'configs' if os.path.isdir(os.path.join(root, 'configs')) else 'config'  # only SoC spells it 'config'
     ltx = [os.path.join(d, f) for d, _, fs in os.walk(os.path.join(root, cfg)) for f in fs if f.endswith('.ltx')]
     xml = [os.path.join(d, f) for d, _, fs in os.walk(os.path.join(root, cfg, 'gameplay')) for f in fs
            if f.startswith('dialogs') and f.endswith('.xml')]

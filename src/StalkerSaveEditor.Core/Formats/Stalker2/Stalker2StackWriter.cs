@@ -55,6 +55,12 @@ public static class Stalker2StackWriter
                 throw Error($"Object 0x{handle:X8} is not a confirmed editable S2 stack or exceeds its max_stack.");
             }
 
+            if (!Stalker2InventoryReader.IsEditableStack(item.KindCode, count))
+            {
+                // Said here, before anything is packed: the read-back below would refuse the same thing in vaguer words.
+                throw Error($"Object 0x{handle:X8} cannot be reduced to {count}: for this kind of item only a stack of two or more is confirmed.");
+            }
+
             var countOffset = checked(item.RecordOffset + StackCountOffset);
             var weightOffset = checked(item.RecordOffset + StackWeightOffset);
             if (countOffset < 0 || weightOffset < 0 ||

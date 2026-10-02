@@ -254,6 +254,14 @@ public static class Stalker2InventoryReader
     private static readonly HashSet<byte> StackKinds = [4, 5, 7, 8];
     private static readonly HashSet<byte> SingleStackKinds = [4, 5, 7];
 
+    /// <summary>
+    /// A stack whose count may be written: consumables, ammunition and grenades with any count; carried quest and
+    /// misc items (kind 8) only while they hold more than one, because a single one of them was never confirmed in
+    /// the game as a stack.
+    /// </summary>
+    internal static bool IsEditableStack(byte kind, uint count) =>
+        (count > 1 && StackKinds.Contains(kind)) || (count >= 1 && SingleStackKinds.Contains(kind));
+
     public static Stalker2InventoryLayout LocateLayout(ReadOnlySpan<byte> raw)
     {
         var anchor = Stalker2SaveReader.GetWalletAnchor();
@@ -488,9 +496,7 @@ public static class Stalker2InventoryReader
                 warnings.Add($"Handle {FormatHandle(pair.Key)}: неизвестный object kind={record.Kind}, только read-only");
             }
 
-            var editable = !legacy && !unresolved.Contains(pair.Key) &&
-                ((record.Count > 1 && StackKinds.Contains(record.Kind)) ||
-                 (record.Count >= 1 && SingleStackKinds.Contains(record.Kind)));
+            var editable = !legacy && !unresolved.Contains(pair.Key) && IsEditableStack(record.Kind, record.Count);
             var typeKeyBytes = raw.Slice(record.Offset + 8, 3);
             var displayName = DisplayName(names, typeKeyBytes);
             var weaponState = !legacy && record.Kind == 0 && names is not null

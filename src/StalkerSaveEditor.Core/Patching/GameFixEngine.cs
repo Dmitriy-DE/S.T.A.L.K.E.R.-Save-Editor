@@ -397,6 +397,15 @@ public sealed partial class GameFixEngine
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException or JsonException)
         {
             var rollbackErrors = RollbackInstallation(applied);
+            if (rollbackErrors.Count > 0)
+            {
+                // Some game files could not be put back. The recovery copies are the only way to restore them, so
+                // nothing is cleaned up: the state directory stays and blocks reuse until the files are restored.
+                var kept = WriteRecoveryNote(fixDirectory, definition.Id, changes, applied, rollbackErrors);
+                throw new IOException(
+                    $"Game Fix installation failed: {exception.Message}; the game files could not all be restored ({string.Join("; ", rollbackErrors)}). " +
+                    $"The original files are kept in {backupDirectory}{kept}.", exception);
+            }
             try
             {
                 if (priorManifestBytes is null)
@@ -948,6 +957,38 @@ public sealed partial class GameFixEngine
         }
     }
 
+    /// <summary>Lists which original copy belongs to which game file after a rollback that did not complete.</summary>
+    private string WriteRecoveryNote(string fixDirectory, string fixId, IReadOnlyList<PreparedFileChange> changes,
+        IReadOnlyList<PreparedFileChange> applied, IReadOnlyList<string> errors)
+    {
+        try
+        {
+            var lines = new List<string>
+            {
+                "Game Fix " + fixId + ": the installation failed and the game files could not all be restored.",
+                "Copy each original file back over the game file, then delete this folder.",
+                string.Empty,
+            };
+            for (var index = 0; index < changes.Count; index++)
+            {
+                var change = changes[index];
+                var state = applied.Contains(change) ? "may be changed" : "not touched";
+                lines.Add(change.TargetExistedBefore
+                    ? $"backups/file-{index:D4}.before -> {change.RelativePath} ({state}, original sha256 {change.BeforeSha256})"
+                    : $"{change.RelativePath} ({state}): did not exist before; delete it if present");
+            }
+            lines.Add(string.Empty);
+            lines.AddRange(errors.Select(error => "problem: " + error));
+            var notePath = Path.Combine(fixDirectory, "RECOVERY.txt");
+            _fileSystem.WriteAllBytes(notePath, Encoding.UTF8.GetBytes(string.Join("\n", lines) + "\n"));
+            return "; see " + notePath;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return string.Empty;
+        }
+    }
+
     private List<string> RollbackInstallation(IReadOnlyList<PreparedFileChange> applied)
     {
         var errors = new List<string>();
@@ -996,7 +1037,9 @@ public sealed partial class GameFixEngine
                     continue;
                 }
 
-                AtomicGameFileWriter.Write(_fileSystem, change.AbsolutePath, change.BeforeBytes, overwrite: false);
+                // An existing file was replaced by the uninstall and is verified above, so it may be replaced back;
+                // a removed overlay must not exist any more, so it is created exclusively.
+                AtomicGameFileWriter.Write(_fileSystem, change.AbsolutePath, change.BeforeBytes, overwrite: change.TargetExistedBefore);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
             {

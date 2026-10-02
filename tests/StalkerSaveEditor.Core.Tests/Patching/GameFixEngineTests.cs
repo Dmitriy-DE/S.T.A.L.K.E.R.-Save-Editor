@@ -436,6 +436,61 @@ public sealed class GameFixEngineTests
     }
 
     [Fact]
+    public void Install_keeps_the_recovery_copies_when_the_rollback_itself_fails()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.rollback-fails");
+        var first = fixture.GetFile("gamedata/scripts/first.script");
+        var second = fixture.GetFile("gamedata/scripts/second.script");
+        // first: the install write succeeds, the rollback write fails; second: the install write fails.
+        var fileSystem = new ScriptedMoveFileSystem((destination, attempt) => destination == second || (destination == first && attempt == 2));
+
+        var error = Assert.Throws<IOException>(() => new GameFixEngine(fileSystem, allowSyntheticDefinitions: true).Install(definition, fixture.GameDirectory));
+
+        Assert.Contains("could not all be restored", error.Message, StringComparison.Ordinal);
+        Assert.Equal("first = 2\n", File.ReadAllText(first));
+        var state = Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.rollback-fails");
+        Assert.Equal("first = 1\n", File.ReadAllText(Path.Combine(state, "backups", "file-0000.before")));
+        Assert.Equal("second = 1\n", File.ReadAllText(Path.Combine(state, "backups", "file-0001.before")));
+        Assert.Contains("backups/file-0000.before -> gamedata/scripts/first.script", File.ReadAllText(Path.Combine(state, "RECOVERY.txt")), StringComparison.Ordinal);
+        // The leftover state blocks a blind reinstall over the half-changed game.
+        Assert.Throws<InvalidOperationException>(() => TestEngine().Install(definition, fixture.GameDirectory));
+    }
+
+    [Fact]
+    public void Uninstall_rollback_puts_the_installed_file_back_when_a_later_restore_fails()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.uninstall-rollback");
+        TestEngine().Install(definition, fixture.GameDirectory);
+        var first = fixture.GetFile("gamedata/scripts/first.script");
+        var second = fixture.GetFile("gamedata/scripts/second.script");
+        var failing = new GameFixEngine(new ScriptedMoveFileSystem((destination, _) => destination == second), allowSyntheticDefinitions: true);
+
+        var error = Assert.Throws<IOException>(() => failing.Uninstall(definition, fixture.GameDirectory));
+
+        Assert.DoesNotContain("rollback problems", error.Message, StringComparison.Ordinal);
+        Assert.Equal("first = 2\n", File.ReadAllText(first));
+        Assert.Equal("second = 2\n", File.ReadAllText(second));
+        Assert.Equal(GameFixState.Removed, TestEngine().Uninstall(definition, fixture.GameDirectory).State);
+        Assert.Equal("first = 1\n", File.ReadAllText(first));
+        Assert.Equal("second = 1\n", File.ReadAllText(second));
+    }
+
+    private static GameFixDefinition TwoFileFix(SteamGameFixture fixture, string id) => fixture.Fix(id, "first = 1", "first = 2") with
+    {
+        TextPatches =
+        [
+            new TextPatchOperation("gamedata/scripts/first.script", "first = 1", "first = 2"),
+            new TextPatchOperation("gamedata/scripts/second.script", "second = 1", "second = 2"),
+        ],
+    };
+
+    [Fact]
     public void Install_refuses_a_target_changed_after_preflight()
     {
         using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
@@ -724,6 +779,32 @@ public sealed class GameFixEngineTests
     {
         if (codePage == 1251) Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         return Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+    }
+
+    /// <summary>Fails the Nth final move onto a destination when the predicate says so (attempts count per destination).</summary>
+    private sealed class ScriptedMoveFileSystem(Func<string, int, bool> fail) : IGameFileSystem
+    {
+        private readonly PhysicalGameFileSystem _inner = new();
+        private readonly Dictionary<string, int> _attempts = new(StringComparer.Ordinal);
+
+        public bool FileExists(string path) => _inner.FileExists(path);
+        public bool DirectoryExists(string path) => _inner.DirectoryExists(path);
+        public IEnumerable<string> EnumerateFiles(string path, string pattern, SearchOption option) => _inner.EnumerateFiles(path, pattern, option);
+        public IEnumerable<string> EnumerateDirectories(string path, string pattern, SearchOption option) => _inner.EnumerateDirectories(path, pattern, option);
+        public byte[] ReadAllBytes(string path) => _inner.ReadAllBytes(path);
+        public string ReadAllText(string path) => _inner.ReadAllText(path);
+        public Stream OpenRead(string path) => _inner.OpenRead(path);
+        public FileAttributes GetAttributes(string path) => _inner.GetAttributes(path);
+        public void CreateDirectory(string path) => _inner.CreateDirectory(path);
+        public void WriteAllBytes(string path, byte[] bytes) => _inner.WriteAllBytes(path, bytes);
+        public void Move(string source, string destination, bool overwrite)
+        {
+            var attempt = _attempts[destination] = _attempts.GetValueOrDefault(destination) + 1;
+            if (fail(destination, attempt)) throw new IOException("injected move failure");
+            _inner.Move(source, destination, overwrite);
+        }
+        public void DeleteFile(string path) => _inner.DeleteFile(path);
+        public void DeleteDirectory(string path, bool recursive) => _inner.DeleteDirectory(path, recursive);
     }
 
     private sealed class FailOnTargetMoveFileSystem(string? failTarget = null, string? changeTargetAfterBackup = null) : IGameFileSystem

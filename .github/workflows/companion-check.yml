@@ -1,7 +1,9 @@
 name: Companion Mod Check
 
 on:
+  # Branch pushes are checked through their pull request; a second identical run per push only doubled the queue.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

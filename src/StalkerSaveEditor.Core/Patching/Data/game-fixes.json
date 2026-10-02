@@ -5500,6 +5500,145 @@
       "references": [
         "Sky Reclamation Project 1.1.5, version history (list of known faults)"
       ]
+    },
+    {
+      "id": "soc.crash.remark-target-not-ready",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "No crash when an NPC cannot find the target of his remark yet",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/xr_remark.script",
+          "expectedText": "    if st.target_init == false then\r\n      return nil\r\n",
+          "replacementText": "    if self.st.target_init == false then\r\n      return nil\r\n",
+          "expectedFileSha256": "cb7b136949276dbb61648fa87869047c4c9eae3af101a95d88ee1e831cd6e63d",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. ZRP 1.07 R5 (NatVac) fixes the same place; the fault was read in the retail file.",
+      "problem": "An NPC in the 'remark' scheme looks at a target that may be a job of his camp. When that job is not taken yet, the code tests the result through a variable that does not exist ('st' instead of 'self.st') and the game stops with 'attempt to index global 'st' (a nil value)'.",
+      "description": "The test reads the same variable as the line above it.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/"
+      ]
+    },
+    {
+      "id": "soc.crash.territory-no-attacker",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "No crash in a guarded zone when somebody is hurt or dies without an attacker",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/scripts/sr_territory.script",
+          "expectedText": "\tprintf(\"territory hit callback: [%s][%s]\", tostring(amount), tostring(who:name()))\r\n\tif who:id() ~= db.actor:id() then\r\n",
+          "replacementText": "\tif who == nil or db.actor == nil or who:id() ~= db.actor:id() then\r\n",
+          "expectedFileSha256": "e7e5cb9a53651509723a00fdea822cc117dd2d22dc1cd840ab1f81d0fb9327dc",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/scripts/sr_territory.script",
+          "expectedText": "\tprintf(\"territory death callback: [%s]\", tostring(victim:name()), tostring(who:name()))\r\n\tif who:id() ~= db.actor:id() then\r\n",
+          "replacementText": "\tif who == nil or db.actor == nil or who:id() ~= db.actor:id() then\r\n",
+          "expectedFileSha256": "e7e5cb9a53651509723a00fdea822cc117dd2d22dc1cd840ab1f81d0fb9327dc",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. ZRP 1.07 R5 (NatVac) fixes the same place; the fault was read in the retail file.",
+      "problem": "Guarded zones (the Bar, for example) watch hits and deaths inside them to punish the player. Both handlers ask for the attacker's name and id without checking that there is one. A death from bleeding or from an anomaly has no attacker, and the game stops with 'attempt to index local 'who' (a nil value)'.",
+      "description": "Both handlers leave when there is no attacker.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/"
+      ]
+    },
+    {
+      "id": "soc.logic.x18-danger-hit-distance-key",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "Lab X-18: the scout reacts to hits at the distance set for him",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/gulag_labx18.ltx",
+          "expectedText": "ignore_distance_danger_hit     = 20\r\n",
+          "replacementText": "ignore_distance_hit     = 20\r\n",
+          "expectedFileSha256": "971e79625cc72abd99f48eec951e627e4ea4c7c5e0b02d5c57372db7824760f5",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. ZRP 1.07 R5 (NatVac) fixes the same place; the fault was read in the retail file.",
+      "problem": "One job in lab X-18 sets 'ignore_distance_danger_hit = 20'. The danger scheme reads 'ignore_distance_hit', so the value is ignored and the default of 150 m is used.",
+      "description": "The key is spelled as the scheme reads it (the same mistake as in the Bar job, fixed separately).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/"
+      ]
+    },
+    {
+      "id": "soc.item.shell-artefact-name",
+      "game": "ShadowOfChernobyl",
+      "version": "1.0.0",
+      "title": "The 'Shell' artefact is no longer called 'Battery'",
+      "supportedSteamBuildIds": [
+        "11567845"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/config/misc/artefacts.ltx",
+          "expectedText": "description\t\t\t= enc_zone_artifact_af-dummy-dummy\r\ninv_name\t\t\t= af-dummy-battery\r\n",
+          "replacementText": "description\t\t\t= enc_zone_artifact_af-dummy-dummy\r\ninv_name\t\t\t= af-dummy-dummy\r\n",
+          "expectedFileSha256": "eac64f88a468d709367d1d8340b5138e032a03180ccdfa7a4b7a1dca55ad3487",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own change for retail 1.0006. ZRP 1.07 R5 (NatVac) fixes the same place; the fault was read in the retail file.",
+      "problem": "The 'Shell' artefact (af_dummy_dummy) has the description of the Shell but the inventory name of the Battery, so two different artefacts carry one name.",
+      "description": "The artefact gets its own name, as in the Enhanced Edition.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "https://www.metacognix.com/stlkrsoc/"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -5803,6 +5942,16 @@
     "cs.logic.dark-valley-holdup-after-base": [
       "85ccc394baa1c9f300d0cfa8a3189f028be6d7ebca070af37344ac519ccef143",
       "82e70574102280b796aea0f78419f365dc923dd1b7064216fabc2b8996c4dd4f"
+    ],
+    "soc.crash.remark-target-not-ready": [
+      "72d454931d08ff444d99944fa45ee27bca21ec0e0593e576419b448019a2f00f"
+    ],
+    "soc.crash.territory-no-attacker": [
+      "10c3d3568e04c6bff4ff205b38974317a5d43e1bf4d347d8bf37fc06e8c15899",
+      "10c3d3568e04c6bff4ff205b38974317a5d43e1bf4d347d8bf37fc06e8c15899"
+    ],
+    "soc.logic.x18-danger-hit-distance-key": [
+      "971e79625cc72abd99f48eec951e627e4ea4c7c5e0b02d5c57372db7824760f5"
     ]
   }
 }

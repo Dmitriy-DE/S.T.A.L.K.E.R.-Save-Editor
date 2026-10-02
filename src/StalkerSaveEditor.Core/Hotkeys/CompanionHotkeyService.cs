@@ -264,7 +264,11 @@ internal static class GlobalHotkeyBackendFactory
 
         if (OperatingSystem.IsLinux())
         {
-            return new LinuxX11HotkeyBackend();
+            // In the application the keys are grabbed by a helper process with its own Xlib; hosts that did not
+            // register one (tests, the CLI) use the same code in-process.
+            return X11HotkeyHelper.Launch is { } launch
+                ? new HelperProcessHotkeyBackend(() => new HotkeyHelperProcess(launch()))
+                : new LinuxX11HotkeyBackend();
         }
 
         return new UnsupportedHotkeyBackend();

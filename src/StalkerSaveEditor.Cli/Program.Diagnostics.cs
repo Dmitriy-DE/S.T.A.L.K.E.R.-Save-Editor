@@ -9,7 +9,7 @@ internal static partial class Program
 {
     private static int Crash(string[] args)
     {
-        const string usage = "Usage: crash discover [--steam-root PATH] [--json] | crash analyse LOG [--game NAME] [--json]";
+        const string usage = "Usage: crash discover [--steam-root PATH] [--json] | crash analyse LOG_OR_MDMP [--game NAME] [--json]";
         if (args.Length >= 2 && args[1] == "discover")
         {
             var steamRoots = new List<string>();
@@ -64,8 +64,7 @@ internal static partial class Program
             }
         }
 
-        var fileTime = new DateTimeOffset(File.GetLastWriteTimeUtc(args[2]), TimeSpan.Zero);
-        var analysis = CrashLogAnalyzer.Analyze(File.ReadAllText(args[2]), game, fileTime);
+        var analysis = CrashLogAnalyzer.AnalyzeFile(args[2], game);
         if (json)
         {
             Console.WriteLine(JsonSerializer.Serialize(analysis, CliJsonContext.Default.CrashLogAnalysis));
@@ -80,6 +79,7 @@ internal static partial class Program
         if (analysis.File is not null) Console.WriteLine("File: " + analysis.File);
         if (analysis.Line is not null) Console.WriteLine("Line: " + analysis.Line.Value.ToString(CultureInfo.InvariantCulture));
         if (analysis.Exception is not null) Console.WriteLine("Context: " + analysis.Exception);
+        foreach (var evidence in analysis.Evidence) Console.WriteLine("  " + evidence);
         Console.WriteLine("Known issue: " + (analysis.KnownIssueId ?? "no validated signature match"));
         if (analysis.KnownIssue is { } issue)
         {

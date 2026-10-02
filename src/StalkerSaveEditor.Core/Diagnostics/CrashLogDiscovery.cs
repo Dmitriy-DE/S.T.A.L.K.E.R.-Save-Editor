@@ -16,24 +16,31 @@ public static class CrashLogDiscovery
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
 
-    /// <summary>The newest *.log in the game's own log folders, analyzed from its last 256 KiB; null when there is none.</summary>
+    /// <summary>
+    /// The newest log or minidump in the game's own log folders; null when there is none. A dump is preferred to a log
+    /// that holds no crash: the game overwrites its log on the next start, the dump of the crash stays.
+    /// </summary>
     public static CrashLogAnalysis? AnalyzeLatestInGameDirectory(string gameDirectory, string? game = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
-        var newest = new[] { "logs", Path.Combine("_appdata_", "logs"), Path.Combine("_appdata_", "log") }
+        var files = new[] { "logs", Path.Combine("_appdata_", "logs"), Path.Combine("_appdata_", "log") }
             .Select(folder => Path.Combine(gameDirectory, folder))
             .Where(Directory.Exists)
-            .SelectMany(folder => new DirectoryInfo(folder).EnumerateFiles("*.log"))
+            .SelectMany(folder => new DirectoryInfo(folder).EnumerateFiles())
+            .Where(file => IsCrashFile(file.Name))
             .OrderByDescending(file => file.LastWriteTimeUtc)
-            .FirstOrDefault();
-        if (newest is null) return null;
+            .ToArray();
+        if (files.Length == 0) return null;
 
-        const int tail = 256 * 1024;
-        using var stream = newest.OpenRead();
-        if (stream.Length > tail) stream.Seek(-tail, SeekOrigin.End);
-        using var reader = new StreamReader(stream, System.Text.Encoding.Latin1);
-        return CrashLogAnalyzer.Analyze(reader.ReadToEnd(), game, new DateTimeOffset(newest.LastWriteTimeUtc, TimeSpan.Zero));
+        var newest = CrashLogAnalyzer.AnalyzeFile(files[0].FullName, game);
+        if (newest.Kind != CrashLogKind.Unknown) return newest;
+        var dump = files.FirstOrDefault(file => file.Extension.Equals(".mdmp", StringComparison.OrdinalIgnoreCase));
+        return dump is null || dump == files[0] ? newest : CrashLogAnalyzer.AnalyzeFile(dump.FullName, game);
     }
+
+    private static bool IsCrashFile(string name) =>
+        Path.GetExtension(name) is { } extension &&
+        (extension.Equals(".log", StringComparison.OrdinalIgnoreCase) || extension.Equals(".mdmp", StringComparison.OrdinalIgnoreCase));
 
     public static IReadOnlyList<DiscoveredCrashLog> DiscoverRecentLogs(
         IReadOnlyList<GameDoctorInstallation>? installations = null,
@@ -81,7 +88,7 @@ public static class CrashLogDiscovery
             {
                 foreach (var path in Directory.EnumerateFiles(directory.Key, "*", SearchOption.TopDirectoryOnly))
                 {
-                    if (!string.Equals(Path.GetExtension(path), ".log", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!IsCrashFile(path)) continue;
                     try
                     {
                         var info = new FileInfo(path);

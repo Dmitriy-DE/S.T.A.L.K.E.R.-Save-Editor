@@ -9,7 +9,7 @@ Catalogue version `2026.10.1`:
 | Game (Steam build) | Fixes | Essential | Recommended | Community | In the Recommended preset | Enhanced Edition variants (build) |
 |---|---|---|---|---|---|---|
 | Shadow of Chernobyl 1.0006 (`11567845`) | 35 | 12 | 23 | 0 | 35 | 20 (`24067120`) |
-| Clear Sky 1.5.10 (`11450472`) | 74 | 27 | 45 | 2 | 72 | 50 (`24067129`) |
+| Clear Sky 1.5.10 (`11450472`) | 75 | 28 | 45 | 2 | 73 | 51 (`24067129`) |
 | Call of Pripyat 1.6.02 (`11450453`) | 36 | 8 | 14 | 14 | 22 | 25 (`24067133`) |
 
 Each definition is bound to the SHA-256 of the file the game actually uses (a patch archive overrides the base

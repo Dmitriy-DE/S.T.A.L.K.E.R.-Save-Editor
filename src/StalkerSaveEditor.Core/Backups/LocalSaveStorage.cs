@@ -105,11 +105,11 @@ public static class LocalSaveStorage
                 throw new IOException("Source changed immediately before export publication.");
             }
 
-            File.Move(temporaryOutputPath, outputFullPath, overwrite: false);
+            Storage.DurableFile.Move(temporaryOutputPath, outputFullPath, overwrite: false);
             VerifyFile(outputFullPath, outputBytes, outputSha256, "Export output");
             journal["status"] = "verified";
             WriteTemporary(temporaryJournalPath, SerializeJournal(journal));
-            File.Move(temporaryJournalPath, journalPath, overwrite: true);
+            Storage.DurableFile.Move(temporaryJournalPath, journalPath, overwrite: true);
             return new LocalSaveExportReceipt(outputFullPath, backupPath, journalPath, outputSha256);
         }
         finally
@@ -368,7 +368,7 @@ public static class LocalSaveStorage
         try
         {
             WriteTemporary(temporaryPath, bytes);
-            File.Move(temporaryPath, outputFullPath, overwrite: false);
+            Storage.DurableFile.Move(temporaryPath, outputFullPath, overwrite: false);
             published = true;
             VerifyFile(outputFullPath, bytes, record.SourceSha256, "Restored output");
             return new LocalSaveRestoreReceipt(outputFullPath, record.BackupPath, record.SourceSha256);
@@ -454,11 +454,11 @@ public static class LocalSaveStorage
                 throw new IOException("Current save changed immediately before in-place restore.");
             }
 
-            File.Move(temporaryPath, sourceFullPath, overwrite: true);
+            Storage.DurableFile.Move(temporaryPath, sourceFullPath, overwrite: true);
             VerifyFile(sourceFullPath, sourceBytes, record.SourceSha256, "Restored save");
             safetyJournal["status"] = "verified";
             WriteTemporary(temporaryJournalPath, SerializeJournal(safetyJournal));
-            File.Move(temporaryJournalPath, safetyJournalPath, overwrite: true);
+            Storage.DurableFile.Move(temporaryJournalPath, safetyJournalPath, overwrite: true);
             return new LocalSaveRestoreReceipt(
                 sourceFullPath,
                 record.BackupPath,

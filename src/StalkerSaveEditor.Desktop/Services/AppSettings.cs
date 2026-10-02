@@ -45,14 +45,12 @@ public sealed record AppSettings
         }
     }
 
-    /// <summary>Atomic write (temp file + move).</summary>
-    public void Save(string path)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        var temp = path + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(this, AppSettingsJson.Default.AppSettings));
-        File.Move(temp, path, overwrite: true);
-    }
+    /// <summary>
+    /// Atomic and durable: a unique temp file flushed to disk, then renamed. Two windows saving at once no longer
+    /// share one ".tmp", and a crash mid-write leaves the previous settings instead of a truncated file.
+    /// </summary>
+    public void Save(string path) =>
+        Core.Storage.AtomicFile.WriteAllText(path, JsonSerializer.Serialize(this, AppSettingsJson.Default.AppSettings));
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]

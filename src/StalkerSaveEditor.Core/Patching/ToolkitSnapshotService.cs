@@ -680,24 +680,7 @@ public sealed partial class ToolkitSnapshotService
 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
-    private static void WriteAtomically(string path, byte[] bytes)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.WriteThrough))
-            {
-                stream.Write(bytes);
-                stream.Flush(flushToDisk: true);
-            }
-            File.Move(temp, path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temp)) File.Delete(temp);
-        }
-    }
+    private static void WriteAtomically(string path, byte[] bytes) => Storage.AtomicFile.WriteAllBytes(path, bytes);
 
     private sealed record SnapshotDocument(int SchemaVersion, ToolkitSnapshotInfo Info);
 

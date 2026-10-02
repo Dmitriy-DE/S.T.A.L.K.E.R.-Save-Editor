@@ -455,8 +455,127 @@ public sealed class GameFixEngineTests
         Assert.Equal("first = 1\n", File.ReadAllText(Path.Combine(state, "backups", "file-0000.before")));
         Assert.Equal("second = 1\n", File.ReadAllText(Path.Combine(state, "backups", "file-0001.before")));
         Assert.Contains("backups/file-0000.before -> gamedata/scripts/first.script", File.ReadAllText(Path.Combine(state, "RECOVERY.txt")), StringComparison.Ordinal);
-        // The leftover state blocks a blind reinstall over the half-changed game.
-        Assert.Throws<InvalidOperationException>(() => TestEngine().Install(definition, fixture.GameDirectory));
+        // The next operation first puts the original back from the journal, then installs normally.
+        Assert.True(File.Exists(Path.Combine(state, "transaction.json")));
+        Assert.Equal(GameFixState.Installed, TestEngine().Install(definition, fixture.GameDirectory).State);
+        Assert.Equal("first = 2\n", File.ReadAllText(first));
+        Assert.Equal("second = 2\n", File.ReadAllText(second));
+        Assert.False(File.Exists(Path.Combine(state, "transaction.json")));
+        Assert.False(File.Exists(Path.Combine(state, "RECOVERY.txt")));
+    }
+
+    [Fact]
+    public void An_install_killed_between_two_files_is_undone_by_recovery()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.killed-install");
+        var first = fixture.GetFile("gamedata/scripts/first.script");
+        var second = fixture.GetFile("gamedata/scripts/second.script");
+        var killed = new GameFixEngine(new KilledProcessFileSystem(move: destination => destination == second), allowSyntheticDefinitions: true);
+
+        Assert.Throws<ProcessKilled>(() => killed.Install(definition, fixture.GameDirectory));
+
+        // What a killed process leaves: one file patched, no manifest, the journal on disk.
+        Assert.Equal("first = 2\n", File.ReadAllText(first));
+        Assert.Equal("second = 1\n", File.ReadAllText(second));
+        var state = Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.killed-install");
+        Assert.True(File.Exists(Path.Combine(state, "transaction.json")));
+        Assert.Empty(TestEngine().ListInstalled(fixture.GameDirectory));
+
+        Assert.Equal(["cs.test.killed-install"], TestEngine().RecoverInterrupted(fixture.GameDirectory));
+
+        Assert.Equal("first = 1\n", File.ReadAllText(first));
+        Assert.Equal("second = 1\n", File.ReadAllText(second));
+        Assert.False(Directory.Exists(state));
+        Assert.Empty(TestEngine().RecoverInterrupted(fixture.GameDirectory));
+        Assert.Equal(GameFixState.Installed, TestEngine().Install(definition, fixture.GameDirectory).State);
+    }
+
+    [Fact]
+    public void A_killed_install_of_one_fix_is_undone_before_another_fix_is_installed()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        fixture.Write("gamedata/scripts/other.script", "other = 1\n");
+        var second = fixture.GetFile("gamedata/scripts/second.script");
+        var killed = new GameFixEngine(new KilledProcessFileSystem(move: destination => destination == second), allowSyntheticDefinitions: true);
+        Assert.Throws<ProcessKilled>(() => killed.Install(TwoFileFix(fixture, "cs.test.killed-a"), fixture.GameDirectory));
+        var other = fixture.Fix("cs.test.other", "other = 1", "other = 2") with
+        {
+            TextPatches = [new TextPatchOperation("gamedata/scripts/other.script", "other = 1", "other = 2")],
+        };
+
+        Assert.Equal(GameFixState.Installed, TestEngine().Install(other, fixture.GameDirectory).State);
+
+        Assert.Equal("first = 1\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/first.script")));
+        Assert.Equal("other = 2\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/other.script")));
+        Assert.Equal(["cs.test.other"], TestEngine().ListInstalled(fixture.GameDirectory).Select(info => info.Id));
+    }
+
+    [Fact]
+    public void A_removal_killed_between_two_files_is_finished_by_the_next_operation()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.killed-removal");
+        TestEngine().Install(definition, fixture.GameDirectory);
+        var first = fixture.GetFile("gamedata/scripts/first.script");
+        var second = fixture.GetFile("gamedata/scripts/second.script");
+        var killed = new GameFixEngine(new KilledProcessFileSystem(move: destination => destination == second), allowSyntheticDefinitions: true);
+
+        Assert.Throws<ProcessKilled>(() => killed.Uninstall(definition, fixture.GameDirectory));
+        Assert.Equal("first = 1\n", File.ReadAllText(first));
+        Assert.Equal("second = 2\n", File.ReadAllText(second));
+
+        Assert.Equal(GameFixState.Removed, TestEngine().Uninstall(definition, fixture.GameDirectory).State);
+
+        Assert.Equal("second = 1\n", File.ReadAllText(second));
+        Assert.Equal(GameFixState.Removed, TestEngine().GetStatus(definition, fixture.GameDirectory));
+        Assert.False(File.Exists(Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.killed-removal", "transaction.json")));
+    }
+
+    [Fact]
+    public void A_kill_after_the_manifest_was_written_keeps_the_finished_install()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.killed-after-commit");
+        var killed = new GameFixEngine(
+            new KilledProcessFileSystem(delete: path => Path.GetFileName(path) == "transaction.json"), allowSyntheticDefinitions: true);
+
+        Assert.Throws<ProcessKilled>(() => killed.Install(definition, fixture.GameDirectory));
+
+        Assert.Empty(TestEngine().RecoverInterrupted(fixture.GameDirectory));
+        Assert.Equal(GameFixState.Installed, TestEngine().GetStatus(definition, fixture.GameDirectory));
+        Assert.Equal("first = 2\n", File.ReadAllText(fixture.GetFile("gamedata/scripts/first.script")));
+        Assert.False(File.Exists(Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.killed-after-commit", "transaction.json")));
+    }
+
+    [Fact]
+    public void Recovery_does_not_overwrite_a_file_someone_changed_after_the_kill()
+    {
+        using var fixture = new SteamGameFixture(GameTarget.ClearSky, "19000000");
+        fixture.Write("gamedata/scripts/first.script", "first = 1\n");
+        fixture.Write("gamedata/scripts/second.script", "second = 1\n");
+        var definition = TwoFileFix(fixture, "cs.test.killed-then-edited");
+        var first = fixture.GetFile("gamedata/scripts/first.script");
+        var second = fixture.GetFile("gamedata/scripts/second.script");
+        var killed = new GameFixEngine(new KilledProcessFileSystem(move: destination => destination == second), allowSyntheticDefinitions: true);
+        Assert.Throws<ProcessKilled>(() => killed.Install(definition, fixture.GameDirectory));
+        File.WriteAllText(first, "first = 3\n");
+
+        var error = Assert.Throws<IOException>(() => TestEngine().RecoverInterrupted(fixture.GameDirectory));
+
+        Assert.Contains("changed by something else", error.Message, StringComparison.Ordinal);
+        Assert.Equal("first = 3\n", File.ReadAllText(first));
+        var state = Path.Combine(fixture.GameDirectory, ".save-editor-game-fixes", "cs.test.killed-then-edited");
+        Assert.Equal("first = 1\n", File.ReadAllText(Path.Combine(state, "backups", "file-0000.before")));
+        Assert.Throws<IOException>(() => TestEngine().Install(definition, fixture.GameDirectory));
     }
 
     [Fact]
@@ -779,6 +898,40 @@ public sealed class GameFixEngineTests
     {
         if (codePage == 1251) Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         return Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+    }
+
+    /// <summary>Not an I/O error: the engine must not catch it, so nothing is rolled back — as if the process died there.</summary>
+    private sealed class ProcessKilled : Exception;
+
+    private sealed class KilledProcessFileSystem(Func<string, bool>? move = null, Func<string, bool>? delete = null) : IGameFileSystem
+    {
+        private readonly PhysicalGameFileSystem _inner = new();
+
+        public bool FileExists(string path) => _inner.FileExists(path);
+        public bool DirectoryExists(string path) => _inner.DirectoryExists(path);
+        public IEnumerable<string> EnumerateFiles(string path, string pattern, SearchOption option) => _inner.EnumerateFiles(path, pattern, option);
+        public IEnumerable<string> EnumerateDirectories(string path, string pattern, SearchOption option) => _inner.EnumerateDirectories(path, pattern, option);
+        public byte[] ReadAllBytes(string path) => _inner.ReadAllBytes(path);
+        public string ReadAllText(string path) => _inner.ReadAllText(path);
+        public Stream OpenRead(string path) => _inner.OpenRead(path);
+        public FileAttributes GetAttributes(string path) => _inner.GetAttributes(path);
+        public void CreateDirectory(string path) => _inner.CreateDirectory(path);
+        public void WriteAllBytes(string path, byte[] bytes) => _inner.WriteAllBytes(path, bytes);
+        public void Move(string source, string destination, bool overwrite)
+        {
+            if (move?.Invoke(destination) == true)
+            {
+                _inner.DeleteFile(source);
+                throw new ProcessKilled();
+            }
+            _inner.Move(source, destination, overwrite);
+        }
+        public void DeleteFile(string path)
+        {
+            if (delete?.Invoke(path) == true) throw new ProcessKilled();
+            _inner.DeleteFile(path);
+        }
+        public void DeleteDirectory(string path, bool recursive) => _inner.DeleteDirectory(path, recursive);
     }
 
     /// <summary>Fails the Nth final move onto a destination when the predicate says so (attempts count per destination).</summary>

@@ -540,6 +540,112 @@ public sealed class CompanionInstallerTests
         Assert.False(Directory.Exists(Path.Combine(game.GameDirectory, ".save-editor-companion")));
     }
 
+    [Fact]
+    public void An_install_killed_half_way_is_undone_before_the_next_install()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var before = Snapshot(game.GameDirectory);
+        var killed = new CompanionInstaller(ModSourceRoot, new KilledProcessFileSystem((_, gameDataMoves) => gameDataMoves == 3));
+
+        Assert.Throws<ProcessKilled>(() => killed.Install(CompanionGame.CallOfPripyat, game.GameDirectory));
+
+        // What the killed process left: some mod files, no manifest, the journal.
+        var state = Path.Combine(game.GameDirectory, ".save-editor-companion");
+        Assert.True(File.Exists(Path.Combine(state, "transaction.json")));
+        Assert.False(File.Exists(Path.Combine(state, "manifest.json")));
+        Assert.NotEqual(before, Snapshot(game.GameDirectory));
+
+        var installer = new CompanionInstaller(ModSourceRoot);
+        Assert.True(installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory).Changed);
+
+        AssertHooked(game.GameDirectory, CompanionGame.CallOfPripyat);
+        Assert.False(File.Exists(Path.Combine(state, "transaction.json")));
+        Assert.False(Directory.Exists(Path.Combine(state, "transaction")));
+        Assert.True(installer.Uninstall(CompanionGame.CallOfPripyat, game.GameDirectory).Success);
+        Assert.Equal(before, Snapshot(game.GameDirectory));
+    }
+
+    [Fact]
+    public void Removing_after_a_killed_install_leaves_the_game_as_it_was()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var before = Snapshot(game.GameDirectory);
+        var killed = new CompanionInstaller(ModSourceRoot, new KilledProcessFileSystem((_, gameDataMoves) => gameDataMoves == 4));
+        Assert.Throws<ProcessKilled>(() => killed.Install(CompanionGame.CallOfPripyat, game.GameDirectory));
+
+        Assert.True(new CompanionInstaller(ModSourceRoot).Uninstall(CompanionGame.CallOfPripyat, game.GameDirectory).Success);
+
+        Assert.Equal(before, Snapshot(game.GameDirectory));
+    }
+
+    [Fact]
+    public void A_killed_upgrade_goes_back_to_the_previous_working_install()
+    {
+        using var game = SyntheticGame.Create(CompanionGame.CallOfPripyat);
+        var installer = new CompanionInstaller(ModSourceRoot);
+        installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory);
+        var installed = Snapshot(game.GameDirectory);
+        // An older build of one mod file on disk and in the manifest: the next install is an upgrade of that file.
+        var manifestPath = Path.Combine(game.GameDirectory, ".save-editor-companion", "manifest.json");
+        var managed = installer.GetManagedFileStatus(CompanionGame.CallOfPripyat, game.GameDirectory)
+            .Select(file => file.RelativePath.Replace('\\', '/'))
+            .First(path => path.EndsWith(".script", StringComparison.Ordinal) && !path.EndsWith("bind_stalker.script", StringComparison.Ordinal));
+        var managedPath = Path.Combine(game.GameDirectory, managed.Replace('/', Path.DirectorySeparatorChar));
+        var current = File.ReadAllBytes(managedPath);
+        var older = current.Concat("\n-- older build\n"u8.ToArray()).ToArray();
+        File.WriteAllBytes(managedPath, older);
+        File.WriteAllText(manifestPath, File.ReadAllText(manifestPath).Replace(Sha(current), Sha(older), StringComparison.Ordinal));
+        var previous = Snapshot(game.GameDirectory);
+        var killed = new CompanionInstaller(ModSourceRoot, new KilledProcessFileSystem((destination, _) => Path.GetFileName(destination) == "manifest.json"));
+
+        Assert.Throws<ProcessKilled>(() => killed.Install(CompanionGame.CallOfPripyat, game.GameDirectory));
+        Assert.Equal(current, File.ReadAllBytes(managedPath));
+
+        // The interrupted upgrade is undone first; the same install then runs cleanly.
+        Assert.True(installer.Install(CompanionGame.CallOfPripyat, game.GameDirectory).Changed);
+        Assert.Equal(installed, Snapshot(game.GameDirectory));
+        Assert.NotEqual(previous, installed);
+    }
+
+    private static string Sha(byte[] bytes) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+
+    private static string Snapshot(string gameDirectory) => string.Join("\n", Directory
+        .EnumerateFileSystemEntries(gameDirectory, "*", SearchOption.AllDirectories)
+        .Select(path => Path.GetRelativePath(gameDirectory, path).Replace('\\', '/') + (Directory.Exists(path) ? "/" : " " + Sha(File.ReadAllBytes(path))))
+        .Order(StringComparer.Ordinal));
+
+    /// <summary>Not an I/O error: the installer must not catch it, so nothing is rolled back — as if the process died there.</summary>
+    private sealed class ProcessKilled : Exception;
+
+    private sealed class KilledProcessFileSystem(Func<string, int, bool> kill) : IGameFileSystem
+    {
+        private readonly PhysicalGameFileSystem _inner = new();
+        private int _moves;
+
+        public bool FileExists(string path) => _inner.FileExists(path);
+        public bool DirectoryExists(string path) => _inner.DirectoryExists(path);
+        public IEnumerable<string> EnumerateFiles(string path, string pattern, SearchOption option) => _inner.EnumerateFiles(path, pattern, option);
+        public IEnumerable<string> EnumerateDirectories(string path, string pattern, SearchOption option) => _inner.EnumerateDirectories(path, pattern, option);
+        public byte[] ReadAllBytes(string path) => _inner.ReadAllBytes(path);
+        public string ReadAllText(string path) => _inner.ReadAllText(path);
+        public Stream OpenRead(string path) => _inner.OpenRead(path);
+        public FileAttributes GetAttributes(string path) => _inner.GetAttributes(path);
+        public void CreateDirectory(string path) => _inner.CreateDirectory(path);
+        public void WriteAllBytes(string path, byte[] bytes) => _inner.WriteAllBytes(path, bytes);
+        public void Move(string source, string destination, bool overwrite)
+        {
+            if (destination.Replace('\\', '/').Contains("/gamedata/", StringComparison.Ordinal)) _moves++;
+            if (kill(destination, _moves))
+            {
+                _inner.DeleteFile(source);
+                throw new ProcessKilled();
+            }
+            _inner.Move(source, destination, overwrite);
+        }
+        public void DeleteFile(string path) => _inner.DeleteFile(path);
+        public void DeleteDirectory(string path, bool recursive) => _inner.DeleteDirectory(path, recursive);
+    }
+
     private static void AssertHooked(string gameDirectory, CompanionGame game)
     {
         var bind = File.ReadAllText(Path.Combine(gameDirectory, "gamedata", "scripts", "bind_stalker.script"));

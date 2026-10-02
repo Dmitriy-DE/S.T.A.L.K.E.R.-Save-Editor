@@ -246,7 +246,7 @@ public static class LocalSaveReplacement
         public void WriteNew(string path, byte[] data) => Storage.DurableFile.WriteNew(path, data, ownerOnly: true);
 
         public void Replace(string sourcePath, string destinationPath) =>
-            File.Move(sourcePath, destinationPath, overwrite: true);
+            Storage.DurableFile.Move(sourcePath, destinationPath, overwrite: true);
 
         public void DeleteIfExists(string path)
         {

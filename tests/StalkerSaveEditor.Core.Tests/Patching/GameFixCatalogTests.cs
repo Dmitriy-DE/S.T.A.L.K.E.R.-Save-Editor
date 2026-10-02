@@ -174,12 +174,13 @@ public sealed class GameFixCatalogTests
                 reference.Contains("github.com/victor-homyakov/stalker-cop-patch", StringComparison.Ordinal) ||
                 reference.Contains("moddb.com/mods/pripyat-reclamation-patch", StringComparison.Ordinal) ||
                 reference.Contains("steamcommunity.com/sharedfiles/filedetails/?id=3487808500", StringComparison.Ordinal) ||
-                reference.Contains("Enhanced Edition, gamedata/scripts", StringComparison.Ordinal));
+                reference.Contains("Enhanced Edition, gamedata/scripts", StringComparison.Ordinal) ||
+                reference.Contains("tools/check_condlists.py", StringComparison.Ordinal));
             Assert.All(fix.TextPatches, patch => Assert.Matches("^[0-9a-f]{64}$", patch.ExpectedFileSha256));
         });
 
         var recommended = GameFixCatalog.ForPreset(GameTarget.CallOfPripyat, GameFixPreset.Recommended);
-        Assert.Equal(17, recommended.Count);
+        Assert.Equal(21, recommended.Count);
         Assert.Contains(recommended, fix => fix.Id == "cop.weapon.spas12-sight-alignment");
         Assert.Contains(recommended, fix => fix.Id == "cop.weapon.val-sight-alignment");
         Assert.Contains(recommended, fix => fix.Id == "cop.dialog.correct-anomaly-name");

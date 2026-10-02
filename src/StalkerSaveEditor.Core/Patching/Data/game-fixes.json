@@ -5639,6 +5639,163 @@
       "references": [
         "https://www.metacognix.com/stlkrsoc/"
       ]
+    },
+    {
+      "id": "cop.crash.kopachi-zombie-squad-gone",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Jupiter: no crash when the Kopachi zombie squad is wiped out while it is still growing",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/jupiter/jup_b19_sr_zombied_squad.ltx",
+          "expectedText": "{!squad_exist(jup_b19_kopatci_zombied_squad) sr_idle@nil\r\n",
+          "replacementText": "{!squad_exist(jup_b19_kopatci_zombied_squad)} sr_idle@nil\r\n",
+          "expectedFileSha256": "c9f55026043d14927f7974a49557888fd0b8d0e6208945589303eacdacf40f4b",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check of the logic files for references to sections that do not exist and for malformed conditions. The Enhanced Edition has the same fault.",
+      "problem": "In Kopachi a zombie squad is created and then gets a new member every few seconds until there are nine. The line that handles 'the squad no longer exists' lacks its closing brace, so the whole condition is taken for a section name. When every zombie is killed before the ninth arrives, the game looks for that section and stops with 'activate_by_section: section ... does not exist'.",
+      "description": "The brace is added; the spawner simply stops when the squad is gone.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "xr_logic.script: activate_by_section aborts when the section does not exist"
+      ]
+    },
+    {
+      "id": "cop.crash.laundry-second-door-strelok-scene",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Pripyat: no crash at the laundry's second door when the scene with Strelok starts",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/pripyat/pri_a16_ph_door_second_base_enter.ltx",
+          "expectedText": "on_info4 = {+pri_b305_third_cam_go -pri_b305_quest_completed} ph_door@closed_b305 %-pri_a16_base_second_door_open%",
+          "replacementText": "on_info4 = {+pri_b305_third_cam_go -pri_b305_fifth_cam_end} ph_door@locked_b305 %-pri_a16_base_second_door_open%",
+          "expectedFileSha256": "06c2b05be59d1857d2c09ccc243c1b7c86fdfaf87448297deba9796bd2f26861",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/pripyat/pri_a16_ph_door_second_base_enter.ltx",
+          "expectedText": "on_info3 = {+pri_b305_third_cam_go -pri_b305_quest_completed} ph_door@closed_b305",
+          "replacementText": "on_info3 = {+pri_b305_third_cam_go -pri_b305_fifth_cam_end} ph_door@locked_b305",
+          "expectedFileSha256": "06c2b05be59d1857d2c09ccc243c1b7c86fdfaf87448297deba9796bd2f26861",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check of the logic files for references to sections that do not exist and for malformed conditions. The Enhanced Edition has the same fault.",
+      "problem": "When the scene with Strelok begins, both doors of the laundry are switched to a special state. The second door names a state that only the main door has ('ph_door@closed_b305'). If the second door is open, or locked by an alarm, at that moment, the game stops with 'activate_by_section: section 'ph_door@closed_b305' does not exist'.",
+      "description": "Both lines point at the state the second door really has for this scene ('ph_door@locked_b305', already used by its closed state).",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "xr_logic.script: activate_by_section aborts when the section does not exist"
+      ]
+    },
+    {
+      "id": "cop.crash.gauss-squad-return-path-end",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Pripyat: no crash when Tarasov's squad reaches the end of its way home",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Essential",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/pripyat/pri_a17_military_captain_tarasov.ltx",
+          "expectedText": "on_signal = path_end | walker@base_1",
+          "replacementText": "on_signal = path_end | walker@base",
+          "expectedFileSha256": "2e37fde36e262a3f8460c35ba1161456fcb0a7a060ff065e840400054469162f",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/pripyat/pri_a17_military_prapor_valentyr.ltx",
+          "expectedText": "on_signal = path_end | walker@base_1",
+          "replacementText": "on_signal = path_end | walker@base",
+          "expectedFileSha256": "ad1f24ee5ad3028132d42d0c235f529090e66d6e02c3b83957256587db39a018",
+          "codePage": 28591
+        },
+        {
+          "relativePath": "gamedata/configs/scripts/pripyat/pri_a17_military_lieutenant_podorojniy.ltx",
+          "expectedText": "on_signal = path_end | walker@base_1",
+          "replacementText": "on_signal = path_end | walker@base",
+          "expectedFileSha256": "fb4472658ca4a13ba92b5b7a3f0cd4eece40a9c6a5d1bb8612b15352e33a772b",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check of the logic files for references to sections that do not exist and for malformed conditions. The Enhanced Edition has the same fault.",
+      "problem": "After the fight for the Gauss rifle, Tarasov, Valentyr and Podorozhny walk back to the laundry. Normally they switch to their base state when they enter the laundry zone. If one of them reaches the last point of the route first, his logic asks for 'walker@base_1', which does not exist (the state is called 'walker@base'), and the game stops.",
+      "description": "The three files name the existing state.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "xr_logic.script: activate_by_section aborts when the section does not exist"
+      ]
+    },
+    {
+      "id": "cop.logic.x8-poltergeist-toilet-burer",
+      "game": "CallOfPripyat",
+      "version": "1.0.0",
+      "title": "Lab X-8: the poltergeist leaves you alone while you fight the second burer too",
+      "supportedSteamBuildIds": [
+        "11450453"
+      ],
+      "category": "Recommended",
+      "maturity": "Validated",
+      "dependsOn": [],
+      "conflictsWith": [],
+      "textPatches": [
+        {
+          "relativePath": "gamedata/configs/scripts/labx8/lx8_poltergeist.ltx",
+          "expectedText": "on_info2  {-lx8_polter_ignore",
+          "replacementText": "on_info2 = {-lx8_polter_ignore",
+          "expectedFileSha256": "6b5584018010bd0a249443dab79dde3e9ea509542f2b82c4e473d61b60d335d3",
+          "codePage": 28591
+        }
+      ],
+      "source": "Our own finding and change: a static check of the logic files for references to sections that do not exist and for malformed conditions. The Enhanced Edition has the same fault.",
+      "problem": "The X-8 poltergeist stops attacking the player while he is in a burer's room. The line for the room of the lone burer has no '=' after its key, so it is not read and the poltergeist keeps attacking there.",
+      "description": "The '=' is added; the line works like the one for the other burers.",
+      "implementation": "ExactTextReplacement",
+      "requiresNewGame": false,
+      "saveCompatibility": "Unknown",
+      "verificationState": "RetailFilesVerified",
+      "detectionMethod": "Exact SHA-256 of the retail source file and one unique text anchor per change.",
+      "references": [
+        "tools/check_condlists.py and tools/logic_refs.py run over the retail configs",
+        "xr_logic.script: activate_by_section aborts when the section does not exist"
+      ]
     }
   ],
   "enhancedEditionSha256": {
@@ -5952,6 +6109,21 @@
     ],
     "soc.logic.x18-danger-hit-distance-key": [
       "971e79625cc72abd99f48eec951e627e4ea4c7c5e0b02d5c57372db7824760f5"
+    ],
+    "cop.crash.kopachi-zombie-squad-gone": [
+      "c9f55026043d14927f7974a49557888fd0b8d0e6208945589303eacdacf40f4b"
+    ],
+    "cop.crash.laundry-second-door-strelok-scene": [
+      "06c2b05be59d1857d2c09ccc243c1b7c86fdfaf87448297deba9796bd2f26861",
+      "06c2b05be59d1857d2c09ccc243c1b7c86fdfaf87448297deba9796bd2f26861"
+    ],
+    "cop.crash.gauss-squad-return-path-end": [
+      "2e37fde36e262a3f8460c35ba1161456fcb0a7a060ff065e840400054469162f",
+      "ad1f24ee5ad3028132d42d0c235f529090e66d6e02c3b83957256587db39a018",
+      "fb4472658ca4a13ba92b5b7a3f0cd4eece40a9c6a5d1bb8612b15352e33a772b"
+    ],
+    "cop.logic.x8-poltergeist-toilet-burer": [
+      "6b5584018010bd0a249443dab79dde3e9ea509542f2b82c4e473d61b60d335d3"
     ]
   }
 }

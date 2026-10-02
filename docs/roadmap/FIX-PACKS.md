@@ -108,6 +108,17 @@ own checkers (`check_condlists`, `check_logic_refs`, `check_dialogs`, `lua_globa
 | Found, left as shipped | CoP `zat_b7_duty_illicit_dealer_b5.ltx` malformed `combat_ignore_cond` | repairing changes a quest fight that works |
 | Our own remedy, unobserved | `cs.crash.smart-terrain-no-free-job` (job sharing), `cs.save.npc-spawn-before-player` (deferred set-up) | in the catalogue, but their behaviour has not been seen in the game: first things to look at in a play test |
 
+Scenes looked at one by one after the owner asked for them (2026-10-02), and why they stay out:
+
+| Scene | What was found | Result |
+|---|---|---|
+| Limansk bridge squad firing at the house | retail takes the squad off these posts when the machine gun dies and a retail restrictor sends it to storm the house; SRP removed that and built its own cease-fire states, and its later "keeps firing" entries repair that redesign | not a retail fault that can be cut out; nothing ported |
+| Cordon bus-stop skirmish starting early | the task and both squads are identical in retail and SRP; the change sits somewhere in SRP's reworked Cordon quest line and squad simulation | no local change to take |
+| Kostyan's squad attacking early | SRP: all.spawn, new game only, tied to its reworked Army Warehouses line | not ported |
+| Yantar factory defence flow | SRP rewrote the stalkers' logic files (150+ changed lines each); the retail typos in that scene are fixed (`cs.logic.yantar-factory-scene-typos`) | rewrite not ported |
+| Wet surfaces shaders, DX9 `vert.ps` | re-tuning of the effect / the engine's own entry-point convention | not faults; the MSAA edge shader is fixed (`cs.render.msaa-edge-compare`, #252) |
+| SRP sounds, textures, models | 26 replacements (25 weapon sounds for SRP's own weapon configs, the Limansk bridge model), 17 new files no retail config uses | only the bridge model repairs a retail fault; it needs a download source for binary content (open decision) |
+
 New entries from here on need evidence the sources do not give: real crash logs (the Game Doctor collects them) or
 a play test.
 
@@ -146,6 +157,8 @@ Candidates seen in the diffs and deliberately not ported:
 - 2026-10-02 — two more CS batches after the owner asked for everything that can be done: #250 (stalker set-up waits for the
   player, Hog's death after the task, Compass order, Red Forest bridge unlock, delayed-defend guards) and #251 (attacking
   squads skip post jobs, offline fights reach idle squads, counter-attacks leave scripted squads). CS 73 / 71 (EE 50).
+- 2026-10-02 — #252: `cs.render.msaa-edge-compare`; `FIX-AUDIT-2026-10-02.md` — per fix the game function, its users, the effect
+  for the player and the depth of the check. CS 74 / 72. From now on every fix gets such a record in its PR.
 
 - 2026-10-02 — five more batches (#240–#244), 18 new fixes and one extended:
   - CS from the SRP fault list (#240): mutant killed by nobody (`mob_death`), attack logic key `agressive`, Freedom exo
